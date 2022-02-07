@@ -1,0 +1,41 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://addons/road-generator/road_point.gd" type="Script" id=1]
+[ext_resource path="res://addons/road-generator/road_network.gd" type="Script" id=2]
+
+[node name="Spatial" type="Spatial"]
+
+[node name="RoadNetwork" type="Node" parent="."]
+script = ExtResource( 2 )
+
+[node name="points" type="Node" parent="RoadNetwork"]
+
+[node name="first_point" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 4.36297, 0, -6.34729 )
+script = ExtResource( 1 )
+next_seg_init = NodePath("../second_point")
+
+[node name="second_point" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.04734 )
+script = ExtResource( 1 )
+lane_width = 3.0
+prior_seg_init = NodePath("../first_point")
+next_seg_init = NodePath("../third_point")
+
+[node name="third_point" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( 0.775947, 0, 0.630798, 0, 1, 0, -0.630798, 0, 0.775947, 14.2477, 0, 18.2697 )
+script = ExtResource( 1 )
+lane_width = 3.0
+prior_seg_init = NodePath("../second_point")
+next_seg_init = NodePath("../fourth_rev")
+
+[node name="fourth_rev" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( -0.684204, 0, -0.729291, 0, 1, 0, 0.729291, 0, -0.684204, 24.0996, 0, 27.2208 )
+script = ExtResource( 1 )
+lane_width = 3.0
+next_seg_init = NodePath("../third_point")
+
+[node name="segments" type="Node" parent="RoadNetwork"]
+
+[node name="Camera" type="Camera" parent="."]
+transform = Transform( 0.425669, 0.244055, -0.871346, 0, 0.962942, 0.26971, 0.904879, -0.114807, 0.409894, -10.8965, 7.93972, 19.0539 )

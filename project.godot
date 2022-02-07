@@ -1,0 +1,48 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=4
+
+_global_script_classes=[ {
+"base": "Node",
+"class": "LanePoint",
+"language": "GDScript",
+"path": "res://addons/road-generator/lane_point.gd"
+}, {
+"base": "Spatial",
+"class": "RoadPoint",
+"language": "GDScript",
+"path": "res://addons/road-generator/road_point.gd"
+}, {
+"base": "MeshInstance",
+"class": "RoadSegment",
+"language": "GDScript",
+"path": "res://addons/road-generator/road_segment.gd"
+} ]
+_global_script_class_icons={
+"LanePoint": "",
+"RoadPoint": "res://addons/road-generator/road_point.png",
+"RoadSegment": ""
+}
+
+[application]
+
+config/name="Test-spatial-gizmo-addon"
+config/icon="res://icon.png"
+
+[editor_plugins]
+
+enabled=PoolStringArray( "res://addons/road-generator/plugin.cfg" )
+
+[physics]
+
+common/enable_pause_aware_picking=true
+
+[rendering]
+
+environment/default_environment="res://default_env.tres"
