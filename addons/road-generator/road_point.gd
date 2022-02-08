@@ -8,27 +8,29 @@ const COLOR_RED = Color(0.7, 0.3, 0.3)
 # Conceptual: could be a list of points for lane nav ends with direction
 export var lanes:Array = [-1, -1, 1, 1] setget _set_lanes, _get_lanes
 export var lane_width := 4.0 setget _set_width, _get_width
-export(NodePath) var prior_seg_init
-export(NodePath) var next_seg_init
+export(NodePath) var prior_pt_init
+export(NodePath) var next_pt_init
 
 # Ultimate assignment if any export path specified
-var prior_seg:Spatial # Road Point or Junction
-var next_seg:Spatial # Road Point or Junction
+var prior_pt:Spatial # Road Point or Junction
+#var prior_seg:RoadSegment
+var next_pt:Spatial # Road Point or Junction
+#var next_seg:RoadSegment
 
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
 func _ready():
-	if prior_seg_init:
-		prior_seg = get_node(prior_seg_init)
-	if next_seg_init:
-		next_seg = get_node(next_seg_init)
+	if prior_pt_init:
+		prior_pt = get_node(prior_pt_init)
+	if next_pt_init:
+		next_pt = get_node(next_pt_init)
 	rebuild_geom()
 
 
 func _to_string():
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
-		self.get_parent().name,  self.translation, prior_seg, next_seg]
+		self.get_parent().name,  self.translation, prior_pt, next_pt]
 
 # ------------------------------------------------------------------------------
 # Editor visualizing

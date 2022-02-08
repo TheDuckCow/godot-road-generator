@@ -10,15 +10,18 @@ var segid_map = {}
 
 
 func _ready():
-	rebuild_segments()
+	rebuild_segments(true)
 
 
-func rebuild_segments():
-	# TODO: think of using groups instead, to have a single maanger
-	# that is not dependnet on this.
-	var seg_ids = []
-	for ch in segments.get_children():
-		seg_ids.append(ch.get_id())
+func rebuild_segments(clear_existing=false):
+	if clear_existing:
+		segid_map = {}
+		for ch in segments.get_children():
+			ch.queue_free()
+	else:
+		# TODO: think of using groups instead, to have a single maanger
+		# that is not dependnet on this.
+		pass
 	
 	# Goal is to loop through all RoadPoints, and check if an existing segment
 	# is there, or needs to be added.
@@ -29,23 +32,19 @@ func rebuild_segments():
 			push_warning("Invalid child object under points of road network")
 			continue
 		var pt:RoadPoint = obj
-		if not pt.prior_seg or not pt.next_seg:
+		if not pt.prior_pt or not pt.next_pt:
 			print_debug("Not connected to anything yet")
 			continue
 		
-		# TODO: The below will have issues if a "next" goes into "next",
-		# but doing this for simplicity now.
-		if pt.prior_seg:
-			process_seg(pt.prior_seg, obj)
-			var sid = "%s-%s" % [pt.prior_seg.get_instance_id(), obj.get_instance_id()]
-			if not sid in seg_ids:
-				print("Adding new segment")
-				
-		if pt.next_seg:
-			process_seg(obj, pt.next_seg)
+		if pt.prior_pt:
+			process_seg(pt.prior_pt, pt)
+		if pt.next_pt:
+			process_seg(pt, pt.next_pt)
 
 
 func process_seg(pt1, pt2):
+	# TODO: The id setup below will have issues if a "next" goes into "prior", ie rev dir
+	# but doing this for simplicity now.
 	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
 	if sid in segid_map:
 		print("Segment existed already, running refresh")
