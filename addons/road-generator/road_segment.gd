@@ -68,9 +68,9 @@ func check_refresh():
 		start_point = get_node(start_init)
 	if end_init:
 		end_point = get_node(end_init)
-	if not start_point or not is_instance_valid(start_point):
+	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
 		is_dirty = false
-	if not end_point or not is_instance_valid(end_point):
+	if not end_point or not is_instance_valid(end_point) or not end_point.visible:
 		is_dirty = false
 	if is_dirty:
 		_rebuild()

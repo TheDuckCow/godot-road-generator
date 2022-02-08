@@ -1,6 +1,9 @@
 ## Manager used to generate the actual road segments when needed.
+tool
 extends Node
 
+
+export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
 
 onready var points = $points
 onready var segments = $segments
@@ -11,6 +14,15 @@ var segid_map = {}
 
 func _ready():
 	rebuild_segments(true)
+
+
+func _ui_refresh_set(value):
+	refresh = value
+	rebuild_segments(true)
+
+
+func _ui_refresh_get():
+	return refresh
 
 
 func rebuild_segments(clear_existing=false):
