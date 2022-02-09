@@ -54,6 +54,11 @@ func _get_width():
 	return lane_width
 
 
+func on_transform():
+	var network = get_parent().get_parent()
+	network.rebuild_segments()
+
+
 func rebuild_geom():
 	# if refresh_geom:
 	call_deferred("_instantiate_geom")

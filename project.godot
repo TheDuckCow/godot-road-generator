@@ -27,7 +27,7 @@ _global_script_classes=[ {
 _global_script_class_icons={
 "LanePoint": "",
 "RoadPoint": "res://addons/road-generator/road_point.png",
-"RoadSegment": ""
+"RoadSegment": "res://addons/road-generator/road_segment.png"
 }
 
 [application]

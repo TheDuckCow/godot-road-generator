@@ -4,6 +4,7 @@ extends Node
 
 
 export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
+export(Material) var material_resource:Material
 
 onready var points = $points
 onready var segments = $segments
@@ -67,5 +68,6 @@ func process_seg(pt1, pt2):
 	new_seg.start_point = pt1
 	new_seg.end_point = pt2
 	segid_map[sid] = new_seg
+	new_seg.material = material_resource
 	segments.add_child(new_seg)
 	new_seg.call_deferred("check_refresh")

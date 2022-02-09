@@ -3,7 +3,7 @@
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
 extends Spatial
-class_name RoadSegment
+class_name RoadSegment, "road_segment.png"
 
 export(NodePath) var start_init setget _init_start_set, _init_start_get
 export(NodePath) var end_init setget _init_end_set, _init_end_get
@@ -13,6 +13,7 @@ var end_point:RoadPoint
 
 var path:Path
 var road_mesh:MeshInstance
+var material:Material
 
 # Likely will need reference of a curve.. do later.
 # var curve 
@@ -30,13 +31,14 @@ func get_id():
 	# TODO: consider changing so that the smaller resource id is first,
 	# so that we avoid bidirectional issues.
 	if start_point and end_point:
-		return "%s-%s" % [start_point.get_instance_id(), start_point.get_instance_id()]
+		name = "%s-%s" % [start_point.get_instance_id(), start_point.get_instance_id()]
 	elif start_point:
-		return "%s-x" % start_point.get_instance_id()
+		name = "%s-x" % start_point.get_instance_id()
 	elif end_point:
-		"x-%s" % end_point.get_instance_id()
+		name = "x-%s" % end_point.get_instance_id()
 	else:
-		return "x-x"
+		name = "x-x"
+	return name
 	
 
 # ------------------------------------------------------------------------------
@@ -82,6 +84,7 @@ func check_refresh():
 
 ## Construct the geometry of this road segment.
 func _rebuild():
+	get_id()
 	if not road_mesh:
 		road_mesh = MeshInstance.new()
 		add_child(road_mesh)
@@ -111,15 +114,16 @@ func _rebuild():
 	elif len(start_point.lanes) == len(end_point.lanes):
 		var start_loop = to_local(start_point.global_transform.origin)
 		var end_loop = to_local(end_point.global_transform.origin)
-		for i in range(len(start_point.lanes)):
+		var lane_count = max(len(start_point.lanes), len(end_point.lanes))
+		for i in range(lane_count):
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
 			#st.add_normal(Vector3(0, 1, 0))
-			st.add_uv(Vector2(0, 0))
+			st.add_uv(Vector2(1, 0))
 			st.add_vertex(start_loop) # Call last for each vertex, adds the above attributes.
 			# p1
 			#st.add_normal(Vector3(0, 1, 0))
-			st.add_uv(Vector2(0, 1))
+			st.add_uv(Vector2(0, 0))
 			st.add_vertex(start_loop + start_point.global_transform.basis.x * start_point.lane_width)
 			# p3
 			#st.add_normal(Vector3(0, 1, 0))
@@ -143,8 +147,11 @@ func _rebuild():
 	else:
 		push_warning("Non-same number of lanes not implemented yet")
 	st.index()
+	if material:
+		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
 	road_mesh.create_trimesh_collision() # Call deferred?
 	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	
 	

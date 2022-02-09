@@ -1,12 +1,18 @@
-[gd_scene load_steps=3 format=2]
+[gd_scene load_steps=6 format=2]
 
 [ext_resource path="res://addons/road-generator/road_point.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/road_network.gd" type="Script" id=2]
+[ext_resource path="res://addons/road-generator/road_texture.material" type="Material" id=3]
+
+[sub_resource type="BoxShape" id=2]
+
+[sub_resource type="CubeMesh" id=3]
 
 [node name="Spatial" type="Spatial"]
 
 [node name="RoadNetwork" type="Node" parent="."]
 script = ExtResource( 2 )
+material_resource = ExtResource( 3 )
 
 [node name="points" type="Node" parent="RoadNetwork"]
 
@@ -40,3 +46,13 @@ next_pt_init = NodePath("../third_point")
 
 [node name="Camera" type="Camera" parent="."]
 transform = Transform( -4.37114e-08, 1, 4.37114e-08, 0, -4.37114e-08, 1, 1, 4.37114e-08, 1.91069e-15, 11.7931, 31.3969, 9.17629 )
+
+[node name="RigidBody" type="RigidBody" parent="."]
+transform = Transform( 0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, 5.43023, 2.44613, -8.82278 )
+
+[node name="CollisionShape" type="CollisionShape" parent="RigidBody"]
+shape = SubResource( 2 )
+
+[node name="MeshInstance" type="MeshInstance" parent="RigidBody"]
+mesh = SubResource( 3 )
+material/0 = null
