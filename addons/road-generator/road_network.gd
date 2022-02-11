@@ -2,7 +2,6 @@
 tool
 extends Node
 
-
 export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
@@ -11,6 +10,8 @@ onready var segments = $segments
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
+
+
 
 
 func _ready():

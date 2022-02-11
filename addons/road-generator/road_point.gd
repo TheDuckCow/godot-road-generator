@@ -2,6 +2,7 @@ tool
 extends Spatial
 class_name RoadPoint, "road_point.png"
 
+const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 
@@ -13,12 +14,14 @@ export(NodePath) var next_pt_init
 
 # Ultimate assignment if any export path specified
 var prior_pt:Spatial # Road Point or Junction
-#var prior_seg:RoadSegment
+var prior_seg # :RoadSegment
 var next_pt:Spatial # Road Point or Junction
-#var next_seg:RoadSegment
+var next_seg # :RoadSegment
 
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
+
+var _last_update_ms # To calculate min updates.
 
 func _ready():
 	if prior_pt_init:
@@ -54,9 +57,22 @@ func _get_width():
 	return lane_width
 
 
+func _notification(what):
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		on_transform()
+		
+
 func on_transform():
 	var network = get_parent().get_parent()
-	network.rebuild_segments()
+	#var clear_existing = true
+	#network.rebuild_segments(clear_existing)
+	print("Is transforming, ", prior_seg, next_seg)
+	if prior_seg:
+		prior_seg.is_dirty = true
+		prior_seg.check_refresh()
+	if next_seg:
+		next_seg.is_dirty = true
+		next_seg.check_refresh()
 
 
 func rebuild_geom():

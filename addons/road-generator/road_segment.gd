@@ -68,8 +68,10 @@ func _init_end_get():
 func check_refresh():
 	if start_init:
 		start_point = get_node(start_init)
+	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if end_init:
 		end_point = get_node(end_init)
+	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
 		is_dirty = false
 	if not end_point or not is_instance_valid(end_point) or not end_point.visible:
@@ -94,11 +96,6 @@ func _rebuild():
 		add_child(path)
 		path.name = "seg_path"
 	
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	#st.add_smooth_group(true)
-	print("(re)building segment")
-	
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
 		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
@@ -111,10 +108,22 @@ func _rebuild():
 			len(start_point.lanes), len(end_point.lanes), self.name
 		])
 		return
-	elif len(start_point.lanes) == len(end_point.lanes):
+	
+	# Create a low and high poly road, start with low poly.
+	_build_geo()
+
+
+func _build_geo():
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	#st.add_smooth_group(true)
+	print("(re)building segment")
+	var lane_count = max(len(start_point.lanes), len(end_point.lanes))
+	
+	if len(start_point.lanes) == len(end_point.lanes):
 		var start_loop = to_local(start_point.global_transform.origin)
 		var end_loop = to_local(end_point.global_transform.origin)
-		var lane_count = max(len(start_point.lanes), len(end_point.lanes))
+		
 		for i in range(lane_count):
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
@@ -153,5 +162,4 @@ func _rebuild():
 	road_mesh.mesh = st.commit()
 	road_mesh.create_trimesh_collision() # Call deferred?
 	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
-	
-	
+

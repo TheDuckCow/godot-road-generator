@@ -12,6 +12,7 @@
 
 [node name="RoadNetwork" type="Node" parent="."]
 script = ExtResource( 2 )
+refresh = true
 material_resource = ExtResource( 3 )
 
 [node name="points" type="Node" parent="RoadNetwork"]
@@ -22,14 +23,14 @@ script = ExtResource( 1 )
 next_pt_init = NodePath("../second_point")
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.954308, 0, 0.298824, 0, 1, 0, -0.298824, 0, 0.954308, 0, 0, 4.04734 )
+transform = Transform( 0.954308, 0, 0.298824, 0, 1, 0, -0.298824, 0, 0.954308, 2.81754, 1.55211, 2.10578 )
 script = ExtResource( 1 )
 lane_width = 3.0
 prior_pt_init = NodePath("../first_point")
 next_pt_init = NodePath("../third_point")
 
 [node name="third_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.775947, 0, 0.630798, 0, 1, 0, -0.630798, 0, 0.775947, 14.2477, 0, 18.2697 )
+transform = Transform( 0.775947, 0, 0.630798, 0, 1, 0, -0.630798, 0, 0.775947, 14.248, 0, 18.27 )
 script = ExtResource( 1 )
 lane_width = 3.0
 prior_pt_init = NodePath("../second_point")
