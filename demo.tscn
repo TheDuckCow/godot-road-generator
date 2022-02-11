@@ -30,7 +30,7 @@ prior_pt_init = NodePath("../first_point")
 next_pt_init = NodePath("../third_point")
 
 [node name="third_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.775947, 0, 0.630798, 0, 1, 0, -0.630798, 0, 0.775947, 14.248, 0, 18.27 )
+transform = Transform( 0.775947, 0, 0.630798, 0, 1, 0, -0.630798, 0, 0.775947, 14.248, 5.19295, 18.27 )
 script = ExtResource( 1 )
 lane_width = 3.0
 prior_pt_init = NodePath("../second_point")

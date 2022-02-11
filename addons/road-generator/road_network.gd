@@ -2,6 +2,8 @@
 tool
 extends Node
 
+#const RoadPoint = preload("res://addons/road-generator/road_point.gd")
+
 export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
@@ -10,8 +12,6 @@ onready var segments = $segments
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
-
-
 
 
 func _ready():
@@ -28,6 +28,8 @@ func _ui_refresh_get():
 
 
 func rebuild_segments(clear_existing=false):
+	if not segments:
+		return # Could be before ready called.
 	if clear_existing:
 		segid_map = {}
 		for ch in segments.get_children():

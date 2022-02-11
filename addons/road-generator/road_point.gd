@@ -23,12 +23,13 @@ var geom:ImmediateGeometry # For tool usage, drawing lane directions and end poi
 
 var _last_update_ms # To calculate min updates.
 
+
 func _ready():
 	if prior_pt_init:
 		prior_pt = get_node(prior_pt_init)
 	if next_pt_init:
 		next_pt = get_node(next_pt_init)
-	rebuild_geom()
+	# rebuild_geom()
 
 
 func _to_string():
@@ -64,8 +65,6 @@ func _notification(what):
 
 func on_transform():
 	var network = get_parent().get_parent()
-	#var clear_existing = true
-	#network.rebuild_segments(clear_existing)
 	print("Is transforming, ", prior_seg, next_seg)
 	if prior_seg:
 		prior_seg.is_dirty = true
@@ -74,6 +73,14 @@ func on_transform():
 		next_seg.is_dirty = true
 		next_seg.check_refresh()
 
+
+func show_gizmo():
+	rebuild_geom()
+
+
+func hide_gizmo():
+	geom.clear()
+	
 
 func rebuild_geom():
 	# if refresh_geom:
@@ -129,6 +136,4 @@ func _draw_lane_width():
 	geom.add_vertex(Vector3(-half_width, 0, 0))
 	geom.add_vertex(Vector3(-half_width, 0, -0.5))
 	
-	
 	geom.end()
-	
