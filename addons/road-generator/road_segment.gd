@@ -160,8 +160,8 @@ func _build_geo():
 		self.name, loops, clength])
 	
 	for loop in range(loops):
-		var offset_s = float(loop) / float(loops) * clength
-		var offset_e = float(loop + 1) / float(loops) * clength
+		var offset_s = float(loop) / float(loops)
+		var offset_e = float(loop + 1) / float(loops)
 	
 		#if len(start_point.lanes) == len(end_point.lanes):
 		var start_loop:Vector3
@@ -172,19 +172,22 @@ func _build_geo():
 			start_loop = to_local(start_point.global_transform.origin)
 			start_basis = start_point.global_transform.basis.x
 		else:
-			start_loop = path.curve.interpolate_baked(offset_s)
-			start_basis = _normal_for_offset(path.curve, offset_s)
+			start_loop = path.curve.interpolate_baked(offset_s * clength)
+			start_basis = _normal_for_offset(path.curve, offset_s * clength)
 			
 		if loop == loops - 1:
 			end_loop = to_local(end_point.global_transform.origin)
 			end_basis = end_point.global_transform.basis.x
 		else:
-			end_loop = path.curve.interpolate_baked(offset_e)
-			end_basis = _normal_for_offset(path.curve, offset_e)
+			end_loop = path.curve.interpolate_baked(offset_e * clength)
+			end_basis = _normal_for_offset(path.curve, offset_e * clength)
 		
 		print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 			loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
 		])
+		
+		var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
+		var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
 		
 		for i in range(lane_count):
 			# Prepare attributes for add_vertex.
@@ -194,17 +197,17 @@ func _build_geo():
 			st.add_vertex(start_loop) # Call last for each vertex, adds the above attributes.
 			# p1
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_basis * start_point.lane_width)
+			st.add_vertex(start_loop + start_basis * near_width)
 			# p3
 			st.add_uv(Vector2(1, 1))
 			st.add_vertex(end_loop)
 			
 			# Reverse face, p1
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_basis * start_point.lane_width)
+			st.add_vertex(start_loop + start_basis * near_width)
 			# p1
 			st.add_uv(Vector2(0, 1))
-			st.add_vertex(end_loop + end_basis * end_point.lane_width)
+			st.add_vertex(end_loop + end_basis * far_width)
 			# p3
 			st.add_uv(Vector2(1, 1))
 			st.add_vertex(end_loop)
