@@ -14,7 +14,7 @@ var end_point:RoadPoint
 var path:Path
 var road_mesh:MeshInstance
 var material:Material
-var density := 5.00  # Distance between loops, bake_interval in m applied to curve for geo creation.
+var density := 3.00  # Distance between loops, bake_interval in m applied to curve for geo creation.
 
 # Likely will need reference of a curve.. do later.
 # var curve 
@@ -141,7 +141,7 @@ func _normal_for_offset(curve:Curve3D, offset:float):
 	var point2 = curve.interpolate_baked(offset + 0.001)
 	var uptilt = curve.interpolate_baked_up_vector(offset, true)
 	var tangent:Vector3 = (point2 - point1)
-	return tangent.cross(uptilt).normalized()
+	return uptilt.cross(tangent).normalized()
 
 
 func _build_geo():
@@ -160,8 +160,8 @@ func _build_geo():
 		self.name, loops, clength])
 	
 	for loop in range(loops):
-		var offset_s = loop * density / clength
-		var offset_e = (loop + 1) * density / clength
+		var offset_s = float(loop) / float(loops) * clength
+		var offset_e = float(loop + 1) / float(loops) * clength
 	
 		#if len(start_point.lanes) == len(end_point.lanes):
 		var start_loop:Vector3
@@ -179,11 +179,11 @@ func _build_geo():
 			end_loop = to_local(end_point.global_transform.origin)
 			end_basis = end_point.global_transform.basis.x
 		else:
-			start_loop = path.curve.interpolate_baked(offset_e)
+			end_loop = path.curve.interpolate_baked(offset_e)
 			end_basis = _normal_for_offset(path.curve, offset_e)
 		
-		print("\tRunning loop %s; Start: %s,%s, end: %s,%s" % [
-			loop, start_loop, start_basis, end_loop, end_basis
+		print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
+			loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
 		])
 		
 		for i in range(lane_count):
