@@ -11,6 +11,9 @@ export var lanes:Array = [-1, -1, 1, 1] setget _set_lanes, _get_lanes
 export var lane_width := 4.0 setget _set_width, _get_width
 export(NodePath) var prior_pt_init
 export(NodePath) var next_pt_init
+# Handle magniture
+export(float) var prior_mag := 5.0
+export(float) var next_mag := 5.0
 
 # Ultimate assignment if any export path specified
 var prior_pt:Spatial # Road Point or Junction
@@ -72,6 +75,8 @@ func on_transform():
 	if next_seg:
 		next_seg.is_dirty = true
 		next_seg.check_refresh()
+	
+	network.update_debug_paths(self)
 
 
 func show_gizmo():
@@ -92,13 +97,7 @@ func _instantiate_geom():
 		if geom:
 			geom.clear()
 		return
-	print("Set lane?")
-	#print("Building geo (if editor/draw enabled)")
-	#if refresh_geom == false:
-	#	return
-	#refresh_geom = false
 	
-		# Setup immediate geo node if not already.
 	if geom == null:
 		print("Creating new geo + mat")
 		geom = ImmediateGeometry.new()

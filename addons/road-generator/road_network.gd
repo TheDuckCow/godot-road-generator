@@ -7,6 +7,9 @@ extends Node
 export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
+export(NodePath) var debug_prior
+export(NodePath) var debug_next
+
 onready var points = $points
 onready var segments = $segments
 
@@ -74,3 +77,29 @@ func process_seg(pt1, pt2):
 	new_seg.material = material_resource
 	segments.add_child(new_seg)
 	new_seg.call_deferred("check_refresh")
+
+
+# Update the position and contents of the curves for the given point object.
+func update_debug_paths(point:RoadPoint):
+	print_debug("Updating visual debug paths")
+	var prior_path
+	var next_path
+	if debug_prior:
+		prior_path = get_node(debug_prior)
+	if debug_next:
+		next_path = get_node(debug_next)
+	
+	var prior_seg = point.prior_seg
+	var next_seg = point.next_seg
+	
+	if prior_path and prior_seg and prior_seg.path and prior_seg.path.curve:
+		prior_path.global_transform.origin = prior_seg.global_transform.origin
+		prior_path.curve = prior_seg.path.curve
+	else:
+		prior_path.curve.clear_points()
+	if next_path and next_seg and next_seg.path and next_seg.path.curve:
+		next_path.global_transform.origin = next_seg.global_transform.origin
+		next_path.curve = next_seg.path.curve
+	else:
+		next_path.curve.clear_points()
+		

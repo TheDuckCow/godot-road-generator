@@ -1,8 +1,22 @@
-[gd_scene load_steps=6 format=2]
+[gd_scene load_steps=8 format=2]
 
 [ext_resource path="res://addons/road-generator/road_point.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/road_network.gd" type="Script" id=2]
 [ext_resource path="res://addons/road-generator/road_texture.material" type="Material" id=3]
+
+[sub_resource type="Curve3D" id=4]
+bake_interval = 2.5
+_data = {
+"points": PoolVector3Array(  ),
+"tilts": PoolRealArray(  )
+}
+
+[sub_resource type="Curve3D" id=5]
+bake_interval = 2.5
+_data = {
+"points": PoolVector3Array(  ),
+"tilts": PoolRealArray(  )
+}
 
 [sub_resource type="BoxShape" id=2]
 
@@ -14,16 +28,18 @@
 script = ExtResource( 2 )
 refresh = true
 material_resource = ExtResource( 3 )
+debug_prior = NodePath("debug_prior")
+debug_next = NodePath("debug_next")
 
 [node name="points" type="Node" parent="RoadNetwork"]
 
 [node name="first_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 4.36297, 0, -12.6491 )
+transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, -0.649576, 1.9172, -15.9278 )
 script = ExtResource( 1 )
 next_pt_init = NodePath("../second_point")
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.954308, 0, 0.298824, 0, 1, 0, -0.298824, 0, 0.954308, 2.81754, 1.55211, 2.10578 )
+transform = Transform( 0.812827, 0, 0.582506, 0, 1, 0, -0.582506, 0, 0.812827, 3.72768, 3.84634, -0.778318 )
 script = ExtResource( 1 )
 lane_width = 3.0
 prior_pt_init = NodePath("../first_point")
@@ -44,6 +60,14 @@ lane_width = 3.0
 next_pt_init = NodePath("../third_point")
 
 [node name="segments" type="Node" parent="RoadNetwork"]
+
+[node name="debug_prior" type="Path" parent="RoadNetwork"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.649576, 1.9172, -15.9278 )
+curve = SubResource( 4 )
+
+[node name="debug_next" type="Path" parent="RoadNetwork"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 3.72768, 3.84634, -0.778318 )
+curve = SubResource( 5 )
 
 [node name="Camera" type="Camera" parent="."]
 transform = Transform( -4.37114e-08, 1, 4.37114e-08, 0, -4.37114e-08, 1, 1, 4.37114e-08, 1.91069e-15, 11.7931, 31.3969, 9.17629 )

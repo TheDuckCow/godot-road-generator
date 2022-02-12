@@ -14,6 +14,7 @@ var end_point:RoadPoint
 var path:Path
 var road_mesh:MeshInstance
 var material:Material
+var density := 5.00  # Distance between loops, bake_interval in m applied to curve for geo creation.
 
 # Likely will need reference of a curve.. do later.
 # var curve 
@@ -91,10 +92,7 @@ func _rebuild():
 		road_mesh = MeshInstance.new()
 		add_child(road_mesh)
 		road_mesh.name = "road_mesh"
-	if not path:
-		path = Path.new()
-		add_child(path)
-		path.name = "seg_path"
+	_update_curve()
 	
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
@@ -113,6 +111,39 @@ func _rebuild():
 	_build_geo()
 
 
+func _update_curve():
+	if not path:
+		path = Path.new()
+		add_child(path)
+		path.name = "seg_path"
+	path.curve.clear_points()
+	path.curve.bake_interval = density / 2.0 # more points, for sampling.
+	path.transform.origin = Vector3.ZERO
+	path.transform.scaled(Vector3.ONE)
+	# path.transform. clear rotation.
+	
+	# Setup in handle of curve.
+	var pos = to_local(start_point.global_transform.origin)
+	#var handle = to_local(start_point.global_transform.basis.z * start_point.prior_mag)# - pos
+	var handle = start_point.global_transform.basis.z * start_point.prior_mag
+	path.curve.add_point(pos, -handle, handle)
+	# TODO: apply tilt to match the control point.
+	
+	# Out handle.
+	pos = to_local(end_point.global_transform.origin)
+	#handle = to_local(end_point.global_transform.basis.z * end_point.prior_mag)# - pos
+	handle = end_point.global_transform.basis.z * end_point.prior_mag
+	path.curve.add_point(pos, -handle, handle)
+
+
+func _normal_for_offset(curve:Curve3D, offset:float):
+	var point1 = curve.interpolate_baked(offset - 0.001)
+	var point2 = curve.interpolate_baked(offset + 0.001)
+	var uptilt = curve.interpolate_baked_up_vector(offset, true)
+	var tangent:Vector3 = (point2 - point1)
+	return tangent.cross(uptilt).normalized()
+
+
 func _build_geo():
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -120,9 +151,40 @@ func _build_geo():
 	print("(re)building segment")
 	var lane_count = max(len(start_point.lanes), len(end_point.lanes))
 	
-	if len(start_point.lanes) == len(end_point.lanes):
-		var start_loop = to_local(start_point.global_transform.origin)
-		var end_loop = to_local(end_point.global_transform.origin)
+	var clength = path.curve.get_baked_length()
+	# In this context, loop refers to quad faces, not the edges, as it will
+	# be a loop of generated faces.
+	var loops = int(max(floor(clength / density), 1.0)) # Need to sub 1?
+	
+	print_debug("%s: Seg gen: %s loops, length: %s, " % [
+		self.name, loops, clength])
+	
+	for loop in range(loops):
+		var offset_s = loop * density / clength
+		var offset_e = (loop + 1) * density / clength
+	
+		#if len(start_point.lanes) == len(end_point.lanes):
+		var start_loop:Vector3
+		var start_basis:Vector3
+		var end_loop:Vector3
+		var end_basis:Vector3
+		if loop == 0:
+			start_loop = to_local(start_point.global_transform.origin)
+			start_basis = start_point.global_transform.basis.x
+		else:
+			start_loop = path.curve.interpolate_baked(offset_s)
+			start_basis = _normal_for_offset(path.curve, offset_s)
+			
+		if loop == loops - 1:
+			end_loop = to_local(end_point.global_transform.origin)
+			end_basis = end_point.global_transform.basis.x
+		else:
+			start_loop = path.curve.interpolate_baked(offset_e)
+			end_basis = _normal_for_offset(path.curve, offset_e)
+		
+		print("\tRunning loop %s; Start: %s,%s, end: %s,%s" % [
+			loop, start_loop, start_basis, end_loop, end_basis
+		])
 		
 		for i in range(lane_count):
 			# Prepare attributes for add_vertex.
@@ -131,30 +193,25 @@ func _build_geo():
 			st.add_uv(Vector2(1, 0))
 			st.add_vertex(start_loop) # Call last for each vertex, adds the above attributes.
 			# p1
-			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_point.global_transform.basis.x * start_point.lane_width)
+			st.add_vertex(start_loop + start_basis * start_point.lane_width)
 			# p3
-			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(1, 1))
 			st.add_vertex(end_loop)
 			
 			# Reverse face, p1
-			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_point.global_transform.basis.x * start_point.lane_width)
+			st.add_vertex(start_loop + start_basis * start_point.lane_width)
 			# p1
-			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(0, 1))
-			st.add_vertex(end_loop + end_point.global_transform.basis.x * end_point.lane_width)
+			st.add_vertex(end_loop + end_basis * end_point.lane_width)
 			# p3
-			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(1, 1))
 			st.add_vertex(end_loop)
 			break
 			
-	else:
-		push_warning("Non-same number of lanes not implemented yet")
+		#else:
+		#push_warning("Non-same number of lanes not implemented yet")
 	st.index()
 	if material:
 		st.set_material(material)

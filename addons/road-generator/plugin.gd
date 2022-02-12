@@ -21,12 +21,13 @@ func _exit_tree():
 func _on_selection_changed():
 	# Returns an array of selected nodes
 	var selected = _eds.get_selected_nodes()
-	if not selected.empty():
-		print("On select change")
-		# Always pick first node in selection
-		var selected_node = selected[0]
-		if _last_point:
-			_last_point.hide_gizmo()
-		if selected_node is RoadPoint:
-			_last_point = selected_node
-			selected_node.show_gizmo()
+	if selected.empty():
+		return
+	# Always pick first node in selection
+	var selected_node = selected[0]
+	if _last_point:
+		_last_point.hide_gizmo()
+	if selected_node is RoadPoint:
+		_last_point = selected_node
+		selected_node.show_gizmo()
+		selected_node.on_transform()
