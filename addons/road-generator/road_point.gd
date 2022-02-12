@@ -68,6 +68,8 @@ func _notification(what):
 
 func on_transform():
 	var network = get_parent().get_parent()
+	if not network.auto_refresh:
+		return
 	print("Is transforming, ", prior_seg, next_seg)
 	if prior_seg:
 		prior_seg.is_dirty = true

@@ -4,7 +4,7 @@ extends Node
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
 
-export(bool) var refresh setget _ui_refresh_set, _ui_refresh_get
+export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
 export(NodePath) var debug_prior
@@ -22,12 +22,13 @@ func _ready():
 
 
 func _ui_refresh_set(value):
-	refresh = value
-	rebuild_segments(true)
+	auto_refresh = value
+	if auto_refresh:
+		rebuild_segments(true)
 
 
 func _ui_refresh_get():
-	return refresh
+	return auto_refresh
 
 
 func rebuild_segments(clear_existing=false):
@@ -81,7 +82,6 @@ func process_seg(pt1, pt2):
 
 # Update the position and contents of the curves for the given point object.
 func update_debug_paths(point:RoadPoint):
-	print_debug("Updating visual debug paths")
 	var prior_path
 	var next_path
 	if debug_prior:
