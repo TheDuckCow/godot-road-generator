@@ -21,7 +21,7 @@ var segid_map = {}
 
 
 func _ready():
-	rebuild_segments(true)
+	call_deferred("rebuild_segments", true)
 
 
 func _ui_refresh_set(value):
@@ -35,6 +35,7 @@ func _ui_refresh_get():
 
 
 func rebuild_segments(clear_existing=false):
+	print("Rebuilding segments")
 	if not segments:
 		return # Could be before ready called.
 	if clear_existing:
@@ -42,8 +43,8 @@ func rebuild_segments(clear_existing=false):
 		for ch in segments.get_children():
 			ch.queue_free()
 	else:
-		# TODO: think of using groups instead, to have a single maanger
-		# that is not dependnet on this.
+		# TODO: think of using groups instead, to have a single manager
+		# that is not dependnet on this parenting structure.
 		pass
 	
 	# Goal is to loop through all RoadPoints, and check if an existing segment
@@ -55,14 +56,22 @@ func rebuild_segments(clear_existing=false):
 			push_warning("Invalid child object under points of road network")
 			continue
 		var pt:RoadPoint = obj
-		if not pt.prior_pt or not pt.next_pt:
+		
+		var prior_pt
+		var next_pt
+		if pt.prior_pt_init:
+			prior_pt = pt.get_node(pt.prior_pt_init)
+		if pt.next_pt_init:
+			next_pt = pt.get_node(pt.next_pt_init)
+		
+		if not prior_pt and not next_pt:
 			print_debug("Not connected to anything yet")
 			continue
 		
-		if pt.prior_pt:
-			process_seg(pt.prior_pt, pt)
-		if pt.next_pt:
-			process_seg(pt, pt.next_pt)
+		if prior_pt:
+			process_seg(prior_pt, pt)
+		if next_pt:
+			process_seg(pt, next_pt)
 
 
 func process_seg(pt1, pt2):
@@ -71,16 +80,15 @@ func process_seg(pt1, pt2):
 	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
 	if sid in segid_map:
 		print("Segment existed already, running refresh")
-		segid_map[sid].check_refresh()
+		segid_map[sid].check_rebuild()
 		return
-	print("Adding new segment and running refresh")
+	print("Adding new segment and running rebuild")
 	var new_seg = RoadSegment.new(self)
 	new_seg.start_point = pt1
 	new_seg.end_point = pt2
 	segid_map[sid] = new_seg
 	new_seg.material = material_resource
 	segments.add_child(new_seg)
-	new_seg.call_deferred("check_refresh")
 
 
 # Update the position and contents of the curves for the given point object.
@@ -95,16 +103,34 @@ func update_debug_paths(point:RoadPoint):
 	var prior_seg = point.prior_seg
 	var next_seg = point.next_seg
 	
-	if prior_path and prior_seg and prior_seg.path and prior_seg.path.curve:
+	if prior_path and prior_seg and prior_seg.curve:
 		prior_path.visible = true
 		prior_path.global_transform.origin = prior_seg.global_transform.origin
-		prior_path.curve = prior_seg.path.curve
+		prior_path.curve = prior_seg.curve
 	else:
 		prior_path.visible = false
-	if next_path and next_seg and next_seg.path and next_seg.path.curve:
+	if next_path and next_seg and next_seg.curve:
 		next_path.visible = true
 		next_path.global_transform.origin = next_seg.global_transform.origin
-		next_path.curve = next_seg.path.curve
+		next_path.curve = next_seg.curve
 	else:
 		next_path.visible = false
 		
+
+# Triggered e.g. by adjusting transform in editor.
+func on_point_update(point:RoadPoint):
+	if not auto_refresh:
+		return
+	print("Is transforming, ", point.prior_seg, point.next_seg)
+	if point.prior_seg:
+		point.prior_seg.is_dirty = true
+		point.prior_seg.call_deferred("check_rebuild")
+	if point.next_seg:
+		point.next_seg.is_dirty = true
+		point.next_seg.call_deferred("check_rebuild")
+	call_deferred("update_debug_paths", point)
+
+
+# Callback from a modification of a RoadSegment object.
+func segment_rebuild(road_segment:RoadSegment):
+	road_segment.check_rebuild()

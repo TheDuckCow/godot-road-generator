@@ -3,18 +3,12 @@
 [ext_resource path="res://addons/road-generator/road_point.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/road_network.gd" type="Script" id=2]
 [ext_resource path="res://addons/road-generator/road_texture.material" type="Material" id=3]
+[ext_resource path="res://demo.gd" type="Script" id=4]
 
 [sub_resource type="Curve3D" id=4]
 bake_interval = 0.75
 _data = {
-"points": PoolVector3Array( -0.81198, 0, -4.93363, 0.81198, 0, 4.93363, 0, 0, 0, -2.09393, 0, -4.54042, 2.09393, 0, 4.54042, 3.7, 0.3914, 10.489 ),
-"tilts": PoolRealArray( 0, 0 )
-}
-
-[sub_resource type="Curve3D" id=5]
-bake_interval = 0.75
-_data = {
-"points": PoolVector3Array( -2.09393, 0, -4.54042, 2.09393, 0, 4.54042, 0, 0, 0, -9.99997, 0, 0.0249624, 9.99997, 0, -0.0249624, 13.6295, 0.35725, 19.731 ),
+"points": PoolVector3Array( 1.04519, 0, 4.88954, -1.04519, 0, -4.88954, 0, 0, 0, 0.735851, 0, 4.94556, -0.735851, 0, -4.94556, -4.603, 0, -18.2943 ),
 "tilts": PoolRealArray( 0, 0 )
 }
 
@@ -23,6 +17,7 @@ _data = {
 [sub_resource type="CubeMesh" id=3]
 
 [node name="Spatial" type="Spatial"]
+script = ExtResource( 4 )
 
 [node name="RoadNetwork" type="Node" parent="."]
 script = ExtResource( 2 )
@@ -33,23 +28,34 @@ debug_next = NodePath("debug_next")
 
 [node name="points" type="Node" parent="RoadNetwork"]
 
+[node name="neg1_point" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( 0.869185, 0, 0.494488, 0, 1, 0, -0.494488, 0, 0.869185, 1.00302, 1.05143, -44.2649 )
+script = ExtResource( 1 )
+lanes = [ 1, 3, 4 ]
+traffic_dir = [ 2, 1, 1 ]
+lane_width = 8.0
+
 [node name="zero_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 1.12063, -24.234 )
 script = ExtResource( 1 )
 lanes = [ 1, 3, 4 ]
+traffic_dir = [ 2, 1, 1 ]
 lane_width = 8.0
+prior_pt_init = NodePath("../neg1_point")
 next_pt_init = NodePath("../first_point")
 
 [node name="first_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 2.35604, -11.95 )
+transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 1.91547, -11.95 )
 script = ExtResource( 1 )
+lanes = [ 1, 3, 3, 1 ]
 lane_width = 8.0
 prior_pt_init = NodePath("../zero_point")
 next_pt_init = NodePath("../second_point")
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.908085, 0, 0.418786, 0, 1, 0, -0.418786, 0, 0.908085, 5.298, 2.74744, -1.461 )
+transform = Transform( 0.908085, 0, 0.418786, 0, 1, 0, -0.418786, 0, 0.908085, 5.298, 1.64255, -1.461 )
 script = ExtResource( 1 )
+lanes = [ 1, 3, 3, 1 ]
 lane_width = 3.0
 prior_pt_init = NodePath("../first_point")
 next_pt_init = NodePath("../third_point")
@@ -57,27 +63,56 @@ next_pt_init = NodePath("../third_point")
 [node name="third_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.00249624, 0, 0.999997, 0, 1, 0, -0.999997, 0, -0.00249624, 18.9275, 3.10469, 18.27 )
 script = ExtResource( 1 )
+lanes = [ 1, 3, 3, 1 ]
 lane_width = 3.0
 prior_pt_init = NodePath("../second_point")
 next_pt_init = NodePath("../fourth_rev")
 prior_mag = 10.0
 
 [node name="fourth_rev" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.423789, 0, -0.905761, 0, 1, 0, 0.905761, 0, -0.423789, 38.7013, 0, 29.5561 )
+transform = Transform( -0.423789, 0, -0.905761, 0, 1, 0, 0.905761, 0, -0.423789, 38.7013, 0.730894, 29.5561 )
 visible = false
 script = ExtResource( 1 )
+lanes = [ 1, 3, 3, 1 ]
 lane_width = 3.0
 next_pt_init = NodePath("../third_point")
+
+[node name="disc_1" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 42.5867, 1.05143, -36.5026 )
+script = ExtResource( 1 )
+lanes = [ 5, 5 ]
+traffic_dir = [ 2, 1 ]
+next_pt_init = NodePath("../disc_2")
+
+[node name="disc_2" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( -0.93436, 0, 0.356331, 0, 1, 0, -0.356331, 0, -0.93436, 37.9837, 1.05143, -51.404 )
+script = ExtResource( 1 )
+lanes = [ 4, 4 ]
+traffic_dir = [ 2, 1 ]
+prior_pt_init = NodePath("../disc_1")
+
+[node name="disc_3" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( -0.977908, 0, -0.209038, 0, 1, 0, 0.209038, 0, -0.977908, 66.272, 1.05143, -34.5682 )
+script = ExtResource( 1 )
+lanes = [ 2, 4, 4, 3, 2, 1 ]
+traffic_dir = [ 2, 2, 1, 1, 1, 1 ]
+next_pt_init = NodePath("../disc_4")
+
+[node name="disc_4" type="Spatial" parent="RoadNetwork/points"]
+transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 61.669, 1.05143, -52.8625 )
+script = ExtResource( 1 )
+prior_pt_init = NodePath("../disc_3")
 
 [node name="segments" type="Node" parent="RoadNetwork"]
 
 [node name="debug_prior" type="Path" parent="RoadNetwork"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.598, 2.35604, -11.95 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 66.272, 1.05143, -34.5682 )
 curve = SubResource( 4 )
 
 [node name="debug_next" type="Path" parent="RoadNetwork"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 5.298, 2.74744, -1.461 )
-curve = SubResource( 5 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 66.272, 1.05143, -34.5682 )
+visible = false
+curve = SubResource( 4 )
 
 [node name="Camera" type="Camera" parent="."]
 transform = Transform( -4.37114e-08, 1, 4.37114e-08, 0, -4.37114e-08, 1, 1, 4.37114e-08, 1.91069e-15, 11.7931, 31.3969, 9.17629 )
@@ -92,3 +127,5 @@ shape = SubResource( 2 )
 transform = Transform( 1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0 )
 mesh = SubResource( 3 )
 material/0 = null
+
+[node name="Tween" type="Tween" parent="."]

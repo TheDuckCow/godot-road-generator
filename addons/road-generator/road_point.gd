@@ -1,15 +1,19 @@
 ## Definition for a single point handle, which 2+ road segments connect to.
 tool
-extends Spatial
 class_name RoadPoint, "road_point.png"
+extends Spatial
+
+signal on_transform(node)
 
 enum LaneType {
-	SHOULDER,
+	NO_MARKING, # Default no marking placed first, but is last texture UV column.
+	SHOULDER, # Left side of texture...
 	SLOW,
 	MIDDLE,
 	FAST,
 	TWO_WAY,
-	ONE_WAY
+	ONE_WAY,
+	SINGLE_LINE, # ...right side of texture.
 }
 
 enum LaneDir {
@@ -33,19 +37,21 @@ export(Array, LaneDir) var traffic_dir:Array = [
 	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
 	] setget _set_dir, _get_dir
 
-export var lane_width := 4.0 setget _set_width, _get_width
-export(NodePath) var prior_pt_init
-export(NodePath) var next_pt_init
+export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
+export var shoulder_width := 2 setget _set_shoulder_width, _get_shoulder_width
+export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
+export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 # Handle magniture
 export(float) var prior_mag := 5.0
 export(float) var next_mag := 5.0
 
 # Ultimate assignment if any export path specified
-var prior_pt:Spatial # Road Point or Junction
+#var prior_pt:Spatial # Road Point or Junction
 var prior_seg # :RoadSegment
-var next_pt:Spatial # Road Point or Junction
+#var next_pt:Spatial # Road Point or Junction
 var next_seg # :RoadSegment
 
+var network # The managing network node for this road segment (grandparent).
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
@@ -53,16 +59,17 @@ var _last_update_ms # To calculate min updates.
 
 
 func _ready():
-	if prior_pt_init:
-		prior_pt = get_node(prior_pt_init)
-	if next_pt_init:
-		next_pt = get_node(next_pt_init)
-	# rebuild_geom()
+	if not network:
+		network = get_parent().get_parent()
+	# _set_prior_pt(prior_pt_init)
+	# _set_next_pt(next_pt_init)
+	
+	connect("on_transform", network, "on_point_update")
 
 
 func _to_string():
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
-		self.get_parent().name,  self.translation, prior_pt, next_pt]
+		self.get_parent().name,  self.translation, prior_pt_init, next_pt_init]
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
@@ -71,8 +78,7 @@ func _to_string():
 func _set_lanes(values):
 	lanes = values
 	rebuild_geom()
-
-
+	on_transform()
 func _get_lanes():
 	return lanes
 
@@ -80,19 +86,46 @@ func _get_lanes():
 func _set_dir(values):
 	traffic_dir = values
 	rebuild_geom()
-
-
+	on_transform()
 func _get_dir():
 	return traffic_dir
 
 
-func _set_width(value):
+func _set_lane_width(value):
 	lane_width = value
 	rebuild_geom()
-	
-
-func _get_width():
+	on_transform()
+func _get_lane_width():
 	return lane_width
+
+
+func _set_shoulder_width(value):
+	shoulder_width = value
+	rebuild_geom()
+	on_transform()
+func _get_shoulder_width():
+	return shoulder_width
+
+
+func _set_prior_pt(value):
+	# print_debug("Value prior is: ", value)
+	prior_pt_init = value
+	#if prior_pt_init:
+	#	prior_pt = get_node(prior_pt_init)
+	rebuild_geom()
+	on_transform()
+func _get_prior_pt():
+	return prior_pt_init
+
+
+func _set_next_pt(value):
+	next_pt_init = value
+	#if next_pt_init:
+	#	next_pt = get_node(next_pt_init)
+	rebuild_geom()
+	on_transform()
+func _get_next_pt():
+	return next_pt_init
 
 
 func _notification(what):
@@ -101,18 +134,7 @@ func _notification(what):
 		
 
 func on_transform():
-	var network = get_parent().get_parent()
-	if not network.auto_refresh:
-		return
-	print("Is transforming, ", prior_seg, next_seg)
-	if prior_seg:
-		prior_seg.is_dirty = true
-		prior_seg.check_refresh()
-	if next_seg:
-		next_seg.is_dirty = true
-		next_seg.check_refresh()
-	
-	network.update_debug_paths(self)
+	emit_signal("on_transform", self)
 
 
 func show_gizmo():
@@ -135,7 +157,7 @@ func _instantiate_geom():
 		return
 	
 	if geom == null:
-		print("Creating new geo + mat")
+		#print("Creating new geo + mat")
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)

@@ -35,6 +35,12 @@ _global_script_class_icons={
 config/name="Test-spatial-gizmo-addon"
 config/icon="res://icon.png"
 
+[display]
+
+window/size/width=1920
+window/size/height=1080
+window/dpi/allow_hidpi=true
+
 [editor_plugins]
 
 enabled=PoolStringArray( "res://addons/road-generator/plugin.cfg" )
