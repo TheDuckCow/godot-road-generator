@@ -1,13 +1,38 @@
+## Definition for a single point handle, which 2+ road segments connect to.
 tool
 extends Spatial
 class_name RoadPoint, "road_point.png"
+
+enum LaneType {
+	SHOULDER,
+	SLOW,
+	MIDDLE,
+	FAST,
+	TWO_WAY,
+	ONE_WAY
+}
+
+enum LaneDir {
+	NONE,
+	FORWARD,
+	REVERSE,
+	BOTH
+}
 
 const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 
-# Conceptual: could be a list of points for lane nav ends with direction
-export var lanes:Array = [-1, -1, 1, 1] setget _set_lanes, _get_lanes
+# Assign both the texture to use, as well as the path direction to generate.
+# Order is left to right when oriented such that the RoadPoint is facing towards
+# the top of the screen in a top down orientation.
+export(Array, LaneType) var lanes:Array = [
+	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
+	] setget _set_lanes, _get_lanes
+export(Array, LaneDir) var traffic_dir:Array = [
+	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
+	] setget _set_dir, _get_dir
+
 export var lane_width := 4.0 setget _set_width, _get_width
 export(NodePath) var prior_pt_init
 export(NodePath) var next_pt_init
@@ -50,6 +75,15 @@ func _set_lanes(values):
 
 func _get_lanes():
 	return lanes
+
+
+func _set_dir(values):
+	traffic_dir = values
+	rebuild_geom()
+
+
+func _get_dir():
+	return traffic_dir
 
 
 func _set_width(value):

@@ -14,13 +14,17 @@ var end_point:RoadPoint
 var path:Path
 var road_mesh:MeshInstance
 var material:Material
-var density := 3.00  # Distance between loops, bake_interval in m applied to curve for geo creation.
-
-# Likely will need reference of a curve.. do later.
-# var curve 
+var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
+var network # The managing network node for this road segment (likely a parent).
 
 
 var is_dirty := true
+
+func _init(_network):
+	if not _network:
+		push_error("Invalid network assigned")
+		return
+	network = _network
 
 
 func _ready():
@@ -88,6 +92,8 @@ func check_refresh():
 ## Construct the geometry of this road segment.
 func _rebuild():
 	get_id()
+	if network and network.density > 0:
+		density = network.density
 	if not road_mesh:
 		road_mesh = MeshInstance.new()
 		add_child(road_mesh)
@@ -154,7 +160,7 @@ func _build_geo():
 	var clength = path.curve.get_baked_length()
 	# In this context, loop refers to quad faces, not the edges, as it will
 	# be a loop of generated faces.
-	var loops = int(max(floor(clength / density), 1.0)) # Need to sub 1?
+	var loops = int(max(floor(clength / density), 1.0)) # Must have at least 1 loop.
 	
 	print_debug("%s: Seg gen: %s loops, length: %s, " % [
 		self.name, loops, clength])
@@ -190,28 +196,29 @@ func _build_geo():
 		var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
 		
 		for i in range(lane_count):
+			var lane_offset_s = near_width * (i - lane_count / 2) * start_basis
+			var lane_offset_e = far_width * (i - lane_count / 2) * end_basis
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
 			#st.add_normal(Vector3(0, 1, 0))
 			st.add_uv(Vector2(1, 0))
-			st.add_vertex(start_loop) # Call last for each vertex, adds the above attributes.
+			st.add_vertex(start_loop + lane_offset_s) # Call last for each vertex, adds the above attributes.
 			# p1
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_basis * near_width)
+			st.add_vertex(start_loop + start_basis * near_width + lane_offset_s)
 			# p3
 			st.add_uv(Vector2(1, 1))
-			st.add_vertex(end_loop)
+			st.add_vertex(end_loop + lane_offset_e)
 			
 			# Reverse face, p1
 			st.add_uv(Vector2(0, 0))
-			st.add_vertex(start_loop + start_basis * near_width)
+			st.add_vertex(start_loop + start_basis * near_width + lane_offset_s)
 			# p1
 			st.add_uv(Vector2(0, 1))
-			st.add_vertex(end_loop + end_basis * far_width)
+			st.add_vertex(end_loop + end_basis * far_width + lane_offset_e)
 			# p3
 			st.add_uv(Vector2(1, 1))
-			st.add_vertex(end_loop)
-			break
+			st.add_vertex(end_loop + lane_offset_e)
 			
 		#else:
 		#push_warning("Non-same number of lanes not implemented yet")
