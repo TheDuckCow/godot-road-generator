@@ -42,8 +42,8 @@ export var shoulder_width := 2 setget _set_shoulder_width, _get_shoulder_width
 export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
 export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 # Handle magniture
-export(float) var prior_mag := 5.0
-export(float) var next_mag := 5.0
+export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
+export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
 
 # Ultimate assignment if any export path specified
 #var prior_pt:Spatial # Road Point or Junction
@@ -129,6 +129,21 @@ func _set_next_pt(value):
 func _get_next_pt():
 	return next_pt_init
 
+
+func _set_prior_mag(value):
+	prior_mag = value
+	rebuild_geom()
+	on_transform()
+func _get_prior_mag():
+	return prior_mag
+
+
+func _set_next_mag(value):
+	next_mag = value
+	rebuild_geom()
+	on_transform()
+func _get_next_mag():
+	return next_mag
 
 func _notification(what):
 	if what == NOTIFICATION_TRANSFORM_CHANGED:

@@ -132,9 +132,9 @@ func _update_curve():
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
 	
-	# Setup in handle of curve.
+	# Setup in handle of curve
 	var pos = to_local(start_point.global_transform.origin)
-	var handle = start_point.global_transform.basis.z * start_point.prior_mag
+	var handle = start_point.global_transform.basis.z * start_point.next_mag
 	curve.add_point(pos, -handle, handle)
 	var start_float = start_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
 	curve.set_point_tilt(0, start_float)

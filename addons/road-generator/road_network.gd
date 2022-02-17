@@ -82,22 +82,23 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 	# but doing this for simplicity now.
 	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
 	if sid in segid_map:
-		segid_map[sid].queue_free()
-	#	if not is_instance_valid(segid_map[sid]):
-	#		push_error("Instance was not valid on sid: %s" % sid)
-	#	print("Segment existed already, not refreshing")
-	#	# segid_map[sid].check_rebuild()
-	#	return 0
-	# print("Adding new segment and running rebuild ", sid)
-	var new_seg = RoadSegment.new(self)
-	segments.add_child(new_seg)
-	new_seg.low_poly = low_poly
-	new_seg.start_point = pt1
-	new_seg.end_point = pt2
-	segid_map[sid] = new_seg
-	new_seg.material = material_resource
-	new_seg.check_rebuild()
-	return 1
+		#segid_map[sid].queue_free()
+		if not is_instance_valid(segid_map[sid]):
+			push_error("Instance was not valid on sid: %s" % sid)
+		#print("Segment existed already, not refreshing")
+		segid_map[sid].check_rebuild()
+		return 0
+	else:
+		# print("Adding new segment and running rebuild ", sid)
+		var new_seg = RoadSegment.new(self)
+		segments.add_child(new_seg)
+		new_seg.low_poly = low_poly
+		new_seg.start_point = pt1
+		new_seg.end_point = pt2
+		segid_map[sid] = new_seg
+		new_seg.material = material_resource
+		new_seg.check_rebuild()
+		return 1
 
 
 # Update the position and contents of the curves for the given point object.
