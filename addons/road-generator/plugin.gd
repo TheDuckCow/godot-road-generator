@@ -10,7 +10,7 @@ var _last_point
 
 
 func _enter_tree():
-	add_spatial_gizmo_plugin(road_point_gizmo)
+	# add_spatial_gizmo_plugin(road_point_gizmo)
 	_eds.connect("selection_changed", self, "_on_selection_changed")
 
 

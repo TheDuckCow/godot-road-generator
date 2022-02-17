@@ -3,7 +3,7 @@ tool
 class_name RoadPoint, "road_point.png"
 extends Spatial
 
-signal on_transform(node)
+signal on_transform(node, low_poly)
 
 enum LaneType {
 	NO_MARKING, # Default no marking placed first, but is last texture UV column.
@@ -47,9 +47,9 @@ export(float) var next_mag := 5.0
 
 # Ultimate assignment if any export path specified
 #var prior_pt:Spatial # Road Point or Junction
-var prior_seg # :RoadSegment
+var prior_seg
 #var next_pt:Spatial # Road Point or Junction
-var next_seg # :RoadSegment
+var next_seg
 
 var network # The managing network node for this road segment (grandparent).
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
@@ -59,6 +59,11 @@ var _last_update_ms # To calculate min updates.
 
 
 func _ready():
+	# Ensure the transform notificaitons work
+	set_notify_transform(true)
+	set_notify_local_transform(true)
+	#set_ignore_transform_notification(false)
+	
 	if not network:
 		network = get_parent().get_parent()
 	# _set_prior_pt(prior_pt_init)
@@ -130,11 +135,13 @@ func _get_next_pt():
 
 func _notification(what):
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		on_transform()
-		
+		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
+		on_transform(low_poly)
 
-func on_transform():
-	emit_signal("on_transform", self)
+
+func on_transform(low_poly=false):
+	print("On transform signal emitted")
+	emit_signal("on_transform", self, low_poly)
 
 
 func show_gizmo():

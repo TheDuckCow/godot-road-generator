@@ -7,7 +7,7 @@ onready var tween = $Tween
 
 
 func _ready():
-	pass # Replace with function body.
+	return # Shortcut.
 	var _auto_close_timer = get_tree().create_timer(1.5)
 	var res = _auto_close_timer.connect("timeout", self, "_on_timeout")
 	assert(res == OK)

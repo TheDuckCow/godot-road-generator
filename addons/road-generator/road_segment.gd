@@ -21,6 +21,7 @@ var density := 2.00 # Distance between loops, bake_interval in m applied to curv
 var network # The managing network node for this road segment (grandparent).
 
 var is_dirty := true
+var low_poly := false  # If true, then was (or will be) generated as low poly.
 
 
 func _init(_network):
@@ -29,7 +30,6 @@ func _init(_network):
 		return
 	network = _network
 	curve = Curve3D.new()
-	
 
 
 func _ready():
@@ -39,8 +39,9 @@ func _ready():
 	
 	var res = connect("check_rebuild", network, "segment_rebuild")
 	assert(res == OK)
-	emit_signal("seg_ready", self)
-	emit_signal("check_rebuild", self)
+	#emit_signal("seg_ready", self)
+	#is_dirty = true
+	#emit_signal("check_rebuild", self)
 
 
 ## Unique identifier for a segment based on what its connected to.
@@ -48,7 +49,7 @@ func get_id():
 	# TODO: consider changing so that the smaller resource id is first,
 	# so that we avoid bidirectional issues.
 	if start_point and end_point:
-		name = "%s-%s" % [start_point.get_instance_id(), start_point.get_instance_id()]
+		name = "%s-%s" % [start_point.get_instance_id(), end_point.get_instance_id()]
 	elif start_point:
 		name = "%s-x" % start_point.get_instance_id()
 	elif end_point:
@@ -65,7 +66,7 @@ func get_id():
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
-	emit_signal("check_rebuild", self)
+	#emit_signal("check_rebuild", self)
 func _init_start_get():
 	return start_init
 
@@ -73,22 +74,24 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
-	emit_signal("check_rebuild", self)
+	#emit_signal("check_rebuild", self)
 func _init_end_get():
 	return end_init
 
 
 func check_rebuild():
-	if start_init:
-		start_point = get_node(start_init)
+	print_debug("%s: Running rebuild check" % self.name)
+	#if start_init:
+	#	start_point = get_node(start_init)
 	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
-	if end_init:
-		end_point = get_node(end_init)
+	#if end_init:
+	#	end_point = get_node(end_init)
 	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
-		print("Undirtied as node unready: start_point")
+		print("Undirtied as node unready: start_point, ", start_point, ", valid:", is_instance_valid(start_point))
 		is_dirty = false
 	if not end_point or not is_instance_valid(end_point) or not end_point.visible:
+		print("Undirtied as node unready: end_point, ", end_point, ", valid:", is_instance_valid(end_point))
 		print("Undirtied as node unready: end_point")
 		is_dirty = false
 	if is_dirty:
@@ -136,16 +139,17 @@ func _update_curve():
 	
 	# Setup in handle of curve.
 	var pos = to_local(start_point.global_transform.origin)
-	#var handle = to_local(start_point.global_transform.basis.z * start_point.prior_mag)# - pos
 	var handle = start_point.global_transform.basis.z * start_point.prior_mag
 	curve.add_point(pos, -handle, handle)
-	# TODO: apply tilt to match the control point.
+	var start_float = start_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
+	curve.set_point_tilt(0, start_float * 2)
 	
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
-	#handle = to_local(end_point.global_transform.basis.z * end_point.prior_mag)# - pos
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
 	curve.add_point(pos, -handle, handle)
+	var end_float = end_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
+	curve.set_point_tilt(1, end_float)
 
 
 func _normal_for_offset(curve:Curve3D, offset:float):
@@ -167,9 +171,6 @@ func _build_geo():
 	# be a loop of generated faces.
 	var loops = int(max(floor(clength / density), 1.0)) # Must have at least 1 loop.
 	
-	print_debug("(re)building %s: Seg gen: %s loops, length: %s" % [
-		self.name, loops, clength])
-	
 	# Keep track of UV position over lane, to continually add on.
 	var lane_uvs_length = []
 	for ln in range(lane_count):
@@ -177,10 +178,23 @@ func _build_geo():
 	# Number of times the UV will wrap, to ensure seamless at next RoadPoint.
 	# Use the minimum sized road width for counting.
 	var min_road_width = min(start_point.lane_width, end_point.lane_width)
-	# Aim for real-world texture proportions width:height of 2:1 matching texture.
-	var single_uv_height = min_road_width * 2.0
+	# Aim for real-world texture proportions width:height of 2:1 matching texture,
+	# but then the hight of 1 full UV is half the with across all lanes, so another 2x
+	var single_uv_height = min_road_width * 4.0
 	var target_uv_tiles:int = int(clength / single_uv_height)
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
+	
+	# Remove all loops between road points, so it's a straight mesh with no
+	# loops. In the future, this could be reduce to just a lower density.
+	# This makes interactivity in the UI much faster, but could also work for
+	# in-game LODs.
+	if low_poly:
+		loops = 1
+		# Update UVs to be full width.
+		per_loop_uv_size = target_uv_tiles
+	
+	print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
+		self.name, loops, clength, low_poly])
 	
 	for loop in range(loops):
 		var offset_s = float(loop) / float(loops)
@@ -259,9 +273,8 @@ func _build_geo():
 			var uv_y_start = lane_uvs_length[i]
 			var uv_y_end = lane_uvs_length[i] + per_loop_uv_size
 			lane_uvs_length[i] = uv_y_end # For next loop to use.
-			print("Seg: %s, lane:%s, uv %s-%s" % [
-				self.name, loop, uv_y_start, uv_y_end
-			])
+			#print("Seg: %s, lane:%s, uv %s-%s" % [
+			#	self.name, loop, uv_y_start, uv_y_end])
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
 			#st.add_normal(Vector3(0, 1, 0))
