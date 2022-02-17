@@ -35,7 +35,7 @@ func _ui_refresh_get():
 
 
 func rebuild_segments(clear_existing=false):
-	print("Rebuilding segments")
+	# print("Rebuilding segments")
 	if not segments:
 		return # Could be before ready called.
 	if clear_existing:
@@ -66,14 +66,14 @@ func rebuild_segments(clear_existing=false):
 			next_pt = pt.get_node(pt.next_pt_init)
 		
 		if not prior_pt and not next_pt:
-			print_debug("Not connected to anything yet")
+			push_warning("Road point %s not connected to anything yet" % pt.name)
 			continue
 		
 		if prior_pt and prior_pt.visible:
 			rebuilt += process_seg(prior_pt, pt)
 		if next_pt and next_pt.visible:
 			rebuilt += process_seg(pt, next_pt)
-	print_debug("Rebuilt: ", rebuilt)
+	print_debug("Road segs rebuilt: ", rebuilt)
 
 
 # Create a new road segment based on input prior and next RoadPoints.
@@ -88,7 +88,7 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 	#	print("Segment existed already, not refreshing")
 	#	# segid_map[sid].check_rebuild()
 	#	return 0
-	print("Adding new segment and running rebuild ", sid)
+	# print("Adding new segment and running rebuild ", sid)
 	var new_seg = RoadSegment.new(self)
 	segments.add_child(new_seg)
 	new_seg.low_poly = low_poly
@@ -130,9 +130,6 @@ func update_debug_paths(point:RoadPoint):
 func on_point_update(point:RoadPoint, low_poly:bool):
 	if not auto_refresh:
 		return
-	print("Is transforming %s-%s, lowpoly: %s" % [
-		point.prior_seg, point.next_seg, low_poly])
-	# Todo: call `process_seg` if e.g. the prior point was hidden before.
 	if point.prior_seg:
 		point.prior_seg.low_poly = low_poly
 		point.prior_seg.is_dirty = true
@@ -147,12 +144,10 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		process_seg(point, next, low_poly)
-	# call_deferred("update_debug_paths", point)
 
 
 # Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
-	print_debug("Did seg rebuild? ", road_segment)
 	road_segment.check_rebuild()
 
 

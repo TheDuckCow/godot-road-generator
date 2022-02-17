@@ -113,10 +113,7 @@ func _get_shoulder_width():
 
 
 func _set_prior_pt(value):
-	# print_debug("Value prior is: ", value)
 	prior_pt_init = value
-	#if prior_pt_init:
-	#	prior_pt = get_node(prior_pt_init)
 	rebuild_geom()
 	on_transform()
 func _get_prior_pt():
@@ -140,7 +137,6 @@ func _notification(what):
 
 
 func on_transform(low_poly=false):
-	print("On transform signal emitted")
 	emit_signal("on_transform", self, low_poly)
 
 
@@ -164,7 +160,6 @@ func _instantiate_geom():
 		return
 	
 	if geom == null:
-		#print("Creating new geo + mat")
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)

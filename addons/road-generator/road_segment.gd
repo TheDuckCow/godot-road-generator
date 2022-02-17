@@ -80,19 +80,13 @@ func _init_end_get():
 
 
 func check_rebuild():
-	print_debug("%s: Running rebuild check" % self.name)
-	#if start_init:
-	#	start_point = get_node(start_init)
 	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
-	#if end_init:
-	#	end_point = get_node(end_init)
 	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
-		print("Undirtied as node unready: start_point, ", start_point, ", valid:", is_instance_valid(start_point))
+		push_warning("Undirtied as node unready: start_point %s" % start_point)
 		is_dirty = false
 	if not end_point or not is_instance_valid(end_point) or not end_point.visible:
-		print("Undirtied as node unready: end_point, ", end_point, ", valid:", is_instance_valid(end_point))
-		print("Undirtied as node unready: end_point")
+		push_warning("Undirtied as node unready: end_point %s" % end_point)
 		is_dirty = false
 	if is_dirty:
 		_rebuild()
@@ -107,11 +101,6 @@ func _rebuild():
 	get_id()
 	if network and network.density > 0:
 		density = network.density
-	#if not road_mesh:
-	#	road_mesh = MeshInstance.new()
-	#	add_child(road_mesh)
-	#	road_mesh.name = "road_mesh"
-	_update_curve()
 	
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
@@ -125,6 +114,12 @@ func _rebuild():
 			len(start_point.lanes), len(end_point.lanes), self.name
 		])
 		return
+	
+	#if not road_mesh:
+	#	road_mesh = MeshInstance.new()
+	#	add_child(road_mesh)
+	#	road_mesh.name = "road_mesh"
+	_update_curve()
 	
 	# Create a low and high poly road, start with low poly.
 	_build_geo()
@@ -142,7 +137,7 @@ func _update_curve():
 	var handle = start_point.global_transform.basis.z * start_point.prior_mag
 	curve.add_point(pos, -handle, handle)
 	var start_float = start_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
-	curve.set_point_tilt(0, start_float * 2)
+	curve.set_point_tilt(0, start_float)
 	
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
@@ -153,8 +148,8 @@ func _update_curve():
 
 
 func _normal_for_offset(curve:Curve3D, offset:float):
-	var point1 = curve.interpolate_baked(offset - 0.001)
-	var point2 = curve.interpolate_baked(offset + 0.001)
+	var point1 = curve.interpolate_baked(offset - 0.001) # avoid below 0
+	var point2 = curve.interpolate_baked(offset + 0.001) # avoid over maxlen
 	var uptilt = curve.interpolate_baked_up_vector(offset, true)
 	var tangent:Vector3 = (point2 - point1)
 	return uptilt.cross(tangent).normalized()
@@ -193,8 +188,8 @@ func _build_geo():
 		# Update UVs to be full width.
 		per_loop_uv_size = target_uv_tiles
 	
-	print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
-		self.name, loops, clength, low_poly])
+	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
+	#	self.name, loops, clength, low_poly])
 	
 	for loop in range(loops):
 		var offset_s = float(loop) / float(loops)
@@ -275,6 +270,7 @@ func _build_geo():
 			lane_uvs_length[i] = uv_y_end # For next loop to use.
 			#print("Seg: %s, lane:%s, uv %s-%s" % [
 			#	self.name, loop, uv_y_start, uv_y_end])
+			
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
 			#st.add_normal(Vector3(0, 1, 0))

@@ -38,7 +38,6 @@ lane_width = 8.0
 
 [node name="zero_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.598, 1.12063, -24.234 )
-visible = false
 script = ExtResource( 1 )
 lanes = [ 1, 3, 4 ]
 traffic_dir = [ 2, 1, 1 ]
@@ -55,7 +54,7 @@ prior_pt_init = NodePath("../zero_point")
 next_pt_init = NodePath("../second_point")
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.976462, 0, 0.215689, 0, 1, 0, -0.215689, 0, 0.976462, 4.74248, 2.39641, 17.832 )
+transform = Transform( 0.974827, 0, 0.22296, 0, 1, 0, -0.22296, 0, 0.974827, 4.93049, -0.504927, 18.9381 )
 script = ExtResource( 1 )
 lanes = [ 1, 3, 3, 1 ]
 lane_width = 3.0
@@ -81,7 +80,6 @@ next_pt_init = NodePath("../third_point")
 
 [node name="disc_1" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 42.5867, 1.05143, -36.5026 )
-visible = false
 script = ExtResource( 1 )
 lanes = [ 5, 5 ]
 traffic_dir = [ 2, 1 ]
@@ -89,7 +87,6 @@ next_pt_init = NodePath("../disc_2")
 
 [node name="disc_2" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.93436, 0, 0.356331, 0, 1, 0, -0.356331, 0, -0.93436, 37.9837, 1.05143, -51.404 )
-visible = false
 script = ExtResource( 1 )
 lanes = [ 4, 4 ]
 traffic_dir = [ 2, 1 ]
@@ -97,7 +94,6 @@ prior_pt_init = NodePath("../disc_1")
 
 [node name="disc_3" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 62.9694, -0.150141, -34.5682 )
-visible = false
 script = ExtResource( 1 )
 lanes = [ 1, 4, 4, 3, 1 ]
 traffic_dir = [ 2, 2, 1, 1, 0 ]
@@ -105,7 +101,6 @@ next_pt_init = NodePath("../disc_4")
 
 [node name="disc_4" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 1.05143, -52.8625 )
-visible = false
 script = ExtResource( 1 )
 prior_pt_init = NodePath("../disc_3")
 
