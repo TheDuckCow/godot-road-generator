@@ -184,7 +184,7 @@ func assign_lanes():
 	lanes.clear()
 	if len(traffic_dir) == 1:
 		if traffic_dir[0] == LaneDir.NONE:
-			lanes.append(LaneType.NONE)
+			lanes.append(LaneType.NO_MARKING)
 		else:
 			# Direction doesn't matter, since there is only a single lane here.
 			lanes.append(LaneType.ONE_WAY)
