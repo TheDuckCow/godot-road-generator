@@ -8,11 +8,11 @@ signal on_transform(node, low_poly)
 enum LaneType {
 	NO_MARKING, # Default no marking placed first, but is last texture UV column.
 	SHOULDER, # Left side of texture...
-	SLOW,
-	MIDDLE,
-	FAST,
-	TWO_WAY,
-	ONE_WAY,
+	SLOW, # White line on one side, dotted white on other.
+	MIDDLE, # Dotted line on both sides.
+	FAST, # Double yellow one side, dotted line on other.
+	TWO_WAY, # White line one side, double yellow on other.
+	ONE_WAY, # white lines on both sides.
 	SINGLE_LINE, # ...right side of texture.
 }
 
@@ -33,6 +33,8 @@ const COLOR_RED = Color(0.7, 0.3, 0.3)
 export(Array, LaneType) var lanes:Array = [
 	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
 	] setget _set_lanes, _get_lanes
+# Enables auto assignment of the lanes array above, subverting manual assignment.
+export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
 export(Array, LaneDir) var traffic_dir:Array = [
 	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
 	] setget _set_dir, _get_dir
@@ -86,6 +88,14 @@ func _set_lanes(values):
 	on_transform()
 func _get_lanes():
 	return lanes
+
+
+func _set_auto_lanes(value):
+	auto_lanes = value
+	rebuild_geom()
+	on_transform()
+func _get_auto_lanes():
+	return auto_lanes
 
 
 func _set_dir(values):
@@ -145,6 +155,11 @@ func _set_next_mag(value):
 func _get_next_mag():
 	return next_mag
 
+
+# ------------------------------------------------------------------------------
+# Editor interactions
+# ------------------------------------------------------------------------------
+
 func _notification(what):
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
@@ -152,7 +167,86 @@ func _notification(what):
 
 
 func on_transform(low_poly=false):
+	if auto_lanes:
+		assign_lanes()
 	emit_signal("on_transform", self, low_poly)
+
+
+# ------------------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------------------
+
+# Goal is to assign the appropriate sequence of textures for this lane.
+#
+# This will intelligently construct the sequence of left-right textures, knowing
+# where to apply middle vs outter vs inner lanes.
+func assign_lanes():
+	lanes.clear()
+	if len(traffic_dir) == 1:
+		if traffic_dir[0] == LaneDir.NONE:
+			lanes.append(LaneType.NONE)
+		else:
+			# Direction doesn't matter, since there is only a single lane here.
+			lanes.append(LaneType.ONE_WAY)
+		return
+	
+	var flips = [] # Track changes in direction between lanes.
+	var only_fwd_rev = true # If false, a non supported complex scenario.
+	var fwd_rev = [LaneDir.FORWARD, LaneDir.REVERSE]
+	for i in range(len(traffic_dir)-1):
+		if not traffic_dir[i] in fwd_rev:
+			only_fwd_rev = false
+			break
+		if not traffic_dir[i+1] in fwd_rev:
+			only_fwd_rev = false
+			break
+		var reversed = traffic_dir[i] != traffic_dir[i+1]
+		flips.append(reversed)
+	
+	if only_fwd_rev:
+		var running_same_dir = 0
+		for i in range(len(traffic_dir) - 1): # One less, since not final edge
+			if flips[i]: # The next lane to the right flips direction.
+				if i == 0:
+					lanes.append(LaneType.TWO_WAY) # Left side solid white
+				elif running_same_dir == 0: # Left side solid yellow
+					# No matching texture! Should be something would double
+					# yellow lines on both sides. Mark as a "one way" for now.
+					push_warning("No texture available for double-yellow on both sides of lane, using one-way")
+					lanes.append(LaneType.ONE_WAY)
+				else: # Left side is a dotted line.
+					lanes.append(LaneType.FAST)
+				running_same_dir = 0
+			else: # Next lane is going the same direction.
+				if i == 0:
+					lanes.append(LaneType.SLOW) # Left side solid white
+				elif running_same_dir == 0: # Left side yellow
+					lanes.append(LaneType.FAST)
+				else: # Left side is a dotted line.
+					lanes.append(LaneType.MIDDLE)
+				running_same_dir += 1
+		
+		# Now complete the final lane.
+		if running_same_dir > 0:
+			lanes.append(LaneType.SLOW)
+		else:
+			lanes.append(LaneType.TWO_WAY)
+	else:
+		# Unable to handle situations that use NONE or BOTH lanes if more than
+		# one lane is involved.
+		push_warning("Unable to auto generate roads, using unmarked lanes")
+		for i in range(len(traffic_dir)):
+			if i == 0:
+				lanes.append(LaneType.SINGLE_LINE)
+			elif i == len(traffic_dir)-1:
+				lanes.append(LaneType.SINGLE_LINE)
+			else:
+				lanes.append(LaneType.NO_MARKING)
+
+
+# ------------------------------------------------------------------------------
+# Gizmo handling and drawing.
+# ------------------------------------------------------------------------------
 
 
 func show_gizmo():
