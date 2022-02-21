@@ -40,7 +40,10 @@ export(Array, LaneDir) var traffic_dir:Array = [
 	] setget _set_dir, _get_dir
 
 export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
-export var shoulder_width := 2 setget _set_shoulder_width, _get_shoulder_width
+export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
+export var shoulder_width_r := 2 setget _set_shoulder_width_r, _get_shoulder_width_r
+# Profile: x: how far out the gutter goes, y: how far down to clip.
+export(Vector2) var gutter_profile := Vector2(0.5, -0.5) setget _set_profile, _get_profile
 export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
 export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 # Handle magniture
@@ -114,13 +117,29 @@ func _get_lane_width():
 	return lane_width
 
 
-func _set_shoulder_width(value):
-	shoulder_width = value
+func _set_shoulder_width_l(value):
+	shoulder_width_l = value
 	rebuild_geom()
 	on_transform()
-func _get_shoulder_width():
-	return shoulder_width
+func _get_shoulder_width_l():
+	return shoulder_width_l
 
+
+func _set_shoulder_width_r(value):
+	shoulder_width_r = value
+	rebuild_geom()
+	on_transform()
+func _get_shoulder_width_r():
+	return shoulder_width_r
+
+
+func _set_profile(value:Vector2):
+	gutter_profile = value
+	rebuild_geom()
+	on_transform()
+func _get_profile():
+	return gutter_profile
+	
 
 func _set_prior_pt(value):
 	prior_pt_init = value
