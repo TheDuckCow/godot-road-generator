@@ -227,8 +227,8 @@ func _build_geo():
 		
 		for i in range(lane_count):
 			# Create the contents of a single lane / quad within this quad loop.
-			var lane_offset_s = near_width * (i - lane_count / 2) * start_basis
-			var lane_offset_e = far_width * (i - lane_count / 2) * end_basis
+			var lane_offset_s = near_width * (i - lane_count / 2.0) * start_basis
+			var lane_offset_e = far_width * (i - lane_count / 2.0) * end_basis
 			
 			# Assume the start and end lanes are the same for now.
 			var uv_l:float # the left edge of the uv for this lane.

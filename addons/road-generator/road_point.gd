@@ -306,21 +306,21 @@ func _instantiate_geom():
 
 
 func _draw_lane_width():
-	var offy = Vector3(0, 0.02, 0)
+	var offy = Vector3(0, 0.05, 0)
 	var half_width = lanes.size() * lane_width / 2.0
 	geom.begin(Mesh.PRIMITIVE_TRIANGLES)
 	geom.set_color(COLOR_YELLOW)
-	geom.add_vertex(Vector3(-half_width, 0, 0))
-	geom.add_vertex(Vector3(0, 0, 0.5))
-	geom.add_vertex(Vector3(half_width, 0, 0))
+	geom.add_vertex(Vector3(-half_width, 0, 0) + offy)
+	geom.add_vertex(Vector3(0, 0, 0.5) + offy)
+	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
 	geom.set_color(COLOR_RED)
 	# Top triangle
-	geom.add_vertex(Vector3(-half_width, 0, -0.5))
-	geom.add_vertex(Vector3(half_width, 0, -0.5))
-	geom.add_vertex(Vector3(half_width, 0, 0))
+	geom.add_vertex(Vector3(-half_width, 0, -0.5) + offy)
+	geom.add_vertex(Vector3(half_width, 0, -0.5) + offy)
+	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
 	# Bottom triangle
-	geom.add_vertex(Vector3(half_width, 0, 0))
-	geom.add_vertex(Vector3(-half_width, 0, 0))
-	geom.add_vertex(Vector3(-half_width, 0, -0.5))
+	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
+	geom.add_vertex(Vector3(-half_width, 0, 0) + offy)
+	geom.add_vertex(Vector3(-half_width, 0, -0.5) + offy)
 	
 	geom.end()

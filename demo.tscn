@@ -35,6 +35,7 @@ script = ExtResource( 1 )
 lanes = [ 5, 4, 2 ]
 traffic_dir = [ 2, 1, 1 ]
 lane_width = 8.0
+gutter_profile = Vector2( 0.5, -1 )
 
 [node name="zero_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.598, 1.12063, -24.234 )
@@ -42,6 +43,7 @@ script = ExtResource( 1 )
 lanes = [ 5, 4, 2 ]
 traffic_dir = [ 2, 1, 1 ]
 lane_width = 8.0
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../neg1_point")
 next_pt_init = NodePath("../first_point")
 
@@ -49,20 +51,25 @@ next_pt_init = NodePath("../first_point")
 transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 1.91547, -11.95 )
 script = ExtResource( 1 )
 lane_width = 8.0
+gutter_profile = Vector2( 1, -1 )
 prior_pt_init = NodePath("../zero_point")
 next_pt_init = NodePath("../second_point")
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.974827, 0, 0.22296, 0, 1, 0, -0.22296, 0, 0.974827, -1.07604, -0.504927, 18.9381 )
+transform = Transform( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.504927, 18.9381 )
 script = ExtResource( 1 )
 lane_width = 3.0
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../first_point")
 next_pt_init = NodePath("../third_point")
+prior_mag = 10.0
+next_mag = 10.0
 
 [node name="third_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.797647, 0, 0.603125, 0, 1, 0, -0.603125, 0, 0.797647, 19.2113, -2.51023, 41.4234 )
 script = ExtResource( 1 )
 lane_width = 3.0
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../second_point")
 next_pt_init = NodePath("../fourth_rev")
 prior_mag = 10.0
@@ -72,44 +79,55 @@ transform = Transform( -0.423789, 0, -0.905761, 0, 1, 0, 0.905761, 0, -0.423789,
 visible = false
 script = ExtResource( 1 )
 lane_width = 3.0
+gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../third_point")
 
 [node name="disc_1" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 42.5867, 1.05143, -36.5026 )
+transform = Transform( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 36.0962, 1.05143, -36.5026 )
 script = ExtResource( 1 )
-lanes = [ 5, 5 ]
-traffic_dir = [ 2, 1 ]
+lanes = [ 7, 0, 7 ]
+traffic_dir = [ 2, 1, 0 ]
+gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_2")
 
 [node name="disc_2" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.93436, 0, 0.356331, 0, 1, 0, -0.356331, 0, -0.93436, 37.9837, 1.05143, -51.404 )
+transform = Transform( -0.957722, 0, 0.287695, 0, 1, 0, -0.287695, 0, -0.957722, 32.8482, 1.05143, -51.404 )
 script = ExtResource( 1 )
-lanes = [ 5, 5 ]
-traffic_dir = [ 2, 1 ]
+lanes = [ 7, 0, 7 ]
+traffic_dir = [ 2, 1, 0 ]
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_1")
 
 [node name="disc_3" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 62.9694, -0.150141, -34.5682 )
 script = ExtResource( 1 )
-lanes = [ 7, 0, 0, 0, 7 ]
+auto_lanes = false
 traffic_dir = [ 2, 2, 1, 1, 0 ]
+gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_4")
 
 [node name="disc_4" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 1.05143, -52.8625 )
 script = ExtResource( 1 )
+lanes = [ 2, 4, 4, 3, 2 ]
+traffic_dir = [ 2, 2, 1, 1, 1 ]
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_3")
 
 [node name="disc_5" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 55.4644, -0.150141, 14.9732 )
+transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 54.782, -0.542746, 14.9732 )
 script = ExtResource( 1 )
 lanes = [ 2, 4, 4, 3, 2 ]
 traffic_dir = [ 2, 2, 1, 1, 1 ]
+gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_6")
 
 [node name="disc_6" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 50.8614, 1.05143, -3.32112 )
+transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 50.8614, 0.0695984, -3.32112 )
 script = ExtResource( 1 )
+lanes = [ 2, 4, 4, 3, 2 ]
+traffic_dir = [ 2, 2, 1, 1, 1 ]
+gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_5")
 
 [node name="segments" type="Node" parent="RoadNetwork"]
