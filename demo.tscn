@@ -23,6 +23,7 @@ script = ExtResource( 4 )
 script = ExtResource( 2 )
 material_resource = ExtResource( 3 )
 density = 1.5
+use_lowpoly_preview = true
 debug_prior = NodePath("debug_prior")
 debug_next = NodePath("debug_next")
 
@@ -36,6 +37,7 @@ lanes = [ 5, 4, 2 ]
 traffic_dir = [ 2, 1, 1 ]
 lane_width = 8.0
 gutter_profile = Vector2( 0.5, -1 )
+next_pt_init = NodePath("../zero_point")
 
 [node name="zero_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.598, 1.12063, -24.234 )
@@ -54,6 +56,8 @@ lane_width = 8.0
 gutter_profile = Vector2( 1, -1 )
 prior_pt_init = NodePath("../zero_point")
 next_pt_init = NodePath("../second_point")
+prior_mag = 5.13017
+next_mag = 14.2773
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.504927, 18.9381 )
@@ -62,8 +66,8 @@ lane_width = 3.0
 gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../first_point")
 next_pt_init = NodePath("../third_point")
-prior_mag = 10.0
-next_mag = 10.0
+prior_mag = 11.0325
+next_mag = 12.8194
 
 [node name="third_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.797647, 0, 0.603125, 0, 1, 0, -0.603125, 0, 0.797647, 19.2113, -2.51023, 41.4234 )
@@ -107,7 +111,7 @@ gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_4")
 
 [node name="disc_4" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 1.05143, -52.8625 )
+transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 0.80562, -52.8625 )
 script = ExtResource( 1 )
 lanes = [ 2, 4, 4, 3, 2 ]
 traffic_dir = [ 2, 2, 1, 1, 1 ]

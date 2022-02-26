@@ -5,6 +5,8 @@
 extends Spatial
 class_name RoadSegment, "road_segment.png"
 
+const LOWPOLY_FACTOR = 3.0
+
 signal check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
@@ -115,10 +117,6 @@ func _rebuild():
 		])
 		return
 	
-	#if not road_mesh:
-	#	road_mesh = MeshInstance.new()
-	#	add_child(road_mesh)
-	#	road_mesh.name = "road_mesh"
 	_update_curve()
 	
 	# Create a low and high poly road, start with low poly.
@@ -127,7 +125,7 @@ func _rebuild():
 
 func _update_curve():
 	curve.clear_points()
-	curve.bake_interval = density / 2.0 # more points, for sampling.
+	curve.bake_interval = density / 4.0 # more points, for sampling.
 	# path.transform.origin = Vector3.ZERO
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
@@ -136,14 +134,14 @@ func _update_curve():
 	var pos = to_local(start_point.global_transform.origin)
 	var handle = start_point.global_transform.basis.z * start_point.next_mag
 	curve.add_point(pos, -handle, handle)
-	var start_float = start_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
+	var start_float = start_point.global_transform.basis.z.dot(Vector3(0, 1, 0))
 	curve.set_point_tilt(0, start_float)
 	
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
 	curve.add_point(pos, -handle, handle)
-	var end_float = end_point.global_transform.basis.x.dot(Vector3(0, 1, 0))
+	var end_float = end_point.global_transform.basis.z.dot(Vector3(0, 1, 0))
 	curve.set_point_tilt(1, end_float)
 
 
@@ -164,7 +162,15 @@ func _build_geo():
 	var clength = curve.get_baked_length()
 	# In this context, loop refers to "quad" faces, not the edges, as it will
 	# be a loop of generated faces.
-	var loops = int(max(floor(clength / density), 1.0)) # Need at least 1 loop.
+	var loops
+	if low_poly: # one third the geo
+		# Remove all loops between road points, so it's a straight mesh with no
+		# loops. In the future, this could be reduce to just a lower density.
+		# This makes interactivity in the UI much faster, but could also work for
+		# in-game LODs.
+		loops = int(max(floor(clength / density / LOWPOLY_FACTOR), 1.0)) # Need at least 1 loop.
+	else:
+		loops = int(max(floor(clength / density), 1.0)) # Need at least 1 loop.
 	
 	# Keep track of UV position over lane, to be seamless within the segment.
 	var lane_uvs_length = []
@@ -182,14 +188,6 @@ func _build_geo():
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
 	var uv_width = 0.125 # 1/8 for breakdown of texture.
 	
-	# Remove all loops between road points, so it's a straight mesh with no
-	# loops. In the future, this could be reduce to just a lower density.
-	# This makes interactivity in the UI much faster, but could also work for
-	# in-game LODs.
-	if low_poly:
-		loops = 1
-		# Update UVs to be full width.
-		per_loop_uv_size = target_uv_tiles
 	
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])

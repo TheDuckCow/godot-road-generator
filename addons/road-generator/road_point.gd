@@ -71,8 +71,6 @@ func _ready():
 	
 	if not network:
 		network = get_parent().get_parent()
-	# _set_prior_pt(prior_pt_init)
-	# _set_next_pt(next_pt_init)
 	
 	connect("on_transform", network, "on_point_update")
 
@@ -151,8 +149,6 @@ func _get_prior_pt():
 
 func _set_next_pt(value):
 	next_pt_init = value
-	#if next_pt_init:
-	#	next_pt = get_node(next_pt_init)
 	rebuild_geom()
 	on_transform()
 func _get_next_pt():

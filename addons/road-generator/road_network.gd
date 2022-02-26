@@ -8,6 +8,8 @@ export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
 export(float) var density:float = 2.0  # Mesh density of generated segments.
+export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
+
 
 export(NodePath) var debug_prior
 export(NodePath) var debug_next
@@ -129,22 +131,23 @@ func update_debug_paths(point:RoadPoint):
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool):
+	var use_lowpoly = low_poly and use_lowpoly_preview
 	if not auto_refresh:
 		return
 	if point.prior_seg:
-		point.prior_seg.low_poly = low_poly
+		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
-		process_seg(prior, point, low_poly)
+		process_seg(prior, point, use_lowpoly)
 	if point.next_seg:
-		point.next_seg.low_poly = low_poly
+		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
-		process_seg(point, next, low_poly)
+		process_seg(point, next, use_lowpoly)
 
 
 # Callback from a modification of a RoadSegment object.

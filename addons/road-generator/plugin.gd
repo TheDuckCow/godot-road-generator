@@ -4,18 +4,22 @@ extends EditorPlugin
 
 const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
 
-var road_point_gizmo = RoadPointGizmo.new()
+var road_point_gizmo = RoadPointGizmo.new(self)
 var _eds = get_editor_interface().get_selection()
 var _last_point
 
 
 func _enter_tree():
-	# add_spatial_gizmo_plugin(road_point_gizmo)
+	add_spatial_gizmo_plugin(road_point_gizmo)
 	_eds.connect("selection_changed", self, "_on_selection_changed")
+	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
+	add_custom_type("RoadNetwork", "Node", preload("road_network.gd"), preload("road_segment.png"))
 
 
 func _exit_tree():
 	remove_spatial_gizmo_plugin(road_point_gizmo)
+	remove_custom_type("RoadPoint")
+	remove_custom_type("RoadNetwork")
 
 
 func _on_selection_changed():
