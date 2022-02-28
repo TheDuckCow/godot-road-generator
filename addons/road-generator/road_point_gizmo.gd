@@ -5,6 +5,8 @@ extends EditorSpatialGizmoPlugin
 
 var _editor_plugin: EditorPlugin
 
+# Either value, or null if not mid action (magnitude handle mid action).
+var init_handle
 
 func get_name():
 	return "RoadPoint"
@@ -14,6 +16,7 @@ func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 	create_material("main", Color(0,1,0))
 	create_handle_material("handles")
+	init_handle = null
 
 
 func has_gizmo(spatial) -> bool:
@@ -63,14 +66,14 @@ func set_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Ve
 	var basis = roadpoint.global_transform.basis
 	var plane := Plane(basis.y, 0)
 	var intersect = plane.intersects_ray(src, nrm)
+	# Then isolate to just the magnitude of the z component.
 	var new_mag = (intersect - roadpoint.global_transform.origin).length()
-	
+	if init_handle == null:
+		init_handle = new_mag
 	if index == 0:
 		roadpoint.prior_mag = new_mag
 	else:
 		roadpoint.next_mag = new_mag
-	
-	# Then isolate to just the magnitude of the z component.
 	redraw(gizmo)
 
 
@@ -81,14 +84,24 @@ func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool 
 	if (cancel):
 		print("Cancel")
 	else:
+		if init_handle == null:
+			init_handle = current_value
+		
 		var undo_redo = _editor_plugin.get_undo_redo()
-		# TODO: This doesn't actually work with undo yet.
-		undo_redo.create_action("Update RoadPoint handle")
 		if index == 0:
-			undo_redo.add_do_method(point, "_set_prior_mag", current_value)
-			undo_redo.add_undo_method(point, "_set_prior_mag", point.prior_mag) # ? 
+			undo_redo.create_action("RoadPoint %s in handle" % point.name)
+			undo_redo.add_do_property(point, "prior_mag", current_value)
+			undo_redo.add_undo_property(point, "prior_mag", init_handle)
+			print("This commit ", current_value, "-", init_handle)
 		else:
-			undo_redo.add_do_method(point, "_set_next_mag", current_value)
-			undo_redo.add_undo_method(point, "_set_next_mag", point.next_mag) # ? 
+
+			undo_redo.create_action("RoadPoint %s out handle" % point.name)
+			undo_redo.add_do_property(point, "next_mag", current_value)
+			undo_redo.add_undo_property(point, "next_mag", init_handle)
+
+		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
+		undo_redo.add_do_method(self, "redraw", gizmo)
+		undo_redo.add_undo_method(self, "redraw", gizmo)
 		
 		undo_redo.commit_action()
+		init_handle = null
