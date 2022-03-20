@@ -24,8 +24,11 @@ script = ExtResource( 2 )
 material_resource = ExtResource( 3 )
 density = 1.5
 use_lowpoly_preview = true
+points = NodePath("points")
+segments = NodePath("segments")
 debug_prior = NodePath("debug_prior")
 debug_next = NodePath("debug_next")
+debug = true
 
 [node name="points" type="Node" parent="RoadNetwork"]
 
@@ -56,11 +59,11 @@ lane_width = 8.0
 gutter_profile = Vector2( 1, -1 )
 prior_pt_init = NodePath("../zero_point")
 next_pt_init = NodePath("../second_point")
-prior_mag = 5.13017
-next_mag = 14.2773
+prior_mag = 8.65464
+next_mag = 20.1777
 
 [node name="second_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.504927, 18.9381 )
+transform = Transform( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.750719, 18.9381 )
 script = ExtResource( 1 )
 lane_width = 3.0
 gutter_profile = Vector2( 0.5, -1 )

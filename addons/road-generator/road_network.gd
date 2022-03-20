@@ -10,16 +10,18 @@ export(Material) var material_resource:Material
 export(float) var density:float = 2.0  # Mesh density of generated segments.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
+# UI-selectable points and segments
+export(NodePath) var points  # Where RoadPoints should be placed.
+export(NodePath) var segments  # Where generated segment meshes will go.
+
 
 export(NodePath) var debug_prior
 export(NodePath) var debug_next
 
-
-onready var points = $points
-onready var segments = $segments
-
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
+
+export(bool) var debug := false
 
 
 func _ready():
@@ -38,11 +40,12 @@ func _ui_refresh_get():
 
 func rebuild_segments(clear_existing=false):
 	# print("Rebuilding segments")
-	if not segments:
+	if not get_node(segments) or not is_instance_valid(get_node(segments)):
+		push_error("Segments node path not found")
 		return # Could be before ready called.
 	if clear_existing:
 		segid_map = {}
-		for ch in segments.get_children():
+		for ch in get_node(segments).get_children():
 			ch.queue_free()
 	else:
 		# TODO: think of using groups instead, to have a single manager
@@ -52,7 +55,7 @@ func rebuild_segments(clear_existing=false):
 	# Goal is to loop through all RoadPoints, and check if an existing segment
 	# is there, or needs to be added.
 	var rebuilt = 0
-	for obj in points.get_children():
+	for obj in get_node(points).get_children():
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
 		if not obj is RoadPoint:
@@ -75,7 +78,8 @@ func rebuild_segments(clear_existing=false):
 			rebuilt += process_seg(prior_pt, pt)
 		if next_pt and next_pt.visible:
 			rebuilt += process_seg(pt, next_pt)
-	print_debug("Road segs rebuilt: ", rebuilt)
+	if debug:
+		print_debug("Road segs rebuilt: ", rebuilt)
 
 
 # Create a new road segment based on input prior and next RoadPoints.
@@ -93,7 +97,7 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 	else:
 		# print("Adding new segment and running rebuild ", sid)
 		var new_seg = RoadSegment.new(self)
-		segments.add_child(new_seg)
+		get_node(segments).add_child(new_seg)
 		new_seg.low_poly = low_poly
 		new_seg.start_point = pt1
 		new_seg.end_point = pt2
@@ -131,9 +135,9 @@ func update_debug_paths(point:RoadPoint):
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool):
-	var use_lowpoly = low_poly and use_lowpoly_preview
 	if not auto_refresh:
 		return
+	var use_lowpoly = low_poly and use_lowpoly_preview
 	if point.prior_seg:
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
@@ -158,5 +162,7 @@ func segment_rebuild(road_segment:RoadSegment):
 # Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
 	segid_map = {}
-	for seg in segments.get_children():
+	if not segments or not is_instance_valid(get_node(segments)):
+		return
+	for seg in get_node(segments).get_children():
 		seg.queue_free()

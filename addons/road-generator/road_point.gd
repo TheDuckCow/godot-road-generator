@@ -76,8 +76,13 @@ func _ready():
 
 
 func _to_string():
+	var parname
+	if self.get_parent():
+		parname = self.get_parent()
+	else:
+		parname = "[not in scene]"
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
-		self.get_parent().name,  self.translation, prior_pt_init, next_pt_init]
+		parname,  self.translation, prior_pt_init, next_pt_init]
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
