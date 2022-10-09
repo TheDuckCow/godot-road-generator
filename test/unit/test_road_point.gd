@@ -32,7 +32,7 @@ func test_auto_lanes_count(params=use_parameters(count_params)):
 	assert_eq(len(pt.lanes), params, "Matching lane param count")
 
 
-var auto_lan_paris = [
+var auto_lane_pairs = [
 	[
 		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],
 		[RoadPoint.LaneType.TWO_WAY, RoadPoint.LaneType.TWO_WAY],
@@ -55,7 +55,7 @@ var auto_lan_paris = [
 	],
 ]
 
-func test_auto_lanes_sequence(params=use_parameters(auto_lan_paris)):
+func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
 	var pt = RoadPoint.new()
 	
 	pt.traffic_dir = params[0]
