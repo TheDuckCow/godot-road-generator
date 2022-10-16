@@ -1,0 +1,22 @@
+# Addon-specific ignores
+addons/gut/
+*.DS_store
+
+# Official gitignore items to include for Asset Library contributions, per:
+# https://raw.githubusercontent.com/aaronfranke/gitignore/godot/Godot.gitignore
+
+# Godot 4+ specific ignores
+.godot/
+
+# Godot-specific ignores
+.import/
+export.cfg
+export_presets.cfg
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
