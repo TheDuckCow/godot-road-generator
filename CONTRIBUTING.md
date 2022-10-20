@@ -13,12 +13,12 @@ The full process would thus be:
     1. If a `dev` branch exists, check it out; otherwise, check out the `main` branch.
     1. Now create an appropriately named branch, add commits there
 1. Run GUT tests to ensure everything is working as expected (nothing new broken)
-1. Crate a pull request, requesting to merge back into `main` (or into `dev` if that branch exists), and explicitly request review (add an owner)
+1. Create a pull request, requesting to merge back into `main` (or into `dev` if that branch exists), and explicitly request review (add an owner)
     - Best practice: Assign the relating issue to the pull request (or vice versa) in the GitHub UI so it's clear what it relates to.
 1. Owners will review and likely give feedback. Don't be discouraged! But to get an edge, see the dev guidance below.
 1. Author responds to comments, makes changes if appropriate. Go back one step to re-review
 1. An owner approves, and indicates to the author if/when to merge
-1. Author merges in the PR (owners may due this step if an approval is there and author is not responding)
+1. Author merges in the PR (owners may do this step if an approval is there and author is not responding)
 
 ## How to run tests
 
