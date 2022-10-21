@@ -40,9 +40,9 @@ This will be updated in the future. At the moment, there is no custom UI around 
 
 ```
 - RoadNetwork (Node, road_network.gd)
-  - points (Node, no script)
+  - points (Node or Spatial, no script)
   	- Children nodes (Spatials, road_point.gd)
-  - segments (Node, no script)
+  - segments (Node or Spatial, no script)
   	- Runtime-generated nodes (Spatials, road_segment.gd)
 ```
 
