@@ -163,7 +163,7 @@ func _get_next_pt():
 func _set_prior_mag(value):
 	prior_mag = value
 	rebuild_geom()
-	on_transform()
+	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_prior_mag():
 	return prior_mag
 
@@ -171,7 +171,7 @@ func _get_prior_mag():
 func _set_next_mag(value):
 	next_mag = value
 	rebuild_geom()
-	on_transform()
+	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_next_mag():
 	return next_mag
 
