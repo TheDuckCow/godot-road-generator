@@ -104,4 +104,5 @@ func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool 
 		undo_redo.add_undo_method(self, "redraw", gizmo)
 		
 		undo_redo.commit_action()
+		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 		init_handle = null
