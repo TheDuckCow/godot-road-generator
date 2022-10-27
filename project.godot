@@ -9,6 +9,11 @@
 config_version=4
 
 _global_script_classes=[ {
+"base": "Reference",
+"class": "GutHookScript",
+"language": "GDScript",
+"path": "res://addons/gut/hook_script.gd"
+}, {
 "base": "Node",
 "class": "LanePoint",
 "language": "GDScript",
@@ -25,6 +30,7 @@ _global_script_classes=[ {
 "path": "res://addons/road-generator/road_segment.gd"
 } ]
 _global_script_class_icons={
+"GutHookScript": "",
 "LanePoint": "",
 "RoadPoint": "res://addons/road-generator/road_point.png",
 "RoadSegment": "res://addons/road-generator/road_segment.png"

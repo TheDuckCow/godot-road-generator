@@ -22,13 +22,23 @@
  "pre_run_script": "",
  "prefix": "test_",
  "selected": null,
- "should_exit": true,
+ "should_exit": false,
  "should_exit_on_success": true,
  "should_maximize": false,
+ "compact_mode": false,
  "show_help": false,
  "suffix": ".gd",
  "tests": [
 
  ],
- "unit_test_name": null
+ "unit_test_name": null,
+ "gut_on_top": true,
+ "panel_options": {
+  "font_name": "CourierPrime",
+  "font_size": 30,
+  "hide_result_tree": true,
+  "hide_output_text": false,
+  "hide_settings": false,
+  "use_colors": false
+ }
 }
