@@ -134,15 +134,13 @@ func _update_curve():
 	var pos = to_local(start_point.global_transform.origin)
 	var handle = start_point.global_transform.basis.z * start_point.next_mag
 	curve.add_point(pos, -handle, handle)
-	var start_float = start_point.global_transform.basis.z.dot(Vector3(0, 1, 0))
-	curve.set_point_tilt(0, start_float)
+	curve.set_point_tilt(0, start_point.rotation.z)
 	
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
 	curve.add_point(pos, -handle, handle)
-	var end_float = end_point.global_transform.basis.z.dot(Vector3(0, 1, 0))
-	curve.set_point_tilt(1, end_float)
+	curve.set_point_tilt(1, end_point.rotation.z)
 
 
 func _normal_for_offset(curve:Curve3D, offset:float):
