@@ -152,6 +152,8 @@ func _normal_for_offset(curve:Curve3D, offset:float):
 
 
 func _build_geo():
+	if not is_instance_valid(road_mesh):
+		return
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	#st.add_smooth_group(true)
