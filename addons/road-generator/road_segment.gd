@@ -68,6 +68,8 @@ func get_id():
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
+	if not is_instance_valid(network):
+		return
 	#emit_signal("check_rebuild", self)
 func _init_start_get():
 	return start_init
@@ -76,12 +78,18 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
+	if not is_instance_valid(network):
+		return
 	#emit_signal("check_rebuild", self)
 func _init_end_get():
 	return end_init
 
 
 func check_rebuild():
+	if not is_instance_valid(network):
+		return
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return
 	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
 	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
