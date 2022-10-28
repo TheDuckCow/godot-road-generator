@@ -90,6 +90,8 @@ func _to_string():
 
 func _set_lanes(values):
 	lanes = values
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_lanes():
@@ -98,6 +100,8 @@ func _get_lanes():
 
 func _set_auto_lanes(value):
 	auto_lanes = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_auto_lanes():
@@ -106,6 +110,8 @@ func _get_auto_lanes():
 
 func _set_dir(values):
 	traffic_dir = values
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_dir():
@@ -114,6 +120,8 @@ func _get_dir():
 
 func _set_lane_width(value):
 	lane_width = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_lane_width():
@@ -122,6 +130,8 @@ func _get_lane_width():
 
 func _set_shoulder_width_l(value):
 	shoulder_width_l = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_shoulder_width_l():
@@ -130,6 +140,8 @@ func _get_shoulder_width_l():
 
 func _set_shoulder_width_r(value):
 	shoulder_width_r = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_shoulder_width_r():
@@ -138,6 +150,8 @@ func _get_shoulder_width_r():
 
 func _set_profile(value:Vector2):
 	gutter_profile = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_profile():
@@ -146,6 +160,8 @@ func _get_profile():
 
 func _set_prior_pt(value):
 	prior_pt_init = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_prior_pt():
@@ -154,6 +170,8 @@ func _get_prior_pt():
 
 func _set_next_pt(value):
 	next_pt_init = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
 func _get_next_pt():
@@ -162,6 +180,8 @@ func _get_next_pt():
 
 func _set_prior_mag(value):
 	prior_mag = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_prior_mag():
@@ -170,6 +190,8 @@ func _get_prior_mag():
 
 func _set_next_mag(value):
 	next_mag = value
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	rebuild_geom()
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_next_mag():
@@ -181,6 +203,8 @@ func _get_next_mag():
 # ------------------------------------------------------------------------------
 
 func _notification(what):
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
 		on_transform(low_poly)
