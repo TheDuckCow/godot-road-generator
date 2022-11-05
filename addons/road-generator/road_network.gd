@@ -25,7 +25,7 @@ export(bool) var debug := false
 
 
 func _ready():
-	call_deferred("rebuild_segments", true)
+	rebuild_segments(true)
 
 
 func _ui_refresh_set(value):
@@ -86,16 +86,14 @@ func rebuild_segments(clear_existing=false):
 func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 	# TODO: The id setup below will have issues if a "next" goes into "prior", ie rev dir
 	# but doing this for simplicity now.
+
 	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
 	if sid in segid_map:
-		#segid_map[sid].queue_free()
 		if not is_instance_valid(segid_map[sid]):
 			push_error("Instance was not valid on sid: %s" % sid)
-		#print("Segment existed already, not refreshing")
 		segid_map[sid].check_rebuild()
 		return 0
 	else:
-		# print("Adding new segment and running rebuild ", sid)
 		var new_seg = RoadSegment.new(self)
 		get_node(segments).add_child(new_seg)
 		new_seg.low_poly = low_poly
@@ -135,7 +133,7 @@ func update_debug_paths(point:RoadPoint):
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool):
-	if not auto_refresh:
+	if not auto_refresh or not is_instance_valid(point):
 		return
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if point.prior_seg:
