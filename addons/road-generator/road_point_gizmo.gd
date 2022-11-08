@@ -57,7 +57,7 @@ func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 # Function called when user drags the roadpoint in/out magnitude handle.
 func set_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
 	# Calculate intersection between screen point clicked and a plane aligned to
-    # the handle's vector. Then, calculate new handle magnitude.
+    	# the handle's vector. Then, calculate new handle magnitude.
 	var roadpoint = gizmo.get_spatial_node() as RoadPoint
 	var src = camera.project_ray_origin(point) # Camera initial position.
 	var nrm = camera.project_ray_normal(point) # Normal camera is facing
