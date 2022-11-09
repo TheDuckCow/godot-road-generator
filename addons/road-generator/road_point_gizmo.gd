@@ -56,18 +56,25 @@ func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 
 # Function called when user drags the roadpoint in/out magnitude handle.
 func set_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
+	# Calculate intersection between screen point clicked and a plane aligned to
+    	# the handle's vector. Then, calculate new handle magnitude.
 	var roadpoint = gizmo.get_spatial_node() as RoadPoint
-	
-	# First, we must map the vector2 point of the current handle to the Z axis
-	# of the gizmo in question. First project to the xz plane of the object,
-	# and then constrain to the z axis.
 	var src = camera.project_ray_origin(point) # Camera initial position.
 	var nrm = camera.project_ray_normal(point) # Normal camera is facing
-	var basis = roadpoint.global_transform.basis
-	var plane := Plane(basis.y, 0)
+	var old_mag_vector # Handle's old local position.
+	
+	if index == 0:
+		old_mag_vector = Vector3(0, 0, -roadpoint.prior_mag)
+	else:
+		old_mag_vector = Vector3(0, 0, roadpoint.next_mag)
+	
+	var plane_vector : Vector3 = roadpoint.to_global(old_mag_vector)
+	var camera_basis : Basis = camera.get_transform().basis
+	var plane := Plane(plane_vector, plane_vector + camera_basis.x, plane_vector + camera_basis.y)
 	var intersect = plane.intersects_ray(src, nrm)
+	
 	# Then isolate to just the magnitude of the z component.
-	var new_mag = (intersect - roadpoint.global_transform.origin).length()
+	var new_mag = abs(roadpoint.to_local(intersect).z)	
 	if init_handle == null:
 		init_handle = new_mag
 	if index == 0:
