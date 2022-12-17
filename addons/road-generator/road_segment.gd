@@ -452,3 +452,76 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 	st.add_vertex(pts[2])
 	st.add_uv(uvs[3])
 	st.add_vertex(pts[3])
+
+#------------------------------------------------------------------------------
+# Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
+# the lanes whose directions match and create Add/Remove Transition lanes where
+# the start or end points are missing lanes. Return a LaneType array that
+# includes both full lanes and transition lanes.
+#------------------------------------------------------------------------------
+func _match_lanes() ->Array:	
+	#Get lane flip offsets for start and end points. The offset represents the
+	#ID of the first FORWARD lane on a road point. Should always be > 0.
+	var start_flip_offset = 0
+	var end_flip_offset = 0
+	
+	for i in range(len(start_point.traffic_dir)):
+		if start_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD:
+			start_flip_offset = i
+			break
+	
+	for i in range(len(end_point.traffic_dir)):
+		if end_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD:
+			end_flip_offset = i
+			break
+	
+	# Exit if no flip occurred. Calling routine should check for empty array
+	# to determine if it should draw the segment.
+	if start_flip_offset == 0 or end_flip_offset == 0:
+		push_warning("Warning: Unable to match lanes.")
+		return []
+	
+	# Build lanes list.
+	var lanes:Array
+	
+	# Match REVERSE lanes.
+	# Iterate the start point REVERSE lanes. But, iterate the maximum number of
+	# REVERSE lanes of the two road points. If the iterator goes below zero,
+	# then assign TRANSITION_ADD lane(s). If the iterator is above -1 and
+	# there is a lane on the end point, then assign the start point's LaneType.
+	# If the iterator is above -1 and there are no more lanes on the end point,
+	# then assign a TRANSITION_REM lane.
+	var start_end_offset_diff = start_flip_offset - end_flip_offset
+	var range_to_check = start_flip_offset - max(start_flip_offset, end_flip_offset) - 1
+	for i in range(start_flip_offset-1, range_to_check, -1):
+		if i < 0:
+			#No pre-existing lane on start point. Add a lane.
+			lanes.push_front(RoadPoint.LaneType.TRANSITION_ADD)
+		elif i > -1 and i - start_end_offset_diff < 0:
+			#No pre-existing lane on end point. Remove a lane.
+			lanes.push_front(RoadPoint.LaneType.TRANSITION_REM)
+		else:
+			#Lane directions match. Add LaneType from start point.
+			lanes.push_front(start_point.lanes[i])
+	
+	# Match FORWARD lanes
+	# Iterate the start point FORWARD lanes. But, iterate the maximum number of
+	# FORWARD lanes of the two road points. If the iterator goes above the
+	# length of start point lanes, then assign TRANSITION_ADD lane(s). If the
+	# iterator is below the length of start point lanes and there is a lane on
+	# the end point, then assign the start point's LaneType. If the iterator is 
+	# below the length of start point lanes and there are no more lanes on the
+	# end point, then assign TRANSITION_REM lane(s).
+	range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
+	for i in range(start_flip_offset, range_to_check):
+		if i > len(start_point.traffic_dir) - 1:
+			#No pre-existing lane on start point. Add a lane.
+			lanes.append(RoadPoint.LaneType.TRANSITION_ADD)
+		elif i < len(start_point.traffic_dir) and i - start_end_offset_diff > len(end_point.traffic_dir) - 1:
+			#No pre-existing lane on end point. Remove a lane.
+			lanes.append(RoadPoint.LaneType.TRANSITION_REM)
+		elif i < len(start_point.lanes):
+			#Lane directions match. Add LaneType from start point.
+			lanes.append(start_point.lanes[i])
+	
+	return lanes
