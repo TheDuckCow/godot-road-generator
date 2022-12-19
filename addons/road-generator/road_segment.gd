@@ -453,15 +453,14 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 	st.add_uv(uvs[3])
 	st.add_vertex(pts[3])
 
-#------------------------------------------------------------------------------
-# Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
-# the lanes whose directions match and create Add/Remove Transition lanes where
-# the start or end points are missing lanes. Return a LaneType array that
-# includes both full lanes and transition lanes.
-#------------------------------------------------------------------------------
-func _match_lanes() ->Array:	
-	#Get lane flip offsets for start and end points. The offset represents the
-	#ID of the first FORWARD lane on a road point. Should always be > 0.
+## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
+## the lanes whose directions match and create Add/Remove Transition lanes where
+## the start or end points are missing lanes. Return a LaneType array that
+## includes both full lanes and transition lanes.
+## Returns: Array[RoadPoint.LaneType]
+func _match_lanes() -> Array:	
+	# Get lane flip offsets for start and end points. The offset represents the
+	# ID of the first FORWARD lane on a road point. Should always be > 0.
 	var start_flip_offset = 0
 	var end_flip_offset = 0
 	
@@ -482,7 +481,7 @@ func _match_lanes() ->Array:
 		return []
 	
 	# Build lanes list.
-	var lanes:Array
+	var lanes: Array
 	
 	# Match REVERSE lanes.
 	# Iterate the start point REVERSE lanes. But, iterate the maximum number of
