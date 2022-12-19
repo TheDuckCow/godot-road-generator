@@ -477,7 +477,7 @@ func _match_lanes() -> Array:
 	# Exit if no flip occurred. Calling routine should check for empty array
 	# to determine if it should draw the segment.
 	if start_flip_offset == 0 or end_flip_offset == 0:
-		push_warning("Warning: Unable to match lanes.")
+		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
 		return []
 	
 	# Build lanes list.
