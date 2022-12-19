@@ -1,17 +1,17 @@
+## This script contains test cases for the road_segment._match_lanes function.
+##
+## auto_lane_setup array format:
+## 0 start point traffic dir
+## 1 end point traffic dir
+## 2 start point lane types
+## 3 expected result
+## 4 Test case label, with a structure of:
+##    Direction start > Direction end > expected outcome, where
+##    Direction start/end: F=forward lane, R=reverse lane
+##    expected outcome: Lanes start to end: A=add, R=remove, -=full lane
+##    and where `|` = direction switch/double yellow (not an actual lane, just a visual aide)
+
 extends "res://addons/gut/test.gd"
-# ------------------------------------------------------------------------------
-# This script contains test cases for the road_segment._match_lanes function.
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
-# auto_lane_setup array format:
-# 0 start point traffic dir
-# 1 end point traffic dir
-# 2 start point lane types
-# 3 expected result
-# 4 Test case label
-# ------------------------------------------------------------------------------
 var auto_lane_setup = [
 	[
 		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.REVERSE],
