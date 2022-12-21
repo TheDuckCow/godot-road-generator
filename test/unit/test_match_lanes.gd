@@ -611,6 +611,79 @@ var auto_lane_setup = [
 	],
 ]
 
+var one_way_lane_setup = [
+	[
+		[RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.MIDDLE],
+		[RoadPoint.LaneType.MIDDLE],
+		"F > F >> |M",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.MIDDLE],
+		[RoadPoint.LaneType.MIDDLE],
+		"R > R >> M|",
+	],
+	[
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW],
+		"FF > FF >> |MS",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		"RR > RR >> SM|",
+	],
+	[
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.SLOW],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.TRANSITION_ADD],
+		"FF > FFF >> |MSA",
+	],
+	[
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.SLOW],
+		[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.TRANSITION_REM],
+		"FFF > FF >> |MSR",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		[RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		"RR > RRR >> ASM|",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		[RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		"RRR > RR >> RSM|",
+	],
+	[
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		[],
+		"FF > RR >> Empty set due to invalid lane config",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
+		[],
+		"RR > FF >> Empty set due to invalid lane config",
+	],
+]
+
 func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
 	var seg = RoadSegment.new(null)
 	
@@ -623,3 +696,16 @@ func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
 	var target = params[3]
 	var result = seg._match_lanes()
 	assert_eq(result, target, "Match lanes %s" % params[4])
+
+func test_one_way_lanes_sequence(params=use_parameters(one_way_lane_setup)):
+	var seg = RoadSegment.new(null)
+	
+	seg.start_point = RoadPoint.new()
+	seg.end_point = RoadPoint.new()
+	seg.start_point.traffic_dir = params[0]
+	seg.end_point.traffic_dir = params[1]
+	seg.start_point.lanes = params[2]
+	
+	var target = params[3]
+	var result = seg._match_lanes()
+	assert_eq(result, target, "Match one-way %s" % params[4])

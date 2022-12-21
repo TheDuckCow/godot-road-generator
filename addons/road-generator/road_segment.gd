@@ -458,26 +458,23 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 ## the start or end points are missing lanes. Return a LaneType array that
 ## includes both full lanes and transition lanes.
 ## Returns: Array[RoadPoint.LaneType]
-func _match_lanes() -> Array:	
-	# Get lane flip offsets for start and end points. The offset represents the
-	# ID of the first FORWARD lane on a road point. Should always be > 0.
-	var start_flip_offset = 0
-	var end_flip_offset = 0
-	
-	for i in range(len(start_point.traffic_dir)):
-		if start_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD:
-			start_flip_offset = i
-			break
-	
-	for i in range(len(end_point.traffic_dir)):
-		if end_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD:
-			end_flip_offset = i
-			break
-	
-	# Exit if no flip occurred. Calling routine should check for empty array
-	# to determine if it should draw the segment.
-	if start_flip_offset == 0 or end_flip_offset == 0:
+func _match_lanes() -> Array:
+	# Check for invalid lane configuration
+	if (
+		(start_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE
+			and end_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD)
+			or (start_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD
+			and end_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
+	):
 		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
+		return []
+	
+	
+	var start_flip_offset = _get_lane_flip_offset(start_point)
+	var end_flip_offset = _get_lane_flip_offset(end_point)
+	
+	# Bail on invalid flip offsets
+	if start_flip_offset == -1 or end_flip_offset == -1:
 		return []
 	
 	# Build lanes list.
@@ -524,3 +521,33 @@ func _match_lanes() -> Array:
 			lanes.append(start_point.lanes[i])
 	
 	return lanes
+	
+## Evaluate the lanes of a RoadPoint and return the index of the direction flip
+## from REVERSE to FORWARD. Return value is -1 if no flip was found.
+## Returns: int
+func _get_lane_flip_offset(road_point: RoadPoint) -> int:
+	# Get lane FORWARD flip offset. If a flip occurs more than once, give
+	# warning.
+	var flip_offset = 0
+	var flip_count = 0
+	
+	for i in range(len(road_point.traffic_dir)):
+		if (
+				# Save ID of first FORWARD lane
+				road_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD
+				and flip_count == 0
+		):
+			flip_offset = i
+			flip_count += 1
+		elif (
+				# Flag unwanted flips
+				road_point.traffic_dir[i] == RoadPoint.LaneDir.REVERSE
+				and flip_count > 0
+		):
+			push_warning("Warning: Unable to detect lane flip on road_point %s" % road_point)
+			return -1
+		elif flip_count == 0 and i == len(road_point.traffic_dir) - 1:
+			# This must be a REVERSE-only road point
+				flip_offset = i
+	
+	return flip_offset
