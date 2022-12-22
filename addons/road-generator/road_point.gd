@@ -14,6 +14,8 @@ enum LaneType {
 	TWO_WAY, # White line one side, double yellow on other.
 	ONE_WAY, # white lines on both sides.
 	SINGLE_LINE, # ...right side of texture.
+	TRANSITION_ADD, # Default gray texture.
+	TRANSITION_REM, # Default gray texture.
 }
 
 enum LaneDir {
