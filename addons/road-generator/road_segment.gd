@@ -116,15 +116,6 @@ func _rebuild():
 	global_transform.origin = (
 		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
 	
-	# First, find out the number of lanes that match between the two road points,
-	# if they are off by more than 2, then error out (that assumes triangles
-	# on both sides).
-	if abs(len(start_point.lanes) - len(end_point.lanes)) > 2:
-		push_error("Invalid change in lane counts from %s to %s on %s" % [
-			len(start_point.lanes), len(end_point.lanes), self.name
-		])
-		return
-	
 	_update_curve()
 	
 	# Create a low and high poly road, start with low poly.
@@ -265,20 +256,16 @@ func _insert_geo_loop(
 	var near_width_offset
 	var far_width_offset
 	
-	if start_point.lane_width == end_point.lane_width:
-		near_width_offset = -lerp(
-				len(start_point.lanes) * near_width,
-				len(end_point.lanes) * far_width,
-				offset_s
-		) / 2.0
-		far_width_offset = -lerp(
-				len(start_point.lanes) * near_width,
-				len(end_point.lanes) * far_width,
-				offset_e
-		) / 2.0
-	else:
-		near_width_offset = -(len(start_point.lanes) * near_width) / 2.0
-		far_width_offset = -(len(end_point.lanes) * far_width) / 2.0
+	near_width_offset = -lerp(
+			len(start_point.lanes) * start_point.lane_width,
+			len(end_point.lanes) * end_point.lane_width,
+			offset_s
+	) / 2.0
+	far_width_offset = -lerp(
+			len(start_point.lanes) * start_point.lane_width,
+			len(end_point.lanes) * end_point.lane_width,
+			offset_e
+	) / 2.0
 	
 	for i in range(lane_count):
 		# Create the contents of a single lane / quad within this quad loop.
