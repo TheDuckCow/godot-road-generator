@@ -354,7 +354,6 @@ func _insert_geo_loop(
 				start_loop + start_basis * lane_near_width + lane_offset_s,
 
 			])
-	return
 		
 	#else:
 	#push_warning("Non-same number of lanes not implemented yet")
@@ -386,19 +385,19 @@ func _insert_geo_loop(
 		if dir == 1:
 			near_w_shoulder = lerp(start_point.shoulder_width_l, end_point.shoulder_width_l, offset_s)
 			far_w_shoulder = lerp(start_point.shoulder_width_l, end_point.shoulder_width_l, offset_e)
-			pos_far_l = lane_count / 2.0 * far_width + far_w_shoulder
-			pos_far_r = lane_count / 2.0 * far_width
-			pos_near_l = lane_count / 2.0 * near_width + near_w_shoulder
-			pos_near_r = lane_count / 2.0 * near_width 
+			pos_far_l = far_width_offset + far_w_shoulder
+			pos_far_r = far_width_offset
+			pos_near_l = near_width_offset + near_w_shoulder
+			pos_near_r = near_width_offset
 			pos_far_gutter = pos_far_l
 			pos_near_gutter = pos_near_l
 		else:
 			near_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_s)
 			far_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_e)
-			pos_far_l = lane_count / 2.0 * far_width
-			pos_far_r = lane_count / 2.0 * far_width + far_w_shoulder
-			pos_near_l = lane_count / 2.0 * near_width
-			pos_near_r = lane_count / 2.0 * near_width + near_w_shoulder
+			pos_far_l = far_width_offset
+			pos_far_r = far_width_offset + far_w_shoulder
+			pos_near_l = near_width_offset
+			pos_near_r = near_width_offset + near_w_shoulder
 			pos_far_gutter = pos_far_r
 			pos_near_gutter = pos_near_r
 		
