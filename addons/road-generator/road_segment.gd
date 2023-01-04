@@ -419,10 +419,10 @@ func _insert_geo_loop(
 		quad(
 			st,
 			[
-				Vector2(uv_m if dir == 1 else 1-uv_m, uv_y_end),
-				Vector2(uv_r if dir == 1 else 1-uv_r, uv_y_end),
-				Vector2(uv_r if dir == 1 else 1-uv_r, uv_y_start),
-				Vector2(uv_m if dir == 1 else 1-uv_m, uv_y_start),
+				Vector2(uv_m if dir == 1 else uv_l, uv_y_end),
+				Vector2(uv_r if dir == 1 else uv_m, uv_y_end),
+				Vector2(uv_r if dir == 1 else uv_m, uv_y_start),
+				Vector2(uv_m if dir == 1 else uv_l, uv_y_start),
 			],
 			[
 				end_loop + end_basis * pos_far_l * dir,
