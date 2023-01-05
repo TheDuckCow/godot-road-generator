@@ -18,12 +18,12 @@ export var lane_next:NodePath # LaneSegment or intersection
 export var lane_previous:NodePath # LaneSegment or intersection
 export var draw_in_game = false # Can override to draw if outside the editor
 
-# Draw debug tools
-
-var _vehicles_in_lane = [] # Registration
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom # For tool usage, drawing lane directions and end points
+
+var _vehicles_in_lane = [] # Registration
+var _display_fins: bool = false
 
 
 func _ready():
@@ -85,7 +85,7 @@ func get_vehicles()  -> Array:
 
 
 func _instantiate_geom() -> void:
-	if not Engine.is_editor_hint() and not draw_in_game:
+	if not _display_fins and (Engine.is_editor_hint() or draw_in_game):
 		if geom:
 			geom.clear()
 		return
@@ -146,3 +146,10 @@ func rebuild_geom() -> void:
 func curve_changed() -> void:
 	refresh_geom = true
 	rebuild_geom()
+
+
+func show_fins(value: bool) -> void:
+	_display_fins = value
+	rebuild_geom()
+
+
