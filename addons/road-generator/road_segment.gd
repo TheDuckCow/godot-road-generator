@@ -370,8 +370,14 @@ func _insert_geo_loop(
 	
 	for i in range(2):
 		var dir = -1 if i==0 else 1
-		var uv_y_start = lane_uvs_length[dir]
-		var uv_y_end = lane_uvs_length[dir] + per_loop_uv_size
+		var uv_y_start
+		var uv_y_end
+		if len(lane_uvs_length) == 1:
+			uv_y_start = lane_uvs_length[0]
+			uv_y_end = lane_uvs_length[0] + per_loop_uv_size
+		else:
+			uv_y_start = lane_uvs_length[dir]
+			uv_y_end = lane_uvs_length[dir] + per_loop_uv_size
 		
 		# Account for custom left/right shoulder width.
 		var near_w_shoulder
