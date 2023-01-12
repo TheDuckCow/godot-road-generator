@@ -116,15 +116,6 @@ func _rebuild():
 	global_transform.origin = (
 		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
 	
-	# First, find out the number of lanes that match between the two road points,
-	# if they are off by more than 2, then error out (that assumes triangles
-	# on both sides).
-	if abs(len(start_point.lanes) - len(end_point.lanes)) > 2:
-		push_error("Invalid change in lane counts from %s to %s on %s" % [
-			len(start_point.lanes), len(end_point.lanes), self.name
-		])
-		return
-	
 	_update_curve()
 	
 	# Create a low and high poly road, start with low poly.
@@ -166,6 +157,7 @@ func _build_geo():
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	#st.add_smooth_group(true)
 	var lane_count = max(len(start_point.lanes), len(end_point.lanes))
+	var lanes = _match_lanes()
 	
 	var clength = curve.get_baked_length()
 	# In this context, loop refers to "quad" faces, not the edges, as it will
@@ -202,7 +194,7 @@ func _build_geo():
 	
 	for loop in range(loops):
 		_insert_geo_loop(
-			st, loop, loops,
+			st, loop, loops, lanes,
 			lane_count, clength,
 			lane_uvs_length, per_loop_uv_size, uv_width)
 	
@@ -219,6 +211,7 @@ func _insert_geo_loop(
 		st: SurfaceTool,
 		loop: int,
 		loops: int,
+		lanes: Array,
 		lane_count: int,
 		clength: float,
 		lane_uvs_length: Array,
@@ -251,52 +244,90 @@ func _insert_geo_loop(
 	#	loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
 	#])
 	
+	# Calculate lane widths
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
+	var near_add_width = lerp(0, end_point.lane_width, offset_s)
+	var near_rem_width = lerp(start_point.lane_width, 0, offset_s)
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
+	var far_add_width = lerp(0, end_point.lane_width, offset_e)
+	var far_rem_width = lerp(start_point.lane_width, 0, offset_e)
+	
+	# Sum the lane widths and get position of left edge
+	var near_width_offset
+	var far_width_offset
+	
+	near_width_offset = -lerp(
+			len(start_point.lanes) * start_point.lane_width,
+			len(end_point.lanes) * end_point.lane_width,
+			offset_s
+	) / 2.0
+	far_width_offset = -lerp(
+			len(start_point.lanes) * start_point.lane_width,
+			len(end_point.lanes) * end_point.lane_width,
+			offset_e
+	) / 2.0
 	
 	for i in range(lane_count):
 		# Create the contents of a single lane / quad within this quad loop.
-		var lane_offset_s = near_width * (i - lane_count / 2.0) * start_basis
-		var lane_offset_e = far_width * (i - lane_count / 2.0) * end_basis
+		var lane_offset_s = near_width_offset * start_basis
+		var lane_offset_e = far_width_offset * end_basis
+		var lane_near_width
+		var lane_far_width
+		
+		# Set lane width for current lane type
+		if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD:
+			lane_near_width = near_add_width
+			lane_far_width = far_add_width
+		elif lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
+			lane_near_width = near_rem_width
+			lane_far_width = far_rem_width
+		else:
+			lane_near_width = near_width
+			lane_far_width = far_width
+			
+		near_width_offset += lane_near_width
+		far_width_offset += lane_far_width
 		
 		# Assume the start and end lanes are the same for now.
 		var uv_l:float # the left edge of the uv for this lane.
 		var uv_r:float
-		if i >= len(start_point.lanes):
-			uv_l = uv_width * 7 # Fallback for lane mismatch
-			uv_r = uv_l + uv_width
-		else:
-			match start_point.lanes[i]:
-				RoadPoint.LaneType.NO_MARKING:
-					uv_l = uv_width * 7
-					uv_r = uv_l + uv_width
-				RoadPoint.LaneType.SHOULDER:
-					uv_l = uv_width * 0
-					uv_r = uv_l + uv_width
-				RoadPoint.LaneType.SLOW:
-					uv_l = uv_width * 1
-					uv_r = uv_l + uv_width
-				RoadPoint.LaneType.MIDDLE:
-					uv_l = uv_width * 2
-					uv_r = uv_l + uv_width
-				RoadPoint.LaneType.FAST:
-					uv_l = uv_width * 3
-					uv_r = uv_l + uv_width
-				RoadPoint.LaneType.TWO_WAY:
-					# Flipped
-					uv_r = uv_width * 4
-					uv_l = uv_r + uv_width
-				RoadPoint.LaneType.ONE_WAY:
-					# Flipped
-					uv_r = uv_width * 5
-					uv_l = uv_r + uv_width
-				RoadPoint.LaneType.SINGLE_LINE:
-					uv_l = uv_width * 6
-					uv_r = uv_l + uv_width
-			if start_point.traffic_dir[i] == RoadPoint.LaneDir.REVERSE:
-				var tmp = uv_r
-				uv_r = uv_l
-				uv_l = tmp
+		match lanes[i][0]:
+			RoadPoint.LaneType.NO_MARKING:
+				uv_l = uv_width * 7
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.SHOULDER:
+				uv_l = uv_width * 0
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.SLOW:
+				uv_l = uv_width * 1
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.MIDDLE:
+				uv_l = uv_width * 2
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.FAST:
+				uv_l = uv_width * 3
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.TWO_WAY:
+				# Flipped
+				uv_r = uv_width * 4
+				uv_l = uv_r + uv_width
+			RoadPoint.LaneType.ONE_WAY:
+				# Flipped
+				uv_r = uv_width * 5
+				uv_l = uv_r + uv_width
+			RoadPoint.LaneType.SINGLE_LINE:
+				uv_l = uv_width * 6
+				uv_r = uv_l + uv_width
+			RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneType.TRANSITION_REM:
+				uv_l = uv_width * 7
+				uv_r = uv_l + uv_width - 0.002
+			_:
+				uv_l = uv_width * 7
+				uv_r = uv_l + uv_width
+		if lanes[i][1] == RoadPoint.LaneDir.REVERSE:
+			var tmp = uv_r
+			uv_r = uv_l
+			uv_l = tmp
 		
 		# uv offset continuation for this lane.
 		var uv_y_start = lane_uvs_length[i]
@@ -317,10 +348,10 @@ func _insert_geo_loop(
 				Vector2(uv_l, uv_y_start),
 			],
 			[
-				end_loop + end_basis * far_width + lane_offset_e,
+				end_loop + end_basis * lane_far_width + lane_offset_e,
 				end_loop + lane_offset_e,
 				start_loop + lane_offset_s,
-				start_loop + start_basis * near_width + lane_offset_s,
+				start_loop + start_basis * lane_near_width + lane_offset_s,
 
 			])
 		
@@ -339,8 +370,14 @@ func _insert_geo_loop(
 	
 	for i in range(2):
 		var dir = -1 if i==0 else 1
-		var uv_y_start = lane_uvs_length[dir]
-		var uv_y_end = lane_uvs_length[dir] + per_loop_uv_size
+		var uv_y_start
+		var uv_y_end
+		if len(lane_uvs_length) == 1:
+			uv_y_start = lane_uvs_length[0]
+			uv_y_end = lane_uvs_length[0] + per_loop_uv_size
+		else:
+			uv_y_start = lane_uvs_length[dir]
+			uv_y_end = lane_uvs_length[dir] + per_loop_uv_size
 		
 		# Account for custom left/right shoulder width.
 		var near_w_shoulder
@@ -354,19 +391,19 @@ func _insert_geo_loop(
 		if dir == 1:
 			near_w_shoulder = lerp(start_point.shoulder_width_l, end_point.shoulder_width_l, offset_s)
 			far_w_shoulder = lerp(start_point.shoulder_width_l, end_point.shoulder_width_l, offset_e)
-			pos_far_l = lane_count / 2.0 * far_width + far_w_shoulder
-			pos_far_r = lane_count / 2.0 * far_width
-			pos_near_l = lane_count / 2.0 * near_width + near_w_shoulder
-			pos_near_r = lane_count / 2.0 * near_width 
+			pos_far_l = far_width_offset + far_w_shoulder
+			pos_far_r = far_width_offset
+			pos_near_l = near_width_offset + near_w_shoulder
+			pos_near_r = near_width_offset
 			pos_far_gutter = pos_far_l
 			pos_near_gutter = pos_near_l
 		else:
 			near_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_s)
 			far_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_e)
-			pos_far_l = lane_count / 2.0 * far_width
-			pos_far_r = lane_count / 2.0 * far_width + far_w_shoulder
-			pos_near_l = lane_count / 2.0 * near_width
-			pos_near_r = lane_count / 2.0 * near_width + near_w_shoulder
+			pos_far_l = far_width_offset
+			pos_far_r = far_width_offset + far_w_shoulder
+			pos_near_l = near_width_offset
+			pos_near_r = near_width_offset + near_w_shoulder
 			pos_far_gutter = pos_far_r
 			pos_near_gutter = pos_near_r
 		
@@ -388,10 +425,10 @@ func _insert_geo_loop(
 		quad(
 			st,
 			[
-				Vector2(uv_m if dir == 1 else 1-uv_m, uv_y_end),
-				Vector2(uv_r if dir == 1 else 1-uv_r, uv_y_end),
-				Vector2(uv_r if dir == 1 else 1-uv_r, uv_y_start),
-				Vector2(uv_m if dir == 1 else 1-uv_m, uv_y_start),
+				Vector2(uv_m if dir == 1 else uv_l, uv_y_end),
+				Vector2(uv_r if dir == 1 else uv_m, uv_y_end),
+				Vector2(uv_r if dir == 1 else uv_m, uv_y_start),
+				Vector2(uv_m if dir == 1 else uv_l, uv_y_start),
 			],
 			[
 				end_loop + end_basis * pos_far_l * dir,
@@ -455,9 +492,9 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
 ## the lanes whose directions match and create Add/Remove Transition lanes where
-## the start or end points are missing lanes. Return a LaneType array that
-## includes both full lanes and transition lanes.
-## Returns: Array[RoadPoint.LaneType]
+## the start or end points are missing lanes. Return an array that includes both
+## full lanes and transition lanes.
+## Returns: Array[RoadPoint.LaneType, RoadPoint.LaneDir]
 func _match_lanes() -> Array:
 	# Check for invalid lane configuration
 	if (
@@ -467,65 +504,111 @@ func _match_lanes() -> Array:
 			and end_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
 	):
 		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
-		return []
+		return []	
 	
-	
-	var start_flip_offset = _get_lane_flip_offset(start_point)
-	var end_flip_offset = _get_lane_flip_offset(end_point)
+	var start_flip_data = _get_lane_flip_data(start_point)
+	var start_flip_offset = start_flip_data[0]
+	var start_traffic_dir = start_flip_data[1]
+	var end_flip_data = _get_lane_flip_data(end_point)
+	var end_flip_offset = end_flip_data[0]
+	var end_traffic_dir = end_flip_data[1]
+	#print("start_flip_offset %s, end_flip_offset %s" % [start_flip_offset, end_flip_offset])
 	
 	# Bail on invalid flip offsets
 	if start_flip_offset == -1 or end_flip_offset == -1:
 		return []
 	
+	# Check for additional invalid lane configurations
+	if (
+		(start_traffic_dir == RoadPoint.LaneDir.REVERSE
+			and end_traffic_dir == RoadPoint.LaneDir.BOTH)
+		or (start_traffic_dir == RoadPoint.LaneDir.FORWARD
+			and end_traffic_dir == RoadPoint.LaneDir.BOTH)
+		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
+			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
+		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
+			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
+	):
+		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
+		return []
+	
 	# Build lanes list.
 	var lanes: Array
+	var range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir))
 	
-	# Match REVERSE lanes.
-	# Iterate the start point REVERSE lanes. But, iterate the maximum number of
-	# REVERSE lanes of the two road points. If the iterator goes below zero,
-	# then assign TRANSITION_ADD lane(s). If the iterator is above -1 and
-	# there is a lane on the end point, then assign the start point's LaneType.
-	# If the iterator is above -1 and there are no more lanes on the end point,
-	# then assign a TRANSITION_REM lane.
-	var start_end_offset_diff = start_flip_offset - end_flip_offset
-	var range_to_check = start_flip_offset - max(start_flip_offset, end_flip_offset) - 1
-	for i in range(start_flip_offset-1, range_to_check, -1):
-		if i < 0:
-			#No pre-existing lane on start point. Add a lane.
-			lanes.push_front(RoadPoint.LaneType.TRANSITION_ADD)
-		elif i > -1 and i - start_end_offset_diff < 0:
-			#No pre-existing lane on end point. Remove a lane.
-			lanes.push_front(RoadPoint.LaneType.TRANSITION_REM)
-		else:
-			#Lane directions match. Add LaneType from start point.
-			lanes.push_front(start_point.lanes[i])
-	
-	# Match FORWARD lanes
-	# Iterate the start point FORWARD lanes. But, iterate the maximum number of
-	# FORWARD lanes of the two road points. If the iterator goes above the
-	# length of start point lanes, then assign TRANSITION_ADD lane(s). If the
-	# iterator is below the length of start point lanes and there is a lane on
-	# the end point, then assign the start point's LaneType. If the iterator is 
-	# below the length of start point lanes and there are no more lanes on the
-	# end point, then assign TRANSITION_REM lane(s).
-	range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
-	for i in range(start_flip_offset, range_to_check):
-		if i > len(start_point.traffic_dir) - 1:
-			#No pre-existing lane on start point. Add a lane.
-			lanes.append(RoadPoint.LaneType.TRANSITION_ADD)
-		elif i < len(start_point.traffic_dir) and i - start_end_offset_diff > len(end_point.traffic_dir) - 1:
-			#No pre-existing lane on end point. Remove a lane.
-			lanes.append(RoadPoint.LaneType.TRANSITION_REM)
-		elif i < len(start_point.lanes):
-			#Lane directions match. Add LaneType from start point.
-			lanes.append(start_point.lanes[i])
-	
+	# Handle FORWARD-only lane setups
+	if (
+		start_traffic_dir == RoadPoint.LaneDir.FORWARD
+		and end_traffic_dir == RoadPoint.LaneDir.FORWARD
+	):
+		for i in range(range_to_check):
+			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
+				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.FORWARD])
+			if i > len(start_point.traffic_dir) - 1:
+				lanes.append([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.FORWARD])
+			elif i > len(end_point.traffic_dir) - 1:
+				lanes.append([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.FORWARD])
+	# Handle REVERSE-only lane setups
+	elif (
+		start_traffic_dir == RoadPoint.LaneDir.REVERSE
+		and end_traffic_dir == RoadPoint.LaneDir.REVERSE
+	):
+		for i in range(range_to_check):
+			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
+				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
+			elif i > len(end_point.traffic_dir) - 1:
+				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
+			elif i > len(start_point.traffic_dir) - 1:
+				lanes.push_front([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.REVERSE])
+	# Handle bi-directional lane setups
+	else:
+		# Match REVERSE lanes.
+		# Iterate the start point REVERSE lanes. But, iterate the maximum number of
+		# REVERSE lanes of the two road points. If the iterator goes below zero,
+		# then assign TRANSITION_ADD lane(s). If the iterator is above -1 and
+		# there is a lane on the end point, then assign the start point's LaneType.
+		# If the iterator is above -1 and there are no more lanes on the end point,
+		# then assign a TRANSITION_REM lane.
+		var start_end_offset_diff = start_flip_offset - end_flip_offset
+		range_to_check = start_flip_offset - max(start_flip_offset, end_flip_offset) - 1
+		for i in range(start_flip_offset-1, range_to_check, -1):
+			if i < 0:
+				#No pre-existing lane on start point. Add a lane.
+				lanes.push_front([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.REVERSE])
+			elif i > -1 and i - start_end_offset_diff < 0:
+				#No pre-existing lane on end point. Remove a lane.
+				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
+			else:
+				#Lane directions match. Add LaneType from start point.
+				lanes.push_front([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
+		
+		# Match FORWARD lanes
+		# Iterate the start point FORWARD lanes. But, iterate the maximum number of
+		# FORWARD lanes of the two road points. If the iterator goes above the
+		# length of start point lanes, then assign TRANSITION_ADD lane(s). If the
+		# iterator is below the length of start point lanes and there is a lane on
+		# the end point, then assign the start point's LaneType. If the iterator is 
+		# below the length of start point lanes and there are no more lanes on the
+		# end point, then assign TRANSITION_REM lane(s).
+		range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
+		for i in range(start_flip_offset, range_to_check):
+			if i > len(start_point.traffic_dir) - 1:
+				#No pre-existing lane on start point. Add a lane.
+				lanes.append([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.FORWARD])
+			elif i < len(start_point.traffic_dir) and i - start_end_offset_diff > len(end_point.traffic_dir) - 1:
+				#No pre-existing lane on end point. Remove a lane.
+				lanes.append([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.FORWARD])
+			elif i < len(start_point.lanes):
+				#Lane directions match. Add LaneType from start point.
+				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.FORWARD])
+		
 	return lanes
 	
 ## Evaluate the lanes of a RoadPoint and return the index of the direction flip
-## from REVERSE to FORWARD. Return value is -1 if no flip was found.
-## Returns: int
-func _get_lane_flip_offset(road_point: RoadPoint) -> int:
+## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
+## overall traffic direction of the RoadPoint.
+## Returns: Array[int, RoadPoint.LaneDir]
+func _get_lane_flip_data(road_point: RoadPoint) -> Array:
 	# Get lane FORWARD flip offset. If a flip occurs more than once, give
 	# warning.
 	var flip_offset = 0
@@ -540,14 +623,18 @@ func _get_lane_flip_offset(road_point: RoadPoint) -> int:
 			flip_offset = i
 			flip_count += 1
 		elif (
-				# Flag unwanted flips
+				# Flag unwanted flips. REVERSE always comes before FORWARD.
 				road_point.traffic_dir[i] == RoadPoint.LaneDir.REVERSE
 				and flip_count > 0
 		):
 			push_warning("Warning: Unable to detect lane flip on road_point %s" % road_point)
-			return -1
+			return [-1, RoadPoint.LaneDir.NONE]
 		elif flip_count == 0 and i == len(road_point.traffic_dir) - 1:
 			# This must be a REVERSE-only road point
-				flip_offset = i
-	
-	return flip_offset
+			flip_offset = len(road_point.traffic_dir) - 1
+			return [flip_offset, RoadPoint.LaneDir.REVERSE]
+		elif flip_count == 1 and flip_offset == 0 and i == len(road_point.traffic_dir) - 1:
+			# This must be a FORWARD-only road point
+			flip_offset = len(road_point.traffic_dir) - 1
+			return [flip_offset, RoadPoint.LaneDir.FORWARD]
+	return [flip_offset, RoadPoint.LaneDir.BOTH]
