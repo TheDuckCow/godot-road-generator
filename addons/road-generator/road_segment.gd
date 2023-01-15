@@ -102,6 +102,17 @@ func check_rebuild():
 		_rebuild()
 		is_dirty = false
 
+
+## Utility to auto generate all lane segments for this road for use by AI.
+func generate_lane_segments() -> void:
+	if not is_instance_valid(network):
+		return
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return
+
+	# TODO: Build out this function.
+
+
 # ------------------------------------------------------------------------------
 # Geometry construction
 # ------------------------------------------------------------------------------
