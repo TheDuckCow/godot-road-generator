@@ -2,11 +2,11 @@
 tool
 extends VBoxContainer
 
+onready var test_button = get_node("HBoxContainer/Button")
 var selected_road_point :RoadPoint
 
-
 func _ready():
-	$HBoxContainer/Button.connect("pressed", self, "_button_pressed")
+	test_button.connect("pressed", self, "_button_pressed")
 
 
 func _button_pressed():
