@@ -5,6 +5,7 @@ extends EditorPlugin
 const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
 
 var road_point_gizmo = RoadPointGizmo.new(self)
+var road_point_editor = preload("res://addons/road-generator/ui/road_point_edit.gd").new()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
@@ -12,6 +13,7 @@ var _last_lane: Node
 
 func _enter_tree():
 	add_spatial_gizmo_plugin(road_point_gizmo)
+	add_inspector_plugin(road_point_editor)
 	_eds.connect("selection_changed", self, "_on_selection_changed")
 	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
 	add_custom_type("RoadNetwork", "Node", preload("road_network.gd"), preload("road_segment.png"))
@@ -21,6 +23,7 @@ func _enter_tree():
 
 func _exit_tree():
 	remove_spatial_gizmo_plugin(road_point_gizmo)
+	remove_inspector_plugin(road_point_editor)
 	remove_custom_type("RoadPoint")
 	remove_custom_type("RoadNetwork")
 
@@ -33,7 +36,7 @@ func _on_selection_changed() -> void:
 		return
 	# Always pick first node in selection
 	var selected_node = selected[0]
-	if _last_point:
+	if is_instance_valid(_last_point):
 		_last_point.hide_gizmo()
 	if _last_lane:
 		_last_lane.show_fins(false)
@@ -45,3 +48,7 @@ func _on_selection_changed() -> void:
 	elif selected_node is LaneSegment:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
+
+
+func refresh() -> void:
+	get_editor_interface().get_inspector().refresh()
