@@ -7,7 +7,8 @@ const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd"
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = preload("res://addons/road-generator/ui/road_point_edit.gd").new()
 var _eds = get_editor_interface().get_selection()
-var _last_point
+var _last_point: Node
+var _last_lane: Node
 
 
 func _enter_tree():
@@ -16,6 +17,8 @@ func _enter_tree():
 	_eds.connect("selection_changed", self, "_on_selection_changed")
 	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
 	add_custom_type("RoadNetwork", "Node", preload("road_network.gd"), preload("road_segment.png"))
+	# TODO: Set a different icon for lane segments.
+	add_custom_type("LaneSegment", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
 func _exit_tree():
@@ -25,7 +28,8 @@ func _exit_tree():
 	remove_custom_type("RoadNetwork")
 
 
-func _on_selection_changed():
+## Render the editor indicators for RoadPoints and LaneSegments if selected.
+func _on_selection_changed() -> void:
 	# Returns an array of selected nodes
 	var selected = _eds.get_selected_nodes()
 	if selected.empty():
@@ -34,10 +38,17 @@ func _on_selection_changed():
 	var selected_node = selected[0]
 	if is_instance_valid(_last_point):
 		_last_point.hide_gizmo()
+	if _last_lane:
+		_last_lane.show_fins(false)
+	
 	if selected_node is RoadPoint:
 		_last_point = selected_node
 		selected_node.show_gizmo()
 		selected_node.on_transform()
+	elif selected_node is LaneSegment:
+		_last_lane = selected_node
+		_last_lane.show_fins(true)
+
 
 func refresh() -> void:
 	get_editor_interface().get_inspector().refresh()
