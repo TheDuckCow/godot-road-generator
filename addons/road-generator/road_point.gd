@@ -300,7 +300,7 @@ func assign_lanes():
 				lanes.append(LaneType.NO_MARKING)
 
 
-## Returns the number of lanes in the forward direction for 
+## Returns the number of lanes in the Forward direction for the road point
 ##
 ## This function assumes Reverse lanes are always at the start of traffic_dir
 ## and Forward lanes at the end.
@@ -317,9 +317,11 @@ func get_fwd_lane_count() -> int:
 	return fwd_lane_count
 
 
+## Returns the number of lanes in the Reverse direction for the road point
+##
+## This function assumes Reverse lanes are always at the start of traffic_dir
+## and Forward lanes at the end.
 func get_rev_lane_count() -> int:
-	# This routine assumes Reverse lanes are always at the start of traffic_dir
-	# and Forward lanes at the end.
 	var td = traffic_dir
 	var rev_lane_count = 0
 	
