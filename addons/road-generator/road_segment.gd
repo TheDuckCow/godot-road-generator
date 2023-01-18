@@ -156,10 +156,11 @@ func _build_geo():
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	#st.add_smooth_group(true)
-	var lane_count = max(len(start_point.lanes), len(end_point.lanes))
 	var lanes = _match_lanes()
-	if len(lanes) == 0:
+	var lane_count = len(lanes)
+	if lane_count == 0:
 		# Invalid configuration or nothing to draw
+		road_mesh.mesh = st.commit()
 		return
 	
 	var clength = curve.get_baked_length()
