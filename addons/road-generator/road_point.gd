@@ -25,6 +25,15 @@ enum LaneDir {
 	BOTH
 }
 
+enum TrafficUpdate{
+	ADD_FORWARD,
+	ADD_REVERSE,
+	REM_FORWARD,
+	REM_REVERSE,
+	MOVE_DIVIDER_LEFT,
+	MOVE_DIVIDER_RIGHT
+}
+
 const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
@@ -111,6 +120,7 @@ func _get_auto_lanes():
 
 
 func _set_dir(values):
+	print("set traffic direction")
 	traffic_dir = values
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
@@ -288,6 +298,65 @@ func assign_lanes():
 				lanes.append(LaneType.SINGLE_LINE)
 			else:
 				lanes.append(LaneType.NO_MARKING)
+
+
+func get_fwd_lane_count() -> int:
+	# This routine assumes Reverse lanes are always at the start of traffic_dir
+	# and Forward lanes at the end.
+	var td = traffic_dir
+	var fwd_lane_count = 0
+	
+	for i in range(len(td) - 1, -1, -1):
+		if td[i] == LaneDir.FORWARD:
+			fwd_lane_count += 1
+		if td[i] == LaneDir.REVERSE:
+			break
+	
+	return fwd_lane_count
+
+
+func get_rev_lane_count() -> int:
+	# This routine assumes Reverse lanes are always at the start of traffic_dir
+	# and Forward lanes at the end.
+	var td = traffic_dir
+	var rev_lane_count = 0
+	
+	for i in range(0, len(td)):
+		if td[i] == LaneDir.REVERSE:
+			rev_lane_count += 1
+		if td[i] == LaneDir.FORWARD:
+			break
+	
+	return rev_lane_count
+
+
+func update_traffic_dir(traffic_update):
+	var new_traffic_dir = traffic_dir
+	var fwd_lane_count = get_fwd_lane_count()
+	var rev_lane_count = get_rev_lane_count()
+	var lane_count = fwd_lane_count + rev_lane_count
+	
+	# Add/remove lanes. But, always make sure at least one remains.
+	match traffic_update:
+		TrafficUpdate.ADD_FORWARD:
+			new_traffic_dir.append(LaneDir.FORWARD)
+		TrafficUpdate.ADD_REVERSE:
+			new_traffic_dir.push_front(LaneDir.REVERSE)
+		TrafficUpdate.REM_FORWARD:
+			if lane_count > 1 and fwd_lane_count > 0:
+				new_traffic_dir.pop_back()
+		TrafficUpdate.REM_REVERSE:
+			if lane_count > 1 and rev_lane_count > 0:
+				new_traffic_dir.pop_front()
+		TrafficUpdate.MOVE_DIVIDER_LEFT:
+			pass
+		TrafficUpdate.MOVE_DIVIDER_RIGHT:
+			pass
+	
+	if not is_instance_valid(network):
+		return  # Might not be initialized yet.
+	rebuild_geom()
+	on_transform()
 
 
 # ------------------------------------------------------------------------------

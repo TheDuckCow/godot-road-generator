@@ -158,6 +158,9 @@ func _build_geo():
 	#st.add_smooth_group(true)
 	var lane_count = max(len(start_point.lanes), len(end_point.lanes))
 	var lanes = _match_lanes()
+	if len(lanes) == 0:
+		# Invalid configuration or nothing to draw
+		return
 	
 	var clength = curve.get_baked_length()
 	# In this context, loop refers to "quad" faces, not the edges, as it will

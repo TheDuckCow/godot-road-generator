@@ -26,12 +26,12 @@ margin_right = 1024.0
 margin_bottom = 14.0
 text = "Edit RoadPoint"
 
-[node name="HBoxNextRP" type="HBoxContainer" parent="."]
+[node name="HBoxAddNextRP" type="HBoxContainer" parent="."]
 margin_top = 18.0
 margin_right = 1024.0
 margin_bottom = 40.0
 
-[node name="spacer" type="Label" parent="HBoxNextRP"]
+[node name="spacer" type="Label" parent="HBoxAddNextRP"]
 modulate = Color( 1, 1, 1, 0 )
 margin_top = 4.0
 margin_right = 41.0
@@ -39,13 +39,35 @@ margin_bottom = 18.0
 rect_min_size = Vector2( 40, 0 )
 text = "Lanes:"
 
-[node name="add_rp_front" type="Button" parent="HBoxNextRP"]
+[node name="add_rp_front" type="Button" parent="HBoxAddNextRP"]
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
 hint_tooltip = "Print debug information"
 size_flags_horizontal = 3
 text = "+ Next RoadPoint"
+
+[node name="HBoxSelNextRP" type="HBoxContainer" parent="."]
+visible = false
+margin_top = 44.0
+margin_right = 1024.0
+margin_bottom = 66.0
+
+[node name="spacer" type="Label" parent="HBoxSelNextRP"]
+modulate = Color( 1, 1, 1, 0 )
+margin_top = 4.0
+margin_right = 41.0
+margin_bottom = 18.0
+rect_min_size = Vector2( 40, 0 )
+text = "Lanes:"
+
+[node name="sel_rp_front" type="Button" parent="HBoxSelNextRP"]
+margin_left = 45.0
+margin_right = 1024.0
+margin_bottom = 22.0
+hint_tooltip = "Print debug information"
+size_flags_horizontal = 3
+text = "Select Next RoadPoint"
 
 [node name="HBoxLanes" type="HBoxContainer" parent="."]
 margin_top = 44.0
@@ -68,7 +90,7 @@ alignment = 1
 [node name="rev_add" type="Button" parent="HBoxLanes/HBoxSubLanes"]
 margin_right = 156.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Add Reverse lane"
 size_flags_horizontal = 3
 text = "+"
 
@@ -76,7 +98,7 @@ text = "+"
 margin_left = 160.0
 margin_right = 317.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Remove Reverse lane"
 size_flags_horizontal = 3
 text = "-"
 
@@ -108,7 +130,7 @@ text = ">"
 margin_left = 661.0
 margin_right = 818.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Remove Forward lane"
 size_flags_horizontal = 3
 text = "-"
 
@@ -116,16 +138,17 @@ text = "-"
 margin_left = 822.0
 margin_right = 979.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Add Forward lane"
 size_flags_horizontal = 3
 text = "+"
 
-[node name="HBoxPriorRP" type="HBoxContainer" parent="."]
+[node name="HBoxSelPriorRP" type="HBoxContainer" parent="."]
+visible = false
 margin_top = 70.0
 margin_right = 1024.0
 margin_bottom = 92.0
 
-[node name="spacer" type="Label" parent="HBoxPriorRP"]
+[node name="spacer" type="Label" parent="HBoxSelPriorRP"]
 modulate = Color( 1, 1, 1, 0 )
 margin_top = 4.0
 margin_right = 41.0
@@ -133,7 +156,28 @@ margin_bottom = 18.0
 rect_min_size = Vector2( 40, 0 )
 text = "Lanes:"
 
-[node name="add_rp_back" type="Button" parent="HBoxPriorRP"]
+[node name="sel_rp_back" type="Button" parent="HBoxSelPriorRP"]
+margin_left = 45.0
+margin_right = 1024.0
+margin_bottom = 22.0
+hint_tooltip = "Print debug information"
+size_flags_horizontal = 3
+text = "Select Prior RoadPoint"
+
+[node name="HBoxAddPriorRP" type="HBoxContainer" parent="."]
+margin_top = 70.0
+margin_right = 1024.0
+margin_bottom = 92.0
+
+[node name="spacer" type="Label" parent="HBoxAddPriorRP"]
+modulate = Color( 1, 1, 1, 0 )
+margin_top = 4.0
+margin_right = 41.0
+margin_bottom = 18.0
+rect_min_size = Vector2( 40, 0 )
+text = "Lanes:"
+
+[node name="add_rp_back" type="Button" parent="HBoxAddPriorRP"]
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
