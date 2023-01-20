@@ -43,7 +43,7 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Add RoadPoint to end of road"
 size_flags_horizontal = 3
 text = "+ Next RoadPoint"
 
@@ -65,7 +65,6 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
 size_flags_horizontal = 3
 text = "Select Next RoadPoint"
 
@@ -160,7 +159,6 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
 size_flags_horizontal = 3
 text = "Select Prior RoadPoint"
 
@@ -181,6 +179,6 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
-hint_tooltip = "Print debug information"
+hint_tooltip = "Add RoadPoint to beginning of road"
 size_flags_horizontal = 3
 text = "+ Prior RoadPoint"

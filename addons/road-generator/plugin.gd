@@ -6,6 +6,7 @@ const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd"
 
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = preload("res://addons/road-generator/ui/road_point_edit.gd").new()
+var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
@@ -14,6 +15,7 @@ var _last_lane: Node
 func _enter_tree():
 	add_spatial_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
+	road_point_editor.call("set_edi", _edi)
 	_eds.connect("selection_changed", self, "_on_selection_changed")
 	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
 	add_custom_type("RoadNetwork", "Node", preload("road_network.gd"), preload("road_segment.png"))

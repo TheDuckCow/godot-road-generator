@@ -120,7 +120,6 @@ func _get_auto_lanes():
 
 
 func _set_dir(values):
-	print("set traffic direction")
 	traffic_dir = values
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.

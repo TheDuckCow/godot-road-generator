@@ -3,7 +3,14 @@ tool
 extends VBoxContainer
 
 
-var selected_road_point :RoadPoint
+enum PointInit {
+	NEXT,
+	PRIOR,
+}
+
+
+var sel_road_point :RoadPoint
+var _edi :EditorInterface setget set_edi
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
@@ -34,8 +41,8 @@ func _ready():
 
 
 func update_road_point_panel():
-	var fwd_lane_count = selected_road_point.get_fwd_lane_count()
-	var rev_lane_count = selected_road_point.get_rev_lane_count()
+	var fwd_lane_count = sel_road_point.get_fwd_lane_count()
+	var rev_lane_count = sel_road_point.get_rev_lane_count()
 	var lane_count = fwd_lane_count + rev_lane_count
 	
 	if lane_count > 1 and fwd_lane_count > 0:
@@ -48,23 +55,37 @@ func update_road_point_panel():
 	else:
 		btn_rem_lane_rev.disabled = true
 	
+	if sel_road_point.next_pt_init:
+		hbox_add_rp_next.visible = false
+		hbox_sel_rp_next.visible = true
+	else:
+		hbox_add_rp_next.visible = true
+		hbox_sel_rp_next.visible = false
+	
+	if sel_road_point.prior_pt_init:
+		hbox_add_rp_prior.visible = false
+		hbox_sel_rp_prior.visible = true
+	else:
+		hbox_add_rp_prior.visible = true
+		hbox_sel_rp_prior.visible = false
+	
 	property_list_changed_notify()
 
 
 func add_lane_fwd_pressed():
-	selected_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
+	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 
 func add_lane_rev_pressed():
-	selected_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
 	update_road_point_panel()
 
 func rem_lane_fwd_pressed():
-	selected_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
+	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
 	update_road_point_panel()
 
 func rem_lane_rev_pressed():
-	selected_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_REVERSE)
+	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_REVERSE)
 	update_road_point_panel()
 
 func move_div_left_pressed():
@@ -77,18 +98,94 @@ func move_div_right_pressed():
 
 
 func sel_rp_next_pressed():
-	print("sel_rp_next_pressed")
+	#print("sel_rp_next_pressed ")
+	if sel_road_point.next_pt_init:
+		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
+		_edi.get_selection().call_deferred("remove_node", sel_road_point)
+		_edi.get_selection().call_deferred("add_node", next_pt)
 
 func sel_rp_prior_pressed():
-	print("sel_rp_prior_pressed")
+	#print("sel_rp_prior_pressed")
+	if sel_road_point.prior_pt_init:
+		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
+		_edi.get_selection().call_deferred("remove_node", sel_road_point)
+		_edi.get_selection().call_deferred("add_node", prior_pt)
 
 func add_rp_next_pressed():
-	print("add_rp_next_pressed")
+	#print("add_rp_next_pressed")
+	add_road_point(PointInit.NEXT)
+	if sel_road_point.next_pt_init:
+		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
+		_edi.get_selection().call_deferred("remove_node", sel_road_point)
+		_edi.get_selection().call_deferred("add_node", next_pt)
 
 func add_rp_prior_pressed():
-	print("add_rp_prior_pressed")
+	#print("add_rp_prior_pressed")
+	add_road_point(PointInit.PRIOR)
+	if sel_road_point.prior_pt_init:
+		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
+		_edi.get_selection().call_deferred("remove_node", sel_road_point)
+		_edi.get_selection().call_deferred("add_node", prior_pt)
+
+
+func add_road_point(pt_init):
+	var points = sel_road_point.get_parent()
+	var new_road_point = copy_road_point(sel_road_point)
+	var lane_width :float = new_road_point.lane_width
+	var basis_z = new_road_point.transform.basis.z	
+	
+	new_road_point.name = increment_name(sel_road_point.name, points.get_children())
+	points.add_child(new_road_point, true)
+	new_road_point.owner = points.owner
+	
+	match pt_init:
+		PointInit.NEXT:
+			new_road_point.transform.origin += 4.0 * lane_width * basis_z
+			new_road_point.prior_pt_init = new_road_point.get_path_to(sel_road_point)
+			sel_road_point.next_pt_init = sel_road_point.get_path_to(new_road_point)
+		PointInit.PRIOR:
+			new_road_point.transform.origin -= 4.0 * lane_width * basis_z
+			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
+			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
+
+
+## Takes an existing RoadPoint and returns a new copy
+func copy_road_point(old_road_point :RoadPoint) -> RoadPoint:
+	var new_road_point = RoadPoint.new()
+	new_road_point.auto_lanes = false
+	new_road_point.lanes = old_road_point.lanes.duplicate(true)
+	new_road_point.traffic_dir = old_road_point.traffic_dir.duplicate(true)
+	new_road_point.auto_lanes = old_road_point.auto_lanes
+	new_road_point.lane_width = old_road_point.lane_width
+	new_road_point.shoulder_width_l = old_road_point.shoulder_width_l
+	new_road_point.shoulder_width_r = old_road_point.shoulder_width_r
+	new_road_point.gutter_profile.x = old_road_point.gutter_profile.x
+	new_road_point.gutter_profile.y = old_road_point.gutter_profile.y
+	new_road_point.prior_mag = old_road_point.prior_mag
+	new_road_point.next_mag = old_road_point.next_mag
+	new_road_point.global_transform = old_road_point.global_transform
+	new_road_point._last_update_ms = old_road_point._last_update_ms
+#	new_road_point.network = old_road_point.network
+	return new_road_point
+
+
+## Generates a new RoadPoint name from existing name and array of siblings
+func increment_name(old_name, future_siblings) -> String:
+	# *** Placeholder. Not feature complete. ***
+	# This should take an array of RoadPoints as input
+	# Extract name and number from old name
+	# Iterate road points and find the highest number with numeric pattern
+	# Increment the number by 1
+	# Concatenate and return name and new number
+	# For now, the following workaround increments nicely
+	var new_name = "RP_001"
+	return new_name
 
 
 func update_selected_road_point(object):
-	selected_road_point = object
+	sel_road_point = object
 	update_road_point_panel()
+
+
+func set_edi(value):
+	_edi = value
