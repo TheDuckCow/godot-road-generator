@@ -134,7 +134,7 @@ func add_road_point(pt_init):
 	var lane_width :float = new_road_point.lane_width
 	var basis_z = new_road_point.transform.basis.z	
 	
-	new_road_point.name = increment_name(sel_road_point.name, points.get_children())
+	new_road_point.name = increment_name(sel_road_point.name)
 	points.add_child(new_road_point, true)
 	new_road_point.owner = points.owner
 	
@@ -169,16 +169,11 @@ func copy_road_point(old_road_point :RoadPoint) -> RoadPoint:
 	return new_road_point
 
 
-## Generates a new RoadPoint name from existing name and array of siblings
-func increment_name(old_name, future_siblings) -> String:
-	# *** Placeholder. Not feature complete. ***
-	# This should take an array of RoadPoints as input
-	# Extract name and number from old name
-	# Iterate road points and find the highest number with numeric pattern
-	# Increment the number by 1
-	# Concatenate and return name and new number
-	# For now, the following workaround increments nicely
-	var new_name = "RP_001"
+## Adds a numeric sequence to the end of a RoadPoint name
+func increment_name(old_name) -> String:
+	var new_name = old_name
+	if not old_name[-1].is_valid_integer():
+		new_name += "001"
 	return new_name
 
 
