@@ -92,21 +92,21 @@ func _instantiate_geom() -> void:
 	if refresh_geom == false:
 		return
 	refresh_geom = false
-	
+
 	# Setup immediate geo node if not already.
 	if geom == null:
 		print("Creating new geo + mat")
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)
-		
+
 		var mat = SpatialMaterial.new()
 		mat.flags_unshaded = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
 		geom.material_override = mat
-	
+
 	_draw_shark_fins()
 
 
@@ -121,12 +121,12 @@ func _draw_shark_fins() -> void:
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
 		var xf = Transform()
-		
+
 		xf.origin = curve.interpolate_baked(f)
 		var lookat = (
 			curve.interpolate_baked(f + 0.1*rev) - xf.origin
 		).normalized()
-		
+
 		geom.begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
 			geom.set_color(COLOR_START)
