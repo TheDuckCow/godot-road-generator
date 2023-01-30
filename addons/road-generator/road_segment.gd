@@ -114,16 +114,12 @@ func generate_lane_segments(debug: bool) -> bool:
 
 	# First identify all segments that will exist.
 	var mathced_lanes = self._match_lanes()
-	print_debug("Lanes matched?", mathced_lanes)
 	if len(mathced_lanes) == 0:
 		return false
 
 	var any_generated = false
 
-	# Clear existing lane segments, if any
-	for ch in get_children():
-		if ch is LaneSegment:
-			ch.queue_free()
+	clear_lane_segments()
 
 	# Then create individual objects for it
 	# Then, the trickiest part, create the best fitting curve points & controls
@@ -185,6 +181,12 @@ func generate_lane_segments(debug: bool) -> bool:
 		print("Did generate segments.")
 	return any_generated
 
+
+## Remove all LaneSegments attached to this RoadSegment
+func clear_lane_segments():
+	for ch in get_children():
+		if ch is LaneSegment:
+			ch.queue_free()
 
 # ------------------------------------------------------------------------------
 # Geometry construction

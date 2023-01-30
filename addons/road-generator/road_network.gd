@@ -151,6 +151,10 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
+		if not use_lowpoly:
+			point.prior_seg.generate_lane_segments(debug)
+		else:
+			point.prior_seg.clear_lane_segments()
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
 		process_seg(prior, point, use_lowpoly)
@@ -158,6 +162,10 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
+		if not use_lowpoly:
+			point.next_seg.generate_lane_segments(debug)
+		else:
+			point.prior_seg.clear_lane_segments()
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		process_seg(point, next, use_lowpoly)

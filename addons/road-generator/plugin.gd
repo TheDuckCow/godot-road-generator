@@ -37,7 +37,7 @@ func _on_selection_changed() -> void:
 		_last_point.hide_gizmo()
 	if _last_lane:
 		_last_lane.show_fins(false)
-	
+
 	if selected_node is RoadPoint:
 		_last_point = selected_node
 		selected_node.show_gizmo()

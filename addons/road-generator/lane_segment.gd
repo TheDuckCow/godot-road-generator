@@ -95,7 +95,6 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
-		print("Creating new geo + mat")
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)
