@@ -169,7 +169,6 @@ func generate_lane_segments(debug: bool) -> bool:
 		# Assign that it was a success.
 		any_generated = true
 		lanes_added += 1
-		print("Generated lane: ", new_ln)
 
 	# Alternatively, we could create a sort of special mode for the lane class,
 	# only useable with autoamted road segments, in which it determins position
@@ -178,7 +177,7 @@ func generate_lane_segments(debug: bool) -> bool:
 	# Alternatively, we could create multiple samples of lanes depending on
 	# where and how curvy it is.
 	if any_generated:
-		print("Did generate segments.")
+		pass
 	return any_generated
 
 
