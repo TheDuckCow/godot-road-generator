@@ -102,6 +102,91 @@ func check_rebuild():
 		_rebuild()
 		is_dirty = false
 
+
+## Utility to auto generate all lane segments for this road for use by AI.
+##
+## Returns true if any lanes generated, false if not.
+func generate_lane_segments(debug: bool) -> bool:
+	if not is_instance_valid(network):
+		return false
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return false
+
+	# First identify all segments that will exist.
+	var mathced_lanes = self._match_lanes()
+	if len(mathced_lanes) == 0:
+		return false
+
+	var any_generated = false
+
+	clear_lane_segments()
+
+	# Then create individual objects for it
+	# Then, the trickiest part, create the best fitting curve points & controls
+	# so that even on wonky curves, it fits well.
+	var lane_count = len(mathced_lanes)
+	var start_offset = lane_count / 2.0 * start_point.lane_width - start_point.lane_width/2.0
+	var end_offset = lane_count / 2.0 * end_point.lane_width - end_point.lane_width/2.0
+
+	var lanes_added := 0
+	for this_match in mathced_lanes:
+		var ln_type: int = this_match[0]  # Enum RoadPoint.LaneType
+		var ln_dir: int = this_match[0]  # Enum RoadPoint.LaneDir
+		var new_ln := LaneSegment.new()
+		add_child(new_ln)
+
+		# Now decide where the two poitns should go, and their magnitudes.
+		var in_pos: Vector3 = start_point.global_transform.origin
+		var out_pos: Vector3 = end_point.global_transform.origin
+
+		# Offset the curve in/out points based on road index.
+		var in_offset = lanes_added * start_point.lane_width - start_offset
+		in_pos -= start_point.global_transform.basis.x * in_offset
+
+		var out_offset = lanes_added * end_point.lane_width - end_offset
+		out_pos -= end_point.global_transform.basis.x * out_offset
+
+		# Set direction
+		if ln_dir == RoadPoint.LaneDir.REVERSE:
+			new_ln.reverse_direction = true
+
+		new_ln.curve.add_point(
+			new_ln.to_local(in_pos),
+			curve.get_point_in(0),
+			curve.get_point_out(0))
+		new_ln.curve.add_point(
+			new_ln.to_local(out_pos),
+			curve.get_point_in(1),
+			curve.get_point_out(1))
+
+		# Visually display.
+		if debug:
+			#new_ln.draw_in_game = true
+			new_ln.show_fins(true)
+		else:
+			new_ln.show_fins(false)
+
+		# Assign that it was a success.
+		any_generated = true
+		lanes_added += 1
+
+	# Alternatively, we could create a sort of special mode for the lane class,
+	# only useable with autoamted road segments, in which it determins position
+	# based on the main curve of the segment, and using the same logic used to
+	# generate the geo, do live offsets
+	# Alternatively, we could create multiple samples of lanes depending on
+	# where and how curvy it is.
+	if any_generated:
+		pass
+	return any_generated
+
+
+## Remove all LaneSegments attached to this RoadSegment
+func clear_lane_segments():
+	for ch in get_children():
+		if ch is LaneSegment:
+			ch.queue_free()
+
 # ------------------------------------------------------------------------------
 # Geometry construction
 # ------------------------------------------------------------------------------
