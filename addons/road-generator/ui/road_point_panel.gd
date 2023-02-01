@@ -9,7 +9,7 @@ enum PointInit {
 }
 
 
-var sel_road_point :RoadPoint
+var sel_road_point: RoadPoint
 var _edi :EditorInterface setget set_edi
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
