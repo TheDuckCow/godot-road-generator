@@ -601,7 +601,6 @@ func _match_lanes() -> Array:
 	var end_flip_data = _get_lane_flip_data(end_point)
 	var end_flip_offset = end_flip_data[0]
 	var end_traffic_dir = end_flip_data[1]
-	#print("start_flip_offset %s, end_flip_offset %s" % [start_flip_offset, end_flip_offset])
 	
 	# Bail on invalid flip offsets
 	if start_flip_offset == -1 or end_flip_offset == -1:
@@ -614,7 +613,7 @@ func _match_lanes() -> Array:
 		or (start_traffic_dir == RoadPoint.LaneDir.FORWARD
 			and end_traffic_dir == RoadPoint.LaneDir.BOTH)
 		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
-			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
+			and end_traffic_dir == RoadPoint.LaneDir.REVERSE)
 		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
 			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
 	):
@@ -711,7 +710,7 @@ func _get_lane_flip_data(road_point: RoadPoint) -> Array:
 		):
 			flip_offset = i
 			flip_count += 1
-		elif (
+		if (
 				# Flag unwanted flips. REVERSE always comes before FORWARD.
 				road_point.traffic_dir[i] == RoadPoint.LaneDir.REVERSE
 				and flip_count > 0

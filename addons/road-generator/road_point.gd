@@ -120,7 +120,6 @@ func _get_auto_lanes():
 
 
 func _set_dir(values):
-	print("set traffic direction")
 	traffic_dir = values
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
@@ -423,3 +422,20 @@ func _draw_lane_width():
 	geom.add_vertex(Vector3(-half_width, 0, -0.5) + offy)
 	
 	geom.end()
+
+
+## Takes an existing RoadPoint and returns a new copy
+func copy_settings_from(ref_road_point: RoadPoint) -> void:
+	auto_lanes = false
+	lanes = ref_road_point.lanes.duplicate(true)
+	traffic_dir = ref_road_point.traffic_dir.duplicate(true)
+	auto_lanes = ref_road_point.auto_lanes
+	lane_width = ref_road_point.lane_width
+	shoulder_width_l = ref_road_point.shoulder_width_l
+	shoulder_width_r = ref_road_point.shoulder_width_r
+	gutter_profile.x = ref_road_point.gutter_profile.x
+	gutter_profile.y = ref_road_point.gutter_profile.y
+	prior_mag = ref_road_point.prior_mag
+	next_mag = ref_road_point.next_mag
+	global_transform = ref_road_point.global_transform
+	_last_update_ms = ref_road_point._last_update_ms

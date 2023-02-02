@@ -1,6 +1,7 @@
 # Addon-specific ignores
 addons/gut/
 addons/godot-plugin-refresher/
+addons/godot-reload-scene/
 *.DS_store
 
 # Official gitignore items to include for Asset Library contributions, per:
