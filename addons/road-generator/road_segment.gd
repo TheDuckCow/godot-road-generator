@@ -516,8 +516,6 @@ func _match_lanes() -> Array:
 	var end_flip_data = _get_lane_flip_data(end_point)
 	var end_flip_offset = end_flip_data[0]
 	var end_traffic_dir = end_flip_data[1]
-	#print("start_flip_offset %s, end_flip_offset %s" % [start_flip_offset, end_flip_offset])
-	#print("start_traffic_dir %s, end_traffic_dir %s" % [start_traffic_dir, end_traffic_dir])
 	
 	# Bail on invalid flip offsets
 	if start_flip_offset == -1 or end_flip_offset == -1:
