@@ -9,8 +9,11 @@ enum PointInit {
 }
 
 
+const seg_dist_mult: float = 4.0
+
+
 var sel_road_point: RoadPoint
-var _edi :EditorInterface setget set_edi
+var _edi: EditorInterface setget set_edi
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
@@ -89,30 +92,25 @@ func rem_lane_rev_pressed():
 	update_road_point_panel()
 
 func move_div_left_pressed():
-	print("move_div_left_pressed")
-	#update_traffic_direction(RoadPoint.TrafficUpdate.MOVE_DIVIDER_LEFT)
+	pass
 
 func move_div_right_pressed():
-	print("move_div_right_pressed")
-	#update_traffic_direction(RoadPoint.TrafficUpdate.MOVE_DIVIDER_RIGHT)
+	pass
 
 
 func sel_rp_next_pressed():
-	#print("sel_rp_next_pressed ")
 	if sel_road_point.next_pt_init:
 		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)
 		_edi.get_selection().call_deferred("add_node", next_pt)
 
 func sel_rp_prior_pressed():
-	#print("sel_rp_prior_pressed")
 	if sel_road_point.prior_pt_init:
 		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)
 		_edi.get_selection().call_deferred("add_node", prior_pt)
 
 func add_rp_next_pressed():
-	#print("add_rp_next_pressed")
 	add_road_point(PointInit.NEXT)
 	if sel_road_point.next_pt_init:
 		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
@@ -120,7 +118,6 @@ func add_rp_next_pressed():
 		_edi.get_selection().call_deferred("add_node", next_pt)
 
 func add_rp_prior_pressed():
-	#print("add_rp_prior_pressed")
 	add_road_point(PointInit.PRIOR)
 	if sel_road_point.prior_pt_init:
 		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
@@ -131,7 +128,7 @@ func add_rp_prior_pressed():
 func add_road_point(pt_init):
 	var points = sel_road_point.get_parent()
 	var new_road_point = copy_road_point(sel_road_point)
-	var lane_width :float = new_road_point.lane_width
+	var lane_width: float = new_road_point.lane_width
 	var basis_z = new_road_point.transform.basis.z	
 	
 	new_road_point.name = increment_name(sel_road_point.name)
@@ -140,17 +137,17 @@ func add_road_point(pt_init):
 	
 	match pt_init:
 		PointInit.NEXT:
-			new_road_point.transform.origin += 4.0 * lane_width * basis_z
+			new_road_point.transform.origin += seg_dist_mult * lane_width * basis_z
 			new_road_point.prior_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.next_pt_init = sel_road_point.get_path_to(new_road_point)
 		PointInit.PRIOR:
-			new_road_point.transform.origin -= 4.0 * lane_width * basis_z
+			new_road_point.transform.origin -= seg_dist_mult * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
 
 
 ## Takes an existing RoadPoint and returns a new copy
-func copy_road_point(old_road_point :RoadPoint) -> RoadPoint:
+func copy_road_point(old_road_point: RoadPoint) -> RoadPoint:
 	var new_road_point = RoadPoint.new()
 	new_road_point.auto_lanes = false
 	new_road_point.lanes = old_road_point.lanes.duplicate(true)
@@ -165,7 +162,6 @@ func copy_road_point(old_road_point :RoadPoint) -> RoadPoint:
 	new_road_point.next_mag = old_road_point.next_mag
 	new_road_point.global_transform = old_road_point.global_transform
 	new_road_point._last_update_ms = old_road_point._last_update_ms
-#	new_road_point.network = old_road_point.network
 	return new_road_point
 
 
