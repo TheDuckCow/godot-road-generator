@@ -127,7 +127,8 @@ func add_rp_prior_pressed():
 
 func add_road_point(pt_init):
 	var points = sel_road_point.get_parent()
-	var new_road_point = copy_road_point(sel_road_point)
+	var new_road_point = RoadPoint.new()
+	new_road_point.copy_settings_from(sel_road_point)
 	var lane_width: float = new_road_point.lane_width
 	var basis_z = new_road_point.transform.basis.z	
 	
@@ -144,25 +145,6 @@ func add_road_point(pt_init):
 			new_road_point.transform.origin -= seg_dist_mult * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
-
-
-## Takes an existing RoadPoint and returns a new copy
-func copy_road_point(old_road_point: RoadPoint) -> RoadPoint:
-	var new_road_point = RoadPoint.new()
-	new_road_point.auto_lanes = false
-	new_road_point.lanes = old_road_point.lanes.duplicate(true)
-	new_road_point.traffic_dir = old_road_point.traffic_dir.duplicate(true)
-	new_road_point.auto_lanes = old_road_point.auto_lanes
-	new_road_point.lane_width = old_road_point.lane_width
-	new_road_point.shoulder_width_l = old_road_point.shoulder_width_l
-	new_road_point.shoulder_width_r = old_road_point.shoulder_width_r
-	new_road_point.gutter_profile.x = old_road_point.gutter_profile.x
-	new_road_point.gutter_profile.y = old_road_point.gutter_profile.y
-	new_road_point.prior_mag = old_road_point.prior_mag
-	new_road_point.next_mag = old_road_point.next_mag
-	new_road_point.global_transform = old_road_point.global_transform
-	new_road_point._last_update_ms = old_road_point._last_update_ms
-	return new_road_point
 
 
 ## Adds a numeric sequence to the end of a RoadPoint name
