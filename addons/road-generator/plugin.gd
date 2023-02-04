@@ -32,6 +32,7 @@ func _exit_tree():
 
 ## Render the editor indicators for RoadPoints and LaneSegments if selected.
 func _on_selection_changed() -> void:
+	print(Time.get_ticks_msec(), " _on_selection_changed")
 	# Returns an array of selected nodes
 	var selected = _eds.get_selected_nodes()
 	if selected.empty():
@@ -47,6 +48,8 @@ func _on_selection_changed() -> void:
 		_last_point = selected_node
 		selected_node.show_gizmo()
 		selected_node.on_transform()
+		var gizmo = selected_node.get_gizmo()
+		road_point_gizmo.refresh_gizmo(gizmo)
 	elif selected_node is LaneSegment:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)

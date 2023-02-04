@@ -359,6 +359,8 @@ func update_traffic_dir(traffic_update):
 		return  # Might not be initialized yet.
 	rebuild_geom()
 	on_transform()
+	if is_instance_valid(gizmo):
+		gizmo.get_plugin().refresh_gizmo(gizmo)
 
 
 # ------------------------------------------------------------------------------
