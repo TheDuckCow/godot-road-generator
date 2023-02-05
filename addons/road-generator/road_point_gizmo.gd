@@ -257,14 +257,28 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 	var lane_width = point.lane_width
 	var lane_change = mag_change / lane_width
 	
-	match index:
-		2:
-			point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
-		3:
-			point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+	if lane_change > 0:
+		match index:
+			2:
+				for i in range(lane_change + 1):
+					point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
+			3:
+				for i in range(lane_change + 1):
+					point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_REVERSE)
+	elif lane_change < 0:
+		match index:
+			2:
+				print("before range")
+				for i in range(lane_change, 1):
+					print("inside range")
+					point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
+			3:
+				for i in range(lane_change, 1):
+					point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+		
 	
 	
-	print("rev_pos %s, fwd_pos %s, mag_chg %s, lane_chg %s" % [rev_width_mag, fwd_width_mag, mag_change, round(lane_change)])
+	print("rev_pos %s, fwd_pos %s, mag_chg %s, lane_chg %s, index %s" % [rev_width_mag, fwd_width_mag, mag_change, round(lane_change), index])
 	
 #	print("rev %s, fwd %s" % [rev_width_mag, fwd_width_mag])
 	redraw(gizmo)
