@@ -9,6 +9,10 @@ var _editor_plugin: EditorPlugin
 var init_handle
 var fwd_width_mag
 var rev_width_mag
+var collider := CubeMesh.new()
+var collider_tri_mesh: TriangleMesh
+var material := SpatialMaterial.new()
+
 
 func get_name():
 	return "RoadPoint"
@@ -21,6 +25,12 @@ func _init(editor_plugin: EditorPlugin):
 	init_handle = null
 	fwd_width_mag = null
 	rev_width_mag = null
+	collider.size = Vector3(2, 0.5, 2)
+	collider_tri_mesh = collider.generate_triangle_mesh()
+	material.flags_unshaded = true
+	material.flags_do_not_receive_shadows = true
+	#material.params_cull_mode = SpatialMaterial.CULL_FRONT
+	material.albedo_color = Color.aqua
 
 
 func has_gizmo(spatial) -> bool:
@@ -32,7 +42,7 @@ func redraw(gizmo) -> void:
 #	print(Time.get_ticks_msec(), " redraw")
 	gizmo.clear()
 	var point = gizmo.get_spatial_node() as RoadPoint
-	
+
 	var lines = PoolVector3Array()
 	lines.push_back(Vector3(0, 1, 0))
 	lines.push_back(Vector3(0, 1, 0))
@@ -46,9 +56,12 @@ func redraw(gizmo) -> void:
 		rev_width_mag = get_handle_value(gizmo, 3)
 	handles.push_back(Vector3(fwd_width_mag, 0, 0))
 	handles.push_back(Vector3(rev_width_mag, 0, 0))
-	
+
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
 	gizmo.add_handles(handles, get_material("handles", gizmo))
+
+	gizmo.add_collision_triangles(collider_tri_mesh)
+	gizmo.add_mesh(collider, false, null, material)
 
 
 func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
@@ -97,7 +110,7 @@ func set_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Ve
 
 ## Function called when user drags the roadpoint in/out magnitude handle.
 func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
-	
+
 	# Calculate intersection between screen point clicked and a plane aligned to
 	# the handle's vector. Then, calculate new handle magnitude.
 	var roadpoint = gizmo.get_spatial_node() as RoadPoint
@@ -107,14 +120,14 @@ func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point
 	else:
 		old_mag_vector = Vector3(0, 0, roadpoint.next_mag)
 	var intersect = _intersect_2D_point_with_3D_plane(roadpoint, old_mag_vector, camera, point)
-	
+
 	# Then isolate to just the magnitude of the z component.
 	var new_mag = roadpoint.to_local(intersect).z
-	
+
 	#Stop the handle at 0 if the cursor crosses over the road point
 	if (new_mag < 0 and index == 1) or (new_mag > 0 and index == 0):
 		new_mag = 0
-		
+
 	if init_handle == null:
 		init_handle = new_mag
 	if index == 0:
@@ -136,18 +149,18 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 	else:
 		old_mag_vector = Vector3(0, 0, -get_handle_value(gizmo, 3))
 	var intersect = _intersect_2D_point_with_3D_plane(roadpoint, old_mag_vector, camera, point)
-	
+
 	# Then isolate to just the magnitude of the x component.
 	var new_mag = roadpoint.to_local(intersect).x
-	
+
 #	#Stop the handle at 0 if the cursor crosses over the road point
 #	if (new_mag < 0 and index == 1) or (new_mag > 0 and index == 0):
 #		new_mag = 0
 
-		
+
 #	if init_handle == null:
 #		init_handle = new_mag
-	
+
 	# Total lane_width = fwd + rev
 	# Get difference between old and new values
 	var old_fwd_mag = fwd_width_mag
@@ -167,7 +180,7 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 
 
 func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
-	
+
 	match index:
 		0, 1:
 			commit_mag_handle(gizmo, index, restore, cancel)
@@ -180,15 +193,15 @@ func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool 
 func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
 	var point = gizmo.get_spatial_node() as RoadPoint
 	var current_value = get_handle_value(gizmo, index)
-	
+
 	if (cancel):
 		print("Cancel")
 	else:
 		if init_handle == null:
 			init_handle = current_value
-		
+
 		var undo_redo = _editor_plugin.get_undo_redo()
-		
+
 		if index == 0:
 			undo_redo.create_action("RoadPoint %s in handle" % point.name)
 			undo_redo.add_do_property(point, "prior_mag", current_value)
@@ -203,7 +216,7 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
 		undo_redo.add_do_method(self, "redraw", gizmo)
 		undo_redo.add_undo_method(self, "redraw", gizmo)
-		
+
 		undo_redo.commit_action()
 		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 		init_handle = null
@@ -213,18 +226,18 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 	print("commit_rp_width_handle")
 	var point = gizmo.get_spatial_node() as RoadPoint
 	var current_value = get_handle_value(gizmo, index)
-	
+
 	# Update the lanes on the RoadPoint if lane_count changed
-	
+
 	if (cancel):
 		print("Cancel")
 	else:
 #		pass
 #		if init_handle == null:
 #			init_handle = current_value
-		
+
 		var undo_redo = _editor_plugin.get_undo_redo()
-		
+
 #		if index == 0:
 #			undo_redo.create_action("RoadPoint %s in handle" % point.name)
 #			undo_redo.add_do_property(point, "prior_mag", current_value)
@@ -256,7 +269,7 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 	var mag_change = new_mag_sum - old_mag_sum
 	var lane_width = point.lane_width
 	var lane_change = round(mag_change / lane_width)
-	
+
 	if lane_change > 0:
 		match index:
 			2:
@@ -273,11 +286,11 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 			3:
 				for i in range(lane_change, 0):
 					point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
-		
-	
-	
+
+
+
 	print("rev_pos %s, fwd_pos %s, mag_chg %s, lane_chg %s, index %s" % [rev_width_mag, fwd_width_mag, mag_change, lane_change, index])
-	
+
 #	print("rev %s, fwd %s" % [rev_width_mag, fwd_width_mag])
 	redraw(gizmo)
 
