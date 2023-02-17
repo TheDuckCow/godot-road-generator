@@ -165,7 +165,8 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 		if not use_lowpoly:
 			point.next_seg.generate_lane_segments(debug)
 		else:
-			point.prior_seg.clear_lane_segments()
+			if point.prior_seg:
+				point.prior_seg.clear_lane_segments()
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		process_seg(point, next, use_lowpoly)

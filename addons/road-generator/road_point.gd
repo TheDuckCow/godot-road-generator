@@ -61,6 +61,8 @@ export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
 
+var rev_width_mag := -8.0
+var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
 #var prior_pt:Spatial # Road Point or Junction
 var prior_seg
@@ -79,10 +81,10 @@ func _ready():
 	set_notify_transform(true)
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
-	
+
 	if not network:
 		network = get_parent().get_parent()
-	
+
 	connect("on_transform", network, "on_point_update")
 
 
@@ -103,7 +105,6 @@ func _set_lanes(values):
 	lanes = values
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_lanes():
 	return lanes
@@ -113,7 +114,6 @@ func _set_auto_lanes(value):
 	auto_lanes = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_auto_lanes():
 	return auto_lanes
@@ -123,7 +123,6 @@ func _set_dir(values):
 	traffic_dir = values
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_dir():
 	return traffic_dir
@@ -133,7 +132,6 @@ func _set_lane_width(value):
 	lane_width = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_lane_width():
 	return lane_width
@@ -143,7 +141,6 @@ func _set_shoulder_width_l(value):
 	shoulder_width_l = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_shoulder_width_l():
 	return shoulder_width_l
@@ -153,7 +150,6 @@ func _set_shoulder_width_r(value):
 	shoulder_width_r = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_shoulder_width_r():
 	return shoulder_width_r
@@ -163,17 +159,15 @@ func _set_profile(value:Vector2):
 	gutter_profile = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_profile():
 	return gutter_profile
-	
+
 
 func _set_prior_pt(value):
 	prior_pt_init = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_prior_pt():
 	return prior_pt_init
@@ -183,7 +177,6 @@ func _set_next_pt(value):
 	next_pt_init = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
 func _get_next_pt():
 	return next_pt_init
@@ -193,7 +186,6 @@ func _set_prior_mag(value):
 	prior_mag = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_prior_mag():
 	return prior_mag
@@ -203,7 +195,6 @@ func _set_next_mag(value):
 	next_mag = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_next_mag():
 	return next_mag
@@ -224,6 +215,8 @@ func _notification(what):
 func on_transform(low_poly=false):
 	if auto_lanes:
 		assign_lanes()
+	if is_instance_valid(gizmo):
+		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
 
 
@@ -244,7 +237,7 @@ func assign_lanes():
 			# Direction doesn't matter, since there is only a single lane here.
 			lanes.append(LaneType.ONE_WAY)
 		return
-	
+
 	var flips = [] # Track changes in direction between lanes.
 	var only_fwd_rev = true # If false, a non supported complex scenario.
 	var fwd_rev = [LaneDir.FORWARD, LaneDir.REVERSE]
@@ -257,7 +250,7 @@ func assign_lanes():
 			break
 		var reversed = traffic_dir[i] != traffic_dir[i+1]
 		flips.append(reversed)
-	
+
 	if only_fwd_rev:
 		var running_same_dir = 0
 		for i in range(len(traffic_dir) - 1): # One less, since not final edge
@@ -280,7 +273,7 @@ func assign_lanes():
 				else: # Left side is a dotted line.
 					lanes.append(LaneType.MIDDLE)
 				running_same_dir += 1
-		
+
 		# Now complete the final lane.
 		if running_same_dir > 0:
 			lanes.append(LaneType.SLOW)
@@ -306,13 +299,13 @@ func assign_lanes():
 func get_fwd_lane_count() -> int:
 	var td = traffic_dir
 	var fwd_lane_count = 0
-	
+
 	for i in range(len(td) - 1, -1, -1):
 		if td[i] == LaneDir.FORWARD:
 			fwd_lane_count += 1
 		if td[i] == LaneDir.REVERSE:
 			break
-	
+
 	return fwd_lane_count
 
 
@@ -323,13 +316,13 @@ func get_fwd_lane_count() -> int:
 func get_rev_lane_count() -> int:
 	var td = traffic_dir
 	var rev_lane_count = 0
-	
+
 	for i in range(0, len(td)):
 		if td[i] == LaneDir.REVERSE:
 			rev_lane_count += 1
 		if td[i] == LaneDir.FORWARD:
 			break
-	
+
 	return rev_lane_count
 
 
@@ -337,7 +330,7 @@ func update_traffic_dir(traffic_update):
 	var fwd_lane_count = get_fwd_lane_count()
 	var rev_lane_count = get_rev_lane_count()
 	var lane_count = fwd_lane_count + rev_lane_count
-	
+
 	# Add/remove lanes. But, always make sure at least one remains.
 	match traffic_update:
 		TrafficUpdate.ADD_FORWARD:
@@ -354,76 +347,10 @@ func update_traffic_dir(traffic_update):
 			pass
 		TrafficUpdate.MOVE_DIVIDER_RIGHT:
 			pass
-	
+
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	rebuild_geom()
 	on_transform()
-	if is_instance_valid(gizmo):
-		gizmo.get_plugin().refresh_gizmo(gizmo)
-
-
-# ------------------------------------------------------------------------------
-# Gizmo handling and drawing.
-# ------------------------------------------------------------------------------
-
-
-func show_gizmo():
-	rebuild_geom()
-
-
-func hide_gizmo():
-	geom.clear()
-	
-
-func rebuild_geom():
-	# if refresh_geom:
-	call_deferred("_instantiate_geom")
-
-
-func _instantiate_geom():
-	if not Engine.is_editor_hint():
-		if geom:
-			geom.clear()
-		return
-	
-	if geom == null:
-		geom = ImmediateGeometry.new()
-		geom.set_name("geom")
-		add_child(geom)
-		
-		var mat = SpatialMaterial.new()
-		mat.flags_unshaded = true
-		mat.flags_do_not_receive_shadows = true
-		mat.params_cull_mode = mat.CULL_DISABLED
-		mat.vertex_color_use_as_albedo = true
-		geom.material_override = mat
-	else:
-		geom.clear()
-	
-	_draw_lane_width()
-
-
-
-func _draw_lane_width():
-	var offy = Vector3(0, 0.05, 0)
-	var half_width = lanes.size() * lane_width / 2.0
-	geom.begin(Mesh.PRIMITIVE_TRIANGLES)
-	geom.set_color(COLOR_YELLOW)
-	geom.add_vertex(Vector3(-half_width, 0, 0) + offy)
-	geom.add_vertex(Vector3(0, 0, 0.5) + offy)
-	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
-	geom.set_color(COLOR_RED)
-	# Top triangle
-	geom.add_vertex(Vector3(-half_width, 0, -0.5) + offy)
-	geom.add_vertex(Vector3(half_width, 0, -0.5) + offy)
-	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
-	# Bottom triangle
-	geom.add_vertex(Vector3(half_width, 0, 0) + offy)
-	geom.add_vertex(Vector3(-half_width, 0, 0) + offy)
-	geom.add_vertex(Vector3(-half_width, 0, -0.5) + offy)
-	
-	geom.end()
 
 
 ## Takes an existing RoadPoint and returns a new copy
@@ -441,3 +368,13 @@ func copy_settings_from(ref_road_point: RoadPoint) -> void:
 	next_mag = ref_road_point.next_mag
 	global_transform = ref_road_point.global_transform
 	_last_update_ms = ref_road_point._last_update_ms
+
+
+## Returns true if RoadPoint is primary selection in Scene panel
+func is_road_point_selected(editor_selection: EditorSelection) -> bool:
+	var selected := false
+	var sel_nodes = editor_selection.get_selected_nodes()
+	if sel_nodes.size() > 0:
+		if sel_nodes[0] == self:
+			selected = true
+	return selected
