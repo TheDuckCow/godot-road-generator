@@ -249,7 +249,7 @@ func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point
 	redraw(gizmo)
 
 
-## Function called when user drags the roadpoint left/right magnitude handle.
+## Function called when user drags the roadpoint left/right lane handle.
 func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
 	# Calculate intersection between screen point clicked and a plane aligned to
 	# the handle's vector. Then, calculate new handle magnitude.
