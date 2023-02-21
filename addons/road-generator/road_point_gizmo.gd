@@ -42,7 +42,9 @@ func _init(editor_plugin: EditorPlugin):
 	create_material("main", Color(0,1,0))
 	create_material("collider", Color8(0, 178, 217, 255))
 	create_handle_material("handles")
-	create_handle_material("blue_handles", false, GizmoBlueHandle)
+	create_handle_material("blue_handles")
+	var mat_blue_handles = get_material("blue_handles")
+	mat_blue_handles.albedo_texture = GizmoBlueHandle
 	init_handle = null
 	collider.size = Vector3(2, 0.175, 2)
 	collider_tri_mesh = collider.generate_triangle_mesh()
