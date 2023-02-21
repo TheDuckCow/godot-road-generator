@@ -374,7 +374,7 @@ func copy_settings_from(ref_road_point: RoadPoint) -> void:
 func is_road_point_selected(editor_selection: EditorSelection) -> bool:
 	var selected := false
 	var sel_nodes = editor_selection.get_selected_nodes()
-	if sel_nodes.size() > 0:
+	if sel_nodes.size() == 1:
 		if sel_nodes[0] == self:
 			selected = true
 	return selected

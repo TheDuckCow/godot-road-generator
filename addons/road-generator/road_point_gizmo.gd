@@ -104,8 +104,8 @@ func redraw(gizmo) -> void:
 
 	gizmo.add_collision_triangles(collider_tri_mesh)
 	gizmo.add_mesh(collider, false, null, get_material("collider", gizmo))
-
 	if point.is_road_point_selected(_editor_selection):
+
 		# Add mag handles
 		var handles = PoolVector3Array()
 		handles.push_back(Vector3(0, 0, -point.prior_mag))
@@ -257,9 +257,9 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 	if roadpoint.is_road_point_selected(_editor_selection):
 		var old_mag_vector # Handle's old local position.
 		if index == HandleType.REV_WIDTH_MAG:
-			old_mag_vector = Vector3(0, 0, get_handle_value(gizmo, HandleType.REV_WIDTH_MAG))
+			old_mag_vector = Vector3(get_handle_value(gizmo, HandleType.REV_WIDTH_MAG), 0, 0)
 		else: # HandleType.FWD_WIDTH_MAG
-			old_mag_vector = Vector3(0, 0, get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG))
+			old_mag_vector = Vector3(get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG), 0, 0)
 		var intersect = _intersect_2D_point_with_3D_plane(roadpoint, old_mag_vector, camera, point)
 
 		# Then isolate to just the magnitude of the x component.
