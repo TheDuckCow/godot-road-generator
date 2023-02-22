@@ -34,18 +34,25 @@ func _exit_tree():
 func _on_selection_changed() -> void:
 	# Returns an array of selected nodes
 	var selected = _eds.get_selected_nodes()
-	if selected.empty():
-		return
+	if selected.empty() or len(selected) > 1:
+		# Hide all RoadPoint widgets
+		var parent = get_tree().edited_scene_root.find_node("points")
+		if is_instance_valid(parent):
+			for child in parent.get_children():
+				child.gizmo.get_plugin().refresh_gizmo(child.gizmo)
+		else:
+			push_warning("Unable to find points node and hide gizmos.")
+
+		if selected.empty():
+			return
 	# Always pick first node in selection
 	var selected_node = selected[0]
-	if is_instance_valid(_last_point):
-		_last_point.hide_gizmo()
 	if _last_lane:
 		_last_lane.show_fins(false)
 
+	road_point_gizmo.lane_widget.visible = false
 	if selected_node is RoadPoint:
 		_last_point = selected_node
-		selected_node.show_gizmo()
 		selected_node.on_transform()
 	elif selected_node is LaneSegment:
 		_last_lane = selected_node
