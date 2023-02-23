@@ -179,8 +179,14 @@ func segment_rebuild(road_segment:RoadSegment):
 
 # Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
-	segid_map = {}
-	if not segments or not is_instance_valid(get_node(segments)):
-		return
-	for seg in get_node(segments).get_children():
-		seg.queue_free()
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	return
+
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
