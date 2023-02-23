@@ -36,10 +36,12 @@ func _on_selection_changed() -> void:
 	var selected = _eds.get_selected_nodes()
 	if selected.empty() or len(selected) > 1:
 		# Hide all RoadPoint widgets
+		# TODO: Avoid name hard coding.
 		var parent = get_tree().edited_scene_root.find_node("points")
 		if is_instance_valid(parent):
 			for child in parent.get_children():
-				child.gizmo.get_plugin().refresh_gizmo(child.gizmo)
+				if child.gizmo:
+					child.gizmo.get_plugin().refresh_gizmo(child.gizmo)
 		else:
 			push_warning("Unable to find points node and hide gizmos.")
 

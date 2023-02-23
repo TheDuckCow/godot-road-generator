@@ -38,7 +38,7 @@ func _ready():
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
-	
+
 	var res = connect("check_rebuild", network, "segment_rebuild")
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
@@ -59,7 +59,7 @@ func get_id():
 	else:
 		name = "x-x"
 	return name
-	
+
 
 # ------------------------------------------------------------------------------
 # Export callbacks
@@ -196,13 +196,13 @@ func _rebuild():
 	get_id()
 	if network and network.density > 0:
 		density = network.density
-	
+
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
 		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
-	
+
 	_update_curve()
-	
+
 	# Create a low and high poly road, start with low poly.
 	_build_geo()
 
@@ -213,13 +213,13 @@ func _update_curve():
 	# path.transform.origin = Vector3.ZERO
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
-	
+
 	# Setup in handle of curve
 	var pos = to_local(start_point.global_transform.origin)
 	var handle = start_point.global_transform.basis.z * start_point.next_mag
 	curve.add_point(pos, -handle, handle)
 	curve.set_point_tilt(0, start_point.rotation.z)
-	
+
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
@@ -247,7 +247,7 @@ func _build_geo():
 		# Invalid configuration or nothing to draw
 		road_mesh.mesh = st.commit()
 		return
-	
+
 	var clength = curve.get_baked_length()
 	# In this context, loop refers to "quad" faces, not the edges, as it will
 	# be a loop of generated faces.
@@ -260,12 +260,12 @@ func _build_geo():
 		loops = int(max(floor(clength / density / LOWPOLY_FACTOR), 1.0)) # Need at least 1 loop.
 	else:
 		loops = int(max(floor(clength / density), 1.0)) # Need at least 1 loop.
-	
+
 	# Keep track of UV position over lane, to be seamless within the segment.
 	var lane_uvs_length = []
 	for ln in range(lane_count):
 		lane_uvs_length.append(0)
-	
+
 	# Number of times the UV will wrap, to ensure seamless at next RoadPoint.
 	#
 	# Use the minimum sized road width for counting.
@@ -276,17 +276,17 @@ func _build_geo():
 	var target_uv_tiles:int = int(clength / single_uv_height)
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
 	var uv_width = 0.125 # 1/8 for breakdown of texture.
-	
-	
+
+
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
-	
+
 	for loop in range(loops):
 		_insert_geo_loop(
 			st, loop, loops, lanes,
 			lane_count, clength,
 			lane_uvs_length, per_loop_uv_size, uv_width)
-	
+
 	st.index()
 	if material:
 		st.set_material(material)
@@ -309,7 +309,7 @@ func _insert_geo_loop(
 	# One loop = row of quads left to right across the road, spanning lanes.
 	var offset_s = float(loop) / float(loops)
 	var offset_e = float(loop + 1) / float(loops)
-	
+
 	#if len(start_point.lanes) == len(end_point.lanes):
 	var start_loop:Vector3
 	var start_basis:Vector3
@@ -321,18 +321,18 @@ func _insert_geo_loop(
 	else:
 		start_loop = curve.interpolate_baked(offset_s * clength)
 		start_basis = _normal_for_offset(curve, offset_s * clength)
-		
+
 	if loop == loops - 1:
 		end_loop = to_local(end_point.global_transform.origin)
 		end_basis = end_point.global_transform.basis.x
 	else:
 		end_loop = curve.interpolate_baked(offset_e * clength)
 		end_basis = _normal_for_offset(curve, offset_e * clength)
-	
+
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 	#	loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
 	#])
-	
+
 	# Calculate lane widths
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
 	var near_add_width = lerp(0, end_point.lane_width, offset_s)
@@ -340,11 +340,11 @@ func _insert_geo_loop(
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
 	var far_add_width = lerp(0, end_point.lane_width, offset_e)
 	var far_rem_width = lerp(start_point.lane_width, 0, offset_e)
-	
+
 	# Sum the lane widths and get position of left edge
 	var near_width_offset
 	var far_width_offset
-	
+
 	near_width_offset = -lerp(
 			len(start_point.lanes) * start_point.lane_width,
 			len(end_point.lanes) * end_point.lane_width,
@@ -355,14 +355,14 @@ func _insert_geo_loop(
 			len(end_point.lanes) * end_point.lane_width,
 			offset_e
 	) / 2.0
-	
+
 	for i in range(lane_count):
 		# Create the contents of a single lane / quad within this quad loop.
 		var lane_offset_s = near_width_offset * start_basis
 		var lane_offset_e = far_width_offset * end_basis
 		var lane_near_width
 		var lane_far_width
-		
+
 		# Set lane width for current lane type
 		if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD:
 			lane_near_width = near_add_width
@@ -373,10 +373,10 @@ func _insert_geo_loop(
 		else:
 			lane_near_width = near_width
 			lane_far_width = far_width
-			
+
 		near_width_offset += lane_near_width
 		far_width_offset += lane_far_width
-		
+
 		# Assume the start and end lanes are the same for now.
 		var uv_l:float # the left edge of the uv for this lane.
 		var uv_r:float
@@ -417,14 +417,14 @@ func _insert_geo_loop(
 			var tmp = uv_r
 			uv_r = uv_l
 			uv_l = tmp
-		
+
 		# uv offset continuation for this lane.
 		var uv_y_start = lane_uvs_length[i]
 		var uv_y_end = lane_uvs_length[i] + per_loop_uv_size
 		lane_uvs_length[i] = uv_y_end # For next loop to use.
 		#print("Seg: %s, lane:%s, uv %s-%s" % [
 		#	self.name, loop, uv_y_start, uv_y_end])
-		
+
 		# Prepare attributes for add_vertex.
 		# Long edge towards origin, p1
 		#st.add_normal(Vector3(0, 1, 0))
@@ -443,12 +443,12 @@ func _insert_geo_loop(
 				start_loop + start_basis * lane_near_width + lane_offset_s,
 
 			])
-		
+
 	#else:
 	#push_warning("Non-same number of lanes not implemented yet")
-	
+
 	# Now create the shoulder geometry, including the "bevel" geo.
-	
+
 	# Gutter depth is the same for the left and right sides.
 	var gutr_near = Vector2(
 		lerp(start_point.gutter_profile.x, end_point.gutter_profile.x, offset_s),
@@ -456,7 +456,7 @@ func _insert_geo_loop(
 	var gutr_far = Vector2(
 		lerp(start_point.gutter_profile.x, end_point.gutter_profile.x, offset_e),
 		lerp(start_point.gutter_profile.y, end_point.gutter_profile.y, offset_e))
-	
+
 	for i in range(2):
 		var dir = -1 if i==0 else 1
 		var uv_y_start
@@ -467,7 +467,7 @@ func _insert_geo_loop(
 		else:
 			uv_y_start = lane_uvs_length[dir]
 			uv_y_end = lane_uvs_length[dir] + per_loop_uv_size
-		
+
 		# Account for custom left/right shoulder width.
 		var near_w_shoulder
 		var far_w_shoulder
@@ -495,7 +495,7 @@ func _insert_geo_loop(
 			pos_near_r = near_width_offset + near_w_shoulder
 			pos_far_gutter = pos_far_r
 			pos_near_gutter = pos_near_r
-		
+
 		# Assume the start and end lanes are the same for now.
 		var uv_l:float # the left edge of the uv for this lane.
 		var uv_m:float # The 'middle' vert, same level as shoulder but to edge.
@@ -525,7 +525,7 @@ func _insert_geo_loop(
 				start_loop + start_basis * pos_near_r * dir,
 				start_loop + start_basis * pos_near_l * dir,
 			])
-		
+
 		# The gutter, lower part of the shoulder on both sides.
 		if dir == 1:
 			quad(
@@ -593,19 +593,19 @@ func _match_lanes() -> Array:
 			and end_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
 	):
 		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
-		return []	
-	
+		return []
+
 	var start_flip_data = _get_lane_flip_data(start_point)
 	var start_flip_offset = start_flip_data[0]
 	var start_traffic_dir = start_flip_data[1]
 	var end_flip_data = _get_lane_flip_data(end_point)
 	var end_flip_offset = end_flip_data[0]
 	var end_traffic_dir = end_flip_data[1]
-	
+
 	# Bail on invalid flip offsets
 	if start_flip_offset == -1 or end_flip_offset == -1:
 		return []
-	
+
 	# Check for additional invalid lane configurations
 	if (
 		(start_traffic_dir == RoadPoint.LaneDir.REVERSE
@@ -619,11 +619,11 @@ func _match_lanes() -> Array:
 	):
 		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
 		return []
-	
+
 	# Build lanes list.
 	var lanes: Array
 	var range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir))
-	
+
 	# Handle FORWARD-only lane setups
 	if (
 		start_traffic_dir == RoadPoint.LaneDir.FORWARD
@@ -669,13 +669,13 @@ func _match_lanes() -> Array:
 			else:
 				#Lane directions match. Add LaneType from start point.
 				lanes.push_front([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
-		
+
 		# Match FORWARD lanes
 		# Iterate the start point FORWARD lanes. But, iterate the maximum number of
 		# FORWARD lanes of the two road points. If the iterator goes above the
 		# length of start point lanes, then assign TRANSITION_ADD lane(s). If the
 		# iterator is below the length of start point lanes and there is a lane on
-		# the end point, then assign the start point's LaneType. If the iterator is 
+		# the end point, then assign the start point's LaneType. If the iterator is
 		# below the length of start point lanes and there are no more lanes on the
 		# end point, then assign TRANSITION_REM lane(s).
 		range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
@@ -689,9 +689,9 @@ func _match_lanes() -> Array:
 			elif i < len(start_point.lanes):
 				#Lane directions match. Add LaneType from start point.
 				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.FORWARD])
-		
+
 	return lanes
-	
+
 ## Evaluate the lanes of a RoadPoint and return the index of the direction flip
 ## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
 ## overall traffic direction of the RoadPoint.
@@ -701,7 +701,7 @@ func _get_lane_flip_data(road_point: RoadPoint) -> Array:
 	# warning.
 	var flip_offset = 0
 	var flip_count = 0
-	
+
 	for i in range(len(road_point.traffic_dir)):
 		if (
 				# Save ID of first FORWARD lane
