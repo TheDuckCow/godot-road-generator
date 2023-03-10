@@ -9,6 +9,16 @@
 config_version=4
 
 _global_script_classes=[ {
+"base": "Reference",
+"class": "GutHookScript",
+"language": "GDScript",
+"path": "res://addons/gut/hook_script.gd"
+}, {
+"base": "Node",
+"class": "GutTest",
+"language": "GDScript",
+"path": "res://addons/gut/test.gd"
+}, {
 "base": "Node",
 "class": "LanePoint",
 "language": "GDScript",
@@ -35,6 +45,8 @@ _global_script_classes=[ {
 "path": "res://addons/road-generator/road_segment.gd"
 } ]
 _global_script_class_icons={
+"GutHookScript": "",
+"GutTest": "",
 "LanePoint": "",
 "LaneSegment": "",
 "RoadNetwork": "res://icon.png",
@@ -56,7 +68,7 @@ window/dpi/allow_hidpi=true
 
 [editor_plugins]
 
-enabled=PoolStringArray( "res://addons/road-generator/plugin.cfg" )
+enabled=PoolStringArray( "res://addons/gut/plugin.cfg", "res://addons/road-generator/plugin.cfg" )
 
 [physics]
 
