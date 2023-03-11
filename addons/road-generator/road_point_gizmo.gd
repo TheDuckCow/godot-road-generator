@@ -304,7 +304,7 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 	var point = gizmo.get_spatial_node() as RoadPoint
 	var current_value = get_handle_value(gizmo, index)
 
-	if (cancel):
+	if cancel:
 		print("Cancel")
 	else:
 		if init_handle == null:
@@ -316,7 +316,6 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 			undo_redo.create_action("RoadPoint %s in handle" % point.name)
 			undo_redo.add_do_property(point, "prior_mag", current_value)
 			undo_redo.add_undo_property(point, "prior_mag", init_handle)
-			print("This commit ", current_value, "-", init_handle)
 		elif index == HandleType.NEXT_MAG:
 			undo_redo.create_action("RoadPoint %s out handle" % point.name)
 			undo_redo.add_do_property(point, "next_mag", current_value)
@@ -333,11 +332,29 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 
 func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
 	var point = gizmo.get_spatial_node() as RoadPoint
+	var current_value = get_handle_value(gizmo, index)
 
-	if (cancel):
+	if cancel:
 		print("Cancel")
 		refresh_gizmo(gizmo)
 	else:
+		if init_handle == null:
+			init_handle = current_value
+
+		# Initial state for undo
+		var undo_redo = _editor_plugin.get_undo_redo()
+		undo_redo.create_action("Change lane count")
+		if index == HandleType.FWD_WIDTH_MAG:
+			undo_redo.add_do_property(point, "fwd_width_mag", point.fwd_width_mag)
+			undo_redo.add_undo_property(point, "fwd_width_mag", init_handle)
+			# full lanes array?
+		elif index == HandleType.REV_WIDTH_MAG:
+			undo_redo.add_do_property(point, "rev_width_mag", point.fwd_width_mag)
+			undo_redo.add_undo_property(point, "rev_width_mag", init_handle)
+		undo_redo.add_do_property(point, "lanes", point.lanes)
+		undo_redo.add_undo_property(point, "lanes", point.lanes)
+
+		# Track changes
 		var new_fwd_mag = point.fwd_width_mag
 		var new_rev_mag = point.rev_width_mag
 		var rev_width_mag = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
@@ -372,6 +389,18 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 						point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
 
 		refresh_gizmo(gizmo)
+
+		# Commit the action for undo/redo.
+		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
+		undo_redo.add_do_method(self, "redraw", gizmo)
+		undo_redo.add_undo_method(self, "redraw", gizmo)
+		# Need to trigger redraw; but doing this nerfs the undo.
+		#undo_redo.add_do_method(point, "on_transform")
+		#undo_redo.add_undo_method(point, "on_transform")
+
+		undo_redo.commit_action()
+		#point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
+		init_handle = null
 
 
 ## Calculate intersection between screen point clicked and a camera-aligned
