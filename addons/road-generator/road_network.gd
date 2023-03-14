@@ -202,11 +202,19 @@ func _exit_tree():
 func setup_road_network():
 	use_lowpoly_preview = true
 
+	# Use the RoadNetwork as points and segments owner if it has no owner. This
+	# is necessary in order to show said nodes in Scene dock.
+	var own
+	if owner:
+		own = owner
+	else:
+		own = self
+
 	if not points or not is_instance_valid(get_node(points)):
 		var new_points = Node.new()
 		new_points.name = "points"
 		add_child(new_points)
-		new_points.set_owner(owner)
+		new_points.set_owner(own)
 		points = get_path_to(new_points)
 		print("Added points to ", name)
 
@@ -214,7 +222,7 @@ func setup_road_network():
 		var new_segments = Node.new()
 		new_segments.name = "segments"
 		add_child(new_segments)
-		new_segments.set_owner(owner)
+		new_segments.set_owner(own)
 		segments = get_path_to(new_segments)
 		print("Added segments to ", name)
 
