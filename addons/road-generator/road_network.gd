@@ -202,8 +202,10 @@ func _exit_tree():
 func setup_road_network():
 	use_lowpoly_preview = true
 
-	# Use the RoadNetwork as points and segments owner if it has no owner. This
-	# is necessary in order to show said nodes in Scene dock.
+# In order for points and segments to show up in the Scene dock, they must be
+# assigned an "owner". Use the RoadNetwork's owner. But, the RoadNetwork won't
+# have an owner if it is the scene root. In that case, make the RoadNetwork the
+# owner.
 	var own
 	if owner:
 		own = owner
