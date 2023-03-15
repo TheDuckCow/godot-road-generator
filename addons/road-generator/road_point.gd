@@ -388,7 +388,7 @@ func is_road_point_selected(editor_selection: EditorSelection) -> bool:
 
 
 ## Adds a numeric sequence to the end of a RoadPoint name
-func increment_name(name) -> String:
+func increment_name(name: String) -> String:
 	var new_name = name
 	if not new_name[-1].is_valid_integer():
 		new_name += "001"
