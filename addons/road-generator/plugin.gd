@@ -57,7 +57,12 @@ func _on_selection_changed() -> void:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
 
-	if selected_node is RoadPoint or selected_node is RoadNetwork:
+	if (selected_node is RoadPoint or
+		 selected_node is RoadNetwork) and (
+			not selected_node.filename or (
+				selected_node == get_tree().edited_scene_root
+			)
+		):
 		_show_road_toolbar()
 	else:
 		_hide_road_toolbar()
