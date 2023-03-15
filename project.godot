@@ -29,7 +29,7 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://addons/road-generator/lane_segment.gd"
 }, {
-"base": "Node",
+"base": "Spatial",
 "class": "RoadNetwork",
 "language": "GDScript",
 "path": "res://addons/road-generator/road_network.gd"
