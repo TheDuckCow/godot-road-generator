@@ -2,28 +2,26 @@
 
 importer="texture"
 type="StreamTexture"
-path.s3tc="res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.s3tc.stex"
-path.etc2="res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.etc2.stex"
+path="res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.stex"
 metadata={
-"imported_formats": [ "s3tc", "etc2" ],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://addons/road-generator/gizmo_blue_handle.png"
-dest_files=[ "res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.s3tc.stex", "res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.etc2.stex" ]
+dest_files=[ "res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.stex" ]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/lossy_quality=0.7
 compress/hdr_mode=0
 compress/bptc_ldr=0
 compress/normal_map=0
-flags/repeat=true
+flags/repeat=0
 flags/filter=true
-flags/mipmaps=true
+flags/mipmaps=false
 flags/anisotropic=false
 flags/srgb=2
 process/fix_alpha_border=true
@@ -33,5 +31,5 @@ process/invert_color=false
 process/normal_map_invert_y=false
 stream=false
 size_limit=0
-detect_3d=false
+detect_3d=true
 svg/scale=1.0

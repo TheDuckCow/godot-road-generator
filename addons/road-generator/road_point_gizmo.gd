@@ -392,3 +392,7 @@ func refresh_gizmo(gizmo: EditorSpatialGizmo):
 	point.fwd_width_mag = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
 	lane_widget.visible = false
 	redraw(gizmo)
+
+
+func on_selection_changed():
+	lane_widget.visible = false

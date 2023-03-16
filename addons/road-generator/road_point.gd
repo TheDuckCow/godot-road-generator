@@ -34,9 +34,16 @@ enum TrafficUpdate{
 	MOVE_DIVIDER_RIGHT
 }
 
+
+enum PointInit {
+	NEXT,
+	PRIOR,
+}
+
 const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
+const SEG_DIST_MULT: float = 4.0
 
 # Assign both the texture to use, as well as the path direction to generate.
 # Order is left to right when oriented such that the RoadPoint is facing towards
@@ -378,3 +385,31 @@ func is_road_point_selected(editor_selection: EditorSelection) -> bool:
 		if sel_nodes[0] == self:
 			selected = true
 	return selected
+
+
+## Adds a numeric sequence to the end of a RoadPoint name
+func increment_name(name: String) -> String:
+	var new_name = name
+	if not new_name[-1].is_valid_integer():
+		new_name += "001"
+	return new_name
+
+## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
+func add_road_point(new_road_point: RoadPoint, pt_init):
+	var points = get_parent()
+	new_road_point.copy_settings_from(self)
+	var basis_z = new_road_point.transform.basis.z
+
+	new_road_point.name = increment_name(name)
+	points.add_child(new_road_point, true)
+	new_road_point.owner = points.owner
+
+	match pt_init:
+		PointInit.NEXT:
+			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
+			new_road_point.prior_pt_init = new_road_point.get_path_to(self)
+			next_pt_init = get_path_to(new_road_point)
+		PointInit.PRIOR:
+			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
+			new_road_point.next_pt_init = new_road_point.get_path_to(self)
+			prior_pt_init = get_path_to(new_road_point)
