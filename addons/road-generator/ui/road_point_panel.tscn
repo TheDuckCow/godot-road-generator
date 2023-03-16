@@ -87,23 +87,24 @@ size_flags_horizontal = 3
 alignment = 1
 
 [node name="rev_add" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-margin_right = 156.0
+margin_right = 237.0
 margin_bottom = 22.0
 hint_tooltip = "Add Reverse lane"
 size_flags_horizontal = 3
 text = "+"
 
 [node name="rev_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-margin_left = 160.0
-margin_right = 317.0
+margin_left = 241.0
+margin_right = 478.0
 margin_bottom = 22.0
 hint_tooltip = "Remove Reverse lane"
 size_flags_horizontal = 3
 text = "-"
 
 [node name="move_left" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-margin_left = 321.0
-margin_right = 478.0
+visible = false
+margin_left = 386.0
+margin_right = 575.0
 margin_bottom = 22.0
 hint_tooltip = "Print debug information"
 size_flags_horizontal = 3
@@ -118,6 +119,7 @@ custom_colors/font_color = Color( 0.952941, 0.733333, 0.0666667, 1 )
 text = "||"
 
 [node name="move_right" type="Button" parent="HBoxLanes/HBoxSubLanes"]
+visible = false
 margin_left = 500.0
 margin_right = 657.0
 margin_bottom = 22.0
@@ -126,15 +128,15 @@ size_flags_horizontal = 3
 text = ">"
 
 [node name="fwd_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-margin_left = 661.0
-margin_right = 818.0
+margin_left = 500.0
+margin_right = 737.0
 margin_bottom = 22.0
 hint_tooltip = "Remove Forward lane"
 size_flags_horizontal = 3
 text = "-"
 
 [node name="fwd_add" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-margin_left = 822.0
+margin_left = 741.0
 margin_right = 979.0
 margin_bottom = 22.0
 hint_tooltip = "Add Forward lane"

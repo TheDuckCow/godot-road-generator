@@ -47,31 +47,31 @@ func update_road_point_panel():
 	var fwd_lane_count = sel_road_point.get_fwd_lane_count()
 	var rev_lane_count = sel_road_point.get_rev_lane_count()
 	var lane_count = fwd_lane_count + rev_lane_count
-	
+
 	if lane_count > 1 and fwd_lane_count > 0:
 		btn_rem_lane_fwd.disabled = false
 	else:
 		btn_rem_lane_fwd.disabled = true
-	
+
 	if lane_count > 1 and rev_lane_count > 0:
 		btn_rem_lane_rev.disabled = false
 	else:
 		btn_rem_lane_rev.disabled = true
-	
+
 	if sel_road_point.next_pt_init:
 		hbox_add_rp_next.visible = false
 		hbox_sel_rp_next.visible = true
 	else:
 		hbox_add_rp_next.visible = true
 		hbox_sel_rp_next.visible = false
-	
+
 	if sel_road_point.prior_pt_init:
 		hbox_add_rp_prior.visible = false
 		hbox_sel_rp_prior.visible = true
 	else:
 		hbox_add_rp_prior.visible = true
 		hbox_sel_rp_prior.visible = false
-	
+
 	property_list_changed_notify()
 
 
@@ -130,12 +130,12 @@ func add_road_point(pt_init):
 	var new_road_point = RoadPoint.new()
 	new_road_point.copy_settings_from(sel_road_point)
 	var lane_width: float = new_road_point.lane_width
-	var basis_z = new_road_point.transform.basis.z	
-	
+	var basis_z = new_road_point.transform.basis.z
+
 	new_road_point.name = increment_name(sel_road_point.name)
 	points.add_child(new_road_point, true)
 	new_road_point.owner = points.owner
-	
+
 	match pt_init:
 		PointInit.NEXT:
 			new_road_point.transform.origin += seg_dist_mult * lane_width * basis_z
