@@ -22,7 +22,7 @@ func _enter_tree():
 	connect("scene_changed", self, "_on_scene_changed")
 	connect("scene_closed", self, "_on_scene_closed")
 	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
-	add_custom_type("RoadNetwork", "Node", preload("road_network.gd"), preload("road_segment.png"))
+	add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
 	# TODO: Set a different icon for lane segments.
 	add_custom_type("LaneSegment", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
