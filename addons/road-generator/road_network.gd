@@ -1,7 +1,7 @@
 ## Manager used to generate the actual road segments when needed.
 tool
 class_name RoadNetwork, "../../icon.png"
-extends Node
+extends Spatial
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
@@ -213,7 +213,7 @@ func setup_road_network():
 		own = self
 
 	if not points or not is_instance_valid(get_node(points)):
-		var new_points = Node.new()
+		var new_points = Spatial.new()
 		new_points.name = "points"
 		add_child(new_points)
 		new_points.set_owner(own)
@@ -221,7 +221,7 @@ func setup_road_network():
 		print("Added points to ", name)
 
 	if not segments or not is_instance_valid(get_node(segments)):
-		var new_segments = Node.new()
+		var new_segments = Spatial.new()
 		new_segments.name = "segments"
 		add_child(new_segments)
 		new_segments.set_owner(own)
