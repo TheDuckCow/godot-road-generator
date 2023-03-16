@@ -3,15 +3,6 @@ tool
 extends VBoxContainer
 
 
-enum PointInit {
-	NEXT,
-	PRIOR,
-}
-
-
-const seg_dist_mult: float = 4.0
-
-
 var sel_road_point: RoadPoint
 var _edi: EditorInterface setget set_edi
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
@@ -111,14 +102,16 @@ func sel_rp_prior_pressed():
 		_edi.get_selection().call_deferred("add_node", prior_pt)
 
 func add_rp_next_pressed():
-	add_road_point(PointInit.NEXT)
+	var new_road_point = RoadPoint.new()
+	sel_road_point.add_road_point(new_road_point, RoadPoint.PointInit.NEXT)
 	if sel_road_point.next_pt_init:
 		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)
 		_edi.get_selection().call_deferred("add_node", next_pt)
 
 func add_rp_prior_pressed():
-	add_road_point(PointInit.PRIOR)
+	var new_road_point = RoadPoint.new()
+	sel_road_point.add_road_point(new_road_point, RoadPoint.PointInit.PRIOR)
 	if sel_road_point.prior_pt_init:
 		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)

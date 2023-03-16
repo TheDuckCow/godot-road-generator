@@ -1,8 +1,10 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-extends Node
+class_name RoadNetwork, "../../icon.png"
+extends Spatial
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
+const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 
 export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
@@ -26,7 +28,9 @@ export(bool) var debug := false
 
 
 func _ready():
-	rebuild_segments(true)
+	# setup_road_network won't work in _ready unless call_deferred is used
+	call_deferred("setup_road_network")
+	call_deferred("rebuild_segments", true)
 
 
 func _ui_refresh_set(value):
@@ -144,10 +148,12 @@ func update_debug_paths(point:RoadPoint):
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool):
-	if not auto_refresh or not is_instance_valid(point):
+	if not auto_refresh:
+		return
+	elif not is_instance_valid(point):
 		return
 	var use_lowpoly = low_poly and use_lowpoly_preview
-	if point.prior_seg:
+	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
@@ -158,7 +164,7 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
 		process_seg(prior, point, use_lowpoly)
-	if point.next_seg:
+	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
@@ -190,3 +196,41 @@ func _exit_tree():
 	#	return
 	#for seg in get_node(segments).get_children():
 	#	seg.queue_free()
+
+
+## Adds points, segments, and material if they're unassigned
+func setup_road_network():
+	use_lowpoly_preview = true
+
+	# In order for points and segments to show up in the Scene dock, they must
+	# be assigned an "owner". Use the RoadNetwork's owner. But, the RoadNetwork
+	# won't have an owner if it is the scene root. In that case, make the
+	# RoadNetwork the owner.
+	var own
+	if owner:
+		own = owner
+	else:
+		own = self
+
+	if not points or not is_instance_valid(get_node(points)):
+		var new_points = Spatial.new()
+		new_points.name = "points"
+		add_child(new_points)
+		new_points.set_owner(own)
+		points = get_path_to(new_points)
+		print("Added points to ", name)
+
+	if not segments or not is_instance_valid(get_node(segments)):
+		var new_segments = Spatial.new()
+		new_segments.name = "segments"
+		add_child(new_segments)
+		new_segments.set_owner(own)
+		segments = get_path_to(new_segments)
+		print("Added segments to ", name)
+
+	if not material_resource:
+		material_resource = RoadMaterial
+		print("Added material to ", name)
+
+
+
