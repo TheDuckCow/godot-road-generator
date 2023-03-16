@@ -324,6 +324,10 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
 		undo_redo.add_do_method(self, "redraw", gizmo)
 		undo_redo.add_undo_method(self, "redraw", gizmo)
+		# Ensure that on undo/redo, the point update is triggered to force
+		# regeneration/placement of LaneSegments.
+		undo_redo.add_do_method(point.network, "on_point_update", point, false)
+		undo_redo.add_undo_method(point.network, "on_point_update", point, false)
 
 		undo_redo.commit_action()
 		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
