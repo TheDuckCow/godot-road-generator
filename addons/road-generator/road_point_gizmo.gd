@@ -303,14 +303,13 @@ func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool 
 func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
 	var point = gizmo.get_spatial_node() as RoadPoint
 	var current_value = get_handle_value(gizmo, index)
+	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
 		print("Cancel")
 	else:
 		if init_handle == null:
 			init_handle = current_value
-
-		var undo_redo = _editor_plugin.get_undo_redo()
 
 		if index == HandleType.PRIOR_MAG:
 			undo_redo.create_action("RoadPoint %s in handle" % point.name)
@@ -337,6 +336,7 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
 	var point = gizmo.get_spatial_node() as RoadPoint
 	var current_value = get_handle_value(gizmo, index)
+	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
 		print("Cancel")
@@ -346,7 +346,6 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 			init_handle = current_value
 
 		# Initial state for undo
-		var undo_redo = _editor_plugin.get_undo_redo()
 		undo_redo.create_action("Change lane count")
 		if index == HandleType.FWD_WIDTH_MAG:
 			undo_redo.add_do_property(point, "fwd_width_mag", point.fwd_width_mag)
@@ -355,8 +354,6 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 		elif index == HandleType.REV_WIDTH_MAG:
 			undo_redo.add_do_property(point, "rev_width_mag", point.fwd_width_mag)
 			undo_redo.add_undo_property(point, "rev_width_mag", init_handle)
-		undo_redo.add_do_property(point, "lanes", point.lanes)
-		undo_redo.add_undo_property(point, "lanes", point.lanes)
 
 		# Track changes
 		var new_fwd_mag = point.fwd_width_mag
