@@ -376,31 +376,37 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change):
-						point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_REVERSE)
+						undo_redo.add_do_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+						undo_redo.add_undo_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change):
-						point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
+						undo_redo.add_do_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+						undo_redo.add_undo_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
 		elif lane_change < 0:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+						# point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+						undo_redo.add_do_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+						undo_redo.add_undo_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
+						#point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
+						undo_redo.add_do_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+						undo_redo.add_undo_method(
+							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+
 
 		refresh_gizmo(gizmo)
 
-		# Commit the action for undo/redo.
-		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
-		undo_redo.add_do_method(self, "redraw", gizmo)
-		undo_redo.add_undo_method(self, "redraw", gizmo)
-		# Need to trigger redraw; but doing this nerfs the undo.
-		#undo_redo.add_do_method(point, "on_transform")
-		#undo_redo.add_undo_method(point, "on_transform")
-
 		undo_redo.commit_action()
-		#point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 		init_handle = null
 
 
