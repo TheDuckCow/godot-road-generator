@@ -105,12 +105,19 @@ func _create_2x2_road():
 		selected_node.setup_road_network()
 		var points = selected_node.get_node("points")
 		var first_road_point = RoadPoint.new()
-		var second_road_point = RoadPoint.new()
-		first_road_point.name = first_road_point.increment_name(default_name)
-		second_road_point.name = second_road_point.increment_name(default_name)
 		points.add_child(first_road_point, true)
+		first_road_point.name = first_road_point.increment_name(default_name)
+		first_road_point.traffic_dir = [
+			RoadPoint.LaneDir.REVERSE,
+			RoadPoint.LaneDir.REVERSE,
+			RoadPoint.LaneDir.FORWARD,
+			RoadPoint.LaneDir.FORWARD
+		]
 		first_road_point.owner = points.owner
+		var second_road_point = RoadPoint.new()
+		second_road_point.name = second_road_point.increment_name(default_name)
 		first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
+		first_road_point.auto_lanes = true
 
 
 ## Returns the primary selection or null if nothing is selected
