@@ -26,7 +26,7 @@ The following features are currently available:
 * In-editor controls 
 * Easy to get started
   * Add a RoadNetwork in any scene, and it will auto set up the default configuration of a material and children to get started
-  * Then, use the "create" node to add your first road segment. In the future, we'll have more types of pieces you can quickly add.
+  * Then, use the "Create" node to add your first road segment. In the future, we'll have more types of pieces you can quickly add.
   * Select a RoadPoint (functionally a spatial), and move it around.
   * Use the custom inspector panel to edit RoadPoints quickly and easily
 * Lightweight as much as possible. The system is designed to be used in a procedural, endless world, so it should scale effectively. Curves are used without creating node paths where possible, and the number of nodes per road segment/point is aimed to be as minimal as possible. Furthermore, there is room to defer generation until it's needed, so roadways can be placed even without generating the geometry and further details all right away (some interfaces need to be added for this still)

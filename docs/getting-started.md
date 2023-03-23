@@ -7,7 +7,7 @@ Download the latest release (main may be unstable). Then, copy the `addons/road-
 
 ## Step 2: Enable the plugin
 
-1. Got to the Project menu > Project Settings.
+1. Go to the Project menu > Project Settings.
 1. Select the Plugins tab
 1. Enable the road-generator plugin
 
@@ -63,7 +63,7 @@ Again you could do this manually, but requires you to manually edit nodepaths of
     - Or just simply select the right RoadPoint in the Scene hierarchy view
 1. In the inspector panel, click the button that now says"+ Next RoadPoint" (instead of "Select Next RoadPoint")
 1. The new RoadPoint will be added and immediately selected
-    - This RoadPoint will have the same configurations (lanes, should size, handle size) as the previously selected RoadPoint that it is now connected to.
+    - This RoadPoint will have the same configurations (lanes, shoulder size, handle size) as the previously selected RoadPoint that it is now connected to.
     - In the future, we will create additional methods to quickly "draw" roads by point and click
 1. Move this RoadPoint around. It's a Spatial node, making it easy to use all the different built in tools for that. This means you can also use the Transform panel in the Inspector window to set very fine tuned placement if needed.
 1. Add more RoadPoints to your heart's desire!
@@ -78,8 +78,8 @@ Let's say you want to have a closed loop track for your road, with no intersecti
 1. Select the *other* ending RoadPoint node.
 1. In the inspector panel, click on the `Prior Point Init` or `Next Point Init` (whichever isn't yet populated)
 1. In the popup, select the node you identified from step 2, and hit confirm
-1. Technically option, but "is probably safer": Do the reverse, so that the node identified in step 2 also points to the next node
+1. Technically optional, but "is probably safer": Do the reverse, so that the node identified in step 2 also points to the next node
 
 ## Step 8: Connect two different RoadNetworks
 
-Have multiple scenes with their own RoadNetworks? Or need Roads with two different materials? You can functionally follow the same substeps as identified in Step 8. Note: There might be some race condition as to which network will be the one responsible for generating the RoadSegment between the RoadPoints from the different networks, so be mindful of that.
+Have multiple scenes with their own RoadNetworks? Or need Roads with two different materials? You can functionally follow the same instructions as outlined in Step 7. Note: There might be some race condition as to which network will be the one responsible for generating the RoadSegment between the RoadPoints from the different networks, so be mindful of that.
