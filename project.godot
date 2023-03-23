@@ -46,10 +46,9 @@ _global_script_classes=[ {
 } ]
 _global_script_class_icons={
 "GutHookScript": "",
-"GutTest": "",
 "LanePoint": "",
 "LaneSegment": "",
-"RoadNetwork": "res://icon.png",
+"RoadNetwork": "res://addons/road-generator/road_segment.png",
 "RoadPoint": "res://addons/road-generator/road_point.png",
 "RoadSegment": "res://addons/road-generator/road_segment.png"
 }

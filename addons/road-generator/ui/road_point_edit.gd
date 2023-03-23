@@ -16,6 +16,6 @@ func parse_begin(object):
 	panel_instance.call("set_edi", _edi)
 	panel_instance.call_deferred("update_selected_road_point", object)
 	add_custom_control(panel_instance)
-	
+
 func set_edi(value):
 	_edi = value
