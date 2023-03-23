@@ -209,7 +209,7 @@ func _rebuild():
 
 func _update_curve():
 	curve.clear_points()
-	curve.bake_interval = density / 4.0 # more points, for sampling.
+	curve.bake_interval = density # Specing in meters between loops.
 	# path.transform.origin = Vector3.ZERO
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
