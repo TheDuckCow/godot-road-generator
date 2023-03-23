@@ -9,7 +9,7 @@ const RoadMaterial = preload("res://addons/road-generator/road_texture.material"
 export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material
 
-export(float) var density:float = 2.0  # Mesh density of generated segments.
+export(float) var density:float = 0.5  # Meteres between RoadSeg loop cuts.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
