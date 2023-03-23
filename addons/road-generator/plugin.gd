@@ -114,16 +114,11 @@ func _create_2x2_road():
 			RoadPoint.LaneDir.FORWARD,
 			RoadPoint.LaneDir.FORWARD
 		]
-		first_road_point.lanes = [
-			RoadPoint.LaneType.SLOW,
-			RoadPoint.LaneType.FAST,
-			RoadPoint.LaneType.FAST,
-			RoadPoint.LaneType.SLOW
-		]
 		first_road_point.owner = points.owner
 		var second_road_point = RoadPoint.new()
 		second_road_point.name = second_road_point.increment_name(default_name)
 		first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
+		first_road_point.auto_lanes = true
 
 
 ## Returns the primary selection or null if nothing is selected
