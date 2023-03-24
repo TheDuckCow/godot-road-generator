@@ -40,10 +40,10 @@ enum PointInit {
 	PRIOR,
 }
 
-const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
+const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
-const SEG_DIST_MULT: float = 4.0
+const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
 # Assign both the texture to use, as well as the path direction to generate.
 # Order is left to right when oriented such that the RoadPoint is facing towards
