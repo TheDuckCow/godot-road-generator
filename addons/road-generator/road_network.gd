@@ -13,7 +13,7 @@ export(float) var density:float = 0.5  setget _set_density # Mesh density of gen
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
-export(NodePath) var points  setget _set_points # Where RoadPoints should be placed.
+export(NodePath) var points setget _set_points # Where RoadPoints should be placed.
 export(NodePath) var segments setget _set_segments # Where generated segment meshes will go.
 
 
@@ -36,7 +36,7 @@ func _ready():
 func _ui_refresh_set(value):
 	auto_refresh = value
 	if auto_refresh:
-		rebuild_segments(true)
+		call_deferred("rebuild_segments", true)
 
 
 func _ui_refresh_get():
@@ -45,27 +45,32 @@ func _ui_refresh_get():
 
 func _set_gen_ai_lanes(value):
 	generate_ai_lanes = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func _set_density(value):
 	density = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func _set_material(value):
 	material_resource = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func _set_points(value):
 	points = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func _set_segments(value):
 	segments = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func rebuild_segments(clear_existing=false):

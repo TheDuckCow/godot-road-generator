@@ -131,11 +131,11 @@ func add_road_point(pt_init):
 
 	match pt_init:
 		RoadPoint.PointInit.NEXT:
-			new_road_point.transform.origin += seg_dist_mult * lane_width * basis_z
+			new_road_point.transform.origin += RoadPoint.SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.prior_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.next_pt_init = sel_road_point.get_path_to(new_road_point)
 		RoadPoint.PointInit.PRIOR:
-			new_road_point.transform.origin -= seg_dist_mult * lane_width * basis_z
+			new_road_point.transform.origin -= RoadPoint.SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
 
