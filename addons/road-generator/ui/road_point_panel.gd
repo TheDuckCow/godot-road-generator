@@ -130,11 +130,11 @@ func add_road_point(pt_init):
 	new_road_point.owner = points.owner
 
 	match pt_init:
-		PointInit.NEXT:
+		RoadPoint.PointInit.NEXT:
 			new_road_point.transform.origin += seg_dist_mult * lane_width * basis_z
 			new_road_point.prior_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.next_pt_init = sel_road_point.get_path_to(new_road_point)
-		PointInit.PRIOR:
+		RoadPoint.PointInit.PRIOR:
 			new_road_point.transform.origin -= seg_dist_mult * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
 			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
