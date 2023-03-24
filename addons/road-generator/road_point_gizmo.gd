@@ -126,7 +126,7 @@ func redraw(gizmo) -> void:
 
 		# Add lane widget
 		lane_widget.visible = true
-		lane_widget.transform = point.transform
+		lane_widget.transform = point.global_transform
 		arrow_left.translation = Vector3(rev_width_mag, 0, 0)
 		arrow_right.translation = Vector3(fwd_width_mag, 0, 0)
 		var line_width = fwd_width_mag - rev_width_mag

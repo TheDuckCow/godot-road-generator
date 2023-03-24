@@ -1,6 +1,6 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-class_name RoadNetwork, "../../icon.png"
+class_name RoadNetwork, "road_segment.png"
 extends Spatial
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
