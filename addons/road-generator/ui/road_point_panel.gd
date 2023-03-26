@@ -118,28 +118,6 @@ func add_rp_prior_pressed():
 		_edi.get_selection().call_deferred("add_node", prior_pt)
 
 
-func add_road_point(pt_init):
-	var points = sel_road_point.get_parent()
-	var new_road_point = RoadPoint.new()
-	new_road_point.copy_settings_from(sel_road_point)
-	var lane_width: float = new_road_point.lane_width
-	var basis_z = new_road_point.transform.basis.z
-
-	new_road_point.name = increment_name(sel_road_point.name)
-	points.add_child(new_road_point, true)
-	new_road_point.owner = points.owner
-
-	match pt_init:
-		RoadPoint.PointInit.NEXT:
-			new_road_point.transform.origin += RoadPoint.SEG_DIST_MULT * lane_width * basis_z
-			new_road_point.prior_pt_init = new_road_point.get_path_to(sel_road_point)
-			sel_road_point.next_pt_init = sel_road_point.get_path_to(new_road_point)
-		RoadPoint.PointInit.PRIOR:
-			new_road_point.transform.origin -= RoadPoint.SEG_DIST_MULT * lane_width * basis_z
-			new_road_point.next_pt_init = new_road_point.get_path_to(sel_road_point)
-			sel_road_point.prior_pt_init = sel_road_point.get_path_to(new_road_point)
-
-
 ## Adds a numeric sequence to the end of a RoadPoint name
 func increment_name(old_name) -> String:
 	var new_name = old_name
