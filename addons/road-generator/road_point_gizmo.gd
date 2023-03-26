@@ -314,7 +314,10 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		if index == HandleType.PRIOR_MAG:
 			undo_redo.create_action("RoadPoint %s in handle" % point.name)
 			undo_redo.add_do_property(point, "prior_mag", current_value)
-			undo_redo.add_undo_property(point, "prior_mag", init_handle)
+			undo_redo.add_undo_property(
+				point,
+				"prior_mag",
+				-init_handle) # Weird this is neg, but seems to be necessary.
 		elif index == HandleType.NEXT_MAG:
 			undo_redo.create_action("RoadPoint %s out handle" % point.name)
 			undo_redo.add_do_property(point, "next_mag", current_value)
