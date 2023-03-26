@@ -118,6 +118,14 @@ func add_rp_prior_pressed():
 		_edi.get_selection().call_deferred("add_node", prior_pt)
 
 
+## Adds a numeric sequence to the end of a RoadPoint name
+func increment_name(old_name) -> String:
+	var new_name = old_name
+	if not old_name[-1].is_valid_integer():
+		new_name += "001"
+	return new_name
+
+
 func update_selected_road_point(object):
 	sel_road_point = object
 	update_road_point_panel()
