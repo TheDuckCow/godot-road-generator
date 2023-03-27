@@ -25,6 +25,7 @@ You can share you appreciation by:
 
 ## How to install
 
+Follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial).
 
 
 ## What problems this addon solves
