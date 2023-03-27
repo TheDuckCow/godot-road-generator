@@ -98,8 +98,15 @@ func _handle_add_connected_rp_do(selection, point_init_type):
 
 
 func _handle_add_connected_rp_undo(selection, point_init_type):
-	# Reselect the initial node
 	_edi.get_selection().call_deferred("add_node", selection)
-	var rp = selection.get_node(selection.prior_pt_init)
+	var rp = null
+	match point_init_type:
+		RoadPoint.PointInit.PRIOR:
+			rp = selection.get_node(selection.prior_pt_init)
+			selection.prior_pt_init = null
+		RoadPoint.PointInit.NEXT:
+			rp = selection.get_node(selection.next_pt_init)
+			selection.next_pt_init = null
+	_edi.get_selection().call_deferred("remove_node", rp)
 	if is_instance_valid(rp):
 		rp.queue_free()

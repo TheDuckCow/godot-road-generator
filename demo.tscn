@@ -19,18 +19,14 @@ _data = {
 [node name="Spatial" type="Spatial"]
 script = ExtResource( 4 )
 
-[node name="RoadNetwork" type="Node" parent="."]
+[node name="RoadNetwork" type="Spatial" parent="."]
 script = ExtResource( 2 )
 material_resource = ExtResource( 3 )
-density = 1.5
 use_lowpoly_preview = true
 points = NodePath("points")
 segments = NodePath("segments")
-debug_prior = NodePath("debug_prior")
-debug_next = NodePath("debug_next")
-debug = true
 
-[node name="points" type="Node" parent="RoadNetwork"]
+[node name="points" type="Spatial" parent="RoadNetwork"]
 
 [node name="neg1_point" type="Spatial" parent="RoadNetwork/points"]
 transform = Transform( 0.869185, 0, 0.494488, 0, 1, 0, -0.494488, 0, 0.869185, 1.00302, 1.05143, -44.2649 )
@@ -43,7 +39,7 @@ gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../zero_point")
 
 [node name="zero_point" type="Spatial" parent="RoadNetwork/points"]
-transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.598, 1.12063, -24.234 )
+transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.24632, -0.662588, -26.304 )
 script = ExtResource( 1 )
 lanes = [ 5, 4, 2 ]
 traffic_dir = [ 2, 1, 1 ]
@@ -137,7 +133,7 @@ traffic_dir = [ 2, 2, 1, 1, 1 ]
 gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_5")
 
-[node name="segments" type="Node" parent="RoadNetwork"]
+[node name="segments" type="Spatial" parent="RoadNetwork"]
 
 [node name="debug_prior" type="Path" parent="RoadNetwork"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.598, 1.91547, -11.95 )
@@ -160,6 +156,5 @@ shape = SubResource( 2 )
 [node name="MeshInstance" type="MeshInstance" parent="RigidBody"]
 transform = Transform( 1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0 )
 mesh = SubResource( 3 )
-material/0 = null
 
 [node name="Tween" type="Tween" parent="."]
