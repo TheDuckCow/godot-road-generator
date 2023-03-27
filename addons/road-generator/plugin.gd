@@ -86,38 +86,93 @@ func refresh() -> void:
 func _show_road_toolbar() -> void:
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.create_menu.connect("create_2x2_road", self, "_create_2x2_road")
+		_road_toolbar.create_menu.connect(
+			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 
 func _hide_road_toolbar() -> void:
 	if _road_toolbar.get_parent():
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.create_menu.disconnect("create_2x2_road", self, "_create_2x2_road")
+		_road_toolbar.create_menu.disconnect(
+			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 
 ## Adds a 2x2 RoadSegment to the Scene
-func _create_2x2_road():
+func _create_2x2_road_pressed():
+	var undo_redo = get_undo_redo()
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
+
+	var t_network = null
+
+	if not is_instance_valid(selected_node):
+		push_error("Invalid selection to add road segment")
+		return
+	if selected_node is RoadNetwork:
+		t_network = selected_node
+	elif selected_node is RoadPoint:
+		if is_instance_valid(selected_node.network):
+			t_network = selected_node.network
+		else:
+			push_error("Invalid network for roadpoint")
+			return
+	else:
+		push_error("Invalid selection for adding new road segments")
+		return
+
+	if t_network == null:
+		push_error("Could not get RoadNetwork object")
+		return
+	if not is_instance_valid(t_network):
+		push_error("Connected RoadNetwork is not valid")
+		return
+
+	undo_redo.create_action("Create 2x2 road (limited undo/redo)")
+	undo_redo.add_do_method(self, "_create_2x2_road_do", t_network)
+	undo_redo.add_undo_method(self, "_create_2x2_road_undo", t_network)
+	undo_redo.commit_action()
+
+
+func _create_2x2_road_do(selected_node):
 	var default_name = "RP_001"
 
-	if is_instance_valid(selected_node) and selected_node is RoadNetwork:
-		# Add new Segment at default location (World Origin)
-		selected_node.setup_road_network()
-		var points = selected_node.get_node("points")
-		var first_road_point = RoadPoint.new()
-		points.add_child(first_road_point, true)
-		first_road_point.name = first_road_point.increment_name(default_name)
-		first_road_point.traffic_dir = [
-			RoadPoint.LaneDir.REVERSE,
-			RoadPoint.LaneDir.REVERSE,
-			RoadPoint.LaneDir.FORWARD,
-			RoadPoint.LaneDir.FORWARD
-		]
-		first_road_point.owner = points.owner
-		var second_road_point = RoadPoint.new()
-		second_road_point.name = second_road_point.increment_name(default_name)
-		first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
-		first_road_point.auto_lanes = true
+	if not is_instance_valid(selected_node) or not selected_node is RoadNetwork:
+		push_error("Invalid RoadNetwork")
+		return
+
+	# Add new Segment at default location (World Origin)
+	selected_node.setup_road_network()
+	var points = selected_node.get_node("points")
+	var first_road_point = RoadPoint.new()
+	points.add_child(first_road_point, true)
+	first_road_point.name = first_road_point.increment_name(default_name)
+	first_road_point.traffic_dir = [
+		RoadPoint.LaneDir.REVERSE,
+		RoadPoint.LaneDir.REVERSE,
+		RoadPoint.LaneDir.FORWARD,
+		RoadPoint.LaneDir.FORWARD
+	]
+	first_road_point.owner = points.owner
+	var second_road_point = RoadPoint.new()
+	second_road_point.name = second_road_point.increment_name(default_name)
+	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
+	first_road_point.auto_lanes = true
+
+
+func _create_2x2_road_undo(selected_node):
+	# Make a likely bad assumption that the last two children are the ones to
+	# be undone, but this is likely quite flakey.
+	# TODO: Perform proper undo/redo support, ideally getting add_do_reference
+	# to work property (failed when attempted so far).
+	var points = selected_node.get_node("points")
+	var initial_children = points.get_children()
+	if len(initial_children) < 2:
+		return
+
+	# Each RoadPoint handles their own cleanup of connected RoadSegments.
+	if initial_children[-1] is RoadPoint:
+		initial_children[-1].queue_free()
+	if initial_children[-2] is RoadPoint:
+		initial_children[-2].queue_free()
 
 
 ## Returns the primary selection or null if nothing is selected
