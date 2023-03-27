@@ -3,6 +3,7 @@ tool
 extends VBoxContainer
 
 signal on_lane_change_pressed(selection, direction, change_type)
+signal on_add_connected_rp(selection, point_init_type)
 
 var sel_road_point: RoadPoint
 var _edi: EditorInterface setget set_edi
@@ -67,13 +68,16 @@ func add_lane_fwd_pressed():
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 
+
 func add_lane_rev_pressed():
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE)
 	update_road_point_panel()
 
+
 func rem_lane_fwd_pressed():
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD)
 	update_road_point_panel()
+
 
 func rem_lane_rev_pressed():
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE)
@@ -86,27 +90,20 @@ func sel_rp_next_pressed():
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)
 		_edi.get_selection().call_deferred("add_node", next_pt)
 
+
 func sel_rp_prior_pressed():
 	if sel_road_point.prior_pt_init:
 		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
 		_edi.get_selection().call_deferred("remove_node", sel_road_point)
 		_edi.get_selection().call_deferred("add_node", prior_pt)
 
+
 func add_rp_next_pressed():
-	var new_road_point = RoadPoint.new()
-	sel_road_point.add_road_point(new_road_point, RoadPoint.PointInit.NEXT)
-	if sel_road_point.next_pt_init:
-		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
-		_edi.get_selection().call_deferred("remove_node", sel_road_point)
-		_edi.get_selection().call_deferred("add_node", next_pt)
+	emit_signal("on_add_connected_rp", sel_road_point, RoadPoint.PointInit.NEXT)
+
 
 func add_rp_prior_pressed():
-	var new_road_point = RoadPoint.new()
-	sel_road_point.add_road_point(new_road_point, RoadPoint.PointInit.PRIOR)
-	if sel_road_point.prior_pt_init:
-		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
-		_edi.get_selection().call_deferred("remove_node", sel_road_point)
-		_edi.get_selection().call_deferred("add_node", prior_pt)
+	emit_signal("on_add_connected_rp", sel_road_point, RoadPoint.PointInit.PRIOR)
 
 
 ## Adds a numeric sequence to the end of a RoadPoint name

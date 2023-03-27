@@ -23,6 +23,9 @@ func parse_begin(object):
 	add_custom_control(panel_instance)
 	panel_instance.connect(
 		"on_lane_change_pressed", self, "_handle_on_lane_change_pressed")
+	panel_instance.connect(
+		"on_add_connected_rp", self, "_handle_add_connected_rp")
+
 
 
 func set_edi(value):
@@ -57,3 +60,46 @@ func _handle_on_lane_change_pressed(selected, change_type):
 			return
 
 	undo_redo.commit_action()
+
+
+## Handles the press of "Add next/prior" node from panel, if last/start of road.
+##
+## selection: The initially selected RoadPoint
+## point_init_type: Value from RoadPoint.PointInit enum
+func _handle_add_connected_rp(selection, point_init_type):
+	var undo_redo = _editor_plugin.get_undo_redo()
+
+	match point_init_type:
+		RoadPoint.PointInit.PRIOR:
+			undo_redo.create_action("Add prior RoadPoint")
+		RoadPoint.PointInit.NEXT:
+			undo_redo.create_action("Add next RoadPoint")
+		_:
+			push_error("Invalid point_init_type value, not of type RoadPoint.PointInit")
+			return
+
+	undo_redo.add_do_method(self, "_handle_add_connected_rp_do", selection, point_init_type)
+	undo_redo.add_undo_method(self, "_handle_add_connected_rp_undo", selection, point_init_type)
+	undo_redo.commit_action()
+
+
+func _handle_add_connected_rp_do(selection, point_init_type):
+	var new_road_point = RoadPoint.new()
+	selection.add_road_point(new_road_point, point_init_type)
+	match point_init_type:
+		RoadPoint.PointInit.PRIOR:
+			var prior_pt = selection.get_node(selection.prior_pt_init)
+			_edi.get_selection().call_deferred("add_node", prior_pt)
+		RoadPoint.PointInit.NEXT:
+			var next_pt = selection.get_node(selection.next_pt_init)
+			_edi.get_selection().call_deferred("add_node", next_pt)
+
+	_edi.get_selection().call_deferred("remove_node", selection)
+
+
+func _handle_add_connected_rp_undo(selection, point_init_type):
+	# Reselect the initial node
+	_edi.get_selection().call_deferred("add_node", selection)
+	var rp = selection.get_node(selection.prior_pt_init)
+	if is_instance_valid(rp):
+		rp.queue_free()
