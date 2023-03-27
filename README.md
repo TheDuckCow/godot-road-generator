@@ -2,6 +2,8 @@
 
 A godot plugin for creating 3D highways and streets.
 
+![demo road gen](https://user-images.githubusercontent.com/2958461/227853559-1b6cbdfa-d1a8-463b-9acb-02f5f1563f63.gif)
+
 > :warning: **This project is not feature complete yet**!
 
 See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/milestones).
