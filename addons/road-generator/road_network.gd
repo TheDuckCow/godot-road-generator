@@ -7,14 +7,14 @@ extends Spatial
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 
 export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
-export(Material) var material_resource:Material
+export(Material) var material_resource:Material setget _set_material
 
-export(float) var density:float = 0.5  # Meteres between RoadSeg loop cuts.
+export(float) var density:float = 0.5  setget _set_density # Mesh density of generated segments.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
-export(NodePath) var points  # Where RoadPoints should be placed.
-export(NodePath) var segments  # Where generated segment meshes will go.
+export(NodePath) var points setget _set_points # Where RoadPoints should be placed.
+export(NodePath) var segments setget _set_segments # Where generated segment meshes will go.
 
 
 export(NodePath) var debug_prior
@@ -36,7 +36,7 @@ func _ready():
 func _ui_refresh_set(value):
 	auto_refresh = value
 	if auto_refresh:
-		rebuild_segments(true)
+		call_deferred("rebuild_segments", true)
 
 
 func _ui_refresh_get():
@@ -45,7 +45,32 @@ func _ui_refresh_get():
 
 func _set_gen_ai_lanes(value):
 	generate_ai_lanes = value
-	rebuild_segments(true)
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
+
+
+func _set_density(value):
+	density = value
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
+
+
+func _set_material(value):
+	material_resource = value
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
+
+
+func _set_points(value):
+	points = value
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
+
+
+func _set_segments(value):
+	segments = value
+	if auto_refresh:
+		call_deferred("rebuild_segments", true)
 
 
 func rebuild_segments(clear_existing=false):
