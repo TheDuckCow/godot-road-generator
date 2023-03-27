@@ -2,6 +2,7 @@
 tool
 extends VBoxContainer
 
+signal on_lane_change_pressed(selection, direction, change_type)
 
 var sel_road_point: RoadPoint
 var _edi: EditorInterface setget set_edi
@@ -9,8 +10,6 @@ onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
 onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
-onready var btn_move_div_left = $HBoxLanes/HBoxSubLanes/move_left
-onready var btn_move_div_right = $HBoxLanes/HBoxSubLanes/move_right
 onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
 onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
 onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
@@ -26,8 +25,6 @@ func _ready():
 	btn_add_lane_rev.connect("pressed", self, "add_lane_rev_pressed")
 	btn_rem_lane_fwd.connect("pressed", self, "rem_lane_fwd_pressed")
 	btn_rem_lane_rev.connect("pressed", self, "rem_lane_rev_pressed")
-	btn_move_div_left.connect("pressed", self, "move_div_left_pressed")
-	btn_move_div_right.connect("pressed", self, "move_div_right_pressed")
 	btn_sel_rp_next.connect("pressed", self, "sel_rp_next_pressed")
 	btn_sel_rp_prior.connect("pressed", self, "sel_rp_prior_pressed")
 	btn_add_rp_next.connect("pressed", self, "add_rp_next_pressed")
@@ -67,26 +64,20 @@ func update_road_point_panel():
 
 
 func add_lane_fwd_pressed():
-	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_FORWARD)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 
 func add_lane_rev_pressed():
-	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.ADD_REVERSE)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE)
 	update_road_point_panel()
 
 func rem_lane_fwd_pressed():
-	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_FORWARD)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD)
 	update_road_point_panel()
 
 func rem_lane_rev_pressed():
-	sel_road_point.update_traffic_dir(RoadPoint.TrafficUpdate.REM_REVERSE)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE)
 	update_road_point_panel()
-
-func move_div_left_pressed():
-	pass
-
-func move_div_right_pressed():
-	pass
 
 
 func sel_rp_next_pressed():

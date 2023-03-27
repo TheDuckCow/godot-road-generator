@@ -3,9 +3,10 @@ tool
 extends EditorPlugin
 
 const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
+const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 
 var road_point_gizmo = RoadPointGizmo.new(self)
-var road_point_editor = preload("res://addons/road-generator/ui/road_point_edit.gd").new()
+var road_point_editor = RoadPointEdit.new(self)
 var _road_toolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn").instance()
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
@@ -37,6 +38,7 @@ func _exit_tree():
 	remove_inspector_plugin(road_point_editor)
 	remove_custom_type("RoadPoint")
 	remove_custom_type("RoadNetwork")
+	remove_custom_type("LaneSegment")
 
 
 ## Render the editor indicators for RoadPoints and LaneSegments if selected.

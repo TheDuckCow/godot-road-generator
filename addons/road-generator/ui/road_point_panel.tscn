@@ -101,15 +101,6 @@ hint_tooltip = "Remove Reverse lane"
 size_flags_horizontal = 3
 text = "-"
 
-[node name="move_left" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-visible = false
-margin_left = 386.0
-margin_right = 575.0
-margin_bottom = 22.0
-hint_tooltip = "Print debug information"
-size_flags_horizontal = 3
-text = "<"
-
 [node name="diver_label" type="Label" parent="HBoxLanes/HBoxSubLanes"]
 margin_left = 482.0
 margin_top = 4.0
@@ -117,15 +108,6 @@ margin_right = 496.0
 margin_bottom = 18.0
 custom_colors/font_color = Color( 0.952941, 0.733333, 0.0666667, 1 )
 text = "||"
-
-[node name="move_right" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-visible = false
-margin_left = 500.0
-margin_right = 657.0
-margin_bottom = 22.0
-hint_tooltip = "Print debug information"
-size_flags_horizontal = 3
-text = ">"
 
 [node name="fwd_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]
 margin_left = 500.0
