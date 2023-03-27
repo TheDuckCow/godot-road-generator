@@ -40,22 +40,25 @@ enum PointInit {
 	PRIOR,
 }
 
-const UI_TIMEOUT = 50 # Time in ms to delay further refrehs updates.
+const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
-const SEG_DIST_MULT: float = 4.0
+const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign both the texture to use, as well as the path direction to generate.
+# Assign the direction of traffic order. This i
+export(Array, LaneDir) var traffic_dir:Array = [
+	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
+	] setget _set_dir, _get_dir
+
+# Enables auto assignment of the lanes array below, based on traffic_dir setup.
+export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
+
+# Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
 export(Array, LaneType) var lanes:Array = [
 	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
 	] setget _set_lanes, _get_lanes
-# Enables auto assignment of the lanes array above, subverting manual assignment.
-export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
-export(Array, LaneDir) var traffic_dir:Array = [
-	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
-	] setget _set_dir, _get_dir
 
 export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
 export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
@@ -389,6 +392,11 @@ func is_road_point_selected(editor_selection: EditorSelection) -> bool:
 
 ## Adds a numeric sequence to the end of a RoadPoint name
 func increment_name(name: String) -> String:
+	# The original intent of this routine was to numerically increment node
+	# names. But, it turned out that Godot already did a pretty good job of that
+	# if a name ended in a number. So, this routine mainly makes sure that
+	# names end in a number. We can use the same number over and over. Godot
+	# will automatically increment the number if needed.
 	var new_name = name
 	if not new_name[-1].is_valid_integer():
 		new_name += "001"
@@ -397,11 +405,11 @@ func increment_name(name: String) -> String:
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
 func add_road_point(new_road_point: RoadPoint, pt_init):
 	var points = get_parent()
+	points.add_child(new_road_point, true)
 	new_road_point.copy_settings_from(self)
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
-	points.add_child(new_road_point, true)
 	new_road_point.owner = points.owner
 
 	match pt_init:
@@ -413,3 +421,26 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
+
+
+func _exit_tree():
+	# Proactively disconnected any connected road segments, no longer valid.
+	if is_instance_valid(prior_seg):
+		prior_seg.queue_free()
+	if is_instance_valid(next_seg):
+		next_seg.queue_free()
+
+	# Clean up references to this RoadPoint to anything connected to it.
+	for rp_init in [prior_pt_init, next_pt_init]:
+		if not rp_init or not is_instance_valid(get_node(rp_init)):
+			continue
+		var rp_ref = get_node(rp_init)
+
+		# Clean up the right connection, could be either or both prior and next
+		# (think: circle with just two roadpoints)
+		for singling_rp_ref in [rp_ref.prior_pt_init, rp_ref.next_pt_init]:
+			if not singling_rp_ref:
+				continue
+			if singling_rp_ref != rp_ref.get_path_to(self):
+				pass
+			singling_rp_ref = null
