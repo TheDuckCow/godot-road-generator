@@ -418,3 +418,26 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
+
+
+func _exit_tree():
+	# Proactively disconnected any connected road segments, no longer valid.
+	if is_instance_valid(prior_seg):
+		prior_seg.queue_free()
+	if is_instance_valid(next_seg):
+		next_seg.queue_free()
+
+	# Clean up references to this RoadPoint to anything connected to it.
+	for rp_init in [prior_pt_init, next_pt_init]:
+		if not rp_init or not is_instance_valid(get_node(rp_init)):
+			continue
+		var rp_ref = get_node(rp_init)
+
+		# Clean up the right connection, could be either or both prior and next
+		# (think: circle with just two roadpoints)
+		for singling_rp_ref in [rp_ref.prior_pt_init, rp_ref.next_pt_init]:
+			if not singling_rp_ref:
+				continue
+			if singling_rp_ref != rp_ref.get_path_to(self):
+				pass
+			singling_rp_ref = null
