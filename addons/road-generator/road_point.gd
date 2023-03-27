@@ -45,17 +45,20 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign both the texture to use, as well as the path direction to generate.
+# Assign the direction of traffic order. This i
+export(Array, LaneDir) var traffic_dir:Array = [
+	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
+	] setget _set_dir, _get_dir
+
+# Enables auto assignment of the lanes array below, based on traffic_dir setup.
+export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
+
+# Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
 export(Array, LaneType) var lanes:Array = [
 	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
 	] setget _set_lanes, _get_lanes
-# Enables auto assignment of the lanes array above, subverting manual assignment.
-export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
-export(Array, LaneDir) var traffic_dir:Array = [
-	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
-	] setget _set_dir, _get_dir
 
 export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
 export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
