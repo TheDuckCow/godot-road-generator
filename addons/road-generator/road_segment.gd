@@ -107,6 +107,8 @@ func check_rebuild():
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(debug: bool) -> bool:
+	push_warning("TODO: Re-enable generation of lane segmetns as migration continues")
+	return false
 	if not is_instance_valid(network):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -335,12 +337,14 @@ func _insert_geo_loop(
 	#])
 
 	# Calculate lane widths
+	# TODO: Use ease(), or smoothstep(), or remap() instead of lerp here to have
+	# smoother blending in and out.
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
-	var near_add_width = lerp(0, end_point.lane_width, offset_s)
-	var near_rem_width = lerp(start_point.lane_width, 0, offset_s)
+	var near_add_width = lerp(0.0, end_point.lane_width, offset_s)
+	var near_rem_width = lerp(start_point.lane_width, 0.0, offset_s)
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
-	var far_add_width = lerp(0, end_point.lane_width, offset_e)
-	var far_rem_width = lerp(start_point.lane_width, 0, offset_e)
+	var far_add_width = lerp(0.0, end_point.lane_width, offset_e)
+	var far_rem_width = lerp(start_point.lane_width, 0.0, offset_e)
 
 	# Sum the lane widths and get position of left edge
 	var near_width_offset
@@ -565,19 +569,19 @@ func _insert_geo_loop(
 # will go from bottom left to top right.
 static func quad(st, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
-	st.add_uv(uvs[0])
+	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[2])
+	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up

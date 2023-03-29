@@ -148,12 +148,13 @@ func _create_2x2_road_do(selected_node):
 	var first_road_point = RoadPoint.new()
 	points.add_child(first_road_point, true)
 	first_road_point.name = first_road_point.increment_name(default_name)
-	first_road_point.traffic_dir = [
+	var new_dirs: Array[RoadPoint.LaneDir] = [
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.FORWARD,
 		RoadPoint.LaneDir.FORWARD
 	]
+	first_road_point.traffic_dir = new_dirs # Line separated so typing doesn't complain.
 	first_road_point.owner = points.owner
 	var second_road_point = RoadPoint.new()
 	second_road_point.name = second_road_point.increment_name(default_name)

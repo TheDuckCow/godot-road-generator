@@ -47,8 +47,9 @@ const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
 # Assign the direction of traffic order.
-var _traffic_dir: Array
-@export var traffic_dir:Array = [
+var _traffic_dir: Array[LaneDir] = [
+		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]
+@export var traffic_dir:Array[LaneDir] = [
 		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]:
 	get:
 		return _traffic_dir
@@ -57,7 +58,7 @@ var _traffic_dir: Array
 		_notify_network_on_set(value)
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
-var _auto_lanes: bool
+var _auto_lanes: bool = true
 @export var auto_lanes: bool = true:
 	get:
 		return _auto_lanes
@@ -68,7 +69,7 @@ var _auto_lanes: bool
 # Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
-var _lanes: Array[LaneType]
+var _lanes: Array[LaneType] = [LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW]
 @export var lanes:Array[LaneType] = [LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW]:
 	get:
 		return _lanes
@@ -76,7 +77,7 @@ var _lanes: Array[LaneType]
 		_lanes = value
 		_notify_network_on_set(value)
 
-var _lane_width: float
+var _lane_width: float = 4.0
 @export var lane_width := 4.0:
 	get:
 		return _lane_width
@@ -84,7 +85,7 @@ var _lane_width: float
 		_lane_width = value
 		_notify_network_on_set(value)
 
-var _shoulder_width_l: float
+var _shoulder_width_l: float = 2
 @export var shoulder_width_l := 2:
 	get:
 		return _shoulder_width_l
@@ -92,7 +93,7 @@ var _shoulder_width_l: float
 		_shoulder_width_l = value
 		_notify_network_on_set(value)
 
-var _shoulder_width_r: float
+var _shoulder_width_r: float = 2
 @export var shoulder_width_r := 2:
 	get:
 		return _shoulder_width_r
@@ -101,7 +102,7 @@ var _shoulder_width_r: float
 		_notify_network_on_set(value)
 
 # Profile: x: how far out the gutter goes, y: how far down to clip.
-var _gutter_profile: Vector2
+var _gutter_profile: Vector2 = Vector2(0.5, -0.5)
 @export var gutter_profile: Vector2 = Vector2(0.5, -0.5):
 	get:
 		return _gutter_profile
@@ -126,16 +127,17 @@ var _next_pt_init: NodePath
 		_notify_network_on_set(value)
 
 # Handle magniture
-var _prior_mag: float
+var _prior_mag: float = 5.0
 @export var prior_mag: float = 5.0:
 	get:
 		return _prior_mag
 	set(value):
+		_prior_mag = value
 		if not is_instance_valid(network):
 			return  # Might not be initialized yet.
 		_notification(Node3D.NOTIFICATION_TRANSFORM_CHANGED)
 
-var _next_mag: float
+var _next_mag: float = 5.0
 @export var next_mag: float = 5.0:
 	get:
 		return _next_mag
