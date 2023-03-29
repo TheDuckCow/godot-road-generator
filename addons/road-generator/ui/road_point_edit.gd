@@ -3,7 +3,7 @@ extends EditorInspectorPlugin
 const RoadPointPanel = preload("res://addons/road-generator/ui/road_point_panel.tscn")
 var panel_instance
 var _editor_plugin: EditorPlugin
-var _edi :EditorInterface setget set_edi
+var _edi :EditorInterface : set = set_edi
 
 
 func _init(editor_plugin: EditorPlugin):
@@ -17,7 +17,7 @@ func can_handle(object):
 
 # Add controls to the beginning of the Inspector property list
 func parse_begin(object):
-	panel_instance = RoadPointPanel.instance()
+	panel_instance = RoadPointPanel.instantiate()
 	panel_instance.call("set_edi", _edi)
 	panel_instance.call_deferred("update_selected_road_point", object)
 	add_custom_control(panel_instance)

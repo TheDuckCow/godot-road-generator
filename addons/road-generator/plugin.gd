@@ -1,5 +1,5 @@
 ## Road and Highway generator addon.
-tool
+@tool
 extends EditorPlugin
 
 const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
@@ -7,7 +7,7 @@ const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd
 
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
-var _road_toolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn").instance()
+var _road_toolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn").instantiate()
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
@@ -15,26 +15,26 @@ var _last_lane: Node
 
 
 func _enter_tree():
-	add_spatial_gizmo_plugin(road_point_gizmo)
+	add_node_3d_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
 	road_point_editor.call("set_edi", _edi)
-	_eds.connect("selection_changed", self, "_on_selection_changed")
-	_eds.connect("selection_changed", road_point_gizmo, "on_selection_changed")
-	connect("scene_changed", self, "_on_scene_changed")
-	connect("scene_closed", self, "_on_scene_closed")
-	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
-	add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
+	_eds.connect("selection_changed",Callable(self,"_on_selection_changed"))
+	_eds.connect("selection_changed",Callable(road_point_gizmo,"on_selection_changed"))
+	connect("scene_changed",Callable(self,"_on_scene_changed"))
+	connect("scene_closed",Callable(self,"_on_scene_closed"))
+	add_custom_type("RoadPoint", "Node3D", preload("road_point.gd"), preload("road_point.png"))
+	add_custom_type("RoadNetwork", "Node3D", preload("road_network.gd"), preload("road_segment.png"))
 	# TODO: Set a different icon for lane segments.
 	add_custom_type("LaneSegment", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
 func _exit_tree():
-	_eds.disconnect("selection_changed", self, "_on_selection_changed")
-	_eds.disconnect("selection_changed", road_point_gizmo, "on_selection_changed")
-	disconnect("scene_changed", self, "_on_scene_changed")
-	disconnect("scene_closed", self, "_on_scene_closed")
+	_eds.disconnect("selection_changed",Callable(self,"_on_selection_changed"))
+	_eds.disconnect("selection_changed",Callable(road_point_gizmo,"on_selection_changed"))
+	disconnect("scene_changed",Callable(self,"_on_scene_changed"))
+	disconnect("scene_closed",Callable(self,"_on_scene_closed"))
 	_road_toolbar.queue_free()
-	remove_spatial_gizmo_plugin(road_point_gizmo)
+	remove_node_3d_gizmo_plugin(road_point_gizmo)
 	remove_inspector_plugin(road_point_editor)
 	remove_custom_type("RoadPoint")
 	remove_custom_type("RoadNetwork")
@@ -181,7 +181,7 @@ func _create_2x2_road_undo(selected_node):
 func get_selected_node(selected_nodes: Array) -> Node:
 	# TTD: Update this algorithm to figure out which node is really the
 	# primary selection rather than always assuming index 0 is the selection.
-	if not selected_nodes.empty():
+	if not selected_nodes.is_empty():
 		return selected_nodes[0]
 	else:
 		return null

@@ -6,68 +6,23 @@
 ;   [section] ; section goes between []
 ;   param=value ; assign values to parameters
 
-config_version=4
-
-_global_script_classes=[ {
-"base": "Reference",
-"class": "GutHookScript",
-"language": "GDScript",
-"path": "res://addons/gut/hook_script.gd"
-}, {
-"base": "Node",
-"class": "GutTest",
-"language": "GDScript",
-"path": "res://addons/gut/test.gd"
-}, {
-"base": "Node",
-"class": "LanePoint",
-"language": "GDScript",
-"path": "res://addons/road-generator/lane_point.gd"
-}, {
-"base": "Path",
-"class": "LaneSegment",
-"language": "GDScript",
-"path": "res://addons/road-generator/lane_segment.gd"
-}, {
-"base": "Spatial",
-"class": "RoadNetwork",
-"language": "GDScript",
-"path": "res://addons/road-generator/road_network.gd"
-}, {
-"base": "Spatial",
-"class": "RoadPoint",
-"language": "GDScript",
-"path": "res://addons/road-generator/road_point.gd"
-}, {
-"base": "Spatial",
-"class": "RoadSegment",
-"language": "GDScript",
-"path": "res://addons/road-generator/road_segment.gd"
-} ]
-_global_script_class_icons={
-"GutHookScript": "",
-"LanePoint": "",
-"LaneSegment": "",
-"RoadNetwork": "res://addons/road-generator/road_segment.png",
-"RoadPoint": "res://addons/road-generator/road_point.png",
-"RoadSegment": "res://addons/road-generator/road_segment.png"
-}
+config_version=5
 
 [application]
 
 config/name="Godot Road Generator"
 config/description="An addon for Godot 3.x, which allows you to create roads and highways. Designed originally for a highway roaming game called \"Wheel Steal\", this open source repository is meant to enable the development of complex road networks for 3D games."
+config/features=PackedStringArray("4.0")
 config/icon="res://icon.png"
 
 [display]
 
-window/size/width=1920
-window/size/height=1080
-window/dpi/allow_hidpi=true
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 
 [editor_plugins]
 
-enabled=PoolStringArray( "res://addons/gut/plugin.cfg", "res://addons/road-generator/plugin.cfg" )
+enabled=PackedStringArray()
 
 [physics]
 
@@ -75,4 +30,4 @@ common/enable_pause_aware_picking=true
 
 [rendering]
 
-environment/default_environment="res://default_env.tres"
+environment/defaults/default_environment="res://default_env.tres"

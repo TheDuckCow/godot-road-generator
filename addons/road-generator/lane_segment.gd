@@ -2,8 +2,8 @@
 #
 # Could, but does not have to be, parented to a RoadSegment class object.
 
-tool # Draw in the editor things like path direction and width
-extends Path
+@tool # Draw in the editor things like path direction and width
+extends Path3D
 class_name LaneSegment
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
@@ -11,12 +11,12 @@ const COLOR_START = Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-export var reverse_direction:bool = false setget _set_direction, _get_direction
-export var lane_left:NodePath # Used to indicate allowed lane changes
-export var lane_right:NodePath # Used to indicate allowed lane changes
-export var lane_next:NodePath # LaneSegment or intersection
-export var lane_previous:NodePath # LaneSegment or intersection
-export var draw_in_game = false # Can override to draw if outside the editor
+@export var reverse_direction:bool = false : get = _get_direction, set = _set_direction
+@export var lane_left:NodePath # Used to indicate allowed lane changes
+@export var lane_right:NodePath # Used to indicate allowed lane changes
+@export var lane_next:NodePath # LaneSegment or intersection
+@export var lane_previous:NodePath # LaneSegment or intersection
+@export var draw_in_game = false # Can override to draw if outside the editor
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
@@ -29,7 +29,7 @@ var _display_fins: bool = false
 func _ready():
 	set_notify_transform(true)
 	set_notify_local_transform(true)
-	connect("curve_changed", self, "curve_changed")
+	connect("curve_changed",Callable(self,"curve_changed"))
 	rebuild_geom()
 
 
@@ -95,11 +95,11 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
-		geom = ImmediateGeometry.new()
+		geom = ImmediateMesh.new()
 		geom.set_name("geom")
 		add_child(geom)
 
-		var mat = SpatialMaterial.new()
+		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
@@ -119,7 +119,7 @@ func _draw_shark_fins() -> void:
 	geom.clear()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
-		var xf = Transform()
+		var xf = Transform3D()
 
 		xf.origin = curve.interpolate_baked(f)
 		var lookat = (

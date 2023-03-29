@@ -2,7 +2,7 @@
 ##
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
-extends Spatial
+extends Node3D
 class_name RoadSegment, "road_segment.png"
 
 const LOWPOLY_FACTOR = 3.0
@@ -10,14 +10,14 @@ const LOWPOLY_FACTOR = 3.0
 signal check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
-export(NodePath) var start_init setget _init_start_set, _init_start_get
-export(NodePath) var end_init setget _init_end_set, _init_end_get
+@export var start_init: NodePath : get = _init_start_get, set = _init_start_set
+@export var end_init: NodePath : get = _init_end_get, set = _init_end_set
 
 var start_point:RoadPoint
 var end_point:RoadPoint
 
 var curve:Curve3D
-var road_mesh:MeshInstance
+var road_mesh:MeshInstance3D
 var material:Material
 var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
 var network # The managing network node for this road segment (grandparent).
@@ -35,11 +35,11 @@ func _init(_network):
 
 
 func _ready():
-	road_mesh = MeshInstance.new()
+	road_mesh = MeshInstance3D.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 
-	var res = connect("check_rebuild", network, "segment_rebuild")
+	var res = connect("check_rebuild",Callable(network,"segment_rebuild"))
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
@@ -293,7 +293,7 @@ func _build_geo():
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
 	road_mesh.create_trimesh_collision() # Call deferred?
-	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _insert_geo_loop(

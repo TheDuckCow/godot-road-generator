@@ -1,30 +1,30 @@
 ## Manager used to generate the actual road segments when needed.
-tool
+@tool
 class_name RoadNetwork, "road_segment.png"
-extends Spatial
+extends Node3D
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 
-export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
-export(Material) var material_resource:Material setget _set_material
+@export var auto_refresh: bool = true : get = _ui_refresh_get, set = _ui_refresh_set
+@export var material_resource: Material:Material : set = _set_material
 
-export(float) var density:float = 0.5  setget _set_density # Mesh density of generated segments.
-export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
+@export var density: float:float = 0.5  setget _set_density # Mesh density of generated segments.
+@export var use_lowpoly_preview: bool:bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
-export(NodePath) var points setget _set_points # Where RoadPoints should be placed.
-export(NodePath) var segments setget _set_segments # Where generated segment meshes will go.
+@export var points: NodePath setget _set_points # Where RoadPoints should be placed.
+@export var segments: NodePath setget _set_segments # Where generated segment meshes will go.
 
 
-export(NodePath) var debug_prior
-export(NodePath) var debug_next
+@export var debug_prior: NodePath
+@export var debug_next: NodePath
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
 
-export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
-export(bool) var debug := false
+@export var generate_ai_lanes: bool := false : set = _set_gen_ai_lanes
+@export var debug: bool := false
 
 
 func _ready():
@@ -238,7 +238,7 @@ func setup_road_network():
 		own = self
 
 	if not points or not is_instance_valid(get_node(points)):
-		var new_points = Spatial.new()
+		var new_points = Node3D.new()
 		new_points.name = "points"
 		add_child(new_points)
 		new_points.set_owner(own)
@@ -246,7 +246,7 @@ func setup_road_network():
 		print("Added points to ", name)
 
 	if not segments or not is_instance_valid(get_node(segments)):
-		var new_segments = Spatial.new()
+		var new_segments = Node3D.new()
 		new_segments.name = "segments"
 		add_child(new_segments)
 		new_segments.set_owner(own)
