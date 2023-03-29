@@ -22,7 +22,7 @@ window/size/viewport_height=1080
 
 [editor_plugins]
 
-enabled=PackedStringArray()
+enabled=PackedStringArray("res://addons/road-generator/plugin.cfg")
 
 [physics]
 

@@ -13,7 +13,7 @@ func _enter_tree() -> void:
 	get_popup().add_item("2x2 road")
 
 func _exit_tree() -> void:
-	get_popup().disconnect("id_pressed",Callable(self,"_create_menu_item_clicked"))
+	get_popup().disconnect("id_pressed", Callable(self,"_create_menu_item_clicked"))
 
 
 func _create_menu_item_clicked(id: int) -> void:

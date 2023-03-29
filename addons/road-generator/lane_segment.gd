@@ -11,7 +11,16 @@ const COLOR_START = Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-@export var reverse_direction:bool = false : get = _get_direction, set = _set_direction
+var _reverse_direction: bool
+@export var reverse_direction:bool = false:
+	get:
+		return _reverse_direction
+	set(value):
+		_reverse_direction = value
+		refresh_geom = true
+		rebuild_geom()
+
+
 @export var lane_left:NodePath # Used to indicate allowed lane changes
 @export var lane_right:NodePath # Used to indicate allowed lane changes
 @export var lane_next:NodePath # LaneSegment or intersection
@@ -31,16 +40,6 @@ func _ready():
 	set_notify_local_transform(true)
 	connect("curve_changed",Callable(self,"curve_changed"))
 	rebuild_geom()
-
-
-func _set_direction(value):
-	reverse_direction = value
-	refresh_geom = true
-	rebuild_geom()
-
-
-func _get_direction():
-	return reverse_direction
 
 
 func get_lane_start() -> Vector3:

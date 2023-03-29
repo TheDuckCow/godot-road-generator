@@ -1,20 +1,20 @@
 ## Manager used to generate the actual road segments when needed.
 @tool
-class_name RoadNetwork, "road_segment.png"
+class_name RoadNetwork
 extends Node3D
 
 #const RoadPoint = preload("res://addons/road-generator/road_point.gd")
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 
 @export var auto_refresh: bool = true : get = _ui_refresh_get, set = _ui_refresh_set
-@export var material_resource: Material:Material : set = _set_material
+@export var material_resource: Material : set = _set_material
 
-@export var density: float:float = 0.5  setget _set_density # Mesh density of generated segments.
-@export var use_lowpoly_preview: bool:bool = false  # Whether to reduce geo mid transform.
+@export var density: float = 0.5: set = _set_density # Mesh density of generated segments.
+@export var use_lowpoly_preview: bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
-@export var points: NodePath setget _set_points # Where RoadPoints should be placed.
-@export var segments: NodePath setget _set_segments # Where generated segment meshes will go.
+@export var points: NodePath: set = _set_points # Where RoadPoints should be placed.
+@export var segments: NodePath: set = _set_segments # Where generated segment meshes will go.
 
 
 @export var debug_prior: NodePath
@@ -23,8 +23,8 @@ const RoadMaterial = preload("res://addons/road-generator/road_texture.material"
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
 
-@export var generate_ai_lanes: bool := false : set = _set_gen_ai_lanes
-@export var debug: bool := false
+@export var generate_ai_lanes: bool = false: set = _set_gen_ai_lanes
+@export var debug: bool = false
 
 
 func _ready():
@@ -75,7 +75,7 @@ func _set_segments(value):
 
 func rebuild_segments(clear_existing=false):
 	# print("Rebuilding segments")
-	if not get_node(segments) or not is_instance_valid(get_node(segments)):
+	if segments.is_empty() or not is_instance_valid(get_node(segments)):
 		push_error("Segments node path not found")
 		return # Could be before ready called.
 	if clear_existing:
@@ -236,8 +236,8 @@ func setup_road_network():
 		own = owner
 	else:
 		own = self
-
-	if not points or not is_instance_valid(get_node(points)):
+	
+	if points.is_empty() or not is_instance_valid(get_node(points)):
 		var new_points = Node3D.new()
 		new_points.name = "points"
 		add_child(new_points)
@@ -245,7 +245,7 @@ func setup_road_network():
 		points = get_path_to(new_points)
 		print("Added points to ", name)
 
-	if not segments or not is_instance_valid(get_node(segments)):
+	if segments.is_empty() or not is_instance_valid(get_node(segments)):
 		var new_segments = Node3D.new()
 		new_segments.name = "segments"
 		add_child(new_segments)

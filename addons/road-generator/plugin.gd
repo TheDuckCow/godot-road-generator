@@ -43,7 +43,7 @@ func _exit_tree():
 
 ## Render the editor indicators for RoadPoints and LaneSegments if selected.
 func _on_selection_changed() -> void:
-	var selected_node = get_selected_node(_eds.get_selected_nodes())
+	var selected_node:Node = get_selected_node(_eds.get_selected_nodes())
 
 	if not selected_node:
 		_hide_road_toolbar()
@@ -54,7 +54,7 @@ func _on_selection_changed() -> void:
 
 	if selected_node is RoadPoint:
 		_last_point = selected_node
-		selected_node.on_transform()
+		selected_node.emit_on_transform()
 	elif selected_node is LaneSegment:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
@@ -62,7 +62,9 @@ func _on_selection_changed() -> void:
 	var eligible = selected_node is RoadPoint or selected_node is RoadNetwork
 	# Show the panel even if selection is scene root, but not if selection is a
 	# scene instance itself (non editable).
-	var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
+	# TODO: See how to check for scene being saved in GD4, .filename is not valid
+	# var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
+	var non_instance = true
 	if eligible and non_instance:
 		_show_road_toolbar()
 	else:
@@ -89,14 +91,13 @@ func _show_road_toolbar() -> void:
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 		_road_toolbar.create_menu.connect(
-			"create_2x2_road", self, "_create_2x2_road_pressed")
+			"create_2x2_road", Callable(self, "_create_2x2_road_pressed"))
 
 
 func _hide_road_toolbar() -> void:
 	if _road_toolbar.get_parent():
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.create_menu.disconnect(
-			"create_2x2_road", self, "_create_2x2_road_pressed")
+		_road_toolbar.create_menu.disconnect("create_2x2_road", Callable(self, "_create_2x2_road_pressed"))
 
 
 ## Adds a 2x2 RoadSegment to the Scene

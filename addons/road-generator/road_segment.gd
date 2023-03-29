@@ -3,11 +3,11 @@
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
 extends Node3D
-class_name RoadSegment, "road_segment.png"
+class_name RoadSegment
 
 const LOWPOLY_FACTOR = 3.0
 
-signal check_rebuild(road_segment)
+signal on_check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
 @export var start_init: NodePath : get = _init_start_get, set = _init_start_set
@@ -39,7 +39,7 @@ func _ready():
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 
-	var res = connect("check_rebuild",Callable(network,"segment_rebuild"))
+	var res = connect("on_check_rebuild", Callable(network, "segment_rebuild"))
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
@@ -228,9 +228,10 @@ func _update_curve():
 
 
 func _normal_for_offset(curve:Curve3D, offset:float):
-	var point1 = curve.interpolate_baked(offset - 0.001) # avoid below 0
-	var point2 = curve.interpolate_baked(offset + 0.001) # avoid over maxlen
-	var uptilt = curve.interpolate_baked_up_vector(offset, true)
+	# TODO: Should we actually use sample_baked_with_rotation? For global.
+	var point1 = curve.sample_baked(offset - 0.001) # avoid below 0
+	var point2 = curve.sample_baked(offset + 0.001) # avoid over maxlen
+	var uptilt = curve.sample_baked_up_vector(offset, true)
 	var tangent:Vector3 = (point2 - point1)
 	return uptilt.cross(tangent).normalized()
 
@@ -319,14 +320,14 @@ func _insert_geo_loop(
 		start_loop = to_local(start_point.global_transform.origin)
 		start_basis = start_point.global_transform.basis.x
 	else:
-		start_loop = curve.interpolate_baked(offset_s * clength)
+		start_loop = curve.sample_baked(offset_s * clength)
 		start_basis = _normal_for_offset(curve, offset_s * clength)
 
 	if loop == loops - 1:
 		end_loop = to_local(end_point.global_transform.origin)
 		end_basis = end_point.global_transform.basis.x
 	else:
-		end_loop = curve.interpolate_baked(offset_e * clength)
+		end_loop = curve.sample_baked(offset_e * clength)
 		end_basis = _normal_for_offset(curve, offset_e * clength)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [

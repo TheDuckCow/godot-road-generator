@@ -32,7 +32,7 @@ var lane_divider_mesh := BoxMesh.new()
 var road_width_line_mesh := BoxMesh.new()
 
 
-func get_name():
+func _get_gizmo_name():
 	return "RoadPoint"
 
 
@@ -169,8 +169,8 @@ func redraw(gizmo) -> void:
 			else:
 				div.visible = false
 
-
-func _get_handle_name(gizmo: EditorNode3DGizmo, index: int) -> String:
+# TODO: Se what _bool should be used for.
+func _get_handle_name(gizmo: EditorNode3DGizmo, index: int, _bool: bool) -> String:
 	var point = gizmo.get_node_3d() as RoadPoint
 	match index:
 		HandleType.PRIOR_MAG:
@@ -185,7 +185,8 @@ func _get_handle_name(gizmo: EditorNode3DGizmo, index: int) -> String:
 			return "RoadPoint %s unknown handle" % point.name
 
 
-func _get_handle_value(gizmo: EditorNode3DGizmo, index: int) -> float:
+func _get_handle_value(gizmo: EditorNode3DGizmo, index: int, secondary: bool = true) -> Variant:
+	# Should return float.
 #	print("_get_handle_value")
 	var point = gizmo.get_node_3d() as RoadPoint
 	var lane_width = point.lane_width
@@ -289,8 +290,7 @@ func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, po
 		redraw(gizmo)
 
 
-func _commit_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
-
+func _commit_handle(gizmo: EditorNode3DGizmo, index: int, secondary: bool, restore: Variant, cancel: bool) -> void:
 	match index:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 			commit_mag_handle(gizmo, index, restore, cancel)
