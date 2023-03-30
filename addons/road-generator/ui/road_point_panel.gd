@@ -1,35 +1,35 @@
 # Panel which is added to UI and used to trigger callbacks to update road points
-tool
+@tool
 extends VBoxContainer
 
 signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 
 var sel_road_point: RoadPoint
-var _edi: EditorInterface setget set_edi
-onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
-onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
-onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
-onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
-onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
-onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
-onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
-onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
-onready var hbox_add_rp_next = $HBoxAddNextRP
-onready var hbox_add_rp_prior = $HBoxAddPriorRP
-onready var hbox_sel_rp_next = $HBoxSelNextRP
-onready var hbox_sel_rp_prior = $HBoxSelPriorRP
+var _edi: EditorInterface : set = set_edi
+@onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
+@onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
+@onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
+@onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
+@onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
+@onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
+@onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
+@onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
+@onready var hbox_add_rp_next = $HBoxAddNextRP
+@onready var hbox_add_rp_prior = $HBoxAddPriorRP
+@onready var hbox_sel_rp_next = $HBoxSelNextRP
+@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
 
 
 func _ready():
-	btn_add_lane_fwd.connect("pressed", self, "add_lane_fwd_pressed")
-	btn_add_lane_rev.connect("pressed", self, "add_lane_rev_pressed")
-	btn_rem_lane_fwd.connect("pressed", self, "rem_lane_fwd_pressed")
-	btn_rem_lane_rev.connect("pressed", self, "rem_lane_rev_pressed")
-	btn_sel_rp_next.connect("pressed", self, "sel_rp_next_pressed")
-	btn_sel_rp_prior.connect("pressed", self, "sel_rp_prior_pressed")
-	btn_add_rp_next.connect("pressed", self, "add_rp_next_pressed")
-	btn_add_rp_prior.connect("pressed", self, "add_rp_prior_pressed")
+	btn_add_lane_fwd.connect("pressed",Callable(self,"add_lane_fwd_pressed"))
+	btn_add_lane_rev.connect("pressed",Callable(self,"add_lane_rev_pressed"))
+	btn_rem_lane_fwd.connect("pressed",Callable(self,"rem_lane_fwd_pressed"))
+	btn_rem_lane_rev.connect("pressed",Callable(self,"rem_lane_rev_pressed"))
+	btn_sel_rp_next.connect("pressed",Callable(self,"sel_rp_next_pressed"))
+	btn_sel_rp_prior.connect("pressed",Callable(self,"sel_rp_prior_pressed"))
+	btn_add_rp_next.connect("pressed",Callable(self,"add_rp_next_pressed"))
+	btn_add_rp_prior.connect("pressed",Callable(self,"add_rp_prior_pressed"))
 
 
 func update_road_point_panel():
@@ -61,7 +61,7 @@ func update_road_point_panel():
 		hbox_add_rp_prior.visible = true
 		hbox_sel_rp_prior.visible = false
 
-	property_list_changed_notify()
+	notify_property_list_changed()
 
 
 func add_lane_fwd_pressed():
@@ -109,7 +109,7 @@ func add_rp_prior_pressed():
 ## Adds a numeric sequence to the end of a RoadPoint name
 func increment_name(old_name) -> String:
 	var new_name = old_name
-	if not old_name[-1].is_valid_integer():
+	if not old_name[-1].is_valid_int():
 		new_name += "001"
 	return new_name
 

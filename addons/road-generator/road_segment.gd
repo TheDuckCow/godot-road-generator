@@ -2,22 +2,22 @@
 ##
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
-extends Spatial
-class_name RoadSegment, "road_segment.png"
+extends Node3D
+class_name RoadSegment
 
 const LOWPOLY_FACTOR = 3.0
 
-signal check_rebuild(road_segment)
+signal on_check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
-export(NodePath) var start_init setget _init_start_set, _init_start_get
-export(NodePath) var end_init setget _init_end_set, _init_end_get
+@export var start_init: NodePath : get = _init_start_get, set = _init_start_set
+@export var end_init: NodePath : get = _init_end_get, set = _init_end_set
 
 var start_point:RoadPoint
 var end_point:RoadPoint
 
 var curve:Curve3D
-var road_mesh:MeshInstance
+var road_mesh:MeshInstance3D
 var material:Material
 var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
 var network # The managing network node for this road segment (grandparent).
@@ -35,11 +35,11 @@ func _init(_network):
 
 
 func _ready():
-	road_mesh = MeshInstance.new()
+	road_mesh = MeshInstance3D.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 
-	var res = connect("check_rebuild", network, "segment_rebuild")
+	var res = connect("on_check_rebuild", Callable(network, "segment_rebuild"))
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
@@ -107,6 +107,8 @@ func check_rebuild():
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(debug: bool) -> bool:
+	push_warning("TODO: Re-enable generation of lane segmetns as migration continues")
+	return false
 	if not is_instance_valid(network):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -228,9 +230,10 @@ func _update_curve():
 
 
 func _normal_for_offset(curve:Curve3D, offset:float):
-	var point1 = curve.interpolate_baked(offset - 0.001) # avoid below 0
-	var point2 = curve.interpolate_baked(offset + 0.001) # avoid over maxlen
-	var uptilt = curve.interpolate_baked_up_vector(offset, true)
+	# TODO: Should we actually use sample_baked_with_rotation? For global.
+	var point1 = curve.sample_baked(offset - 0.001) # avoid below 0
+	var point2 = curve.sample_baked(offset + 0.001) # avoid over maxlen
+	var uptilt = curve.sample_baked_up_vector(offset, true)
 	var tangent:Vector3 = (point2 - point1)
 	return uptilt.cross(tangent).normalized()
 
@@ -293,7 +296,7 @@ func _build_geo():
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
 	road_mesh.create_trimesh_collision() # Call deferred?
-	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _insert_geo_loop(
@@ -319,14 +322,14 @@ func _insert_geo_loop(
 		start_loop = to_local(start_point.global_transform.origin)
 		start_basis = start_point.global_transform.basis.x
 	else:
-		start_loop = curve.interpolate_baked(offset_s * clength)
+		start_loop = curve.sample_baked(offset_s * clength)
 		start_basis = _normal_for_offset(curve, offset_s * clength)
 
 	if loop == loops - 1:
 		end_loop = to_local(end_point.global_transform.origin)
 		end_basis = end_point.global_transform.basis.x
 	else:
-		end_loop = curve.interpolate_baked(offset_e * clength)
+		end_loop = curve.sample_baked(offset_e * clength)
 		end_basis = _normal_for_offset(curve, offset_e * clength)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
@@ -334,12 +337,14 @@ func _insert_geo_loop(
 	#])
 
 	# Calculate lane widths
+	# TODO: Use ease(), or smoothstep(), or remap() instead of lerp here to have
+	# smoother blending in and out.
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
-	var near_add_width = lerp(0, end_point.lane_width, offset_s)
-	var near_rem_width = lerp(start_point.lane_width, 0, offset_s)
+	var near_add_width = lerp(0.0, end_point.lane_width, offset_s)
+	var near_rem_width = lerp(start_point.lane_width, 0.0, offset_s)
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
-	var far_add_width = lerp(0, end_point.lane_width, offset_e)
-	var far_rem_width = lerp(start_point.lane_width, 0, offset_e)
+	var far_add_width = lerp(0.0, end_point.lane_width, offset_e)
+	var far_rem_width = lerp(start_point.lane_width, 0.0, offset_e)
 
 	# Sum the lane widths and get position of left edge
 	var near_width_offset
@@ -564,19 +569,19 @@ func _insert_geo_loop(
 # will go from bottom left to top right.
 static func quad(st, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
-	st.add_uv(uvs[0])
+	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[2])
+	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up

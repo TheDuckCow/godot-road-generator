@@ -7,8 +7,8 @@
 script = ExtResource( 1 )
 
 [node name="CreateMenu" type="MenuButton" parent="."]
-margin_right = 53.0
-margin_bottom = 20.0
+offset_right = 53.0
+offset_bottom = 20.0
 text = "Create"
 items = [ "2x2 road", null, 0, false, false, 0, 0, null, "", false ]
 script = ExtResource( 2 )

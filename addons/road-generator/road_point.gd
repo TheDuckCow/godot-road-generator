@@ -1,7 +1,8 @@
 ## Definition for a single point handle, which 2+ road segments connect to.
-tool
-class_name RoadPoint, "road_point.png"
-extends Spatial
+@tool
+# class_name RoadPoint, "road_point.png"
+class_name RoadPoint
+extends Node3D
 
 signal on_transform(node, low_poly)
 
@@ -45,42 +46,117 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign the direction of traffic order. This i
-export(Array, LaneDir) var traffic_dir:Array = [
-	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
-	] setget _set_dir, _get_dir
+# Assign the direction of traffic order.
+var _traffic_dir: Array[LaneDir] = [
+		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]
+@export var traffic_dir:Array[LaneDir] = [
+		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]:
+	get:
+		return _traffic_dir
+	set(value):
+		_traffic_dir = value
+		_notify_network_on_set(value)
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
-export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
+var _auto_lanes: bool = true
+@export var auto_lanes: bool = true:
+	get:
+		return _auto_lanes
+	set(value):
+		_auto_lanes = value
+		_notify_network_on_set(value)
 
 # Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
-export(Array, LaneType) var lanes:Array = [
-	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
-	] setget _set_lanes, _get_lanes
+var _lanes: Array[LaneType] = [LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW]
+@export var lanes:Array[LaneType] = [LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW]:
+	get:
+		return _lanes
+	set(value):
+		_lanes = value
+		_notify_network_on_set(value)
 
-export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
-export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
-export var shoulder_width_r := 2 setget _set_shoulder_width_r, _get_shoulder_width_r
+var _lane_width: float = 4.0
+@export var lane_width := 4.0:
+	get:
+		return _lane_width
+	set(value):
+		_lane_width = value
+		_notify_network_on_set(value)
+
+var _shoulder_width_l: float = 2
+@export var shoulder_width_l := 2:
+	get:
+		return _shoulder_width_l
+	set(value):
+		_shoulder_width_l = value
+		_notify_network_on_set(value)
+
+var _shoulder_width_r: float = 2
+@export var shoulder_width_r := 2:
+	get:
+		return _shoulder_width_r
+	set(value):
+		_shoulder_width_r = value
+		_notify_network_on_set(value)
+
 # Profile: x: how far out the gutter goes, y: how far down to clip.
-export(Vector2) var gutter_profile := Vector2(0.5, -0.5) setget _set_profile, _get_profile
-export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
-export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
+var _gutter_profile: Vector2 = Vector2(0.5, -0.5)
+@export var gutter_profile: Vector2 = Vector2(0.5, -0.5):
+	get:
+		return _gutter_profile
+	set(value):
+		_gutter_profile = value
+		_notify_network_on_set(value)
+
+var _prior_pt_init: NodePath
+@export var prior_pt_init: NodePath:
+	get:
+		return _prior_pt_init
+	set(value):
+		_prior_pt_init = value
+		_notify_network_on_set(value)
+
+var _next_pt_init: NodePath
+@export var next_pt_init: NodePath:
+	get:
+		return _next_pt_init
+	set(value):
+		_next_pt_init = value
+		_notify_network_on_set(value)
+
 # Handle magniture
-export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
-export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
+var _prior_mag: float = 5.0
+@export var prior_mag: float = 5.0:
+	get:
+		return _prior_mag
+	set(value):
+		_prior_mag = value
+		if not is_instance_valid(network):
+			return  # Might not be initialized yet.
+		_notification(Node3D.NOTIFICATION_TRANSFORM_CHANGED)
+
+var _next_mag: float = 5.0
+@export var next_mag: float = 5.0:
+	get:
+		return _next_mag
+	set(value):
+		_next_mag = value
+		if not is_instance_valid(network):
+			return  # Might not be initialized yet.
+		_notification(Node3D.NOTIFICATION_TRANSFORM_CHANGED)
 
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
-#var prior_pt:Spatial # Road Point or Junction
+#var prior_pt:Node3D # Road Point or Junction
 var prior_seg
-#var next_pt:Spatial # Road Point or Junction
+#var next_pt:Node3D # Road Point or Junction
 var next_seg
 
 var network # The managing network node for this road segment (grandparent).
-var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
+var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
 var _last_update_ms # To calculate min updates.
@@ -95,7 +171,7 @@ func _ready():
 	if not network:
 		network = get_parent().get_parent()
 
-	connect("on_transform", network, "on_point_update")
+	connect("on_transform", Callable(network,"on_point_update"))
 
 
 func _to_string():
@@ -105,109 +181,15 @@ func _to_string():
 	else:
 		parname = "[not in scene]"
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
-		parname,  self.translation, prior_pt_init, next_pt_init]
+		parname,  self.position, prior_pt_init, next_pt_init]
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
 # ------------------------------------------------------------------------------
 
-func _set_lanes(values):
-	lanes = values
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_lanes():
-	return lanes
-
-
-func _set_auto_lanes(value):
-	auto_lanes = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_auto_lanes():
-	return auto_lanes
-
-
-func _set_dir(values):
-	traffic_dir = values
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_dir():
-	return traffic_dir
-
-
-func _set_lane_width(value):
-	lane_width = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_lane_width():
-	return lane_width
-
-
-func _set_shoulder_width_l(value):
-	shoulder_width_l = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_shoulder_width_l():
-	return shoulder_width_l
-
-
-func _set_shoulder_width_r(value):
-	shoulder_width_r = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_shoulder_width_r():
-	return shoulder_width_r
-
-
-func _set_profile(value:Vector2):
-	gutter_profile = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_profile():
-	return gutter_profile
-
-
-func _set_prior_pt(value):
-	prior_pt_init = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_prior_pt():
-	return prior_pt_init
-
-
-func _set_next_pt(value):
-	next_pt_init = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	on_transform()
-func _get_next_pt():
-	return next_pt_init
-
-
-func _set_prior_mag(value):
-	prior_mag = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
-func _get_prior_mag():
-	return prior_mag
-
-
-func _set_next_mag(value):
-	next_mag = value
-	if not is_instance_valid(network):
-		return  # Might not be initialized yet.
-	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
-func _get_next_mag():
-	return next_mag
+func _notify_network_on_set(_value):
+	if is_instance_valid(network):
+		emit_on_transform()
 
 
 # ------------------------------------------------------------------------------
@@ -218,15 +200,16 @@ func _notification(what):
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
-		on_transform(low_poly)
+		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		emit_on_transform(low_poly)
 
 
-func on_transform(low_poly=false):
+func emit_on_transform(low_poly=false):
 	if auto_lanes:
 		assign_lanes()
-	if is_instance_valid(gizmo):
-		gizmo.get_plugin().refresh_gizmo(gizmo)
+	# TODO: Fix refefnce. GD4 says gizmo is unknown, and tbh, not sure how GD3 did know what it was.
+	#if is_instance_valid(gizmo):
+	#	gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
 
 
@@ -360,7 +343,7 @@ func update_traffic_dir(traffic_update):
 
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_on_transform()
 
 
 ## Takes an existing RoadPoint and returns a new copy
@@ -398,7 +381,7 @@ func increment_name(name: String) -> String:
 	# names end in a number. We can use the same number over and over. Godot
 	# will automatically increment the number if needed.
 	var new_name = name
-	if not new_name[-1].is_valid_integer():
+	if not new_name[-1].is_valid_int():
 		new_name += "001"
 	return new_name
 
@@ -432,7 +415,7 @@ func _exit_tree():
 
 	# Clean up references to this RoadPoint to anything connected to it.
 	for rp_init in [prior_pt_init, next_pt_init]:
-		if not rp_init or not is_instance_valid(get_node(rp_init)):
+		if rp_init.is_empty() or not is_instance_valid(get_node(rp_init)):
 			continue
 		var rp_ref = get_node(rp_init)
 
