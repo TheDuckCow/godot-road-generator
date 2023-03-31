@@ -85,6 +85,14 @@ var geom:ImmediateGeometry # For tool usage, drawing lane directions and end poi
 
 var _last_update_ms # To calculate min updates.
 
+func _init():
+	# Workaround to avoid linked export arrays between duplicates, see:
+	# https://github.com/TheDuckCow/godot-road-generator/issues/86
+	if len(traffic_dir) == 0:
+		traffic_dir = []
+	if len(lanes) == 0:
+		lanes = []
+
 
 func _ready():
 	# Ensure the transform notificaitons work
