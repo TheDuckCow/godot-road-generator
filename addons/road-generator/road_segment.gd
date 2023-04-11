@@ -643,7 +643,7 @@ func _match_lanes() -> Array:
 	):
 		for i in range(range_to_check):
 			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
-				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([start_point.lanes[-i - 1], RoadPoint.LaneDir.REVERSE])
 			elif i > len(end_point.traffic_dir) - 1:
 				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
 			elif i > len(start_point.traffic_dir) - 1:
