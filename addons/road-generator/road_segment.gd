@@ -227,12 +227,17 @@ func _update_curve():
 	curve.set_point_tilt(1, end_point.rotation.z)
 
 
-func _normal_for_offset(curve:Curve3D, offset:float):
-	var point1 = curve.interpolate_baked(offset - 0.001) # avoid below 0
-	var point2 = curve.interpolate_baked(offset + 0.001) # avoid over maxlen
-	var uptilt = curve.interpolate_baked_up_vector(offset, true)
-	var tangent:Vector3 = (point2 - point1)
-	return uptilt.cross(tangent).normalized()
+func _normal_for_offset(curve: Curve3D, offset_s: float, loop: float, loops: float):
+	# Calculate interpolation amount for curve sample point
+	var loop_point: Transform
+	var smooth_amount: float = -1.5
+	var percent_of_curve: float = loop / (loops - 1)
+	var interp_amount: float = ease(percent_of_curve, smooth_amount)
+
+	# Calculate loop transform
+	loop_point.basis = start_point.global_transform.basis
+	loop_point.basis = loop_point.interpolate_with(end_point.global_transform.basis, interp_amount).basis
+	return loop_point.basis.x
 
 
 func _build_geo():
@@ -315,19 +320,10 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
-	if loop == 0:
-		start_loop = to_local(start_point.global_transform.origin)
-		start_basis = start_point.global_transform.basis.x
-	else:
-		start_loop = curve.interpolate_baked(offset_s * clength)
-		start_basis = _normal_for_offset(curve, offset_s * clength)
-
-	if loop == loops - 1:
-		end_loop = to_local(end_point.global_transform.origin)
-		end_basis = end_point.global_transform.basis.x
-	else:
-		end_loop = curve.interpolate_baked(offset_e * clength)
-		end_basis = _normal_for_offset(curve, offset_e * clength)
+	start_loop = curve.interpolate_baked(offset_s * clength)
+	start_basis = _normal_for_offset(curve, offset_s * clength, loop, loops)
+	end_loop = curve.interpolate_baked(offset_e * clength)
+	end_basis = _normal_for_offset(curve, offset_e * clength, loop + 1, loops)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 	#	loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
