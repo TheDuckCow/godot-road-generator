@@ -283,6 +283,7 @@ func assign_lanes():
 		# Now complete the final lane.
 		if running_same_dir > 0:
 			if running_same_dir == len(flips):
+				#  Special texture case for the "inside" lane of a way one road
 				if traffic_dir[-1] == LaneDir.FORWARD:
 					lanes.append(LaneType.SLOW)
 					lanes[0] = LaneType.NO_MARKING
