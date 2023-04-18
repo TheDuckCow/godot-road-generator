@@ -227,12 +227,18 @@ func _update_curve():
 	curve.set_point_tilt(1, end_point.rotation.z)
 
 
-func _normal_for_offset(curve: Curve3D, offset_s: float, loop: float, loops: float):
+## Calculates the horizontal vector of a Segment geometry loop. Interpolates
+## between the start and end points. Applies "easing" to prevent potentially
+## unwanted rotation on the loops at the ends of the curve.
+## Inputs:
+## curve - The curve this Segment will follow.
+## sample_position - Curve sample position to use for interpolation. Normalized.
+## Returns: Normalized Vector3
+func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
 	var loop_point: Transform
 	var smooth_amount: float = -1.5
-	var percent_of_curve: float = loop / (loops - 1)
-	var interp_amount: float = ease(percent_of_curve, smooth_amount)
+	var interp_amount: float = ease(sample_position, smooth_amount)
 
 	# Calculate loop transform
 	loop_point.basis = start_point.global_transform.basis
@@ -321,9 +327,9 @@ func _insert_geo_loop(
 	var end_loop:Vector3
 	var end_basis:Vector3
 	start_loop = curve.interpolate_baked(offset_s * clength)
-	start_basis = _normal_for_offset(curve, offset_s * clength, loop, loops)
+	start_basis = _normal_for_offset(curve, offset_s)
 	end_loop = curve.interpolate_baked(offset_e * clength)
-	end_basis = _normal_for_offset(curve, offset_e * clength, loop + 1, loops)
+	end_basis = _normal_for_offset(curve, offset_e)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 	#	loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
