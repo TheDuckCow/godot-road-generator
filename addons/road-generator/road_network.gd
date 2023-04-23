@@ -214,6 +214,7 @@ func _exit_tree():
 	# However, at the time of this early exit, doing this prevented roads
 	# from being drawn on scene load due to errors unloading against
 	# freed instances.
+	segid_map = {}
 	return
 
 	#segid_map = {}
