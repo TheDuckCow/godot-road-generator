@@ -133,7 +133,7 @@ var one_way_lane_setup = [
 		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
 		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
 		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE],
-		[[RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE],[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.REVERSE],[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.REVERSE]],
+		[[RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE],[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.REVERSE],[RoadPoint.LaneType.MIDDLE, RoadPoint.LaneDir.REVERSE]],
 		"RRR > RR >> RSM|",
 	],
 	[

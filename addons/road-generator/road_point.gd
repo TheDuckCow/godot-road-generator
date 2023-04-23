@@ -241,11 +241,7 @@ func on_transform(low_poly=false):
 func assign_lanes():
 	lanes.clear()
 	if len(traffic_dir) == 1:
-		if traffic_dir[0] == LaneDir.NONE:
-			lanes.append(LaneType.NO_MARKING)
-		else:
-			# Direction doesn't matter, since there is only a single lane here.
-			lanes.append(LaneType.ONE_WAY)
+		lanes.append(LaneType.NO_MARKING)
 		return
 
 	var flips = [] # Track changes in direction between lanes.
@@ -286,7 +282,15 @@ func assign_lanes():
 
 		# Now complete the final lane.
 		if running_same_dir > 0:
-			lanes.append(LaneType.SLOW)
+			if running_same_dir == len(flips):
+				#  Special texture case for the "inside" lane of a way one road
+				if traffic_dir[-1] == LaneDir.FORWARD:
+					lanes.append(LaneType.SLOW)
+					lanes[0] = LaneType.NO_MARKING
+				else:
+					lanes.append(LaneType.NO_MARKING)
+			else:
+				lanes.append(LaneType.SLOW)
 		else:
 			lanes.append(LaneType.TWO_WAY)
 	else:
