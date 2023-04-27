@@ -588,6 +588,8 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 ## Returns: Array[RoadPoint.LaneType, RoadPoint.LaneDir]
 func _match_lanes() -> Array:
 	# Check for invalid lane configuration
+	if len(start_point.traffic_dir) == 0 or len(end_point.traffic_dir) == 0:
+		return []
 	if (
 		(start_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE
 			and end_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD)
