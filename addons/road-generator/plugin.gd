@@ -43,6 +43,7 @@ func _exit_tree():
 
 ## Render the editor indicators for RoadPoints and LaneSegments if selected.
 func _on_selection_changed() -> void:
+	print("_on_selection_changed")
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
 
 	if not selected_node:
@@ -185,3 +186,50 @@ func get_selected_node(selected_nodes: Array) -> Node:
 		return selected_nodes[0]
 	else:
 		return null
+
+
+func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
+	if event is InputEventMouseButton:
+		print("forward_spatial_gui_input")
+		# Event triggers on both press and release. Ignore press and only act on
+		# release. Also, ignore right-click and middle-click.
+		if event.button_index == BUTTON_LEFT and not event.pressed:
+			print("%s plugin.forward_spatial_gui_input, event %s, position %s" % [Time.get_ticks_msec(), event, event.position])
+			# Shoot a ray and see if it hits anything
+			var point = get_nearest_road_point(camera, event.position)
+			if point:
+				_last_point = point
+				_edi.get_selection().clear()
+				_edi.get_selection().add_node(point)
+				_edi.edit_node(point)
+				point.on_transform()
+				_show_road_toolbar()
+				return true
+	return false
+
+## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
+func get_nearest_road_point(camera: Camera, mouse_pos: Vector2):
+	var src = camera.project_ray_origin(mouse_pos)
+	var nrm = camera.project_ray_normal(mouse_pos)
+	var dist = camera.far
+
+	var space_state =  get_viewport().world.direct_space_state
+	var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1)
+
+	if intersect.empty():
+		return null
+	else:
+		var collider = intersect["collider"]
+		print(collider)
+		# TTD: Evaluate object type, somehow, before type casting. Also,
+		# determine the closest RoadPoint (start or end point). Also, filter
+		# out clicks on built-in widgets.
+		var road_segment: RoadSegment = collider.get_parent().get_parent()
+		var start_point: RoadPoint = road_segment.start_point
+
+		return start_point
+
+
+func handles(object: Object):
+	# Must return "true" in order to use "forward_spatial_gui_input".
+	return true
