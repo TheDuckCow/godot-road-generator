@@ -46,7 +46,10 @@ func _on_selection_changed() -> void:
 	print("_on_selection_changed")
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
 
-	if not selected_node:
+	if new_selection:
+		select_road_point(new_selection)
+		new_selection = null
+	elif not selected_node:
 		_hide_road_toolbar()
 		return
 
@@ -68,6 +71,7 @@ func _on_selection_changed() -> void:
 		_show_road_toolbar()
 	else:
 		_hide_road_toolbar()
+
 
 
 func _on_scene_changed(scene_root: Node) -> void:
@@ -187,6 +191,7 @@ func get_selected_node(selected_nodes: Array) -> Node:
 	else:
 		return null
 
+var new_selection
 
 func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 	if event is InputEventMouseButton:
@@ -198,14 +203,17 @@ func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 			# Shoot a ray and see if it hits anything
 			var point = get_nearest_road_point(camera, event.position)
 			if point:
-				_last_point = point
-				_edi.get_selection().clear()
-				_edi.get_selection().add_node(point)
-				_edi.edit_node(point)
-				point.on_transform()
-				_show_road_toolbar()
-				return true
+				new_selection = point
 	return false
+
+
+func select_road_point(point):
+	_last_point = point
+	_edi.get_selection().clear()
+	_edi.edit_node(point)
+	_edi.get_selection().add_node(point)
+	point.on_transform()
+	_show_road_toolbar()
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
 func get_nearest_road_point(camera: Camera, mouse_pos: Vector2):
