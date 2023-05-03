@@ -48,6 +48,7 @@ func _on_selection_changed() -> void:
 
 	if new_selection:
 		select_road_point(new_selection)
+		selected_node = new_selection
 		new_selection = null
 	elif not selected_node:
 		_hide_road_toolbar()
