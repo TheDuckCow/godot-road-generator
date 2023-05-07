@@ -350,13 +350,6 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 
 		# Initial state for undo
 		undo_redo.create_action("Change lane count")
-		if index == HandleType.FWD_WIDTH_MAG:
-			undo_redo.add_do_property(point, "fwd_width_mag", point.fwd_width_mag)
-			undo_redo.add_undo_property(point, "fwd_width_mag", init_handle)
-			# full lanes array?
-		elif index == HandleType.REV_WIDTH_MAG:
-			undo_redo.add_do_property(point, "rev_width_mag", point.fwd_width_mag)
-			undo_redo.add_undo_property(point, "rev_width_mag", init_handle)
 
 		# Track changes
 		var new_fwd_mag = point.fwd_width_mag
