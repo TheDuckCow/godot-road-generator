@@ -43,7 +43,6 @@ func _exit_tree():
 
 ## Render the editor indicators for RoadPoints and LaneSegments if selected.
 func _on_selection_changed() -> void:
-	print("_on_selection_changed")
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
 
 	if new_selection:
@@ -196,11 +195,9 @@ var new_selection
 
 func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 	if event is InputEventMouseButton:
-		print("forward_spatial_gui_input")
 		# Event triggers on both press and release. Ignore press and only act on
 		# release. Also, ignore right-click and middle-click.
 		if event.button_index == BUTTON_LEFT and not event.pressed:
-			print("%s plugin.forward_spatial_gui_input, event %s, position %s" % [Time.get_ticks_msec(), event, event.position])
 			# Shoot a ray and see if it hits anything
 			var point = get_nearest_road_point(camera, event.position)
 			if point:
@@ -229,14 +226,23 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2):
 		return null
 	else:
 		var collider = intersect["collider"]
-		print(collider)
-		# TTD: Evaluate object type, somehow, before type casting. Also,
-		# determine the closest RoadPoint (start or end point). Also, filter
-		# out clicks on built-in widgets.
-		var road_segment: RoadSegment = collider.get_parent().get_parent()
-		var start_point: RoadPoint = road_segment.start_point
+		var position = intersect["position"]
+		if not collider.name.begins_with("road_mesh_col"):
+			return null
+		else:
+			# Return the closest RoadPoint
+			var road_segment: RoadSegment = collider.get_parent().get_parent()
+			var start_point: RoadPoint = road_segment.start_point
+			var end_point: RoadPoint = road_segment.end_point
+			var nearest_point: RoadPoint
+			var dist_to_start = start_point.global_translation.distance_to(position)
+			var dist_to_end = end_point.global_translation.distance_to(position)
+			if dist_to_start > dist_to_end:
+				nearest_point = end_point
+			else:
+				nearest_point = start_point
 
-		return start_point
+			return nearest_point
 
 
 func handles(object: Object):
