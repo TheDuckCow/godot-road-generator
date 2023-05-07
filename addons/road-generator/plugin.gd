@@ -12,6 +12,7 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
+var new_selection: RoadPoint # Reference for passing selected node
 
 
 func _enter_tree():
@@ -191,8 +192,6 @@ func get_selected_node(selected_nodes: Array) -> Node:
 	else:
 		return null
 
-var new_selection
-
 func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 	if event is InputEventMouseButton:
 		# Event triggers on both press and release. Ignore press and only act on
@@ -214,7 +213,7 @@ func select_road_point(point):
 	_show_road_toolbar()
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-func get_nearest_road_point(camera: Camera, mouse_pos: Vector2):
+func get_nearest_road_point(camera: Camera, mouse_pos: Vector2)->RoadPoint:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
