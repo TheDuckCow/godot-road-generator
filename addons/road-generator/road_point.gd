@@ -456,3 +456,39 @@ func _exit_tree():
 			if singling_rp_ref != rp_ref.get_path_to(self):
 				pass
 			singling_rp_ref = null
+
+
+## Evaluates a RoadPoint's prior/next_pt_inits and verifies that they describe a
+## valid junction. A junction is valid if this RoadPoint agrees with what the
+## associated RoadPoint is saying. Invalid junctions are cleared. But, only if
+## auto_refresh is true.
+func validate_junctions(auto_refresh: bool):
+	if not auto_refresh:
+		return
+
+	var prior_point: RoadPoint
+	var next_point: RoadPoint
+	var eval_point: RoadPoint
+	var eval_pt_init: NodePath
+
+	# Get valid Prior and Next RoadPoints
+	if prior_pt_init and not prior_pt_init == "":
+		prior_point = get_node(prior_pt_init)
+	if next_pt_init and not next_pt_init == "":
+		next_point = get_node(next_pt_init)
+
+	# Verify Prior RoadPoint identifies this one as Next
+	if is_instance_valid(prior_point):
+		eval_pt_init = prior_point.next_pt_init
+		if eval_pt_init and not eval_pt_init == "":
+			eval_point = get_node(eval_pt_init)
+			if not eval_point == self:
+				prior_pt_init = null
+
+	# Verify Next RoadPoint identifies this one as Prior
+	if is_instance_valid(next_point):
+		eval_pt_init = next_point.prior_pt_init
+		if eval_pt_init and not eval_pt_init == "":
+			eval_point = get_node(eval_pt_init)
+			if not eval_point == self:
+				next_pt_init = null

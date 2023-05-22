@@ -177,6 +177,7 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 		return
 	elif not is_instance_valid(point):
 		return
+	point.validate_junctions(auto_refresh)
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
