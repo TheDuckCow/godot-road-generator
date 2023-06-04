@@ -424,6 +424,8 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	new_road_point.name = increment_name(name)
 	new_road_point.owner = points.owner
 
+	var refresh = network.auto_refresh
+	network.auto_refresh = false
 	match pt_init:
 		PointInit.NEXT:
 			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
@@ -433,6 +435,7 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
+	network.auto_refresh = refresh
 
 
 func _exit_tree():
@@ -456,3 +459,51 @@ func _exit_tree():
 			if singling_rp_ref != rp_ref.get_path_to(self):
 				pass
 			singling_rp_ref = null
+
+
+## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
+## describe a valid junction. A junction is valid if THIS RoadPoint agrees with
+## what the associated RoadPoint is saying. Invalid junctions are cleared. But,
+## only if auto_refresh is true.
+func validate_junctions(auto_refresh: bool):
+	if not auto_refresh:
+		return
+
+	var prior_point: RoadPoint
+	var next_point: RoadPoint
+
+	# Get valid Prior and Next RoadPoints for THIS RoadPoint
+	if prior_pt_init and not prior_pt_init == "":
+		prior_point = get_node(prior_pt_init)
+	if next_pt_init and not next_pt_init == "":
+		next_point = get_node(next_pt_init)
+
+	# Clear invalid junctions
+	if is_instance_valid(prior_point):
+		if not _is_junction_valid(prior_point):
+			prior_pt_init = null
+	if is_instance_valid(next_point):
+		if not _is_junction_valid(next_point):
+			next_pt_init = null
+
+
+## Evaluates INPUT RoadPoint's prior/next_pt_inits. Returns true if at least
+## one of them references THIS RoadPoint. Otherwise, returns false.
+func _is_junction_valid(point: RoadPoint)->bool:
+	var prior_point: RoadPoint
+	var next_point: RoadPoint
+
+	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
+	if point.prior_pt_init and not point.prior_pt_init == "":
+		prior_point = get_node(point.prior_pt_init)
+	if point.next_pt_init and not point.next_pt_init == "":
+		next_point = get_node(point.next_pt_init)
+
+	# Verify THIS RoadPoint is identified as Prior or Next
+	if is_instance_valid(prior_point):
+		if prior_point == self:
+			return true
+	if is_instance_valid(next_point):
+		if next_point == self:
+			return true
+	return false

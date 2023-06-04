@@ -86,6 +86,8 @@ func _init_end_get():
 
 
 func check_rebuild():
+	if is_queued_for_deletion():
+		return
 	if not is_instance_valid(network):
 		return
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -193,6 +195,9 @@ func clear_lane_segments():
 
 ## Construct the geometry of this road segment.
 func _rebuild():
+	if is_queued_for_deletion():
+		return
+
 	get_id()
 	if network and network.density > 0:
 		density = network.density
