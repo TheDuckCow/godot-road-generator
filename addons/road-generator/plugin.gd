@@ -212,6 +212,7 @@ func select_road_point(point):
 	point.on_transform()
 	_show_road_toolbar()
 
+
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
 func get_nearest_road_point(camera: Camera, mouse_pos: Vector2)->RoadPoint:
 	var src = camera.project_ray_origin(mouse_pos)
