@@ -24,6 +24,8 @@ You can share you appreciation by:
 1. Joining the [Wheel Steal discord](https://discord.gg/gttJWznb4a).
 1. Becoming a Patreon of the project (coming soon)
 
+Logo specially designed by [Kenney](https://www.kenney.nl/assets) for this project.
+
 
 ## How to install
 
