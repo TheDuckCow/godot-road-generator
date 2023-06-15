@@ -15,11 +15,6 @@ _global_script_classes=[ {
 "path": "res://addons/gut/hook_script.gd"
 }, {
 "base": "Node",
-"class": "GutTest",
-"language": "GDScript",
-"path": "res://addons/gut/test.gd"
-}, {
-"base": "Node",
 "class": "LanePoint",
 "language": "GDScript",
 "path": "res://addons/road-generator/lane_point.gd"

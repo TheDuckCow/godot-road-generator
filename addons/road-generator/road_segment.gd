@@ -86,6 +86,8 @@ func _init_end_get():
 
 
 func check_rebuild():
+	if is_queued_for_deletion():
+		return
 	if not is_instance_valid(network):
 		return
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -193,6 +195,9 @@ func clear_lane_segments():
 
 ## Construct the geometry of this road segment.
 func _rebuild():
+	if is_queued_for_deletion():
+		return
+
 	get_id()
 	if network and network.density > 0:
 		density = network.density
@@ -227,12 +232,23 @@ func _update_curve():
 	curve.set_point_tilt(1, end_point.rotation.z)
 
 
-func _normal_for_offset(curve:Curve3D, offset:float):
-	var point1 = curve.interpolate_baked(offset - 0.001) # avoid below 0
-	var point2 = curve.interpolate_baked(offset + 0.001) # avoid over maxlen
-	var uptilt = curve.interpolate_baked_up_vector(offset, true)
-	var tangent:Vector3 = (point2 - point1)
-	return uptilt.cross(tangent).normalized()
+## Calculates the horizontal vector of a Segment geometry loop. Interpolates
+## between the start and end points. Applies "easing" to prevent potentially
+## unwanted rotation on the loops at the ends of the curve.
+## Inputs:
+## curve - The curve this Segment will follow.
+## sample_position - Curve sample position to use for interpolation. Normalized.
+## Returns: Normalized Vector3
+func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
+	# Calculate interpolation amount for curve sample point
+	var loop_point: Transform
+	var smooth_amount: float = -1.5
+	var interp_amount: float = ease(sample_position, smooth_amount)
+
+	# Calculate loop transform
+	loop_point.basis = start_point.global_transform.basis
+	loop_point.basis = loop_point.interpolate_with(end_point.global_transform.basis, interp_amount).basis
+	return loop_point.basis.x
 
 
 func _build_geo():
@@ -315,19 +331,10 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
-	if loop == 0:
-		start_loop = to_local(start_point.global_transform.origin)
-		start_basis = start_point.global_transform.basis.x
-	else:
-		start_loop = curve.interpolate_baked(offset_s * clength)
-		start_basis = _normal_for_offset(curve, offset_s * clength)
-
-	if loop == loops - 1:
-		end_loop = to_local(end_point.global_transform.origin)
-		end_basis = end_point.global_transform.basis.x
-	else:
-		end_loop = curve.interpolate_baked(offset_e * clength)
-		end_basis = _normal_for_offset(curve, offset_e * clength)
+	start_loop = curve.interpolate_baked(offset_s * clength)
+	start_basis = _normal_for_offset(curve, offset_s)
+	end_loop = curve.interpolate_baked(offset_e * clength)
+	end_basis = _normal_for_offset(curve, offset_e)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 	#	loop, offset_s, offset_e, start_loop, start_basis, end_loop, end_basis
@@ -586,6 +593,8 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 ## Returns: Array[RoadPoint.LaneType, RoadPoint.LaneDir]
 func _match_lanes() -> Array:
 	# Check for invalid lane configuration
+	if len(start_point.traffic_dir) == 0 or len(end_point.traffic_dir) == 0:
+		return []
 	if (
 		(start_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE
 			and end_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD)
@@ -643,7 +652,7 @@ func _match_lanes() -> Array:
 	):
 		for i in range(range_to_check):
 			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
-				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([start_point.lanes[-i - 1], RoadPoint.LaneDir.REVERSE])
 			elif i > len(end_point.traffic_dir) - 1:
 				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
 			elif i > len(start_point.traffic_dir) - 1:

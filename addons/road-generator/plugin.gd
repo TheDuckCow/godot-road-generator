@@ -12,6 +12,7 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
+var new_selection: RoadPoint # Reference for passing selected node
 
 
 func _enter_tree():
@@ -45,7 +46,11 @@ func _exit_tree():
 func _on_selection_changed() -> void:
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
 
-	if not selected_node:
+	if new_selection:
+		select_road_point(new_selection)
+		selected_node = new_selection
+		new_selection = null
+	elif not selected_node:
 		_hide_road_toolbar()
 		return
 
@@ -67,6 +72,7 @@ func _on_selection_changed() -> void:
 		_show_road_toolbar()
 	else:
 		_hide_road_toolbar()
+
 
 
 func _on_scene_changed(scene_root: Node) -> void:
@@ -185,3 +191,60 @@ func get_selected_node(selected_nodes: Array) -> Node:
 		return selected_nodes[0]
 	else:
 		return null
+
+func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
+	if event is InputEventMouseButton:
+		# Event triggers on both press and release. Ignore press and only act on
+		# release. Also, ignore right-click and middle-click.
+		if event.button_index == BUTTON_LEFT and not event.pressed:
+			# Shoot a ray and see if it hits anything
+			var point = get_nearest_road_point(camera, event.position)
+			if point:
+				new_selection = point
+	return false
+
+
+func select_road_point(point):
+	_last_point = point
+	_edi.get_selection().clear()
+	_edi.edit_node(point)
+	_edi.get_selection().add_node(point)
+	point.on_transform()
+	_show_road_toolbar()
+
+
+## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
+func get_nearest_road_point(camera: Camera, mouse_pos: Vector2)->RoadPoint:
+	var src = camera.project_ray_origin(mouse_pos)
+	var nrm = camera.project_ray_normal(mouse_pos)
+	var dist = camera.far
+
+	var space_state =  get_viewport().world.direct_space_state
+	var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1)
+
+	if intersect.empty():
+		return null
+	else:
+		var collider = intersect["collider"]
+		var position = intersect["position"]
+		if not collider.name.begins_with("road_mesh_col"):
+			return null
+		else:
+			# Return the closest RoadPoint
+			var road_segment: RoadSegment = collider.get_parent().get_parent()
+			var start_point: RoadPoint = road_segment.start_point
+			var end_point: RoadPoint = road_segment.end_point
+			var nearest_point: RoadPoint
+			var dist_to_start = start_point.global_translation.distance_to(position)
+			var dist_to_end = end_point.global_translation.distance_to(position)
+			if dist_to_start > dist_to_end:
+				nearest_point = end_point
+			else:
+				nearest_point = start_point
+
+			return nearest_point
+
+
+func handles(object: Object):
+	# Must return "true" in order to use "forward_spatial_gui_input".
+	return true

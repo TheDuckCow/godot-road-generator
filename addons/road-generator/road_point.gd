@@ -46,9 +46,7 @@ const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
 # Assign the direction of traffic order. This i
-export(Array, LaneDir) var traffic_dir:Array = [
-	LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
-	] setget _set_dir, _get_dir
+export(Array, LaneDir) var traffic_dir:Array setget _set_dir, _get_dir
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
 export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
@@ -56,9 +54,7 @@ export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
 # Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
-export(Array, LaneType) var lanes:Array = [
-	LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
-	] setget _set_lanes, _get_lanes
+export(Array, LaneType) var lanes:Array setget _set_lanes, _get_lanes
 
 export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
 export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
@@ -84,6 +80,18 @@ var geom:ImmediateGeometry # For tool usage, drawing lane directions and end poi
 #var refresh_geom := true
 
 var _last_update_ms # To calculate min updates.
+
+func _init():
+	# Workaround to avoid linked export arrays between duplicates, see:
+	# https://github.com/TheDuckCow/godot-road-generator/issues/86
+	# and
+	# https://github.com/TheDuckCow/godot-road-generator/pull/87
+	traffic_dir = [
+		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD
+	]
+	lanes = [
+		LaneType.SLOW, LaneType.FAST, LaneType.FAST, LaneType.SLOW
+	]
 
 
 func _ready():
@@ -241,11 +249,7 @@ func on_transform(low_poly=false):
 func assign_lanes():
 	lanes.clear()
 	if len(traffic_dir) == 1:
-		if traffic_dir[0] == LaneDir.NONE:
-			lanes.append(LaneType.NO_MARKING)
-		else:
-			# Direction doesn't matter, since there is only a single lane here.
-			lanes.append(LaneType.ONE_WAY)
+		lanes.append(LaneType.NO_MARKING)
 		return
 
 	var flips = [] # Track changes in direction between lanes.
@@ -286,7 +290,15 @@ func assign_lanes():
 
 		# Now complete the final lane.
 		if running_same_dir > 0:
-			lanes.append(LaneType.SLOW)
+			if running_same_dir == len(flips):
+				#  Special texture case for the "inside" lane of a way one road
+				if traffic_dir[-1] == LaneDir.FORWARD:
+					lanes.append(LaneType.SLOW)
+					lanes[0] = LaneType.NO_MARKING
+				else:
+					lanes.append(LaneType.NO_MARKING)
+			else:
+				lanes.append(LaneType.SLOW)
 		else:
 			lanes.append(LaneType.TWO_WAY)
 	else:
@@ -412,6 +424,8 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	new_road_point.name = increment_name(name)
 	new_road_point.owner = points.owner
 
+	var refresh = network.auto_refresh
+	network.auto_refresh = false
 	match pt_init:
 		PointInit.NEXT:
 			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
@@ -421,6 +435,7 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
+	network.auto_refresh = refresh
 
 
 func _exit_tree():
@@ -444,3 +459,51 @@ func _exit_tree():
 			if singling_rp_ref != rp_ref.get_path_to(self):
 				pass
 			singling_rp_ref = null
+
+
+## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
+## describe a valid junction. A junction is valid if THIS RoadPoint agrees with
+## what the associated RoadPoint is saying. Invalid junctions are cleared. But,
+## only if auto_refresh is true.
+func validate_junctions(auto_refresh: bool):
+	if not auto_refresh:
+		return
+
+	var prior_point: RoadPoint
+	var next_point: RoadPoint
+
+	# Get valid Prior and Next RoadPoints for THIS RoadPoint
+	if prior_pt_init and not prior_pt_init == "":
+		prior_point = get_node(prior_pt_init)
+	if next_pt_init and not next_pt_init == "":
+		next_point = get_node(next_pt_init)
+
+	# Clear invalid junctions
+	if is_instance_valid(prior_point):
+		if not _is_junction_valid(prior_point):
+			prior_pt_init = null
+	if is_instance_valid(next_point):
+		if not _is_junction_valid(next_point):
+			next_pt_init = null
+
+
+## Evaluates INPUT RoadPoint's prior/next_pt_inits. Returns true if at least
+## one of them references THIS RoadPoint. Otherwise, returns false.
+func _is_junction_valid(point: RoadPoint)->bool:
+	var prior_point: RoadPoint
+	var next_point: RoadPoint
+
+	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
+	if point.prior_pt_init and not point.prior_pt_init == "":
+		prior_point = get_node(point.prior_pt_init)
+	if point.next_pt_init and not point.next_pt_init == "":
+		next_point = get_node(point.next_pt_init)
+
+	# Verify THIS RoadPoint is identified as Prior or Next
+	if is_instance_valid(prior_point):
+		if prior_point == self:
+			return true
+	if is_instance_valid(next_point):
+		if next_point == self:
+			return true
+	return false

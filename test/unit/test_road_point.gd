@@ -40,8 +40,13 @@ var auto_lane_pairs = [
 	],
 	[
 		[RoadPoint.LaneDir.FORWARD],
-		[RoadPoint.LaneType.ONE_WAY],
-		"One way"
+		[RoadPoint.LaneType.NO_MARKING],
+		"One way forward"
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.NO_MARKING],
+		"One way reverse"
 	],
 	[
 		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
@@ -50,14 +55,19 @@ var auto_lane_pairs = [
 	],
 	[
 		[RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
-		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW],
-		"3-lane one way"
+		[RoadPoint.LaneType.NO_MARKING, RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.SLOW],
+		"3-lane one way forward"
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.SLOW, RoadPoint.LaneType.MIDDLE, RoadPoint.LaneType.NO_MARKING],
+		"3-lane one way reverse"
 	],
 ]
 
 func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
 	var pt = RoadPoint.new()
-	
+
 	pt.traffic_dir = params[0]
 	var target = params[1]
 	pt.assign_lanes()
