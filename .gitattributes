@@ -1,2 +1,21 @@
+
+# LFS attributes
 icon.png filter=lfs diff=lfs merge=lfs -text
 *.afdesign filter=lfs diff=lfs merge=lfs -text
+
+# Export ignores, so that these files are ignored when someone installs the
+# plugin from the Godot Asset Library. You can test the changes by
+# running: `git archive`
+/.gitattributes     export-ignore
+/.github            export-ignore
+/.gitignore         export-ignore
+/.gutconfig.json    export-ignore
+/CONTRIBUTING.md    export-ignore
+/default_env.tres   export-ignore
+/icon.png           export-ignore
+/icon.png.import    export-ignore
+/LICENSE            export-ignore
+/project.godot      export-ignore
+/README.md          export-ignore
+/release.sh         export-ignore
+/test/              export-ignore
