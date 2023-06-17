@@ -56,9 +56,9 @@ export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
 # the top of the screen in a top down orientation.
 export(Array, LaneType) var lanes:Array setget _set_lanes, _get_lanes
 
-export var lane_width := 4.0 setget _set_lane_width, _get_lane_width
-export var shoulder_width_l := 2 setget _set_shoulder_width_l, _get_shoulder_width_l
-export var shoulder_width_r := 2 setget _set_shoulder_width_r, _get_shoulder_width_r
+export(float) var lane_width := 4.0 setget _set_lane_width, _get_lane_width
+export(float) var shoulder_width_l := 2.0 setget _set_shoulder_width_l, _get_shoulder_width_l
+export(float) var shoulder_width_r := 2.0 setget _set_shoulder_width_r, _get_shoulder_width_r
 # Profile: x: how far out the gutter goes, y: how far down to clip.
 export(Vector2) var gutter_profile := Vector2(0.5, -0.5) setget _set_profile, _get_profile
 export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
