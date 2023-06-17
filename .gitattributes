@@ -12,6 +12,7 @@ icon.png filter=lfs diff=lfs merge=lfs -text
 /.gutconfig.json    export-ignore
 /CONTRIBUTING.md    export-ignore
 /default_env.tres   export-ignore
+/demo/              export-ignore
 /icon.png           export-ignore
 /icon.png.import    export-ignore
 /LICENSE            export-ignore
