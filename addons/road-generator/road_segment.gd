@@ -133,7 +133,7 @@ func generate_lane_segments(debug: bool) -> bool:
 	var lanes_added := 0
 	for this_match in mathced_lanes:
 		var ln_type: int = this_match[0]  # Enum RoadPoint.LaneType
-		var ln_dir: int = this_match[0]  # Enum RoadPoint.LaneDir
+		var ln_dir: int = this_match[1]  # Enum RoadPoint.LaneDir
 		var new_ln := LaneSegment.new()
 		add_child(new_ln)
 
