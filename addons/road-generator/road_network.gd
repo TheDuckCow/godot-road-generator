@@ -113,6 +113,11 @@ func rebuild_segments(clear_existing=false):
 			rebuilt += process_seg(prior_pt, pt)
 		if next_pt and next_pt.visible:
 			rebuilt += process_seg(pt, next_pt)
+
+	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
+	if generate_ai_lanes:
+		update_lane_seg_connections()
+
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
@@ -143,6 +148,56 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 			new_seg.generate_lane_segments(debug)
 
 		return 1
+
+# Update the lane_next and lane_prior connections based on tags assigned.
+#
+# Process over each end of "connecting" Lanes, therefore best to iterate
+# over RoadPoints.
+func update_lane_seg_connections():
+	print_debug("KEYS!", segid_map.keys())
+
+	for obj in get_node(points).get_children():
+		if not obj.visible:
+			continue # Assume local chunk has dealt with the geo visibility.
+		if not obj is RoadPoint:
+			push_warning("Invalid child object under points of road network")
+			continue
+		var pt:RoadPoint = obj
+
+		# update prior lanes to match next lanes first.
+		var prior_valid = pt.prior_seg and is_instance_valid(pt.prior_seg)
+		var next_valid = pt.next_seg and is_instance_valid(pt.next_seg)
+
+		if not (prior_valid and next_valid):
+			# Nothing to update
+			# TODO: technically should clear next lane and prior lanes,
+			# but for now since lanes are re-generated each time, there's no
+			# risk of having faulty connections.
+			continue
+
+		var prior_seg_lanes = pt.prior_seg.get_lanes()
+		var next_seg_lanes = pt.next_seg.get_lanes()
+
+		# Check lanes attributed to the *prior* segment
+		for ln in prior_seg_lanes:
+			# prior lane be set to track to a next lane
+			for next_ln in next_seg_lanes:
+				if next_ln.lane_prior_tag == ln.lane_next_tag:
+					if ln.reverse_direction:
+						# if reverse, then a "next" lane becomes the "prior"
+						ln.lane_prior = ln.get_path_to(next_ln)
+					else:
+						ln.lane_next = ln.get_path_to(next_ln)
+		# Check lanes attributed to the *next* segment
+		for ln in next_seg_lanes:
+			# next lane be set to track to a prior lane
+			for prior_ln in prior_seg_lanes:
+				if prior_ln.lane_next_tag == ln.lane_prior_tag:
+					if ln.reverse_direction:
+						# if reverse, then a "prior" lane becomes the "next"
+						ln.lane_next = ln.get_path_to(prior_ln)
+					else:
+						ln.lane_prior = ln.get_path_to(prior_ln)
 
 
 # Update the position and contents of the curves for the given point object.

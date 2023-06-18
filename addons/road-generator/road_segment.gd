@@ -141,6 +141,12 @@ func generate_lane_segments(debug: bool) -> bool:
 		var new_ln := LaneSegment.new()
 		add_child(new_ln)
 
+		# Assign the in and out lane tags, to help with connecting to other
+		# lane segments later (handled by RoadNetwork).
+		new_ln.lane_prior_tag = this_match[2]
+		new_ln.lane_next_tag = this_match[3]
+		new_ln.name = "pr%s_nx%s" % [this_match[2], this_match[3]]
+
 		# Now decide where the two poitns should go, and their magnitudes.
 		var in_pos: Vector3 = start_point.global_transform.origin
 		var out_pos: Vector3 = end_point.global_transform.origin
@@ -158,6 +164,9 @@ func generate_lane_segments(debug: bool) -> bool:
 		if ln_dir != RoadPoint.LaneDir.REVERSE:
 			new_ln.reverse_direction = true
 
+		# TODO: Swtich to re-sampling and adding more points following the curve along from
+		# the parent path generator, including its use of ease in and out at the
+		# edges.
 		new_ln.curve.add_point(
 			new_ln.to_local(in_pos),
 			curve.get_point_in(0),
@@ -196,11 +205,25 @@ func generate_lane_segments(debug: bool) -> bool:
 	return any_generated
 
 
+## Returns list of only valid LaneSegments
+func get_lanes() -> Array:
+	var lanes = []
+	for ch in self.get_children():
+		if not is_instance_valid(ch):
+			continue
+		elif not ch is LaneSegment:
+			# push_warning("Child of road segment is not a lane segment: %s" % ln.name)
+			continue
+		lanes.append(ch)
+	return lanes
+
+
 ## Remove all LaneSegments attached to this RoadSegment
 func clear_lane_segments():
 	for ch in get_children():
 		if ch is LaneSegment:
 			ch.queue_free()
+
 
 # ------------------------------------------------------------------------------
 # Geometry construction
@@ -603,7 +626,12 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 ## the lanes whose directions match and create Add/Remove Transition lanes where
 ## the start or end points are missing lanes. Return an array that includes both
 ## full lanes and transition lanes.
-## Returns: Array[RoadPoint.LaneType, RoadPoint.LaneDir]
+## Returns: Array[
+##   RoadPoint.LaneType, # To indicate texture, and whether an add/remove.
+##   RoadPoint.LaneDir, # To indicate which direction the traffic goes.
+##   lane_prior_tag, # Appropriate str for later connecting LaneSegments
+##   lane_next_tag # Appropriate str for later connecting LaneSegments
+## ]
 func _match_lanes() -> Array:
 	# Check for invalid lane configuration
 	if len(start_point.traffic_dir) == 0 or len(end_point.traffic_dir) == 0:
@@ -653,11 +681,23 @@ func _match_lanes() -> Array:
 	):
 		for i in range(range_to_check):
 			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
-				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					start_point.lanes[i],
+					RoadPoint.LaneDir.FORWARD,
+					"F0",
+					"F0"])
 			if i > len(start_point.traffic_dir) - 1:
-				lanes.append([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					RoadPoint.LaneType.TRANSITION_ADD,
+					RoadPoint.LaneDir.FORWARD,
+					"F0a",
+					"F0"])
 			elif i > len(end_point.traffic_dir) - 1:
-				lanes.append([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					RoadPoint.LaneType.TRANSITION_REM,
+					RoadPoint.LaneDir.FORWARD,
+					"F0",
+					"F0r"])
 	# Handle REVERSE-only lane setups
 	elif (
 		start_traffic_dir == RoadPoint.LaneDir.REVERSE
@@ -665,11 +705,23 @@ func _match_lanes() -> Array:
 	):
 		for i in range(range_to_check):
 			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
-				lanes.push_front([start_point.lanes[-i - 1], RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					start_point.lanes[-i - 1],
+					RoadPoint.LaneDir.REVERSE,
+					"R0",
+					"R0r"])
 			elif i > len(end_point.traffic_dir) - 1:
-				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					RoadPoint.LaneType.TRANSITION_REM,
+					RoadPoint.LaneDir.REVERSE,
+					"R0",
+					"R0r"])
 			elif i > len(start_point.traffic_dir) - 1:
-				lanes.push_front([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					RoadPoint.LaneType.TRANSITION_ADD,
+					RoadPoint.LaneDir.REVERSE,
+					"R0a",
+					"R0"])
 	# Handle bi-directional lane setups
 	else:
 		# Match REVERSE lanes.
@@ -684,13 +736,25 @@ func _match_lanes() -> Array:
 		for i in range(start_flip_offset-1, range_to_check, -1):
 			if i < 0:
 				#No pre-existing lane on start point. Add a lane.
-				lanes.push_front([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					RoadPoint.LaneType.TRANSITION_ADD,
+					RoadPoint.LaneDir.REVERSE,
+					"R0a",
+					"R0"])
 			elif i > -1 and i - start_end_offset_diff < 0:
 				#No pre-existing lane on end point. Remove a lane.
-				lanes.push_front([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					RoadPoint.LaneType.TRANSITION_REM,
+					RoadPoint.LaneDir.REVERSE,
+					"R0",
+					"R0r"])
 			else:
 				#Lane directions match. Add LaneType from start point.
-				lanes.push_front([start_point.lanes[i], RoadPoint.LaneDir.REVERSE])
+				lanes.push_front([
+					start_point.lanes[i],
+					RoadPoint.LaneDir.REVERSE,
+					"R0",
+					"R0"])
 
 		# Match FORWARD lanes
 		# Iterate the start point FORWARD lanes. But, iterate the maximum number of
@@ -702,15 +766,28 @@ func _match_lanes() -> Array:
 		# end point, then assign TRANSITION_REM lane(s).
 		range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
 		for i in range(start_flip_offset, range_to_check):
+			var fwd_idx = 0
 			if i > len(start_point.traffic_dir) - 1:
 				#No pre-existing lane on start point. Add a lane.
-				lanes.append([RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					RoadPoint.LaneType.TRANSITION_ADD,
+					RoadPoint.LaneDir.FORWARD,
+					"F0a",
+					"F0"])
 			elif i < len(start_point.traffic_dir) and i - start_end_offset_diff > len(end_point.traffic_dir) - 1:
 				#No pre-existing lane on end point. Remove a lane.
-				lanes.append([RoadPoint.LaneType.TRANSITION_REM, RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					RoadPoint.LaneType.TRANSITION_REM,
+					RoadPoint.LaneDir.FORWARD,
+					"F0",
+					"F0r"])
 			elif i < len(start_point.lanes):
 				#Lane directions match. Add LaneType from start point.
-				lanes.append([start_point.lanes[i], RoadPoint.LaneDir.FORWARD])
+				lanes.append([
+					start_point.lanes[i],
+					RoadPoint.LaneDir.FORWARD,
+					"F0",
+					"F0"])
 
 	return lanes
 

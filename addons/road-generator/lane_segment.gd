@@ -15,8 +15,28 @@ export var reverse_direction:bool = false setget _set_direction, _get_direction
 export var lane_left:NodePath # Used to indicate allowed lane changes
 export var lane_right:NodePath # Used to indicate allowed lane changes
 export var lane_next:NodePath # LaneSegment or intersection
-export var lane_previous:NodePath # LaneSegment or intersection
+export var lane_prior:NodePath # LaneSegment or intersection
 export var draw_in_game = false # Can override to draw if outside the editor
+
+
+# Tags are used help populate the lane_next and lane_prior NodePaths above.
+#
+# Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
+# matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
+# lane_prior_tag (since lane_B follows lane_A in this situation).
+#
+# Any matching name will do, and it will match the first match. Auto-generated
+# lanes have a convention of a prefix F or R (for forward or reverse lane,
+# relative to the road segment) followed by a 0-indexed integer, based on how
+# far from the middle of the road (middle = where the lane direction flips).
+#
+# This way, the inner most lanes are always matched together. A lane F2 being
+# removed on the right (forward) will be recognized as needing to have it's
+# lane_next_tag set to F1, representing cars merging from this removed lane into
+# the next interior lane.
+export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
@@ -73,7 +93,7 @@ func unregister_vehicle(vehicle: Node) -> void:
 
 
 ## Return all vehicles registered to this lane, performing cleanup as needed.
-func get_vehicles()  -> Array:
+func get_vehicles() -> Array:
 	for vehicle in _vehicles_in_lane:
 		if not is_instance_valid(vehicle):
 			_vehicles_in_lane.erase(vehicle)
@@ -150,5 +170,4 @@ func curve_changed() -> void:
 func show_fins(value: bool) -> void:
 	_display_fins = value
 	rebuild_geom()
-
 
