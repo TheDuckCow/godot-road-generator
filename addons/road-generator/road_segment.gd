@@ -131,6 +131,10 @@ func generate_lane_segments(debug: bool) -> bool:
 	var end_offset = lane_count / 2.0 * end_point.lane_width - end_point.lane_width/2.0
 
 	var lanes_added := 0
+
+	# Assist var to assign lane_right and lane_left, used by AI for lane changes
+	var last_ln = null
+
 	for this_match in matched_lanes:
 		# this_match[0] is: Enum RoadPoint.LaneType (texture), not needed here.
 		var ln_dir: int = this_match[1]  # Enum RoadPoint.LaneDir (what we need)
@@ -170,16 +174,23 @@ func generate_lane_segments(debug: bool) -> bool:
 		else:
 			new_ln.show_fins(false)
 
+		# Update lane connectedness for left/right lane connections.
+		if not last_ln == null and last_ln.reverse_direction == new_ln.reverse_direction:
+			# If the last lane and this one are facing the same way, then they
+			# should be adjacent for lane changing. Which lane (left/right) is
+			# just determiend by which way we are facing.
+			if ln_dir == RoadPoint.LaneDir.FORWARD:
+				last_ln.lane_right = last_ln.get_path_to(new_ln)
+				new_ln.lane_left = new_ln.get_path_to(last_ln)
+			else:
+				last_ln.lane_left = last_ln.get_path_to(new_ln)
+				new_ln.lane_right = new_ln.get_path_to(last_ln)
+
 		# Assign that it was a success.
 		any_generated = true
 		lanes_added += 1
+		last_ln = new_ln # For the next loop iteration.
 
-	# Alternatively, we could create a sort of special mode for the lane class,
-	# only useable with autoamted road segments, in which it determins position
-	# based on the main curve of the segment, and using the same logic used to
-	# generate the geo, do live offsets
-	# Alternatively, we could create multiple samples of lanes depending on
-	# where and how curvy it is.
 	if any_generated:
 		pass
 	return any_generated
