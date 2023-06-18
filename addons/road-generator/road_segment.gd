@@ -709,7 +709,7 @@ func _match_lanes() -> Array:
 					start_point.lanes[-i - 1],
 					RoadPoint.LaneDir.REVERSE,
 					"R0",
-					"R0r"])
+					"R0"])
 			elif i > len(end_point.traffic_dir) - 1:
 				lanes.push_front([
 					RoadPoint.LaneType.TRANSITION_REM,
