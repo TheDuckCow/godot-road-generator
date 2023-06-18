@@ -115,8 +115,8 @@ func generate_lane_segments(debug: bool) -> bool:
 		return false
 
 	# First identify all segments that will exist.
-	var mathced_lanes = self._match_lanes()
-	if len(mathced_lanes) == 0:
+	var matched_lanes = self._match_lanes()
+	if len(matched_lanes) == 0:
 		return false
 
 	var any_generated = false
@@ -126,14 +126,14 @@ func generate_lane_segments(debug: bool) -> bool:
 	# Then create individual objects for it
 	# Then, the trickiest part, create the best fitting curve points & controls
 	# so that even on wonky curves, it fits well.
-	var lane_count = len(mathced_lanes)
+	var lane_count = len(matched_lanes)
 	var start_offset = lane_count / 2.0 * start_point.lane_width - start_point.lane_width/2.0
 	var end_offset = lane_count / 2.0 * end_point.lane_width - end_point.lane_width/2.0
 
 	var lanes_added := 0
-	for this_match in mathced_lanes:
-		var ln_type: int = this_match[0]  # Enum RoadPoint.LaneType
-		var ln_dir: int = this_match[1]  # Enum RoadPoint.LaneDir
+	for this_match in matched_lanes:
+		# this_match[0] is: Enum RoadPoint.LaneType (texture), not needed here.
+		var ln_dir: int = this_match[1]  # Enum RoadPoint.LaneDir (what we need)
 		var new_ln := LaneSegment.new()
 		add_child(new_ln)
 
@@ -141,15 +141,17 @@ func generate_lane_segments(debug: bool) -> bool:
 		var in_pos: Vector3 = start_point.global_transform.origin
 		var out_pos: Vector3 = end_point.global_transform.origin
 
-		# Offset the curve in/out points based on road index.
+		# Offset the curve in/out points based on lane index.
 		var in_offset = lanes_added * start_point.lane_width - start_offset
-		in_pos -= start_point.global_transform.basis.x * in_offset
+		in_pos += start_point.global_transform.basis.x * in_offset
 
 		var out_offset = lanes_added * end_point.lane_width - end_offset
-		out_pos -= end_point.global_transform.basis.x * out_offset
+		out_pos += end_point.global_transform.basis.x * out_offset
 
 		# Set direction
-		if ln_dir == RoadPoint.LaneDir.REVERSE:
+		# TODO: When directionality is made consistent, we should no longer need
+		# to invert the direction assignment here.
+		if ln_dir != RoadPoint.LaneDir.REVERSE:
 			new_ln.reverse_direction = true
 
 		new_ln.curve.add_point(
