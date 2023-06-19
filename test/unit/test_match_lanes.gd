@@ -36,7 +36,7 @@ var auto_lane_setup = [
 			# forward lane stays forward lane.
 			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F0", "F0"],
 			# outer fowrad lane stays the same.
-			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F1", "F1"]],
+			[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.FORWARD, "F1", "F1"]],
 		"RFF > RFF >> F|FS",
 	],
 	[
@@ -90,7 +90,7 @@ var auto_lane_setup = [
 			# Reverse lane inner (id=0) stays.
 			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.REVERSE, "R0", "R0"],
 			# Inner forward lane (id=0) stays.
-			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD], "F0", "F0",
+			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F0", "F0"],
 			# Forward lane added (id 0 becomes 1 for next segment)
 			[RoadPoint.LaneType.TRANSITION_ADD, RoadPoint.LaneDir.FORWARD, "F0a", "F1"]],
 		"RRF > RRFF >> SF|FA",
@@ -187,9 +187,9 @@ var one_way_lane_setup = [
 		[RoadPoint.LaneType.NO_MARKING, RoadPoint.LaneType.SLOW],
 		[
 			# Inner fast lane, since middle si to left of fast
-			[RoadPoint.LaneType.NO_MARKING, RoadPoint.LaneDir.FORWARD, "F0"],
+			[RoadPoint.LaneType.NO_MARKING, RoadPoint.LaneDir.FORWARD, "F0", "F0"],
 			# Outer fast lane
-			[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.FORWARD, "F1"]],
+			[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.FORWARD, "F1", "F1"]],
 		"FF > FF >> |MS",
 	],
 	[
