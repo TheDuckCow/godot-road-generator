@@ -133,14 +133,6 @@ func generate_lane_segments(debug: bool) -> bool:
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
 
-	# Calcualted the initial amount of offset required for the first point
-	# basically, how much lanes should be squeezed in due to removes/adds.
-	# but needs to also count number of forwards too..
-	var start_num_lanes_rev_removed # coudl neutral out... if add one side, sub on other...
-	var start_num_lanes_fwd_added
-	var end_num_lanes_rev_added
-	var end_num_lanes_fwd_removed
-
 	# We need to keep track of the number of reverse lane subtractions and
 	# forward subtractions. The left side (reverse) needs to be precalcuated,
 	# while the right (forward) can be a running sum during the loop itself.
@@ -164,8 +156,8 @@ func generate_lane_segments(debug: bool) -> bool:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p:%s_n:%s" % [this_match[2], this_match[3]]
 
-		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture), not needed here.
-		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir (what we need)
+		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
+		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
 
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
@@ -185,46 +177,10 @@ func generate_lane_segments(debug: bool) -> bool:
 		var in_pos: Vector3 = start_point.global_transform.origin
 		var out_pos: Vector3 = end_point.global_transform.origin
 
-		# Offset the curve in/out points based on lane index.
-		# Track the init (for reverse) or the stacking (fwd) number of
-		# transition lanes to offset.
-		var start_shift = 0
-		var end_shift = 0
-
-		# Forward cases
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.FORWARD:
-			lane_shift.forward += 1
-			if end_is_wider:
-				start_shift = lane_shift.forward * start_point.lane_width * -1
-			else:
-				end_shift = lane_shift.forward * end_point.lane_width * -1
-		elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.FORWARD:
-			lane_shift.forward += 1
-			if end_is_wider:
-				start_shift = lane_shift.forward * start_point.lane_width * -1
-			else:
-				end_shift = lane_shift.forward * end_point.lane_width * -1
-		# Reverse cases
-		elif ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.REVERSE:
-			if end_is_wider:
-				start_shift = lane_shift.reverse * start_point.lane_width
-			else:
-				end_shift = lane_shift.reverse * end_point.lane_width
-			lane_shift.reverse -= 1
-		elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.REVERSE:
-			if end_is_wider:
-				start_shift = lane_shift.reverse * start_point.lane_width
-			else:
-				end_shift = lane_shift.reverse * end_point.lane_width
-			lane_shift.reverse -= 1
-		#else:
-		# General non transition case, but should be reverse=0 by now.
-
-		if end_is_wider:
-			start_shift -= max_rev_shift * start_point.lane_width
-		else:
-			end_shift -= max_rev_shift * end_point.lane_width
-
+		var tmp = get_transition_offset(
+			ln_type, ln_dir, lane_shift, end_is_wider, max_rev_shift)
+		var start_shift:float = tmp[0]
+		var end_shift:float = tmp[1]
 
 		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
 		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
@@ -275,6 +231,59 @@ func generate_lane_segments(debug: bool) -> bool:
 		last_ln = new_ln # For the next loop iteration.
 
 	return any_generated
+
+
+## Offset the curve in/out points based on lane index.
+##
+## Track the init (for reverse) or the stacking (fwd) number of
+## transition lanes to offset.
+##
+## Note: lane_shift is passed by reference and mutated.
+func get_transition_offset(
+		ln_type: int,
+		ln_dir: int,
+		lane_shift: Dictionary,
+		end_is_wider: bool,
+		max_rev_shift: float) -> Array:
+
+	var start_shift: float = 0
+	var end_shift: float = 0
+
+	# Forward cases
+	if ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.FORWARD:
+		lane_shift.forward += 1
+		if end_is_wider:
+			start_shift = lane_shift.forward * start_point.lane_width * -1
+		else:
+			end_shift = lane_shift.forward * end_point.lane_width * -1
+	elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.FORWARD:
+		lane_shift.forward += 1
+		if end_is_wider:
+			start_shift = lane_shift.forward * start_point.lane_width * -1
+		else:
+			end_shift = lane_shift.forward * end_point.lane_width * -1
+	# Reverse cases
+	elif ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.REVERSE:
+		if end_is_wider:
+			start_shift = lane_shift.reverse * start_point.lane_width
+		else:
+			end_shift = lane_shift.reverse * end_point.lane_width
+		lane_shift.reverse -= 1
+	elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.REVERSE:
+		if end_is_wider:
+			start_shift = lane_shift.reverse * start_point.lane_width
+		else:
+			end_shift = lane_shift.reverse * end_point.lane_width
+		lane_shift.reverse -= 1
+	#else:
+	# General non transition case, but should be reverse=0 by now.
+
+	if end_is_wider:
+		start_shift -= max_rev_shift * start_point.lane_width
+	else:
+		end_shift -= max_rev_shift * end_point.lane_width
+
+	return [start_shift, end_shift]
 
 
 ## Returns list of only valid LaneSegments

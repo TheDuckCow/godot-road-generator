@@ -154,8 +154,6 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 # Process over each end of "connecting" Lanes, therefore best to iterate
 # over RoadPoints.
 func update_lane_seg_connections():
-	print_debug("KEYS!", segid_map.keys())
-
 	for obj in get_node(points).get_children():
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
