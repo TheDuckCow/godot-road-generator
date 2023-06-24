@@ -121,52 +121,126 @@ func generate_lane_segments(debug: bool) -> bool:
 
 	var any_generated = false
 
+	# TODO: conditionally check for same-named lanes for re-use.
 	clear_lane_segments()
 
-	# Then create individual objects for it
-	# Then, the trickiest part, create the best fitting curve points & controls
-	# so that even on wonky curves, it fits well.
-	var lane_count = len(matched_lanes)
-	var start_offset = lane_count / 2.0 * start_point.lane_width - start_point.lane_width/2.0
-	var end_offset = lane_count / 2.0 * end_point.lane_width - end_point.lane_width/2.0
+	var start_offset = len(start_point.lanes) / 2.0 * start_point.lane_width - start_point.lane_width/2.0
+	var end_offset = len(end_point.lanes) / 2.0 * end_point.lane_width - end_point.lane_width/2.0
 
+	# Tracker used during the loop, to sum offset to apply.
 	var lanes_added := 0
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
 
+	# Calcualted the initial amount of offset required for the first point
+	# basically, how much lanes should be squeezed in due to removes/adds.
+	# but needs to also count number of forwards too..
+	var start_num_lanes_rev_removed # coudl neutral out... if add one side, sub on other...
+	var start_num_lanes_fwd_added
+	var end_num_lanes_rev_added
+	var end_num_lanes_fwd_removed
+
+	# We need to keep track of the number of reverse lane subtractions and
+	# forward subtractions. The left side (reverse) needs to be precalcuated,
+	# while the right (forward) can be a running sum during the loop itself.
+	var lane_shift = {"reverse": 0, "forward": 0}
+	var end_is_wider = len(start_point.lanes) < len(end_point.lanes)
 	for this_match in matched_lanes:
-		# this_match[0] is: Enum RoadPoint.LaneType (texture), not needed here.
-		var ln_dir: int = this_match[1]  # Enum RoadPoint.LaneDir (what we need)
-		var new_ln := LaneSegment.new()
-		add_child(new_ln)
+		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture)
+		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir (what we need)
+
+		if ln_dir != RoadPoint.LaneDir.REVERSE:
+			break # Already done
+
+		if ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			lane_shift.reverse += 1
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			lane_shift.reverse += 1
+
+	var max_rev_shift = lane_shift.reverse
+
+	for this_match in matched_lanes:
+		# Reusable name to check for and re-use, based on "tagged names".
+		var ln_name = "p:%s_n:%s" % [this_match[2], this_match[3]]
+
+		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture), not needed here.
+		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir (what we need)
+
+		# TODO: Check for existing lanes and reuse (but also clean up if needed)
+		# var ln_child = self.get_node_or_null(ln_name)
+		var ln_child = null
+		if not is_instance_valid(ln_child) or not ln_child is LaneSegment:
+			ln_child = LaneSegment.new()
+			add_child(ln_child)
+		var new_ln:LaneSegment = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
 		# lane segments later (handled by RoadNetwork).
 		new_ln.lane_prior_tag = this_match[2]
 		new_ln.lane_next_tag = this_match[3]
-		new_ln.name = "pr%s_nx%s" % [this_match[2], this_match[3]]
+		new_ln.name = ln_name
 
 		# Now decide where the two poitns should go, and their magnitudes.
 		var in_pos: Vector3 = start_point.global_transform.origin
 		var out_pos: Vector3 = end_point.global_transform.origin
 
 		# Offset the curve in/out points based on lane index.
-		var in_offset = lanes_added * start_point.lane_width - start_offset
-		in_pos += start_point.global_transform.basis.x * in_offset
+		# Track the init (for reverse) or the stacking (fwd) number of
+		# transition lanes to offset.
+		var start_shift = 0
+		var end_shift = 0
 
-		var out_offset = lanes_added * end_point.lane_width - end_offset
+		# Forward cases
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.FORWARD:
+			lane_shift.forward += 1
+			if end_is_wider:
+				start_shift = lane_shift.forward * start_point.lane_width * -1
+			else:
+				end_shift = lane_shift.forward * end_point.lane_width * -1
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.FORWARD:
+			lane_shift.forward += 1
+			if end_is_wider:
+				start_shift = lane_shift.forward * start_point.lane_width * -1
+			else:
+				end_shift = lane_shift.forward * end_point.lane_width * -1
+		# Reverse cases
+		elif ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.REVERSE:
+			if end_is_wider:
+				start_shift = lane_shift.reverse * start_point.lane_width
+			else:
+				end_shift = lane_shift.reverse * end_point.lane_width
+			lane_shift.reverse -= 1
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.REVERSE:
+			if end_is_wider:
+				start_shift = lane_shift.reverse * start_point.lane_width
+			else:
+				end_shift = lane_shift.reverse * end_point.lane_width
+			lane_shift.reverse -= 1
+		#else:
+		# General non transition case, but should be reverse=0 by now.
+
+		if end_is_wider:
+			start_shift -= max_rev_shift * start_point.lane_width
+		else:
+			end_shift -= max_rev_shift * end_point.lane_width
+
+
+		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
+		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
+
+		in_pos += start_point.global_transform.basis.x * in_offset
 		out_pos += end_point.global_transform.basis.x * out_offset
 
 		# Set direction
-		# TODO: When directionality is made consistent, we should no longer need
-		# to invert the direction assignment here.
+		# TODO: When directionality is made consistent, we should no longer
+		# need to invert the direction assignment here.
 		if ln_dir != RoadPoint.LaneDir.REVERSE:
 			new_ln.reverse_direction = true
 
-		# TODO: Swtich to re-sampling and adding more points following the curve along from
-		# the parent path generator, including its use of ease in and out at the
-		# edges.
+		# TODO(#46): Swtich to re-sampling and adding more points following the
+		# curve along from the parent path generator, including its use of ease
+		# in and out at the edges.
 		new_ln.curve.add_point(
 			new_ln.to_local(in_pos),
 			curve.get_point_in(0),
@@ -200,8 +274,6 @@ func generate_lane_segments(debug: bool) -> bool:
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
 
-	if any_generated:
-		pass
 	return any_generated
 
 
