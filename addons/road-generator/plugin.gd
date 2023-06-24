@@ -25,8 +25,7 @@ func _enter_tree():
 	connect("scene_closed", self, "_on_scene_closed")
 	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
 	add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
-	# TODO: Set a different icon for lane segments.
-	add_custom_type("LaneSegment", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
+	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
 func _exit_tree():
@@ -39,10 +38,10 @@ func _exit_tree():
 	remove_inspector_plugin(road_point_editor)
 	remove_custom_type("RoadPoint")
 	remove_custom_type("RoadNetwork")
-	remove_custom_type("LaneSegment")
+	#remove_custom_type("RoadLane")
 
 
-## Render the editor indicators for RoadPoints and LaneSegments if selected.
+## Render the editor indicators for RoadPoints and RoadLanes if selected.
 func _on_selection_changed() -> void:
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
 
@@ -60,7 +59,7 @@ func _on_selection_changed() -> void:
 	if selected_node is RoadPoint:
 		_last_point = selected_node
 		selected_node.on_transform()
-	elif selected_node is LaneSegment:
+	elif selected_node is RoadLane:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
 

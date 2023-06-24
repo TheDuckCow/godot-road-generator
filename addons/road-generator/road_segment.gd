@@ -105,7 +105,7 @@ func check_rebuild():
 		is_dirty = false
 
 
-## Utility to auto generate all lane segments for this road for use by AI.
+## Utility to auto generate all road lanes for this road for use by AI.
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(debug: bool) -> bool:
@@ -114,7 +114,7 @@ func generate_lane_segments(debug: bool) -> bool:
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
 
-	# First identify all segments that will exist.
+	# First identify all road lanes that will exist.
 	var matched_lanes = self._match_lanes()
 	if len(matched_lanes) == 0:
 		return false
@@ -162,13 +162,13 @@ func generate_lane_segments(debug: bool) -> bool:
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
 		var ln_child = null
-		if not is_instance_valid(ln_child) or not ln_child is LaneSegment:
-			ln_child = LaneSegment.new()
+		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
+			ln_child = RoadLane.new()
 			add_child(ln_child)
-		var new_ln:LaneSegment = ln_child
+		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
-		# lane segments later (handled by RoadNetwork).
+		# road lanes later (handled by RoadNetwork).
 		new_ln.lane_prior_tag = this_match[2]
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
@@ -286,23 +286,23 @@ func get_transition_offset(
 	return [start_shift, end_shift]
 
 
-## Returns list of only valid LaneSegments
+## Returns list of only valid RoadLanes
 func get_lanes() -> Array:
 	var lanes = []
 	for ch in self.get_children():
 		if not is_instance_valid(ch):
 			continue
-		elif not ch is LaneSegment:
-			# push_warning("Child of road segment is not a lane segment: %s" % ln.name)
+		elif not ch is RoadLane:
+			# push_warning("Child of RoadSegment is not a RoadLane: %s" % ln.name)
 			continue
 		lanes.append(ch)
 	return lanes
 
 
-## Remove all LaneSegments attached to this RoadSegment
+## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments():
 	for ch in get_children():
-		if ch is LaneSegment:
+		if ch is RoadLane:
 			ch.queue_free()
 
 
@@ -710,8 +710,8 @@ static func quad(st, uvs:Array, pts:Array) -> void:
 ## Returns: Array[
 ##   RoadPoint.LaneType, # To indicate texture, and whether an add/remove.
 ##   RoadPoint.LaneDir, # To indicate which direction the traffic goes.
-##   lane_prior_tag, # Appropriate str for later connecting LaneSegments
-##   lane_next_tag # Appropriate str for later connecting LaneSegments
+##   lane_prior_tag, # Appropriate str for later connecting RoadLanes
+##   lane_next_tag # Appropriate str for later connecting RoadLanes
 ## ]
 func _match_lanes() -> Array:
 	# Check for invalid lane configuration

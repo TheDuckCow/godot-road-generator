@@ -4,7 +4,7 @@
 
 tool # Draw in the editor things like path direction and width
 extends Path
-class_name LaneSegment
+class_name RoadLane
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
@@ -14,8 +14,8 @@ signal on_transform
 export var reverse_direction:bool = false setget _set_direction, _get_direction
 export var lane_left:NodePath # Used to indicate allowed lane changes
 export var lane_right:NodePath # Used to indicate allowed lane changes
-export var lane_next:NodePath # LaneSegment or intersection
-export var lane_prior:NodePath # LaneSegment or intersection
+export var lane_next:NodePath # RoadLane or intersection
+export var lane_prior:NodePath # RoadLane or intersection
 export var draw_in_game = false # Can override to draw if outside the editor
 
 
