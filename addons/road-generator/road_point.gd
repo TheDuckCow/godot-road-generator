@@ -414,6 +414,7 @@ func increment_name(name: String) -> String:
 		new_name += "001"
 	return new_name
 
+
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
 func add_road_point(new_road_point: RoadPoint, pt_init):
 	var points = get_parent()
