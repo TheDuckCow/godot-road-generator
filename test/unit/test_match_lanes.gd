@@ -274,10 +274,10 @@ var one_way_lane_setup = [
 ]
 
 func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
-	var seg = RoadSegment.new(null)
+	var seg = autoqfree(RoadSegment.new(null))
 
-	seg.start_point = RoadPoint.new()
-	seg.end_point = RoadPoint.new()
+	seg.start_point = autoqfree(RoadPoint.new())
+	seg.end_point = autoqfree(RoadPoint.new())
 	seg.start_point.traffic_dir = params[0]
 	seg.end_point.traffic_dir = params[1]
 	seg.start_point.lanes = params[2]
@@ -287,10 +287,10 @@ func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
 	assert_eq(result, target, "Match lanes %s" % params[4])
 
 func test_one_way_lanes_sequence(params=use_parameters(one_way_lane_setup)):
-	var seg = RoadSegment.new(null)
+	var seg = autoqfree(RoadSegment.new(null))
 
-	seg.start_point = RoadPoint.new()
-	seg.end_point = RoadPoint.new()
+	seg.start_point = autoqfree(RoadPoint.new())
+	seg.end_point = autoqfree(RoadPoint.new())
 	seg.start_point.traffic_dir = params[0]
 	seg.end_point.traffic_dir = params[1]
 	seg.start_point.lanes = params[2]

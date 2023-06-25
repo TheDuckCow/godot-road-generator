@@ -3,6 +3,10 @@ tool
 class_name RoadNetwork, "road_segment.png"
 extends Spatial
 
+## Emitted when a road segment has been (re)generated, returning the list
+## of updated segments of type Array.
+signal on_road_updated (updated_segments)
+
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 
@@ -90,6 +94,7 @@ func rebuild_segments(clear_existing=false):
 	# Goal is to loop through all RoadPoints, and check if an existing segment
 	# is there, or needs to be added.
 	var rebuilt = 0
+	var signal_rebuilt = []
 	for obj in get_node(points).get_children():
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
@@ -108,11 +113,17 @@ func rebuild_segments(clear_existing=false):
 		if not prior_pt and not next_pt:
 			push_warning("Road point %s not connected to anything yet" % pt.name)
 			continue
-
+		var res
 		if prior_pt and prior_pt.visible:
-			rebuilt += process_seg(prior_pt, pt)
+			res = _process_seg(prior_pt, pt)
+			if res[0] == true:
+				rebuilt += 1
+				signal_rebuilt.append(res[1])
 		if next_pt and next_pt.visible:
-			rebuilt += process_seg(pt, next_pt)
+			res = _process_seg(pt, next_pt)
+			if res[0] == true:
+				rebuilt += 1
+				signal_rebuilt.append(res[1])
 
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	if generate_ai_lanes:
@@ -121,9 +132,13 @@ func rebuild_segments(clear_existing=false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
+	# Aim to do a single signal emission across the whole network update.
+	emit_signal("on_road_updated", signal_rebuilt)
 
-# Create a new road segment based on input prior and next RoadPoints.
-func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
+
+## Create a new road segment based on input prior and next RoadPoints.
+## Returns Array[was_updated: bool, RoadSegment]
+func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 	# TODO: The id setup below will have issues if a "next" goes into "prior", ie rev dir
 	# but doing this for simplicity now.
 
@@ -131,8 +146,8 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 	if sid in segid_map:
 		if not is_instance_valid(segid_map[sid]):
 			push_error("Instance was not valid on sid: %s" % sid)
-		segid_map[sid].check_rebuild()
-		return 0
+		var was_rebuilt = segid_map[sid].check_rebuild()
+		return [was_rebuilt, segid_map[sid]]
 	else:
 		var new_seg = RoadSegment.new(self)
 		get_node(segments).add_child(new_seg)
@@ -147,7 +162,7 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 			print("Doing road lanes")
 			new_seg.generate_lane_segments(debug)
 
-		return 1
+		return [true, new_seg]
 
 # Update the lane_next and lane_prior connections based on tags assigned.
 #
@@ -225,11 +240,15 @@ func update_debug_paths(point:RoadPoint):
 
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
-func on_point_update(point:RoadPoint, low_poly:bool):
+func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if not auto_refresh:
 		return
 	elif not is_instance_valid(point):
 		return
+
+	var segs_updated = []  # For signal emission
+	var res
+
 	point.validate_junctions(auto_refresh)
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if is_instance_valid(point.prior_seg):
@@ -240,9 +259,14 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 			point.prior_seg.generate_lane_segments(debug)
 		else:
 			point.prior_seg.clear_lane_segments()
+		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
+
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
-		process_seg(prior, point, use_lowpoly)
+		res = _process_seg(prior, point, use_lowpoly)
+		if res[0] == true:
+			segs_updated.append(res[1])  # Track an updated RoadSegment
+
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
@@ -250,11 +274,17 @@ func on_point_update(point:RoadPoint, low_poly:bool):
 		if not use_lowpoly:
 			point.next_seg.generate_lane_segments(debug)
 		else:
-			if point.prior_seg:
-				point.prior_seg.clear_lane_segments()
+			if point.next_seg:
+				point.next_seg.clear_lane_segments()
+		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
-		process_seg(point, next, use_lowpoly)
+		res = _process_seg(point, next, use_lowpoly)
+		if res[0] == true:
+			segs_updated.append(res[1])  # Track an updated RoadSegment
+
+	if len(segs_updated) > 0:
+		emit_signal("on_road_updated", segs_updated)
 
 
 # Callback from a modification of a RoadSegment object.

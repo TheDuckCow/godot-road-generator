@@ -90,13 +90,15 @@ func _init_end_get():
 	return end_init
 
 
-func check_rebuild():
+## Check if needing to be rebuilt.
+## Returns true if rebuild was done, else (including if invalid) false.
+func check_rebuild() -> bool:
 	if is_queued_for_deletion():
-		return
+		return false
 	if not is_instance_valid(network):
-		return
+		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
-		return
+		return false
 	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
 	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
@@ -108,6 +110,8 @@ func check_rebuild():
 	if is_dirty:
 		_rebuild()
 		is_dirty = false
+		return true
+	return false
 
 
 ## Utility to auto generate all road lanes for this road for use by AI.
