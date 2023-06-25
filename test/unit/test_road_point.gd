@@ -16,14 +16,14 @@ func after_all():
 # ------------------------------------------------------------------------------
 
 func test_create_road_point():
-	var pt = RoadPoint.new()
-	pt.queue_free()
+	var _pt = autoqfree(RoadPoint.new())
+	pass_test('nothing tested, passing')
 
 
 var count_params = [1, 2, 3, 4, 5, 6]
 
 func test_auto_lanes_count(params=use_parameters(count_params)):
-	var pt = RoadPoint.new()
+	var pt = autoqfree(RoadPoint.new())
 	pt.traffic_dir = []
 	for _i in range(params):
 		pt.traffic_dir.append(pt.LaneDir.NONE)
@@ -66,7 +66,7 @@ var auto_lane_pairs = [
 ]
 
 func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
-	var pt = RoadPoint.new()
+	var pt = autoqfree(RoadPoint.new())
 
 	pt.traffic_dir = params[0]
 	var target = params[1]
@@ -75,6 +75,7 @@ func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
 
 
 func test_error_no_traffic_dir():
-	var pt = RoadPoint.new()
+	var pt = autoqfree(RoadPoint.new())
 	pt.traffic_dir = []
 	pt.assign_lanes()
+	pass_test('nothing tested, passing')
