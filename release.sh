@@ -32,6 +32,7 @@ VER=$(grep "version=" addons/road-generator/plugin.cfg | awk -F'"' '{print $2}')
 echo "Current version detected:"
 echo $VER
 echo "Is this the correct version to be generating?"
+echo "(if not, exit and edit: addons/road-generator/plugin.cfg)"
 read -p "(Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
 
 echo ""

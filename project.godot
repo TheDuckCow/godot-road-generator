@@ -28,18 +28,12 @@ _global_script_classes=[ {
 "class": "RoadPoint",
 "language": "GDScript",
 "path": "res://addons/road-generator/road_point.gd"
-}, {
-"base": "Spatial",
-"class": "RoadSegment",
-"language": "GDScript",
-"path": "res://addons/road-generator/road_segment.gd"
 } ]
 _global_script_class_icons={
 "GutHookScript": "",
 "LaneSegment": "",
 "RoadNetwork": "res://addons/road-generator/road_segment.png",
-"RoadPoint": "res://addons/road-generator/road_point.png",
-"RoadSegment": "res://addons/road-generator/road_segment.png"
+"RoadPoint": "res://addons/road-generator/road_point.png"
 }
 
 [application]

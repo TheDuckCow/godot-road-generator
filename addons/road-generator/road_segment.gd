@@ -3,7 +3,12 @@
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
 extends Spatial
-class_name RoadSegment, "road_segment.png"
+
+# Disabled, since we don't want users to manually via the UI to add this class.
+#class_name RoadSegment, "road_segment.png"
+#
+# To be able to reference as if a class, place this in any script:
+# const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 
 const LOWPOLY_FACTOR = 3.0
 
