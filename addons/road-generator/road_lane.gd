@@ -16,7 +16,10 @@ export var lane_left:NodePath # Used to indicate allowed lane changes
 export var lane_right:NodePath # Used to indicate allowed lane changes
 export var lane_next:NodePath # RoadLane or intersection
 export var lane_prior:NodePath # RoadLane or intersection
-export var draw_in_game = false # Can override to draw if outside the editor
+
+# Can override to draw if outside the editor
+export var draw_in_game = false setget _set_draw_in_game, _get_draw_in_game
+export var draw_in_editor = false setget _set_draw_in_editor, _get_draw_in_editor
 
 
 # Tags are used help populate the lane_next and lane_prior NodePaths above.
@@ -43,6 +46,8 @@ var refresh_geom = true
 var geom # For tool usage, drawing lane directions and end points
 
 var _vehicles_in_lane = [] # Registration
+var _draw_in_game: bool = false
+var _draw_in_editor: bool = false
 var _display_fins: bool = false
 
 
@@ -51,6 +56,7 @@ func _ready():
 	set_notify_local_transform(true)
 	connect("curve_changed", self, "curve_changed")
 	rebuild_geom()
+	#_instantiate_geom()
 
 
 func _set_direction(value):
@@ -105,7 +111,13 @@ func get_vehicles() -> Array:
 
 
 func _instantiate_geom() -> void:
-	if not _display_fins and (Engine.is_editor_hint() or draw_in_game):
+
+	if Engine.is_editor_hint():
+		_display_fins = _draw_in_editor
+	else:
+		_display_fins = _draw_in_game
+
+	if not _display_fins:
 		if geom:
 			geom.clear()
 		return
@@ -167,7 +179,24 @@ func curve_changed() -> void:
 	rebuild_geom()
 
 
+func _set_draw_in_game(value: bool) -> void:
+	refresh_geom = true
+	_draw_in_game = value
+	rebuild_geom()
+
+func _get_draw_in_game() -> bool:
+	return _draw_in_game
+
+func _set_draw_in_editor(value: bool) -> void:
+	refresh_geom = true
+	_draw_in_editor = value
+	rebuild_geom()
+
+func _get_draw_in_editor() -> bool:
+	return _draw_in_editor
+
+
 func show_fins(value: bool) -> void:
-	_display_fins = value
+	_draw_in_editor = false
 	rebuild_geom()
 

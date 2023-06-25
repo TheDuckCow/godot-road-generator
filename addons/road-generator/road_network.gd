@@ -29,6 +29,11 @@ var segid_map = {}
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(bool) var debug := false
+export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
+export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
+
+var _draw_lanes_editor:bool = false
+var _draw_lanes_game:bool = false
 
 
 func _ready():
@@ -75,6 +80,23 @@ func _set_segments(value):
 	segments = value
 	if auto_refresh:
 		call_deferred("rebuild_segments", true)
+
+
+func _set_draw_lanes_editor(value: bool):
+	_draw_lanes_editor = value
+	call_deferred("rebuild_segments", true)
+
+func _get_draw_lanes_editor() -> bool:
+	return _draw_lanes_editor
+
+func _set_draw_lanes_game(value: bool):
+	_draw_lanes_game = value
+	call_deferred("rebuild_segments", true)
+
+func _get_draw_lanes_game() -> bool:
+	return _draw_lanes_game
+
+
 
 
 func rebuild_segments(clear_existing=false):
@@ -159,8 +181,7 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		new_seg.check_rebuild()
 
 		if generate_ai_lanes:
-			print("Doing road lanes")
-			new_seg.generate_lane_segments(debug)
+			new_seg.generate_lane_segments()
 
 		return [true, new_seg]
 
@@ -256,7 +277,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		if not use_lowpoly:
-			point.prior_seg.generate_lane_segments(debug)
+			point.prior_seg.generate_lane_segments()
 		else:
 			point.prior_seg.clear_lane_segments()
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
@@ -272,7 +293,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		if not use_lowpoly:
-			point.next_seg.generate_lane_segments(debug)
+			point.next_seg.generate_lane_segments()
 		else:
 			if point.next_seg:
 				point.next_seg.clear_lane_segments()

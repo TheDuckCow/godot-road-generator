@@ -116,8 +116,10 @@ func check_rebuild() -> bool:
 
 ## Utility to auto generate all road lanes for this road for use by AI.
 ##
+## debug: No longer used, kept for backwards compatibility.
+##
 ## Returns true if any lanes generated, false if not.
-func generate_lane_segments(debug: bool) -> bool:
+func generate_lane_segments(_debug: bool = false) -> bool:
 	if not is_instance_valid(network):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -216,11 +218,10 @@ func generate_lane_segments(debug: bool) -> bool:
 			curve.get_point_out(1))
 
 		# Visually display.
-		if debug:
-			#new_ln.draw_in_game = true
-			new_ln.show_fins(true)
-		else:
-			new_ln.show_fins(false)
+		new_ln.draw_in_editor = network.draw_lanes_editor
+		new_ln.draw_in_game = network.draw_lanes_game
+		new_ln.refresh_geom = true
+		new_ln.rebuild_geom()
 
 		# Update lane connectedness for left/right lane connections.
 		if not last_ln == null and last_ln.reverse_direction == new_ln.reverse_direction:
