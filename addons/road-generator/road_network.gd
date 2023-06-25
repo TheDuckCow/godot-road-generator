@@ -144,7 +144,7 @@ func process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> int:
 		new_seg.check_rebuild()
 
 		if generate_ai_lanes:
-			print("Doing lane segments")
+			print("Doing road lanes")
 			new_seg.generate_lane_segments(debug)
 
 		return 1
