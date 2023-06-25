@@ -14,6 +14,8 @@
 
 extends "res://addons/gut/test.gd"
 
+const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+
 var auto_lane_setup = [
 	[
 		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],

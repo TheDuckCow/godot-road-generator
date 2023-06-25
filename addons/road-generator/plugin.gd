@@ -5,6 +5,8 @@ extends EditorPlugin
 const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 
+const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
 var _road_toolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn").instance()
@@ -23,8 +25,10 @@ func _enter_tree():
 	_eds.connect("selection_changed", road_point_gizmo, "on_selection_changed")
 	connect("scene_changed", self, "_on_scene_changed")
 	connect("scene_closed", self, "_on_scene_closed")
-	add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
-	add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
+
+	# Don't add the following, as they would result in repeast in the UI.
+	#add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
+	#add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
 	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
@@ -36,8 +40,10 @@ func _exit_tree():
 	_road_toolbar.queue_free()
 	remove_spatial_gizmo_plugin(road_point_gizmo)
 	remove_inspector_plugin(road_point_editor)
-	remove_custom_type("RoadPoint")
-	remove_custom_type("RoadNetwork")
+
+	# Don't add the following, as they would result in repeast in the UI.
+	#remove_custom_type("RoadPoint")
+	#remove_custom_type("RoadNetwork")
 	#remove_custom_type("RoadLane")
 
 
