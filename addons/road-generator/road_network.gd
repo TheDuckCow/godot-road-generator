@@ -3,8 +3,8 @@ tool
 class_name RoadNetwork, "road_segment.png"
 extends Spatial
 
-#const RoadPoint = preload("res://addons/road-generator/road_point.gd")
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
+const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 
 export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
 export(Material) var material_resource:Material setget _set_material
