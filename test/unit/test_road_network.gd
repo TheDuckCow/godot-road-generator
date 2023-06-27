@@ -61,17 +61,34 @@ func test_road_network_create():
 
 func test_on_road_updated_single_segment():
 	var network = add_child_autofree(RoadNetwork.new())
-	watch_signals(network)
+	network.auto_refresh = false
 
 	create_oneseg_network(network)
 
 	# Now trigger the update, to see that a single segment was made
+	watch_signals(network)
 	network.rebuild_segments()
 	var res = get_signal_parameters(network, 'on_road_updated')
-	print_debug(res)
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")
+
+
+## Ensure that users can manually assign two points to connect with auto_refresh
+func test_roadnetwork_validations_with_autorefresh():
+	var network = add_child_autofree(RoadNetwork.new())
+	network.auto_refresh = true  # Will kick in validation
+
+	create_oneseg_network(network)
+
+	# Now trigger the update, to see that a single segment was made
+	watch_signals(network)
+	network.rebuild_segments()
+	var res = get_signal_parameters(network, 'on_road_updated')
+	var segments_updated = res[0]
+	assert_eq(len(segments_updated), 1, "Single segment created")
+	assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")
+
 
 func test_on_road_updated_pt_transform():
 	pending('Implement test which asserts on_road_updated called on RoadPoint transform')

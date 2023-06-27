@@ -112,21 +112,23 @@ func _set_draw_lanes_editor(value: bool):
 	_draw_lanes_editor = value
 	call_deferred("rebuild_segments", true)
 
+
 func _get_draw_lanes_editor() -> bool:
 	return _draw_lanes_editor
+
 
 func _set_draw_lanes_game(value: bool):
 	_draw_lanes_game = value
 	call_deferred("rebuild_segments", true)
 
+
 func _get_draw_lanes_game() -> bool:
 	return _draw_lanes_game
 
 
-
-
 func rebuild_segments(clear_existing=false):
-	# print("Rebuilding segments")
+	if debug:
+		print("Rebuilding RoadSegments")
 	if not get_node(segments) or not is_instance_valid(get_node(segments)):
 		push_error("Segments node path not found")
 		return # Could be before ready called.
