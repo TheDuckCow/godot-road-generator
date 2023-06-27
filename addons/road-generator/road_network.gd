@@ -10,7 +10,7 @@ signal on_road_updated (updated_segments)
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 
-export(bool) var auto_refresh = true setget _ui_refresh_set, _ui_refresh_get
+export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
 
 export(float) var density:float = 0.5  setget _set_density # Mesh density of generated segments.
@@ -36,49 +36,75 @@ var _draw_lanes_editor:bool = false
 var _draw_lanes_game:bool = false
 
 
+# Flag used to defer calls to setup_road_network via _dirty_rebuild_deferred,
+# important during scene startup whereby class properties are called in
+# succession during scene init and otherwise would lead to duplicate calls.
+var _dirty:bool = false
+
+
 func _ready():
 	# setup_road_network won't work in _ready unless call_deferred is used
 	call_deferred("setup_road_network")
-	call_deferred("rebuild_segments", true)
+
+	# Per below, this is technicaly redundant/not really doing anything.
+	_dirty = true
+	call_deferred("_dirty_rebuild_deferred")
+
+	# If we call this now, it will end up generating roads twice.
+	#rebuild_segments(true)
+	# This is due, evidently, to godot loading the scene in such a way where
+	# it actually sets the value to each property and thus also trigger its
+	# setget, and result in calling _dirty_rebuild_deferred. Class properties
+	# are assigned, thus triggering functions like _set_density, before the
+	# _ready function is ever called. Thus by the time _ready is happening,
+	# the _dirty flag is already set.
 
 
 func _ui_refresh_set(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	auto_refresh = value
-	if auto_refresh:
-		call_deferred("rebuild_segments", true)
-
-
-func _ui_refresh_get():
-	return auto_refresh
 
 
 func _set_gen_ai_lanes(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	generate_ai_lanes = value
-	if auto_refresh:
-		call_deferred("rebuild_segments", true)
 
 
 func _set_density(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	density = value
-	if auto_refresh:
-		call_deferred("rebuild_segments", true)
 
 
 func _set_material(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	material_resource = value
-	if auto_refresh:
-		call_deferred("rebuild_segments", true)
 
 
 func _set_points(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	points = value
-	if auto_refresh:
-		call_deferred("rebuild_segments", true)
 
 
 func _set_segments(value):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
 	segments = value
-	if auto_refresh:
+
+
+func _dirty_rebuild_deferred():
+	if _dirty:
+		_dirty = false
 		call_deferred("rebuild_segments", true)
 
 
