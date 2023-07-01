@@ -52,7 +52,7 @@ func _ready():
 
 
 ## Unique identifier for a segment based on what its connected to.
-func get_id():
+func get_id() -> String:
 	# TODO: consider changing so that the smaller resource id is first,
 	# so that we avoid bidirectional issues.
 	if start_point and end_point:

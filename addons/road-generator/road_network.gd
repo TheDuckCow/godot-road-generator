@@ -186,6 +186,22 @@ func rebuild_segments(clear_existing=false):
 	emit_signal("on_road_updated", signal_rebuilt)
 
 
+## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
+func remove_segment(seg:RoadSegment) -> void:
+	if not seg or not is_instance_valid(seg):
+		print("What is seg now?, ", seg)
+		push_warning("RoadSegment is invalid, cannot remove")
+		print("Did NOT signal for the removal here", seg)
+		return
+	var id := seg.get_id()
+	seg.queue_free()
+	segid_map.erase(id)
+	
+	# If this function is triggered by during an onpoint update (such as
+	# setting next_pt_init to ""), then this would be a repeat signal call.
+	#emit_signal("on_road_updated", [])
+
+
 ## Create a new road segment based on input prior and next RoadPoints.
 ## Returns Array[was_updated: bool, RoadSegment]
 func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
@@ -333,6 +349,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 			segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if len(segs_updated) > 0:
+		if self.debug:
+			print_debug("Road segs rebuilt: ", len(segs_updated))
 		emit_signal("on_road_updated", segs_updated)
 
 
