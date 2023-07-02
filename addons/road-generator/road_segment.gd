@@ -176,6 +176,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
+			ln_child.add_to_group(network.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other

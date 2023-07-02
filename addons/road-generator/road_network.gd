@@ -28,6 +28,8 @@ export(NodePath) var debug_next
 var segid_map = {}
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
+export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+
 export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
@@ -67,11 +69,18 @@ func _ui_refresh_set(value):
 	auto_refresh = value
 
 
-func _set_gen_ai_lanes(value):
+func _set_gen_ai_lanes(value: bool):
 	if auto_refresh and not _dirty:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
 	generate_ai_lanes = value
+
+
+func _set_ai_lane_group(value: String):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
+	ai_lane_group = value
 
 
 func _set_density(value):
@@ -196,7 +205,7 @@ func remove_segment(seg:RoadSegment) -> void:
 	var id := seg.get_id()
 	seg.queue_free()
 	segid_map.erase(id)
-	
+
 	# If this function is triggered by during an onpoint update (such as
 	# setting next_pt_init to ""), then this would be a repeat signal call.
 	#emit_signal("on_road_updated", [])
