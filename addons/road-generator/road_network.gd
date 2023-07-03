@@ -64,7 +64,7 @@ func _ready():
 
 
 func _ui_refresh_set(value):
-	if auto_refresh and not _dirty:
+	if value and not _dirty:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
 	auto_refresh = value
