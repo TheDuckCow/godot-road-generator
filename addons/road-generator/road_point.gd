@@ -178,24 +178,44 @@ func _set_profile(value:Vector2):
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
 	on_transform()
+
+
 func _get_profile():
 	return gutter_profile
 
 
-func _set_prior_pt(value):
+func _set_prior_pt(value:NodePath):
+	var _pre_assign = prior_pt_init
 	prior_pt_init = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
+
+	# Attempt an auto fix to ensure dependencies are updated. This should happen
+	# even if auto_refresh is off, since we want to make sure the network static
+	# data is always in a good state *ready* for the next refresh
+	_autofix_noncyclic_references(_pre_assign, value, true)
+
 	on_transform()
+
+
 func _get_prior_pt():
 	return prior_pt_init
 
 
-func _set_next_pt(value):
+func _set_next_pt(value:NodePath):
+	var _pre_assign = next_pt_init
 	next_pt_init = value
 	if not is_instance_valid(network):
 		return  # Might not be initialized yet.
+
+	# Attempt an auto fix to ensure dependencies are updated. This should happen
+	# even if auto_refresh is off, since we want to make sure the network static
+	# data is always in a good state *ready* for the next refresh
+	_autofix_noncyclic_references(_pre_assign, value, false)
+
 	on_transform()
+
+
 func _get_next_pt():
 	return next_pt_init
 
@@ -488,8 +508,10 @@ func validate_junctions(auto_refresh: bool):
 			next_pt_init = null
 
 
-## Evaluates INPUT RoadPoint's prior/next_pt_inits. Returns true if at least
-## one of them references THIS RoadPoint. Otherwise, returns false.
+## Evaluates INPUT RoadPoint's prior/next_pt_inits.
+##
+## Returns true if at least one of them references THIS RoadPoint, or if both
+## are empty. Otherwise, returns false.
 func _is_junction_valid(point: RoadPoint)->bool:
 	var prior_point: RoadPoint
 	var next_point: RoadPoint
@@ -508,3 +530,75 @@ func _is_junction_valid(point: RoadPoint)->bool:
 		if next_point == self:
 			return true
 	return false
+
+## If one RoadPoint references the other, but not the other way around,
+## but itself has an empty slot in the right "orientation", then we assume
+## that the user is manually connecting these two points, and we should finish
+## the reference by making the reference bidirectional.
+##
+## Args:
+##   old_point_path: The currently connected RoadPoint (as a NodePath)
+##   new_point_path: The to-be connected RoadPoint (as a NodePath)
+##   for_prior: If true, indicates the new+old are both the prior_pt_init for
+##     self; if false, then presume these are both the next_pt_init.
+##
+## Returns true if any updates made, false if nothing changed.
+func _autofix_noncyclic_references(
+		old_point_path: NodePath,
+		new_point_path: NodePath,
+		for_prior: bool) -> void:
+	var init_refresh = network.auto_refresh
+	var point:RoadPoint
+	var is_clearing: bool # clearing value vs setting new path.
+
+	if new_point_path != "":
+		# Use the just recently set value.
+		is_clearing = false
+		point = get_node(new_point_path)
+	else:
+		# we are in clearing mode, so use the value that was just overwritten
+		is_clearing = true
+		point = get_node(old_point_path)
+
+	if not is_instance_valid(point):
+		# Shouldn't get to this branch, we check valid upstream first!
+		push_warning("Instance not valid on point for cyclic check")
+		return
+
+	network.auto_refresh = false
+
+	if is_clearing:
+		# Scenario where the user is attempting to CLEAR the _pt_init
+		# Therefore, we want to clear the new path instead.
+		# Key detail: this new point_path value has *not* yet been assigned,
+		# so we can still read self.next_pt_init
+		var seg  # RoadSegment.
+		if for_prior:
+			point.next_pt_init = ""
+			seg = self.prior_seg
+		else:
+			point.prior_pt_init = ""
+			seg = self.next_seg
+		network.remove_segment(seg)
+
+	elif for_prior and point.next_pt_init == "":
+		# self's prior RP is `point`, so make point's next RP be self if slot was empty
+		point.next_pt_init = point.get_path_to(self)
+		#print_debug(point.get_path_to(self), " -> ", point.next_pt_init)
+	elif not for_prior and point.prior_pt_init == "":
+		# Flipped scenario
+		point.prior_pt_init = point.get_path_to(self)
+		#print_debug(point.get_path_to(self), " -> ", point.prior_pt_init)
+	else:
+		if network and is_instance_valid(network) and network.debug:
+			print_debug("Cannot auto-fix cyclic reference")
+
+	# This would ordinarily actually trigger a full rebuild, which
+	# would not be great, as this sets the dirty flag for rebuilding all.
+	# Hacky solution: by setting to false the dirty flag and unsetting, we skip
+	# the internal call_deferred to rebuild. But not good to depend on this,
+	# sine the implementation could change technically.
+	# TODO: Implement better solution not depending on self-internals.
+	network._dirty = true
+	network.auto_refresh = init_refresh
+	network._dirty = false

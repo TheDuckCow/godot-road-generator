@@ -298,3 +298,4 @@ func test_one_way_lanes_sequence(params=use_parameters(one_way_lane_setup)):
 	var target = params[3]
 	var result = seg._match_lanes()
 	assert_eq(result, target, "Match one-way %s" % params[4])
+

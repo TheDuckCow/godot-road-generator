@@ -52,7 +52,7 @@ func _ready():
 
 
 ## Unique identifier for a segment based on what its connected to.
-func get_id():
+func get_id() -> String:
 	# TODO: consider changing so that the smaller resource id is first,
 	# so that we avoid bidirectional issues.
 	if start_point and end_point:
@@ -176,6 +176,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
+			ln_child.add_to_group(network.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other

@@ -15,6 +15,29 @@ func after_all():
 
 # ------------------------------------------------------------------------------
 
+
+## Utility to create a single segment network (2 points)
+func create_unconnected_network(network) -> Array:
+	network.setup_road_network()
+	var points = network.get_node(network.points)
+	var segments = network.get_node(network.segments)
+
+	assert_eq(points.get_child_count(), 0, "No initial point children")
+	assert_eq(segments.get_child_count(), 0, "No initial segment children")
+
+	var p1 = autoqfree(RoadPoint.new())
+	var p2 = autoqfree(RoadPoint.new())
+
+	points.add_child(p1)
+	points.add_child(p2)
+	assert_eq(points.get_child_count(), 2, "Both RPs added")
+
+	return [p1, p2]
+
+
+# ------------------------------------------------------------------------------
+
+
 func test_create_road_point():
 	var _pt = autoqfree(RoadPoint.new())
 	pass_test('nothing tested, passing')
@@ -79,3 +102,94 @@ func test_error_no_traffic_dir():
 	pt.traffic_dir = []
 	pt.assign_lanes()
 	pass_test('nothing tested, passing')
+
+
+func test_autofix_noncyclic_added_next():
+	var network = add_child_autofree(RoadNetwork.new())
+	network.auto_refresh = false
+
+	var points = create_unconnected_network(network)
+	var p1 = points[0]
+	var p2 = points[1]
+
+	network.auto_refresh = true
+	watch_signals(network)
+
+	# The change which should trigger an auto path fix and thus a signal
+	p1.next_pt_init = p1.get_path_to(p2)
+
+	# Validate that the road segment was generated (based on signal emission)
+	var res = get_signal_parameters(network, 'on_road_updated')
+	if res == null:
+		fail_test("No signal emitted at all to fetch")
+	else:
+		var segments_updated = res[0]
+		assert_eq(len(segments_updated), 1, "Single segment created")
+		assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")
+
+	# Validate the other connection is there too now.
+	var expected_p2_prior = p2.get_path_to(p1)
+	assert_eq(p2.prior_pt_init, expected_p2_prior, "Check reverse connection made")
+
+
+func test_junction_validate_init_path_just_removed():
+	var network = add_child_autofree(RoadNetwork.new())
+	network.auto_refresh = false
+
+	var points = create_unconnected_network(network)
+	var p1 = points[0]
+	var p2 = points[1]
+
+	# The change which should trigger an auto path fix and thus a signal
+	p1.next_pt_init = p1.get_path_to(p2)
+	p2.prior_pt_init = p2.get_path_to(p1)
+
+	# Trigger build.
+	network.auto_refresh = true
+	network.rebuild_segments(true)
+
+	# should have a child segment now, TODO assert this.
+	watch_signals(network)
+
+	# The main test line: ie clear it out during auto refresh.
+	# Should trigger _autofix_noncyclic_references.
+	p1.next_pt_init = ""
+
+	# Validate that the road segment was deleted
+	# No args to parse, so only removal
+	assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")
+
+	var ref_path:NodePath = ""
+	assert_eq(p1.next_pt_init, ref_path, "P1's next should have stayed cleared")
+	assert_eq(p2.prior_pt_init, ref_path, "P2's prior point should be cleared")
+
+
+func test_on_road_updated_pt_transform():
+	var network = add_child_autofree(RoadNetwork.new())
+	network.auto_refresh = false
+
+	var points = create_unconnected_network(network)
+	var p1 = points[0]
+	var p2 = points[1]
+
+	# Connect the two together
+	p1.next_pt_init = p1.get_path_to(p2)
+	p2.prior_pt_init = p2.get_path_to(p1)
+
+	network.auto_refresh = true
+	# should have a child segment now, TODO assert this.
+	watch_signals(network)
+
+	# Trigger a transform equivalent to moving the point in the viewport.
+	# Changing global_transform doesn't work since it checks for editor,
+	# so we need to directly call the on_transform function.
+	p1.on_transform()
+
+	# Validate that the road segment was generated (based on signal emission)
+	var res = get_signal_parameters(network, 'on_road_updated')
+	if res == null:
+		fail_test("No signal emitted at all to fetch")
+	else:
+		var segments_updated = res[0]
+		assert_eq(len(segments_updated), 1, "Single segment created")
+		assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")

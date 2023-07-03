@@ -1,5 +1,8 @@
 extends "res://addons/gut/test.gd"
 
+const RoadUtils = preload("res://test/unit/road_utils.gd")
+onready var road_util := RoadUtils.new()
+
 
 func before_each():
 	gut.p("ran setup", 2)
@@ -12,6 +15,9 @@ func before_all():
 
 func after_all():
 	gut.p("ran run teardown", 2)
+
+
+# ------------------------------------------------------------------------------
 
 
 ## Utility to create a single segment network (2 points)
@@ -35,6 +41,7 @@ func create_oneseg_network(network):
 
 
 # ------------------------------------------------------------------------------
+
 
 func test_road_network_create():
 	var network = autoqfree(RoadNetwork.new())
@@ -88,9 +95,3 @@ func test_roadnetwork_validations_with_autorefresh():
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(network, "on_road_updated", 1, "One signal call")
-
-
-func test_on_road_updated_pt_transform():
-	pending('Implement test which asserts on_road_updated called on RoadPoint transform')
-
-

@@ -28,6 +28,8 @@ export(NodePath) var debug_next
 var segid_map = {}
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
+export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+
 export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
@@ -67,11 +69,18 @@ func _ui_refresh_set(value):
 	auto_refresh = value
 
 
-func _set_gen_ai_lanes(value):
+func _set_gen_ai_lanes(value: bool):
 	if auto_refresh and not _dirty:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
 	generate_ai_lanes = value
+
+
+func _set_ai_lane_group(value: String):
+	if auto_refresh and not _dirty:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
+	ai_lane_group = value
 
 
 func _set_density(value):
@@ -184,6 +193,22 @@ func rebuild_segments(clear_existing=false):
 
 	# Aim to do a single signal emission across the whole network update.
 	emit_signal("on_road_updated", signal_rebuilt)
+
+
+## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
+func remove_segment(seg:RoadSegment) -> void:
+	if not seg or not is_instance_valid(seg):
+		print("What is seg now?, ", seg)
+		push_warning("RoadSegment is invalid, cannot remove")
+		print("Did NOT signal for the removal here", seg)
+		return
+	var id := seg.get_id()
+	seg.queue_free()
+	segid_map.erase(id)
+
+	# If this function is triggered by during an onpoint update (such as
+	# setting next_pt_init to ""), then this would be a repeat signal call.
+	#emit_signal("on_road_updated", [])
 
 
 ## Create a new road segment based on input prior and next RoadPoints.
@@ -333,6 +358,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 			segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if len(segs_updated) > 0:
+		if self.debug:
+			print_debug("Road segs rebuilt: ", len(segs_updated))
 		emit_signal("on_road_updated", segs_updated)
 
 
