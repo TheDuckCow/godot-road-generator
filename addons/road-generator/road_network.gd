@@ -13,7 +13,7 @@ const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
 
-export(float) var density:float = 0.5  setget _set_density # Mesh density of generated segments.
+export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
 # UI-selectable points and segments
