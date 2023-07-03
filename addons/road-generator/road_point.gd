@@ -536,8 +536,11 @@ func _is_junction_valid(point: RoadPoint)->bool:
 ## that the user is manually connecting these two points, and we should finish
 ## the reference by making the reference bidirectional.
 ##
-## TODO: Technically need to understand the case whereby someone is trying
-## to *clear* the reference to another roadpoint.
+## Args:
+##   old_point_path: The currently connected RoadPoint (as a NodePath)
+##   new_point_path: The to-be connected RoadPoint (as a NodePath)
+##   for_prior: If true, indicates the new+old are both the prior_pt_init for
+##     self; if false, then presume these are both the next_pt_init.
 ##
 ## Returns true if any updates made, false if nothing changed.
 func _autofix_noncyclic_references(
