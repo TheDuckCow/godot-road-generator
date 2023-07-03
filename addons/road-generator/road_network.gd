@@ -4,7 +4,8 @@ class_name RoadNetwork, "road_segment.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
-## of updated segments of type Array.
+## of updated segments of type Array. Will also trigger on segments deleted,
+## which will contain a list of nothing.
 signal on_road_updated (updated_segments)
 
 const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
