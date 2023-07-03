@@ -369,6 +369,14 @@ func _update_curve():
 ## Returns: Normalized Vector3
 func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
+	return _normal_for_offset_nonsmoothed(curve, sample_position)
+	# return _normal_for_offset_current(curve, sample_position)
+
+func _normal_for_offset_current(curve: Curve3D, sample_position: float) -> Vector3:
+
+	# TOOD: See about ensuring width is strictly always lane width and not
+	# made less or more during curvey parts of road (even if that means
+	# resulting in overlapping meshes).
 	var loop_point: Transform
 	var smooth_amount: float = -1.5
 	var interp_amount: float = ease(sample_position, smooth_amount)
@@ -377,6 +385,29 @@ func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	loop_point.basis = start_point.global_transform.basis
 	loop_point.basis = loop_point.interpolate_with(end_point.global_transform.basis, interp_amount).basis
 	return loop_point.basis.x
+
+
+func _normal_for_offset_nonsmoothed(curve: Curve3D, sample_position: float) -> Vector3:
+	var offset_amount = 0.1 # maybe base it on lane width..?
+	var start_offset: float
+	var end_offset: float
+	if sample_position >= 1.0 - offset_amount * 0.5:
+		start_offset = sample_position - offset_amount
+		end_offset = sample_position
+	elif sample_position <= 0.0 + offset_amount:
+		start_offset = sample_position
+		end_offset = sample_position + offset_amount
+	else:
+		start_offset = sample_position - offset_amount * 0.5
+		end_offset = sample_position + offset_amount * 0.5
+
+	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
+	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
+	var fwd_vec := pt2 - pt1
+	var tilt = curve.interpolate_baked_up_vector(sample_position)
+	var normal = tilt.cross(fwd_vec)
+	return normal.normalized()
+
 
 
 func _build_geo():
