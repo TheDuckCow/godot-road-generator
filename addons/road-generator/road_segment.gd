@@ -29,7 +29,10 @@ var network # The managing network node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
-var smooth_amount := -1.5  # Ease in/out smooth, used with ease built function
+
+# Reference:
+# https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
+var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
 
 func _init(_network):
@@ -370,16 +373,17 @@ func _update_curve():
 ## Returns: Normalized Vector3
 func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
-	return _normal_for_offset_nonsmoothed(curve, sample_position)
-	# return _normal_for_offset_current(curve, sample_position)
+	return _normal_for_offset_eased(curve, sample_position)
+	# return _normal_for_offset_legacy(curve, sample_position)
 
-func _normal_for_offset_current(curve: Curve3D, sample_position: float) -> Vector3:
+func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector3:
 
 	# TOOD: See about ensuring width is strictly always lane width and not
 	# made less or more during curvey parts of road (even if that means
 	# resulting in overlapping meshes).
 	var loop_point: Transform
-	var interp_amount: float = ease(sample_position, smooth_amount)
+	var _smooth_amount := -1.5
+	var interp_amount: float = ease(sample_position, _smooth_amount)
 
 	# Calculate loop transform
 	loop_point.basis = start_point.global_transform.basis
@@ -387,7 +391,7 @@ func _normal_for_offset_current(curve: Curve3D, sample_position: float) -> Vecto
 	return loop_point.basis.x
 
 
-func _normal_for_offset_nonsmoothed(curve: Curve3D, sample_position: float) -> Vector3:
+func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
 	var offset_amount = 0.002 # maybe base it on lane width..?
 	var start_offset: float
 	var end_offset: float
