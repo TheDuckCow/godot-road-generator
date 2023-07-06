@@ -388,24 +388,22 @@ func _normal_for_offset_current(curve: Curve3D, sample_position: float) -> Vecto
 
 
 func _normal_for_offset_nonsmoothed(curve: Curve3D, sample_position: float) -> Vector3:
-	var offset_amount = 0.1 # maybe base it on lane width..?
+	var offset_amount = 0.002 # maybe base it on lane width..?
 	var start_offset: float
 	var end_offset: float
-	if sample_position >= 1.0 - offset_amount * 0.5:
-		start_offset = sample_position - offset_amount
-		end_offset = sample_position
-	elif sample_position <= 0.0 + offset_amount:
-		start_offset = sample_position
-		end_offset = sample_position + offset_amount
+	if sample_position <= 0.0 + offset_amount:
+		return start_point.global_transform.basis.x
+	elif sample_position >= 1.0 - offset_amount * 0.5:
+		return end_point.global_transform.basis.x
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
 	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var fwd_vec := pt2 - pt1
-	var tilt = curve.interpolate_baked_up_vector(sample_position)
-	var normal = tilt.cross(fwd_vec)
+	var tangent := pt2 - pt1
+	var up_vec = curve.interpolate_baked_up_vector(sample_position)
+	var normal = up_vec.cross(tangent)
 	return normal.normalized()
 
 
