@@ -29,6 +29,7 @@ var network # The managing network node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
+var smooth_amount := -1.5  # Ease in/out smooth, used with ease built function
 
 
 func _init(_network):
@@ -351,13 +352,13 @@ func _update_curve():
 	var pos = to_local(start_point.global_transform.origin)
 	var handle = start_point.global_transform.basis.z * start_point.next_mag
 	curve.add_point(pos, -handle, handle)
-	curve.set_point_tilt(0, start_point.rotation.z)
+	# curve.set_point_tilt(0, start_point.rotation.z)  # Doing custom interpolation
 
 	# Out handle.
 	pos = to_local(end_point.global_transform.origin)
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
 	curve.add_point(pos, -handle, handle)
-	curve.set_point_tilt(1, end_point.rotation.z)
+	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation
 
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates
@@ -378,7 +379,6 @@ func _normal_for_offset_current(curve: Curve3D, sample_position: float) -> Vecto
 	# made less or more during curvey parts of road (even if that means
 	# resulting in overlapping meshes).
 	var loop_point: Transform
-	var smooth_amount: float = -1.5
 	var interp_amount: float = ease(sample_position, smooth_amount)
 
 	# Calculate loop transform
@@ -402,7 +402,11 @@ func _normal_for_offset_nonsmoothed(curve: Curve3D, sample_position: float) -> V
 	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
 	var tangent := pt2 - pt1
-	var up_vec = curve.interpolate_baked_up_vector(sample_position)
+	var sample_eased = ease(sample_position, smooth_amount)
+	var up_vec:Vector3 = lerp(
+		start_point.global_transform.basis.y,
+		end_point.global_transform.basis.y,
+		sample_position)
 	var normal = up_vec.cross(tangent)
 	return normal.normalized()
 
@@ -483,6 +487,10 @@ func _insert_geo_loop(
 	var offset_s = float(loop) / float(loops)
 	var offset_e = float(loop + 1) / float(loops)
 
+	# Apply ease in and out across all attributes.
+	var offset_s_ease = ease(offset_s, smooth_amount)
+	var offset_e_ease = ease(offset_e, smooth_amount)
+
 	#if len(start_point.lanes) == len(end_point.lanes):
 	var start_loop:Vector3
 	var start_basis:Vector3
@@ -498,12 +506,12 @@ func _insert_geo_loop(
 	#])
 
 	# Calculate lane widths
-	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s)
-	var near_add_width = lerp(0, end_point.lane_width, offset_s)
-	var near_rem_width = lerp(start_point.lane_width, 0, offset_s)
-	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e)
-	var far_add_width = lerp(0, end_point.lane_width, offset_e)
-	var far_rem_width = lerp(start_point.lane_width, 0, offset_e)
+	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s_ease)
+	var near_add_width = lerp(0, end_point.lane_width, offset_s_ease)
+	var near_rem_width = lerp(start_point.lane_width, 0, offset_s_ease)
+	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e_ease)
+	var far_add_width = lerp(0, end_point.lane_width, offset_e_ease)
+	var far_rem_width = lerp(start_point.lane_width, 0, offset_e_ease)
 
 	# Sum the lane widths and get position of left edge
 	var near_width_offset
@@ -512,12 +520,12 @@ func _insert_geo_loop(
 	near_width_offset = -lerp(
 			len(start_point.lanes) * start_point.lane_width,
 			len(end_point.lanes) * end_point.lane_width,
-			offset_s
+			offset_s_ease
 	) / 2.0
 	far_width_offset = -lerp(
 			len(start_point.lanes) * start_point.lane_width,
 			len(end_point.lanes) * end_point.lane_width,
-			offset_e
+			offset_e_ease
 	) / 2.0
 
 	for i in range(lane_count):
