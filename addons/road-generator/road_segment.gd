@@ -376,11 +376,9 @@ func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	return _normal_for_offset_eased(curve, sample_position)
 	# return _normal_for_offset_legacy(curve, sample_position)
 
-func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector3:
 
-	# TOOD: See about ensuring width is strictly always lane width and not
-	# made less or more during curvey parts of road (even if that means
-	# resulting in overlapping meshes).
+## Alternate method which doesn't guarentee consistent lane width.
+func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector3:
 	var loop_point: Transform
 	var _smooth_amount := -1.5
 	var interp_amount: float = ease(sample_position, _smooth_amount)
@@ -391,8 +389,9 @@ func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector
 	return loop_point.basis.x
 
 
+## Enforce consistent lane width, at the cost of overlapping geometry.
 func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
-	var offset_amount = 0.002 # maybe base it on lane width..?
+	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
@@ -413,7 +412,6 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 		sample_position)
 	var normal = up_vec.cross(tangent)
 	return normal.normalized()
-
 
 
 func _build_geo():
