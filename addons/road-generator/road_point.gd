@@ -413,7 +413,10 @@ func copy_settings_from(ref_road_point: RoadPoint) -> void:
 
 
 ## Returns true if RoadPoint is primary selection in Scene panel
-func is_road_point_selected(editor_selection: EditorSelection) -> bool:
+##
+## input: of type EditorSelection, but cannot type as this class is not
+##        available at time of export.
+func is_road_point_selected(editor_selection) -> bool:
 	var selected := false
 	var sel_nodes = editor_selection.get_selected_nodes()
 	if sel_nodes.size() == 1:

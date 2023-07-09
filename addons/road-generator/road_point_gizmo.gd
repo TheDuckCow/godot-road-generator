@@ -14,7 +14,7 @@ const GizmoBlueHandle := preload("res://addons/road-generator/gizmo_blue_handle.
 const LaneOffset := 0.25
 
 var _editor_plugin: EditorPlugin
-var _editor_selection: EditorSelection
+var _editor_selection  # Of type: EditorSelection, but can't type due to exports.
 # Either value, or null if not mid action (magnitude handle mid action).
 var init_handle
 var collider := CubeMesh.new()
