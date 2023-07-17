@@ -100,6 +100,10 @@ func _show_road_toolbar() -> void:
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 		_road_toolbar.create_menu.connect(
+			"regenerate_pressed", self, "_on_regenerate_pressed")
+		_road_toolbar.create_menu.connect(
+			"select_network_pressed", self, "_on_select_network_pressed")
+		_road_toolbar.create_menu.connect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 
@@ -110,27 +114,41 @@ func _hide_road_toolbar() -> void:
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 
-## Adds a 2x2 RoadSegment to the Scene
-func _create_2x2_road_pressed():
-	var undo_redo = get_undo_redo()
+func get_network_from_selection():
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
-
 	var t_network = null
 
 	if not is_instance_valid(selected_node):
 		push_error("Invalid selection to add road segment")
 		return
 	if selected_node is RoadNetwork:
-		t_network = selected_node
+		return selected_node
 	elif selected_node is RoadPoint:
 		if is_instance_valid(selected_node.network):
-			t_network = selected_node.network
+			return selected_node.network
 		else:
 			push_error("Invalid network for roadpoint")
 			return
 	else:
 		push_error("Invalid selection for adding new road segments")
 		return
+
+
+func _on_regenerate_pressed():
+	var t_network = get_network_from_selection()
+	t_network.rebuild_segments(true)
+
+
+func _on_select_network_pressed():
+	var t_network = get_network_from_selection()
+	_edi.get_selection().clear()
+	_edi.get_selection().add_node(t_network)
+
+
+## Adds a 2x2 RoadSegment to the Scene
+func _create_2x2_road_pressed():
+	var undo_redo = get_undo_redo()
+	var t_network = get_network_from_selection()
 
 	if t_network == null:
 		push_error("Could not get RoadNetwork object")
