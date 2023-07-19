@@ -111,7 +111,12 @@ func _hide_road_toolbar() -> void:
 	if _road_toolbar.get_parent():
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 		_road_toolbar.create_menu.disconnect(
+			"regenerate_pressed", self, "_on_regenerate_pressed")
+		_road_toolbar.create_menu.disconnect(
+			"select_network_pressed", self, "_on_select_network_pressed")
+		_road_toolbar.create_menu.disconnect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
+
 
 
 func get_network_from_selection():
