@@ -100,8 +100,8 @@ func _ready():
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
-	if not network:
-		network = get_parent().get_parent()
+	if not network or not is_instance_valid(network):
+		network = get_parent()
 
 	connect("on_transform", network, "on_point_update")
 
@@ -440,13 +440,12 @@ func increment_name(name: String) -> String:
 
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
 func add_road_point(new_road_point: RoadPoint, pt_init):
-	var points = get_parent()
-	points.add_child(new_road_point, true)
+	network.add_child(new_road_point, true)
 	new_road_point.copy_settings_from(self)
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
-	new_road_point.owner = points.owner
+	new_road_point.set_owner(network.owner)
 
 	var refresh = network.auto_refresh
 	network.auto_refresh = false

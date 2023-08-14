@@ -19,18 +19,14 @@ func after_all():
 ## Utility to create a single segment network (2 points)
 func create_unconnected_network(network) -> Array:
 	network.setup_road_network()
-	var points = network.get_node(network.points)
-	var segments = network.get_node(network.segments)
-
-	assert_eq(points.get_child_count(), 0, "No initial point children")
-	assert_eq(segments.get_child_count(), 0, "No initial segment children")
+	assert_eq(network.get_child_count(), 0, "No initial point children")
 
 	var p1 = autoqfree(RoadPoint.new())
 	var p2 = autoqfree(RoadPoint.new())
 
-	points.add_child(p1)
-	points.add_child(p2)
-	assert_eq(points.get_child_count(), 2, "Both RPs added")
+	network.add_child(p1)
+	network.add_child(p2)
+	assert_eq(network.get_child_count(), 2, "Both RPs added")
 
 	return [p1, p2]
 
