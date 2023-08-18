@@ -297,13 +297,13 @@ func update_debug_paths(point:RoadPoint):
 	var prior_seg = point.prior_seg
 	var next_seg = point.next_seg
 
-	if prior_path and prior_seg and prior_seg.curve:
+	if prior_path and is_instance_valid(prior_path) and prior_seg and prior_seg.curve:
 		prior_path.visible = true
 		prior_path.global_transform.origin = prior_seg.global_transform.origin
 		prior_path.curve = prior_seg.curve
 	else:
 		prior_path.visible = false
-	if next_path and next_seg and next_seg.curve:
+	if next_path and is_instance_valid(next_path) and next_seg and next_seg.curve:
 		next_path.visible = true
 		next_path.global_transform.origin = next_seg.global_transform.origin
 		next_path.curve = next_seg.curve
