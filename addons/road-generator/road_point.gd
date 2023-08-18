@@ -101,6 +101,11 @@ func _ready():
 	#set_ignore_transform_notification(false)
 
 	if not network or not is_instance_valid(network):
+		var par = get_parent()
+		# Can't type check, circular dependency -____-
+		#if not par is RoadNetwork:
+		if not par.has_method("on_point_update"):
+			push_warning("Parent of RoadPoint %s is not a RoadNetwork" % self.name)
 		network = get_parent()
 
 	connect("on_transform", network, "on_point_update")

@@ -399,3 +399,31 @@ func setup_road_network():
 	if not material_resource:
 		material_resource = RoadMaterial
 		print("Added material to ", name)
+
+	_check_migrate_points()
+
+
+## Detect and move legacy node hierharcy layout.
+##
+## With addon v0.3.4 and earlier, RoadPoints were parented to an intermediate
+## "points" spatial which was automatically generated
+func _check_migrate_points():
+	var moved_pts: int = 0
+	var pts = get_node_or_null("points")
+	if pts == null:
+		return
+
+	for ch in pts.get_children():
+		if ch is RoadPoint:
+			pts.remove_child(ch)
+			self.add_child(ch)
+			ch.owner = self.owner
+			moved_pts += 1
+
+	if moved_pts == 0:
+		return
+
+	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadNetwork parent %s" % [
+		moved_pts, self.name
+	])
+
