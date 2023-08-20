@@ -33,6 +33,10 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 var _draw_lanes_editor:bool = false
 var _draw_lanes_game:bool = false
 
+# Non-exposed developer control, which allows showing all nodes (including generated) in the scene
+# tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
+# or making changes that get immediately removed as soon as a road is regenerated.
+var debug_scene_visible:bool = false
 
 # Flag used to defer calls to setup_road_network via _dirty_rebuild_deferred,
 # important during scene startup whereby class properties are called in
@@ -225,6 +229,8 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		# connected to two road points, it will only be placed as a parent of
 		# one of them
 		pt1.add_child(new_seg)
+		if debug_scene_visible:
+			new_seg.owner = self.owner
 		new_seg.low_poly = low_poly
 		new_seg.start_point = pt1
 		new_seg.end_point = pt2

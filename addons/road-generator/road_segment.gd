@@ -46,6 +46,8 @@ func _init(_network):
 func _ready():
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
+	if network.debug_scene_visible:
+		road_mesh.owner = network.owner
 	road_mesh.name = "road_mesh"
 
 	var res = connect("check_rebuild", network, "segment_rebuild")
@@ -180,6 +182,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
+			if network.debug_scene_visible:
+				ln_child.owner = network
 			ln_child.add_to_group(network.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
@@ -460,7 +464,6 @@ func _build_geo():
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
 	var uv_width = 0.125 # 1/8 for breakdown of texture.
 
-
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
@@ -475,6 +478,8 @@ func _build_geo():
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
+	for ch in road_mesh.get_children():
+		ch.queue_free()  # Prior collision meshes
 	road_mesh.create_trimesh_collision() # Call deferred?
 	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 
