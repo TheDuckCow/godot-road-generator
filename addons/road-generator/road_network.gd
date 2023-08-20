@@ -17,8 +17,6 @@ export(Material) var material_resource:Material setget _set_material
 export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
-export(NodePath) var debug_prior
-export(NodePath) var debug_next
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -289,32 +287,6 @@ func update_lane_seg_connections():
 						ln.lane_next = ln.get_path_to(prior_ln)
 					else:
 						ln.lane_prior = ln.get_path_to(prior_ln)
-
-
-# Update the position and contents of the curves for the given point object.
-func update_debug_paths(point:RoadPoint):
-	var prior_path
-	var next_path
-	if debug_prior:
-		prior_path = get_node(debug_prior)
-	if debug_next:
-		next_path = get_node(debug_next)
-
-	var prior_seg = point.prior_seg
-	var next_seg = point.next_seg
-
-	if prior_path and is_instance_valid(prior_path) and prior_seg and prior_seg.curve:
-		prior_path.visible = true
-		prior_path.global_transform.origin = prior_seg.global_transform.origin
-		prior_path.curve = prior_seg.curve
-	else:
-		prior_path.visible = false
-	if next_path and is_instance_valid(next_path) and next_seg and next_seg.curve:
-		next_path.visible = true
-		next_path.global_transform.origin = next_seg.global_transform.origin
-		next_path.curve = next_seg.curve
-	else:
-		next_path.visible = false
 
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.

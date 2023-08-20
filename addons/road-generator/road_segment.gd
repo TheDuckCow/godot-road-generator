@@ -183,7 +183,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
 			if network.debug_scene_visible:
-				ln_child.owner = network
+				ln_child.owner = network.owner
 			ln_child.add_to_group(network.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
@@ -370,6 +370,24 @@ func _update_curve():
 	handle = end_point.global_transform.basis.z * end_point.prior_mag
 	curve.add_point(pos, -handle, handle)
 	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation
+
+	# Show this primary curve in the scene hierarchy if the debug state set.
+	if network.debug_scene_visible:
+		var found_path = false
+		var path_node: Path
+		for ch in self.get_children():
+			if not ch is Path:
+				continue
+			found_path = true
+			path_node = ch
+			break
+
+		if not found_path:
+			path_node = Path.new()
+			self.add_child(path_node)
+			path_node.owner = network.owner
+			path_node.name = "RoadSeg primary curve"
+		path_node.curve = curve
 
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates

@@ -59,7 +59,7 @@ func _on_selection_changed() -> void:
 		_hide_road_toolbar()
 		return
 
-	if _last_lane:
+	if _last_lane and is_instance_valid(_last_lane):
 		_last_lane.show_fins(false)
 
 	if selected_node is RoadPoint:
