@@ -395,12 +395,12 @@ func _update_curve():
 ## unwanted rotation on the loops at the ends of the curve.
 ## Inputs:
 ## curve - The curve this Segment will follow.
-## sample_position - Curve sample position to use for interpolation. Normalized.
-## Returns: Normalized Vector3
+## sample_position - Curve sample position 0.0 - 1.0 to use for interpolation. Normalized.
+## Returns: Normalized Vector3 in local space.
 func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
 	return _normal_for_offset_eased(curve, sample_position)
-	# return _normal_for_offset_legacy(curve, sample_position)
+	#return _normal_for_offset_legacy(curve, sample_position)
 
 
 ## Alternate method which doesn't guarentee consistent lane width.
@@ -430,14 +430,23 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 
 	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var tangent := pt2 - pt1
-	var sample_eased = ease(sample_position, smooth_amount)
-	var up_vec:Vector3 = lerp(
-		start_point.global_transform.basis.y,
-		end_point.global_transform.basis.y,
+	var tangent_l = pt2 - pt1
+
+	# Using local transforms. Both are transforms relative to the parent RoadNetwork,
+	# and the current mesh we are writing to already has the inverse of the start_point
+	# (or whichever it is parented to) rotation applied.
+	var start_up = start_point.transform.basis.y
+	var end_up = end_point.transform.basis.y
+
+	var up_vec_l:Vector3 = lerp(
+		start_up.normalized(),
+		end_up.normalized(),
 		sample_position)
-	var normal = up_vec.cross(tangent)
-	return normal.normalized()
+	var normal_l = up_vec_l.cross(tangent_l)
+
+	#var sample_eased = ease(sample_position, smooth_amount)
+
+	return normal_l.normalized()
 
 
 func _build_geo():
