@@ -339,8 +339,8 @@ func _rebuild():
 		density = network.density
 
 	# Reset its transform to undo the rotation of the parent
-	var par_pt_rot = get_parent().rotation
-	set_rotation(-par_pt_rot)
+	var tr = get_parent().transform
+	transform = tr.inverse()
 
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
