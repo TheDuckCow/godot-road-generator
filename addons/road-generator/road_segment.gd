@@ -359,17 +359,9 @@ func _update_curve():
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
 
-	# Setup in handle of curve
-	var pos = to_local(start_point.global_transform.origin)
-	var handle = start_point.global_transform.basis.z * start_point.next_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(0, start_point.rotation.z)  # Doing custom interpolation
-
-	# Out handle.
-	pos = to_local(end_point.global_transform.origin)
-	handle = end_point.global_transform.basis.z * end_point.prior_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation
+	# Setup in and out handle of curve points
+	_set_curve_point(curve, start_point, start_point.next_mag)
+	_set_curve_point(curve, end_point, end_point.prior_mag)
 
 	# Show this primary curve in the scene hierarchy if the debug state set.
 	if network.debug_scene_visible:
@@ -389,6 +381,16 @@ func _update_curve():
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
+## Helper to set a curve point taking into account transform of rp (if parent)
+func _set_curve_point(_curve: Curve3D, rp: RoadPoint, mag_val: float) ->  void:
+	var pos_g = rp.global_transform.origin
+	var pos = to_local(pos_g)
+	var handle_in= rp.global_transform.basis.z * -mag_val
+	var handle_out = rp.global_transform.basis.z * mag_val
+	var handle_in_l = to_local(handle_in + pos_g)
+	var handle_out_l = to_local(handle_out + pos_g)
+	_curve.add_point(pos, handle_in_l-pos, handle_out_l-pos)
+	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation, skip this.
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates
 ## between the start and end points. Applies "easing" to prevent potentially
@@ -421,9 +423,11 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var start_offset: float
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
-		return start_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return start_point.transform.basis.x
 	elif sample_position >= 1.0 - offset_amount * 0.5:
-		return end_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return end_point.transform.basis.x
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
