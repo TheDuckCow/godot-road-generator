@@ -42,7 +42,7 @@ func create_oneseg_network(network):
 
 
 func test_road_network_create():
-	var network = autoqfree(RoadNetwork.new())
+	var network = autoqfree(RoadContainer.new())
 	# Check the children are set up.
 
 	watch_signals(network)
@@ -61,7 +61,7 @@ func test_road_network_create():
 
 
 func test_on_road_updated_single_segment():
-	var network = add_child_autofree(RoadNetwork.new())
+	var network = add_child_autofree(RoadContainer.new())
 	network.auto_refresh = false
 
 	create_oneseg_network(network)
@@ -76,8 +76,8 @@ func test_on_road_updated_single_segment():
 
 
 ## Ensure that users can manually assign two points to connect with auto_refresh
-func test_roadnetwork_validations_with_autorefresh():
-	var network = add_child_autofree(RoadNetwork.new())
+func test_RoadContainer_validations_with_autorefresh():
+	var network = add_child_autofree(RoadContainer.new())
 	network.auto_refresh = true  # Will kick in validation
 
 	create_oneseg_network(network)

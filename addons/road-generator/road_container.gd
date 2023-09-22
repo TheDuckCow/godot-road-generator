@@ -1,6 +1,6 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-class_name RoadNetwork, "road_segment.png"
+class_name RoadContainer, "road_segment.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -375,9 +375,9 @@ func setup_road_network():
 	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
-	# be assigned an "owner". Use the RoadNetwork's owner. But, the RoadNetwork
+	# be assigned an "owner". Use the RoadContainer's owner. But, the RoadContainer
 	# won't have an owner if it is the scene root. In that case, make the
-	# RoadNetwork the owner.
+	# RoadContainer the owner.
 	var own
 	if owner:
 		own = owner
@@ -411,7 +411,7 @@ func _check_migrate_points():
 	if moved_pts == 0:
 		return
 
-	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadNetwork parent %s" % [
+	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadContainer parent %s" % [
 		moved_pts, self.name
 	])
 

@@ -28,7 +28,7 @@ func _enter_tree():
 
 	# Don't add the following, as they would result in repeast in the UI.
 	#add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
-	#add_custom_type("RoadNetwork", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
+	#add_custom_type("RoadContainer", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
 	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
@@ -43,7 +43,7 @@ func _exit_tree():
 
 	# Don't add the following, as they would result in repeast in the UI.
 	#remove_custom_type("RoadPoint")
-	#remove_custom_type("RoadNetwork")
+	#remove_custom_type("RoadContainer")
 	#remove_custom_type("RoadLane")
 
 
@@ -69,7 +69,7 @@ func _on_selection_changed() -> void:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
 
-	var eligible = selected_node is RoadPoint or selected_node is RoadNetwork
+	var eligible = selected_node is RoadPoint or selected_node is RoadContainer
 	# Show the panel even if selection is scene root, but not if selection is a
 	# scene instance itself (non editable).
 	var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
@@ -82,7 +82,7 @@ func _on_selection_changed() -> void:
 
 func _on_scene_changed(scene_root: Node) -> void:
 	var selected = get_selected_node(_eds.get_selected_nodes())
-	if selected and (selected is RoadNetwork or selected is RoadPoint):
+	if selected and (selected is RoadContainer or selected is RoadPoint):
 		_show_road_toolbar()
 	else:
 		_hide_road_toolbar()
@@ -126,7 +126,7 @@ func get_network_from_selection():
 	if not is_instance_valid(selected_node):
 		push_error("Invalid selection to add road segment")
 		return
-	if selected_node is RoadNetwork:
+	if selected_node is RoadContainer:
 		return selected_node
 	elif selected_node is RoadPoint:
 		if is_instance_valid(selected_node.network):
@@ -156,10 +156,10 @@ func _create_2x2_road_pressed():
 	var t_network = get_network_from_selection()
 
 	if t_network == null:
-		push_error("Could not get RoadNetwork object")
+		push_error("Could not get RoadContainer object")
 		return
 	if not is_instance_valid(t_network):
-		push_error("Connected RoadNetwork is not valid")
+		push_error("Connected RoadContainer is not valid")
 		return
 
 	undo_redo.create_action("Create 2x2 road (limited undo/redo)")
@@ -168,11 +168,11 @@ func _create_2x2_road_pressed():
 	undo_redo.commit_action()
 
 
-func _create_2x2_road_do(t_network: RoadNetwork):
+func _create_2x2_road_do(t_network: RoadContainer):
 	var default_name = "RP_001"
 
-	if not is_instance_valid(t_network) or not t_network is RoadNetwork:
-		push_error("Invalid RoadNetwork")
+	if not is_instance_valid(t_network) or not t_network is RoadContainer:
+		push_error("Invalid RoadContainer")
 		return
 
 	# Add new Segment at default location (World Origin)
@@ -193,7 +193,7 @@ func _create_2x2_road_do(t_network: RoadNetwork):
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
 
 
-func _create_2x2_road_undo(selected_node: RoadNetwork) -> void:
+func _create_2x2_road_undo(selected_node: RoadContainer) -> void:
 	# Make a likely bad assumption that the last two children are the ones to
 	# be undone, but this is likely quite flakey.
 	# TODO: Perform proper undo/redo support, ideally getting add_do_reference

@@ -188,7 +188,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
-		# road lanes later (handled by RoadNetwork).
+		# road lanes later (handled by RoadContainer).
 		new_ln.lane_prior_tag = this_match[2]
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
@@ -436,7 +436,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
 	var tangent_l = pt2 - pt1
 
-	# Using local transforms. Both are transforms relative to the parent RoadNetwork,
+	# Using local transforms. Both are transforms relative to the parent RoadContainer,
 	# and the current mesh we are writing to already has the inverse of the start_point
 	# (or whichever it is parented to) rotation applied.
 	var start_up = start_point.transform.basis.y

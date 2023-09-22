@@ -19,15 +19,15 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://addons/gut/test.gd"
 }, {
+"base": "Spatial",
+"class": "RoadContainer",
+"language": "GDScript",
+"path": "res://addons/road-generator/road_container.gd"
+}, {
 "base": "Path",
 "class": "RoadLane",
 "language": "GDScript",
 "path": "res://addons/road-generator/road_lane.gd"
-}, {
-"base": "Spatial",
-"class": "RoadNetwork",
-"language": "GDScript",
-"path": "res://addons/road-generator/road_network.gd"
 }, {
 "base": "Spatial",
 "class": "RoadPoint",
@@ -37,8 +37,8 @@ _global_script_classes=[ {
 _global_script_class_icons={
 "GutHookScript": "",
 "GutTest": "",
+"RoadContainer": "res://addons/road-generator/road_segment.png",
 "RoadLane": "",
-"RoadNetwork": "res://addons/road-generator/road_segment.png",
 "RoadPoint": "res://addons/road-generator/road_point.png"
 }
 
