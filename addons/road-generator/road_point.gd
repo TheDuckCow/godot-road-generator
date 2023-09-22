@@ -461,7 +461,12 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
-	new_road_point.set_owner(network.owner)
+
+	# If network is scene root, assign directly.
+	if get_tree().get_edited_scene_root() == network:
+		new_road_point.set_owner(network)
+	else:
+		new_road_point.set_owner(network.owner)
 
 	var refresh = network.auto_refresh
 	network.auto_refresh = false

@@ -187,7 +187,10 @@ func _create_2x2_road_do(t_network: RoadNetwork):
 		RoadPoint.LaneDir.FORWARD
 	]
 	first_road_point.auto_lanes = true
-	first_road_point.set_owner(t_network.owner)
+	if get_tree().get_edited_scene_root() == t_network:
+		first_road_point.set_owner(t_network)
+	else:
+		first_road_point.set_owner(t_network.owner)
 	var second_road_point = RoadPoint.new()
 	second_road_point.name = second_road_point.increment_name(default_name)
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
