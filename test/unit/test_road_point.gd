@@ -101,7 +101,7 @@ func test_error_no_traffic_dir():
 
 
 func test_autofix_noncyclic_added_next():
-	var network = add_child_autofree(RoadNetwork.new())
+	var network = add_child_autofree(RoadContainer.new())
 	network.auto_refresh = false
 
 	var points = create_unconnected_network(network)
@@ -129,7 +129,7 @@ func test_autofix_noncyclic_added_next():
 
 
 func test_junction_validate_init_path_just_removed():
-	var network = add_child_autofree(RoadNetwork.new())
+	var network = add_child_autofree(RoadContainer.new())
 	network.auto_refresh = false
 
 	var points = create_unconnected_network(network)
@@ -161,7 +161,7 @@ func test_junction_validate_init_path_just_removed():
 
 
 func test_on_road_updated_pt_transform():
-	var network = add_child_autofree(RoadNetwork.new())
+	var network = add_child_autofree(RoadContainer.new())
 	network.auto_refresh = false
 
 	var points = create_unconnected_network(network)

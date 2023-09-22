@@ -104,9 +104,9 @@ func _ready():
 	if not network or not is_instance_valid(network):
 		var par = get_parent()
 		# Can't type check, circular dependency -____-
-		#if not par is RoadNetwork:
+		#if not par is RoadContainer:
 		if not par.has_method("on_point_update"):
-			push_warning("Parent of RoadPoint %s is not a RoadNetwork" % self.name)
+			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
 		network = get_parent()
 
 	connect("on_transform", network, "on_point_update")
@@ -125,9 +125,9 @@ func _to_string():
 func _get_configuration_warning() -> String:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
-	#if not par is RoadNetwork:
+	#if not par is RoadContainer:
 	if not par.has_method("on_point_update"):
-		return "Must be a child of a RoadNetwork"
+		return "Must be a child of a RoadContainer"
 	return ""
 
 
