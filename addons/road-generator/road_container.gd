@@ -15,8 +15,12 @@ export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
 
 export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
-export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
+# Generate procedural road geometry
+# If off, it indicates the developer will load in their own custom mesh + collision.
+export(bool) var create_geo := true setget _set_create_geo
+# If create_geo is true, then whether to reduce geo mid transform.
+export(bool) var use_lowpoly_preview:bool = false
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -42,6 +46,11 @@ var debug_scene_visible:bool = false
 var _dirty:bool = false
 
 
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
 func _ready():
 	# setup_road_network won't work in _ready unless call_deferred is used
 	call_deferred("setup_road_network")
@@ -58,6 +67,11 @@ func _ready():
 	# are assigned, thus triggering functions like _set_density, before the
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
+
+# Workaround for cyclic typing
+func is_road_container() -> bool:
+	return true
+
 
 func _get_configuration_warning() -> String:
 	var has_rp_child = false
@@ -127,6 +141,28 @@ func _set_draw_lanes_game(value: bool):
 
 func _get_draw_lanes_game() -> bool:
 	return _draw_lanes_game
+
+
+func _set_create_geo(value: bool) -> void:
+	if value == create_geo:
+		return
+	create_geo = value
+	for ch in get_children():
+		# Cyclic loading, have to use workaround
+		if not ch.has_method("is_road_point"):
+			continue
+		for rp_ch in ch.get_children():
+			# Cycling loading, have to use workaround
+			if rp_ch.has_method("is_road_segment"):
+				rp_ch.do_roadmesh_creation()
+	if value == true:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
+
+
+# ------------------------------------------------------------------------------
+# Container methods
+# ------------------------------------------------------------------------------
 
 
 ## Returns all RoadSegments which are directly children of RoadPoints.

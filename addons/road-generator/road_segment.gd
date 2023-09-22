@@ -44,17 +44,58 @@ func _init(_network):
 
 
 func _ready():
-	road_mesh = MeshInstance.new()
-	add_child(road_mesh)
 	if network.debug_scene_visible:
 		road_mesh.owner = network.owner
-	road_mesh.name = "road_mesh"
+
+	do_roadmesh_creation()
 
 	var res = connect("check_rebuild", network, "segment_rebuild")
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
 	#emit_signal("check_rebuild", self)
+
+
+# Workaround for cyclic typing
+func is_road_segment() -> bool:
+	return true
+
+
+func should_add_mesh() -> bool:
+	var should_add_mesh = true
+	var par = get_parent()
+	if not is_instance_valid(par) or not par is RoadPoint:
+		return should_add_mesh
+
+	if par.create_geo == false:
+		should_add_mesh = false
+
+	if network.create_geo == false:
+		should_add_mesh = false
+
+	return should_add_mesh
+
+
+func do_roadmesh_creation():
+	var do_create := should_add_mesh()
+	if do_create:
+		add_road_mesh()
+	else:
+		remove_road_mesh()
+
+
+func add_road_mesh() -> void:
+	if is_instance_valid(road_mesh):
+		return
+	road_mesh = MeshInstance.new()
+	add_child(road_mesh)
+	road_mesh.name = "road_mesh"
+
+
+func remove_road_mesh():
+	if road_mesh == null:
+		return
+	road_mesh.queue_free()
 
 
 ## Unique identifier for a segment based on what its connected to.

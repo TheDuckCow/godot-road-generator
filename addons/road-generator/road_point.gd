@@ -3,7 +3,6 @@ tool
 class_name RoadPoint, "road_point.png"
 extends Spatial
 
-
 signal on_transform(node, low_poly)
 
 enum LaneType {
@@ -68,6 +67,10 @@ export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
 
+# Generate procedural road geometry
+# If off, it indicates the developer will load in their own custom mesh + collision.
+export(bool) var create_geo := true setget _set_create_geo
+
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
@@ -129,6 +132,11 @@ func _get_configuration_warning() -> String:
 	if not par.has_method("on_point_update"):
 		return "Must be a child of a RoadContainer"
 	return ""
+
+
+# Workaround for cyclic typing
+func is_road_point() -> bool:
+	return true
 
 
 # ------------------------------------------------------------------------------
@@ -253,6 +261,17 @@ func _set_next_mag(value):
 func _get_next_mag():
 	return next_mag
 
+
+func _set_create_geo(value: bool) -> void:
+	if value == create_geo:
+		return
+	create_geo = value
+	for ch in get_children():
+		# Due to cyclic reference, can't check class here.
+		if ch.has_method("is_road_segment"):
+			ch.do_roadmesh_creation()
+	if value == true:
+		on_transform()
 
 # ------------------------------------------------------------------------------
 # Editor interactions
