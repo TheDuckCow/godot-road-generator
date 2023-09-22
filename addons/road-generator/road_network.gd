@@ -59,6 +59,16 @@ func _ready():
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
 
+func _get_configuration_warning() -> String:
+	var has_rp_child = false
+	for ch in get_children():
+		if ch is RoadPoint:
+			has_rp_child = true
+			break
+	if not has_rp_child:
+		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
+	return ""
+
 
 func _ui_refresh_set(value):
 	if value and not _dirty:

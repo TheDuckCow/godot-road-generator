@@ -3,6 +3,7 @@ tool
 class_name RoadPoint, "road_point.png"
 extends Spatial
 
+
 signal on_transform(node, low_poly)
 
 enum LaneType {
@@ -119,6 +120,16 @@ func _to_string():
 		parname = "[not in scene]"
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
 		parname,  self.translation, prior_pt_init, next_pt_init]
+
+
+func _get_configuration_warning() -> String:
+	var par = get_parent()
+	# Can't type check, circular dependency -____-
+	#if not par is RoadNetwork:
+	if not par.has_method("on_point_update"):
+		return "Must be a child of a RoadNetwork"
+	return ""
+
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
