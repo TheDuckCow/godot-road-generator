@@ -28,7 +28,7 @@ func _enter_tree():
 
 	# Don't add the following, as they would result in repeast in the UI.
 	#add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
-	#add_custom_type("RoadContainer", "Spatial", preload("road_network.gd"), preload("road_segment.png"))
+	#add_custom_type("RoadContainer", "Spatial", preload("road_container.gd"), preload("road_segment.png"))
 	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 
@@ -102,7 +102,7 @@ func _show_road_toolbar() -> void:
 		_road_toolbar.create_menu.connect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
 		_road_toolbar.create_menu.connect(
-			"select_network_pressed", self, "_on_select_network_pressed")
+			"select_container_pressed", self, "_on_select_container_pressed")
 		_road_toolbar.create_menu.connect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
@@ -113,15 +113,15 @@ func _hide_road_toolbar() -> void:
 		_road_toolbar.create_menu.disconnect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
 		_road_toolbar.create_menu.disconnect(
-			"select_network_pressed", self, "_on_select_network_pressed")
+			"select_container_pressed", self, "_on_select_container_pressed")
 		_road_toolbar.create_menu.disconnect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 
 
-func get_network_from_selection():
+func get_container_from_selection():
 	var selected_node = get_selected_node(_eds.get_selected_nodes())
-	var t_network = null
+	var t_container = null
 
 	if not is_instance_valid(selected_node):
 		push_error("Invalid selection to add road segment")
@@ -129,10 +129,10 @@ func get_network_from_selection():
 	if selected_node is RoadContainer:
 		return selected_node
 	elif selected_node is RoadPoint:
-		if is_instance_valid(selected_node.network):
-			return selected_node.network
+		if is_instance_valid(selected_node.container):
+			return selected_node.container
 		else:
-			push_error("Invalid network for roadpoint")
+			push_error("Invalid container for roadpoint")
 			return
 	else:
 		push_error("Invalid selection for adding new road segments")
@@ -140,45 +140,45 @@ func get_network_from_selection():
 
 
 func _on_regenerate_pressed():
-	var t_network = get_network_from_selection()
-	t_network.rebuild_segments(true)
+	var t_container = get_container_from_selection()
+	t_container.rebuild_segments(true)
 
 
-func _on_select_network_pressed():
-	var t_network = get_network_from_selection()
+func _on_select_container_pressed():
+	var t_container = get_container_from_selection()
 	_edi.get_selection().clear()
-	_edi.get_selection().add_node(t_network)
+	_edi.get_selection().add_node(t_container)
 
 
 ## Adds a 2x2 RoadSegment to the Scene
 func _create_2x2_road_pressed():
 	var undo_redo = get_undo_redo()
-	var t_network = get_network_from_selection()
+	var t_container = get_container_from_selection()
 
-	if t_network == null:
+	if t_container == null:
 		push_error("Could not get RoadContainer object")
 		return
-	if not is_instance_valid(t_network):
+	if not is_instance_valid(t_container):
 		push_error("Connected RoadContainer is not valid")
 		return
 
 	undo_redo.create_action("Create 2x2 road (limited undo/redo)")
-	undo_redo.add_do_method(self, "_create_2x2_road_do", t_network)
-	undo_redo.add_undo_method(self, "_create_2x2_road_undo", t_network)
+	undo_redo.add_do_method(self, "_create_2x2_road_do", t_container)
+	undo_redo.add_undo_method(self, "_create_2x2_road_undo", t_container)
 	undo_redo.commit_action()
 
 
-func _create_2x2_road_do(t_network: RoadContainer):
+func _create_2x2_road_do(t_container: RoadContainer):
 	var default_name = "RP_001"
 
-	if not is_instance_valid(t_network) or not t_network is RoadContainer:
+	if not is_instance_valid(t_container) or not t_container is RoadContainer:
 		push_error("Invalid RoadContainer")
 		return
 
 	# Add new Segment at default location (World Origin)
-	t_network.setup_road_network()
+	t_container.setup_road_container()
 	var first_road_point = RoadPoint.new()
-	t_network.add_child(first_road_point, true)
+	t_container.add_child(first_road_point, true)
 	first_road_point.name = first_road_point.increment_name(default_name)
 	first_road_point.traffic_dir = [
 		RoadPoint.LaneDir.REVERSE,
@@ -187,10 +187,10 @@ func _create_2x2_road_do(t_network: RoadContainer):
 		RoadPoint.LaneDir.FORWARD
 	]
 	first_road_point.auto_lanes = true
-	if get_tree().get_edited_scene_root() == t_network:
-		first_road_point.set_owner(t_network)
+	if get_tree().get_edited_scene_root() == t_container:
+		first_road_point.set_owner(t_container)
 	else:
-		first_road_point.set_owner(t_network.owner)
+		first_road_point.set_owner(t_container.owner)
 	var second_road_point = RoadPoint.new()
 	second_road_point.name = second_road_point.increment_name(default_name)
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)

@@ -40,7 +40,7 @@ var _draw_lanes_game:bool = false
 # or making changes that get immediately removed as soon as a road is regenerated.
 var debug_scene_visible:bool = false
 
-# Flag used to defer calls to setup_road_network via _dirty_rebuild_deferred,
+# Flag used to defer calls to setup_road_container via _dirty_rebuild_deferred,
 # important during scene startup whereby class properties are called in
 # succession during scene init and otherwise would lead to duplicate calls.
 var _dirty:bool = false
@@ -52,8 +52,8 @@ var _dirty:bool = false
 
 
 func _ready():
-	# setup_road_network won't work in _ready unless call_deferred is used
-	call_deferred("setup_road_network")
+	# setup_road_container won't work in _ready unless call_deferred is used
+	call_deferred("setup_road_container")
 
 	# Per below, this is technicaly redundant/not really doing anything.
 	_dirty = true
@@ -233,7 +233,7 @@ func rebuild_segments(clear_existing=false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
-	# Aim to do a single signal emission across the whole network update.
+	# Aim to do a single signal emission across the whole container update.
 	emit_signal("on_road_updated", signal_rebuilt)
 
 
@@ -407,7 +407,7 @@ func _exit_tree():
 
 
 ## Adds points, segments, and material if they're unassigned
-func setup_road_network():
+func setup_road_container():
 	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
