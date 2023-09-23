@@ -1,7 +1,7 @@
 extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
-const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 onready var road_util := RoadUtils.new()
 
 

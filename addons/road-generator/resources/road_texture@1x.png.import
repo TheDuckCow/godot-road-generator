@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/road_segment.png-473712bcd5a5220cda711e62870fef25.stex"
+path="res://.import/road_texture@1x.png-7cbabb6a11a96db2f98bb60d0a2795c3.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/road-generator/road_segment.png"
-dest_files=[ "res://.import/road_segment.png-473712bcd5a5220cda711e62870fef25.stex" ]
+source_file="res://addons/road-generator/resources/road_texture@1x.png"
+dest_files=[ "res://.import/road_texture@1x.png-7cbabb6a11a96db2f98bb60d0a2795c3.stex" ]
 
 [params]
 

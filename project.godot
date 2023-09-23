@@ -22,24 +22,24 @@ _global_script_classes=[ {
 "base": "Spatial",
 "class": "RoadContainer",
 "language": "GDScript",
-"path": "res://addons/road-generator/road_container.gd"
+"path": "res://addons/road-generator/nodes/road_container.gd"
 }, {
 "base": "Path",
 "class": "RoadLane",
 "language": "GDScript",
-"path": "res://addons/road-generator/road_lane.gd"
+"path": "res://addons/road-generator/nodes/road_lane.gd"
 }, {
 "base": "Spatial",
 "class": "RoadPoint",
 "language": "GDScript",
-"path": "res://addons/road-generator/road_point.gd"
+"path": "res://addons/road-generator/nodes/road_point.gd"
 } ]
 _global_script_class_icons={
 "GutHookScript": "",
 "GutTest": "",
-"RoadContainer": "res://addons/road-generator/road_segment.png",
+"RoadContainer": "res://addons/road-generator/resources/road_segment.png",
 "RoadLane": "",
-"RoadPoint": "res://addons/road-generator/road_point.png"
+"RoadPoint": "res://addons/road-generator/resources/road_point.png"
 }
 
 [application]

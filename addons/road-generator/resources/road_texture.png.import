@@ -2,8 +2,8 @@
 
 importer="texture"
 type="StreamTexture"
-path.s3tc="res://.import/road_texture.png-f0fa46683c42188aa5707009c66be65d.s3tc.stex"
-path.etc2="res://.import/road_texture.png-f0fa46683c42188aa5707009c66be65d.etc2.stex"
+path.s3tc="res://.import/road_texture.png-4a28053ce58f385f44518697b3790d3f.s3tc.stex"
+path.etc2="res://.import/road_texture.png-4a28053ce58f385f44518697b3790d3f.etc2.stex"
 metadata={
 "imported_formats": [ "s3tc", "etc2" ],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://addons/road-generator/road_texture.png"
-dest_files=[ "res://.import/road_texture.png-f0fa46683c42188aa5707009c66be65d.s3tc.stex", "res://.import/road_texture.png-f0fa46683c42188aa5707009c66be65d.etc2.stex" ]
+source_file="res://addons/road-generator/resources/road_texture.png"
+dest_files=[ "res://.import/road_texture.png-4a28053ce58f385f44518697b3790d3f.s3tc.stex", "res://.import/road_texture.png-4a28053ce58f385f44518697b3790d3f.etc2.stex" ]
 
 [params]
 

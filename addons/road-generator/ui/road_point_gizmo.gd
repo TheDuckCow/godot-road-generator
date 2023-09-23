@@ -10,7 +10,7 @@ enum HandleType {
 	FWD_WIDTH_MAG
 }
 
-const GizmoBlueHandle := preload("res://addons/road-generator/gizmo_blue_handle.png")
+const GizmoBlueHandle := preload("res://addons/road-generator/ui/gizmo_blue_handle.png")
 const LaneOffset := 0.25
 
 var _editor_plugin: EditorPlugin

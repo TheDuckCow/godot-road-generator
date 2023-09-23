@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.stex"
+path="res://.import/gizmo_blue_handle.png-9b907cdaab9687b5324401177feea47a.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/road-generator/gizmo_blue_handle.png"
-dest_files=[ "res://.import/gizmo_blue_handle.png-5b1155ef9bf6c3ffd6b3ab6d395f34ae.stex" ]
+source_file="res://addons/road-generator/ui/gizmo_blue_handle.png"
+dest_files=[ "res://.import/gizmo_blue_handle.png-9b907cdaab9687b5324401177feea47a.stex" ]
 
 [params]
 

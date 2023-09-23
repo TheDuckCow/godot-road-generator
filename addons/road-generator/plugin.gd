@@ -2,10 +2,10 @@
 tool
 extends EditorPlugin
 
-const RoadPointGizmo = preload("res://addons/road-generator/road_point_gizmo.gd")
+const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 
-const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)

@@ -1,6 +1,6 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-class_name RoadContainer, "road_segment.png"
+class_name RoadContainer, "../resources/road_segment.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -8,8 +8,8 @@ extends Spatial
 ## which will contain a list of nothing.
 signal on_road_updated (updated_segments)
 
-const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
-const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
@@ -21,6 +21,15 @@ export(float) var density:float = 1.0  setget _set_density # Mesh density of gen
 export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
+
+## Auto generated exposed variables dused to conneect this RoadContainer to
+## another RoadContainer.
+# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
+#   which should be connected to this indicie's roadpoint.
+# connection_indicies = list of indicies, to indicate which index of the *target's*
+#   children list of RoadPoint to use
+export(Array, NodePath) var connection_nodepaths;
+export(Array, int) var connection_indicies;
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
