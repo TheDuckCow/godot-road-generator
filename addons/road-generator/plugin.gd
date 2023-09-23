@@ -59,7 +59,7 @@ func _on_selection_changed() -> void:
 		_hide_road_toolbar()
 		return
 
-	if _last_lane:
+	if _last_lane and is_instance_valid(_last_lane):
 		_last_lane.show_fins(false)
 
 	if selected_node is RoadPoint:
@@ -168,18 +168,17 @@ func _create_2x2_road_pressed():
 	undo_redo.commit_action()
 
 
-func _create_2x2_road_do(selected_node):
+func _create_2x2_road_do(t_network: RoadNetwork):
 	var default_name = "RP_001"
 
-	if not is_instance_valid(selected_node) or not selected_node is RoadNetwork:
+	if not is_instance_valid(t_network) or not t_network is RoadNetwork:
 		push_error("Invalid RoadNetwork")
 		return
 
 	# Add new Segment at default location (World Origin)
-	selected_node.setup_road_network()
-	var points = selected_node.get_node("points")
+	t_network.setup_road_network()
 	var first_road_point = RoadPoint.new()
-	points.add_child(first_road_point, true)
+	t_network.add_child(first_road_point, true)
 	first_road_point.name = first_road_point.increment_name(default_name)
 	first_road_point.traffic_dir = [
 		RoadPoint.LaneDir.REVERSE,
@@ -187,20 +186,22 @@ func _create_2x2_road_do(selected_node):
 		RoadPoint.LaneDir.FORWARD,
 		RoadPoint.LaneDir.FORWARD
 	]
-	first_road_point.owner = points.owner
+	first_road_point.auto_lanes = true
+	if get_tree().get_edited_scene_root() == t_network:
+		first_road_point.set_owner(t_network)
+	else:
+		first_road_point.set_owner(t_network.owner)
 	var second_road_point = RoadPoint.new()
 	second_road_point.name = second_road_point.increment_name(default_name)
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
-	first_road_point.auto_lanes = true
 
 
-func _create_2x2_road_undo(selected_node):
+func _create_2x2_road_undo(selected_node: RoadNetwork) -> void:
 	# Make a likely bad assumption that the last two children are the ones to
 	# be undone, but this is likely quite flakey.
 	# TODO: Perform proper undo/redo support, ideally getting add_do_reference
 	# to work property (failed when attempted so far).
-	var points = selected_node.get_node("points")
-	var initial_children = points.get_children()
+	var initial_children = selected_node.get_children()
 	if len(initial_children) < 2:
 		return
 
@@ -219,6 +220,7 @@ func get_selected_node(selected_nodes: Array) -> Node:
 		return selected_nodes[0]
 	else:
 		return null
+
 
 func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 	if event is InputEventMouseButton:

@@ -3,6 +3,7 @@ tool
 class_name RoadPoint, "road_point.png"
 extends Spatial
 
+
 signal on_transform(node, low_poly)
 
 enum LaneType {
@@ -100,8 +101,13 @@ func _ready():
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
-	if not network:
-		network = get_parent().get_parent()
+	if not network or not is_instance_valid(network):
+		var par = get_parent()
+		# Can't type check, circular dependency -____-
+		#if not par is RoadNetwork:
+		if not par.has_method("on_point_update"):
+			push_warning("Parent of RoadPoint %s is not a RoadNetwork" % self.name)
+		network = get_parent()
 
 	connect("on_transform", network, "on_point_update")
 
@@ -114,6 +120,16 @@ func _to_string():
 		parname = "[not in scene]"
 	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
 		parname,  self.translation, prior_pt_init, next_pt_init]
+
+
+func _get_configuration_warning() -> String:
+	var par = get_parent()
+	# Can't type check, circular dependency -____-
+	#if not par is RoadNetwork:
+	if not par.has_method("on_point_update"):
+		return "Must be a child of a RoadNetwork"
+	return ""
+
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
@@ -440,13 +456,17 @@ func increment_name(name: String) -> String:
 
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
 func add_road_point(new_road_point: RoadPoint, pt_init):
-	var points = get_parent()
-	points.add_child(new_road_point, true)
+	network.add_child(new_road_point, true)
 	new_road_point.copy_settings_from(self)
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
-	new_road_point.owner = points.owner
+
+	# If network is scene root, assign directly.
+	if get_tree().get_edited_scene_root() == network:
+		new_road_point.set_owner(network)
+	else:
+		new_road_point.set_owner(network.owner)
 
 	var refresh = network.auto_refresh
 	network.auto_refresh = false

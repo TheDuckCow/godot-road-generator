@@ -46,6 +46,8 @@ func _init(_network):
 func _ready():
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
+	if network.debug_scene_visible:
+		road_mesh.owner = network.owner
 	road_mesh.name = "road_mesh"
 
 	var res = connect("check_rebuild", network, "segment_rebuild")
@@ -180,6 +182,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
+			if network.debug_scene_visible:
+				ln_child.owner = network.owner
 			ln_child.add_to_group(network.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
@@ -334,6 +338,10 @@ func _rebuild():
 	if network and network.density > 0:
 		density = network.density
 
+	# Reset its transform to undo the rotation of the parent
+	var tr = get_parent().transform
+	transform = tr.inverse()
+
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
 		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
@@ -351,30 +359,50 @@ func _update_curve():
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
 
-	# Setup in handle of curve
-	var pos = to_local(start_point.global_transform.origin)
-	var handle = start_point.global_transform.basis.z * start_point.next_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(0, start_point.rotation.z)  # Doing custom interpolation
+	# Setup in and out handle of curve points
+	_set_curve_point(curve, start_point, start_point.next_mag)
+	_set_curve_point(curve, end_point, end_point.prior_mag)
 
-	# Out handle.
-	pos = to_local(end_point.global_transform.origin)
-	handle = end_point.global_transform.basis.z * end_point.prior_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation
+	# Show this primary curve in the scene hierarchy if the debug state set.
+	if network.debug_scene_visible:
+		var found_path = false
+		var path_node: Path
+		for ch in self.get_children():
+			if not ch is Path:
+				continue
+			found_path = true
+			path_node = ch
+			break
 
+		if not found_path:
+			path_node = Path.new()
+			self.add_child(path_node)
+			path_node.owner = network.owner
+			path_node.name = "RoadSeg primary curve"
+		path_node.curve = curve
+
+## Helper to set a curve point taking into account transform of rp (if parent)
+func _set_curve_point(_curve: Curve3D, rp: RoadPoint, mag_val: float) ->  void:
+	var pos_g = rp.global_transform.origin
+	var pos = to_local(pos_g)
+	var handle_in= rp.global_transform.basis.z * -mag_val
+	var handle_out = rp.global_transform.basis.z * mag_val
+	var handle_in_l = to_local(handle_in + pos_g)
+	var handle_out_l = to_local(handle_out + pos_g)
+	_curve.add_point(pos, handle_in_l-pos, handle_out_l-pos)
+	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation, skip this.
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates
 ## between the start and end points. Applies "easing" to prevent potentially
 ## unwanted rotation on the loops at the ends of the curve.
 ## Inputs:
 ## curve - The curve this Segment will follow.
-## sample_position - Curve sample position to use for interpolation. Normalized.
-## Returns: Normalized Vector3
+## sample_position - Curve sample position 0.0 - 1.0 to use for interpolation. Normalized.
+## Returns: Normalized Vector3 in local space.
 func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
 	return _normal_for_offset_eased(curve, sample_position)
-	# return _normal_for_offset_legacy(curve, sample_position)
+	#return _normal_for_offset_legacy(curve, sample_position)
 
 
 ## Alternate method which doesn't guarentee consistent lane width.
@@ -395,23 +423,34 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var start_offset: float
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
-		return start_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return start_point.transform.basis.x
 	elif sample_position >= 1.0 - offset_amount * 0.5:
-		return end_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return end_point.transform.basis.x
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
 	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var tangent := pt2 - pt1
-	var sample_eased = ease(sample_position, smooth_amount)
-	var up_vec:Vector3 = lerp(
-		start_point.global_transform.basis.y,
-		end_point.global_transform.basis.y,
+	var tangent_l = pt2 - pt1
+
+	# Using local transforms. Both are transforms relative to the parent RoadNetwork,
+	# and the current mesh we are writing to already has the inverse of the start_point
+	# (or whichever it is parented to) rotation applied.
+	var start_up = start_point.transform.basis.y
+	var end_up = end_point.transform.basis.y
+
+	var up_vec_l:Vector3 = lerp(
+		start_up.normalized(),
+		end_up.normalized(),
 		sample_position)
-	var normal = up_vec.cross(tangent)
-	return normal.normalized()
+	var normal_l = up_vec_l.cross(tangent_l)
+
+	#var sample_eased = ease(sample_position, smooth_amount)
+
+	return normal_l.normalized()
 
 
 func _build_geo():
@@ -456,7 +495,6 @@ func _build_geo():
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
 	var uv_width = 0.125 # 1/8 for breakdown of texture.
 
-
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
@@ -471,6 +509,8 @@ func _build_geo():
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
+	for ch in road_mesh.get_children():
+		ch.queue_free()  # Prior collision meshes
 	road_mesh.create_trimesh_collision() # Call deferred?
 	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 

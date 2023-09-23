@@ -17,13 +17,6 @@ export(Material) var material_resource:Material setget _set_material
 export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
 export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
-# UI-selectable points and segments
-export(NodePath) var points setget _set_points # Where RoadPoints should be placed.
-export(NodePath) var segments setget _set_segments # Where generated segment meshes will go.
-
-
-export(NodePath) var debug_prior
-export(NodePath) var debug_next
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -38,6 +31,10 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 var _draw_lanes_editor:bool = false
 var _draw_lanes_game:bool = false
 
+# Non-exposed developer control, which allows showing all nodes (including generated) in the scene
+# tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
+# or making changes that get immediately removed as soon as a road is regenerated.
+var debug_scene_visible:bool = false
 
 # Flag used to defer calls to setup_road_network via _dirty_rebuild_deferred,
 # important during scene startup whereby class properties are called in
@@ -61,6 +58,16 @@ func _ready():
 	# are assigned, thus triggering functions like _set_density, before the
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
+
+func _get_configuration_warning() -> String:
+	var has_rp_child = false
+	for ch in get_children():
+		if ch is RoadPoint:
+			has_rp_child = true
+			break
+	if not has_rp_child:
+		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
+	return ""
 
 
 func _ui_refresh_set(value):
@@ -98,20 +105,6 @@ func _set_material(value):
 	material_resource = value
 
 
-func _set_points(value):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
-	points = value
-
-
-func _set_segments(value):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
-	segments = value
-
-
 func _dirty_rebuild_deferred():
 	if _dirty:
 		_dirty = false
@@ -136,15 +129,28 @@ func _get_draw_lanes_game() -> bool:
 	return _draw_lanes_game
 
 
+## Returns all RoadSegments which are directly children of RoadPoints.
+##
+## Will not return RoadSegmetns of nested scenes, presumed to be static.
+func get_segments() -> Array:
+	var segs = []
+	for ch in get_children():
+		if not ch is RoadPoint:
+			continue
+		for pt_ch in ch.get_children():
+			if not pt_ch is RoadSegment:
+				continue
+			segs.append(pt_ch)
+	return segs
+
+
 func rebuild_segments(clear_existing=false):
 	if debug:
 		print("Rebuilding RoadSegments")
-	if not get_node(segments) or not is_instance_valid(get_node(segments)):
-		push_error("Segments node path not found")
-		return # Could be before ready called.
+
 	if clear_existing:
 		segid_map = {}
-		for ch in get_node(segments).get_children():
+		for ch in get_segments():
 			ch.queue_free()
 	else:
 		# TODO: think of using groups instead, to have a single manager
@@ -155,11 +161,10 @@ func rebuild_segments(clear_existing=false):
 	# is there, or needs to be added.
 	var rebuilt = 0
 	var signal_rebuilt = []
-	for obj in get_node(points).get_children():
+	for obj in get_children():
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
 		if not obj is RoadPoint:
-			push_warning("Invalid child object under points of road network")
 			continue
 		var pt:RoadPoint = obj
 
@@ -226,7 +231,14 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		return [was_rebuilt, segid_map[sid]]
 	else:
 		var new_seg = RoadSegment.new(self)
-		get_node(segments).add_child(new_seg)
+
+		# We want to, as much as possible, deterministically add the RoadSeg
+		# as a child of a consistent RoadPoint. Even though the segment is
+		# connected to two road points, it will only be placed as a parent of
+		# one of them
+		pt1.add_child(new_seg)
+		if debug_scene_visible:
+			new_seg.owner = self.owner
 		new_seg.low_poly = low_poly
 		new_seg.start_point = pt1
 		new_seg.end_point = pt2
@@ -244,11 +256,10 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 # Process over each end of "connecting" Lanes, therefore best to iterate
 # over RoadPoints.
 func update_lane_seg_connections():
-	for obj in get_node(points).get_children():
+	for obj in get_children():
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
 		if not obj is RoadPoint:
-			push_warning("Invalid child object under points of road network")
 			continue
 		var pt:RoadPoint = obj
 
@@ -286,32 +297,6 @@ func update_lane_seg_connections():
 						ln.lane_next = ln.get_path_to(prior_ln)
 					else:
 						ln.lane_prior = ln.get_path_to(prior_ln)
-
-
-# Update the position and contents of the curves for the given point object.
-func update_debug_paths(point:RoadPoint):
-	var prior_path
-	var next_path
-	if debug_prior:
-		prior_path = get_node(debug_prior)
-	if debug_next:
-		next_path = get_node(debug_next)
-
-	var prior_seg = point.prior_seg
-	var next_seg = point.next_seg
-
-	if prior_path and prior_seg and prior_seg.curve:
-		prior_path.visible = true
-		prior_path.global_transform.origin = prior_seg.global_transform.origin
-		prior_path.curve = prior_seg.curve
-	else:
-		prior_path.visible = false
-	if next_path and next_seg and next_seg.curve:
-		next_path.visible = true
-		next_path.global_transform.origin = next_seg.global_transform.origin
-		next_path.curve = next_seg.curve
-	else:
-		next_path.visible = false
 
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
@@ -399,25 +384,34 @@ func setup_road_network():
 	else:
 		own = self
 
-	if not points or not is_instance_valid(get_node(points)):
-		var new_points = Spatial.new()
-		new_points.name = "points"
-		add_child(new_points)
-		new_points.set_owner(own)
-		points = get_path_to(new_points)
-		print("Added points to ", name)
-
-	if not segments or not is_instance_valid(get_node(segments)):
-		var new_segments = Spatial.new()
-		new_segments.name = "segments"
-		add_child(new_segments)
-		new_segments.set_owner(own)
-		segments = get_path_to(new_segments)
-		print("Added segments to ", name)
-
 	if not material_resource:
 		material_resource = RoadMaterial
 		print("Added material to ", name)
 
+	_check_migrate_points()
 
+
+## Detect and move legacy node hierharcy layout.
+##
+## With addon v0.3.4 and earlier, RoadPoints were parented to an intermediate
+## "points" spatial which was automatically generated
+func _check_migrate_points():
+	var moved_pts: int = 0
+	var pts = get_node_or_null("points")
+	if pts == null:
+		return
+
+	for ch in pts.get_children():
+		if ch is RoadPoint:
+			pts.remove_child(ch)
+			self.add_child(ch)
+			ch.owner = self.owner
+			moved_pts += 1
+
+	if moved_pts == 0:
+		return
+
+	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadNetwork parent %s" % [
+		moved_pts, self.name
+	])
 

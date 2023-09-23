@@ -1,6 +1,7 @@
 extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
+const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
 onready var road_util := RoadUtils.new()
 
 
@@ -23,18 +24,15 @@ func after_all():
 ## Utility to create a single segment network (2 points)
 func create_oneseg_network(network):
 	network.setup_road_network()
-	var points = network.get_node(network.points)
-	var segments = network.get_node(network.segments)
 
-	assert_eq(points.get_child_count(), 0, "No initial point children")
-	assert_eq(segments.get_child_count(), 0, "No initial segment children")
+	assert_eq(network.get_child_count(), 0, "No initial point children")
 
 	var p1 = autoqfree(RoadPoint.new())
 	var p2 = autoqfree(RoadPoint.new())
 
-	points.add_child(p1)
-	points.add_child(p2)
-	assert_eq(points.get_child_count(), 2, "Both RPs added")
+	network.add_child(p1)
+	network.add_child(p2)
+	assert_eq(network.get_child_count(), 2, "Both RPs added")
 
 	p1.next_pt_init = p1.get_path_to(p2)
 	p2.prior_pt_init = p2.get_path_to(p1)
@@ -53,11 +51,7 @@ func test_road_network_create():
 	# Trigger the auto setup which happens deferred in _ready
 	network.setup_road_network()
 
-	# Ensure the automatic nodes got set up.
-	var points = network.get_node(network.points)
-	var segments = network.get_node(network.segments)
-	assert_true(is_instance_valid(points))
-	assert_true(is_instance_valid(segments))
+	assert_eq(network.material_resource, RoadMaterial)
 
 	# Since only setup, still should not have triggered on update.
 	assert_signal_emit_count(network, "on_road_updated", 0, "Don't signal setup")
