@@ -85,6 +85,12 @@ var geom:ImmediateGeometry # For tool usage, drawing lane directions and end poi
 
 var _last_update_ms # To calculate min updates.
 
+
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
 func _init():
 	# Workaround to avoid linked export arrays between duplicates, see:
 	# https://github.com/TheDuckCow/godot-road-generator/issues/86
@@ -142,6 +148,7 @@ func is_road_point() -> bool:
 # ------------------------------------------------------------------------------
 # Editor visualizing
 # ------------------------------------------------------------------------------
+
 
 func _set_lanes(values):
 	lanes = values

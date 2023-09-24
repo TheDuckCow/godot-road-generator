@@ -4,7 +4,7 @@
 
 tool # Draw in the editor things like path direction and width
 extends Path
-class_name RoadLane
+class_name RoadLane, "../resources/road_lane.png"
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
@@ -49,6 +49,11 @@ var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _display_fins: bool = false
+
+
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
 
 
 func _ready():

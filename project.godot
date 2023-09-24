@@ -24,10 +24,20 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://addons/road-generator/nodes/road_container.gd"
 }, {
+"base": "Spatial",
+"class": "RoadIntersection",
+"language": "GDScript",
+"path": "res://addons/road-generator/nodes/road_intersection.gd"
+}, {
 "base": "Path",
 "class": "RoadLane",
 "language": "GDScript",
 "path": "res://addons/road-generator/nodes/road_lane.gd"
+}, {
+"base": "Spatial",
+"class": "RoadManager",
+"language": "GDScript",
+"path": "res://addons/road-generator/nodes/road_manager.gd"
 }, {
 "base": "Spatial",
 "class": "RoadPoint",
@@ -37,8 +47,10 @@ _global_script_classes=[ {
 _global_script_class_icons={
 "GutHookScript": "",
 "GutTest": "",
-"RoadContainer": "res://addons/road-generator/resources/road_segment.png",
-"RoadLane": "",
+"RoadContainer": "res://addons/road-generator/resources/road_container.png",
+"RoadIntersection": "res://addons/road-generator/resources/road_intersection.png",
+"RoadLane": "res://addons/road-generator/resources/road_lane.png",
+"RoadManager": "res://addons/road-generator/resources/road_manager.png",
 "RoadPoint": "res://addons/road-generator/resources/road_point.png"
 }
 

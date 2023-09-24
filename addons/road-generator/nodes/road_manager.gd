@@ -1,16 +1,31 @@
-extends Node
+## Manager for all children RoadContainers
+tool
+class_name RoadManager, "../resources/road_manager.png"
+extends Spatial
+
+var _skip_warn_found_rc_child := false
 
 
-# Declare member variables here. Examples:
-# var a = 2
-# var b = "text"
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
 
 
-# Called when the node enters the scene tree for the first time.
-func _ready():
-	pass # Replace with function body.
+func _get_configuration_warning() -> String:
+	if _skip_warn_found_rc_child:
+		return ""
+	var any_containers := false
+	for ch in get_children():
+		if ch.has_method("is_road_container"):
+			any_containers = true
+			break
+
+	if any_containers:
+		return ""
+	else:
+		return "No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-#func _process(delta):
-#	pass
+# Workaround for cyclic typing
+func is_road_manager() -> bool:
+	return true

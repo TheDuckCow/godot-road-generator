@@ -35,6 +35,11 @@ var low_poly := false  # If true, then was (or will be) generated as low poly.
 var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
 
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
 func _init(_container):
 	if not _container:
 		push_error("Invalid container assigned")

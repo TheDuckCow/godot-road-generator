@@ -1,6 +1,6 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-class_name RoadContainer, "../resources/road_segment.png"
+class_name RoadContainer, "../resources/road_container.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -83,6 +83,21 @@ func is_road_container() -> bool:
 
 
 func _get_configuration_warning() -> String:
+
+	if get_tree().get_edited_scene_root() != self:
+		var any_manager := false
+		var _last_par = get_parent()
+		while true:
+			if _last_par.get_path() == "/root":
+				break
+			if _last_par.has_method("is_road_manager"):
+				any_manager = true
+				_last_par._skip_warn_found_rc_child = true
+				break
+			_last_par = _last_par.get_parent()
+		if any_manager == false:
+			return "A RoadContainer should have a RoadManager somewhere in its parent hierarchy or be the scene root"
+
 	var has_rp_child = false
 	for ch in get_children():
 		if ch is RoadPoint:
