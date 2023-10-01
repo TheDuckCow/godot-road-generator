@@ -64,7 +64,7 @@ func _on_selection_changed() -> void:
 
 	if selected_node is RoadPoint:
 		_last_point = selected_node
-		selected_node.on_transform()
+		# selected_node.on_transform() # Creates duplicate rebuilds.
 	elif selected_node is RoadLane:
 		_last_lane = selected_node
 		_last_lane.show_fins(true)

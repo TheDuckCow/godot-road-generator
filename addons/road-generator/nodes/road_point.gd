@@ -135,7 +135,7 @@ func _get_configuration_warning() -> String:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
 	#if not par is RoadContainer:
-	if not par.has_method("on_point_update"):
+	if not par.has_method("is_road_container"):
 		return "Must be a child of a RoadContainer"
 	return ""
 
