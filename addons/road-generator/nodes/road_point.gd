@@ -1,8 +1,7 @@
 ## Definition for a single point handle, which 2+ road segments connect to.
 tool
-class_name RoadPoint, "road_point.png"
+class_name RoadPoint, "../resources/road_point.png"
 extends Spatial
-
 
 signal on_transform(node, low_poly)
 
@@ -68,6 +67,10 @@ export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
 
+# Generate procedural road geometry
+# If off, it indicates the developer will load in their own custom mesh + collision.
+export(bool) var create_geo := true setget _set_create_geo
+
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
@@ -76,11 +79,17 @@ var prior_seg
 #var next_pt:Spatial # Road Point or Junction
 var next_seg
 
-var network # The managing network node for this road segment (grandparent).
+var container # The managing container node for this road segment (direct parent).
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
 var _last_update_ms # To calculate min updates.
+
+
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
 
 func _init():
 	# Workaround to avoid linked export arrays between duplicates, see:
@@ -101,15 +110,15 @@ func _ready():
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
-	if not network or not is_instance_valid(network):
+	if not container or not is_instance_valid(container):
 		var par = get_parent()
 		# Can't type check, circular dependency -____-
-		#if not par is RoadNetwork:
-		if not par.has_method("on_point_update"):
-			push_warning("Parent of RoadPoint %s is not a RoadNetwork" % self.name)
-		network = get_parent()
+		#if not par is RoadContainer:
+		if not par.has_method("is_road_container"):
+			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
+		container = par
 
-	connect("on_transform", network, "on_point_update")
+	connect("on_transform", container, "on_point_update")
 
 
 func _to_string():
@@ -125,19 +134,25 @@ func _to_string():
 func _get_configuration_warning() -> String:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
-	#if not par is RoadNetwork:
+	#if not par is RoadContainer:
 	if not par.has_method("on_point_update"):
-		return "Must be a child of a RoadNetwork"
+		return "Must be a child of a RoadContainer"
 	return ""
+
+
+# Workaround for cyclic typing
+func is_road_point() -> bool:
+	return true
 
 
 # ------------------------------------------------------------------------------
 # Editor visualizing
 # ------------------------------------------------------------------------------
 
+
 func _set_lanes(values):
 	lanes = values
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_lanes():
@@ -146,7 +161,7 @@ func _get_lanes():
 
 func _set_auto_lanes(value):
 	auto_lanes = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_auto_lanes():
@@ -155,7 +170,7 @@ func _get_auto_lanes():
 
 func _set_dir(values):
 	traffic_dir = values
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_dir():
@@ -164,7 +179,7 @@ func _get_dir():
 
 func _set_lane_width(value):
 	lane_width = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_lane_width():
@@ -173,7 +188,7 @@ func _get_lane_width():
 
 func _set_shoulder_width_l(value):
 	shoulder_width_l = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_shoulder_width_l():
@@ -182,7 +197,7 @@ func _get_shoulder_width_l():
 
 func _set_shoulder_width_r(value):
 	shoulder_width_r = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 func _get_shoulder_width_r():
@@ -191,7 +206,7 @@ func _get_shoulder_width_r():
 
 func _set_profile(value:Vector2):
 	gutter_profile = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 
@@ -203,11 +218,11 @@ func _get_profile():
 func _set_prior_pt(value:NodePath):
 	var _pre_assign = prior_pt_init
 	prior_pt_init = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 
 	# Attempt an auto fix to ensure dependencies are updated. This should happen
-	# even if auto_refresh is off, since we want to make sure the network static
+	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, true)
 
@@ -221,11 +236,11 @@ func _get_prior_pt():
 func _set_next_pt(value:NodePath):
 	var _pre_assign = next_pt_init
 	next_pt_init = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 
 	# Attempt an auto fix to ensure dependencies are updated. This should happen
-	# even if auto_refresh is off, since we want to make sure the network static
+	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, false)
 
@@ -238,7 +253,7 @@ func _get_next_pt():
 
 func _set_prior_mag(value):
 	prior_mag = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_prior_mag():
@@ -247,19 +262,30 @@ func _get_prior_mag():
 
 func _set_next_mag(value):
 	next_mag = value
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	_notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 func _get_next_mag():
 	return next_mag
 
 
+func _set_create_geo(value: bool) -> void:
+	if value == create_geo:
+		return
+	create_geo = value
+	for ch in get_children():
+		# Due to cyclic reference, can't check class here.
+		if ch.has_method("is_road_segment"):
+			ch.do_roadmesh_creation()
+	if value == true:
+		on_transform()
+
 # ------------------------------------------------------------------------------
 # Editor interactions
 # ------------------------------------------------------------------------------
 
 func _notification(what):
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
@@ -406,7 +432,7 @@ func update_traffic_dir(traffic_update):
 		TrafficUpdate.MOVE_DIVIDER_RIGHT:
 			pass
 
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	on_transform()
 
@@ -456,20 +482,20 @@ func increment_name(name: String) -> String:
 
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
 func add_road_point(new_road_point: RoadPoint, pt_init):
-	network.add_child(new_road_point, true)
+	container.add_child(new_road_point, true)
 	new_road_point.copy_settings_from(self)
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
 
-	# If network is scene root, assign directly.
-	if get_tree().get_edited_scene_root() == network:
-		new_road_point.set_owner(network)
+	# If container is scene root, assign directly.
+	if get_tree().get_edited_scene_root() == container:
+		new_road_point.set_owner(container)
 	else:
-		new_road_point.set_owner(network.owner)
+		new_road_point.set_owner(container.owner)
 
-	var refresh = network.auto_refresh
-	network.auto_refresh = false
+	var refresh = container.auto_refresh
+	container.auto_refresh = false
 	match pt_init:
 		PointInit.NEXT:
 			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
@@ -479,7 +505,7 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
-	network.auto_refresh = refresh
+	container.auto_refresh = refresh
 
 
 func _exit_tree():
@@ -570,7 +596,7 @@ func _autofix_noncyclic_references(
 		old_point_path: NodePath,
 		new_point_path: NodePath,
 		for_prior: bool) -> void:
-	var init_refresh = network.auto_refresh
+	var init_refresh = container.auto_refresh
 	var point:RoadPoint
 	var is_clearing: bool # clearing value vs setting new path.
 
@@ -588,7 +614,7 @@ func _autofix_noncyclic_references(
 		push_warning("Instance not valid on point for cyclic check")
 		return
 
-	network.auto_refresh = false
+	container.auto_refresh = false
 
 	if is_clearing:
 		# Scenario where the user is attempting to CLEAR the _pt_init
@@ -602,7 +628,7 @@ func _autofix_noncyclic_references(
 		else:
 			point.prior_pt_init = ""
 			seg = self.next_seg
-		network.remove_segment(seg)
+		container.remove_segment(seg)
 
 	elif for_prior and point.next_pt_init == "":
 		# self's prior RP is `point`, so make point's next RP be self if slot was empty
@@ -613,7 +639,7 @@ func _autofix_noncyclic_references(
 		point.prior_pt_init = point.get_path_to(self)
 		#print_debug(point.get_path_to(self), " -> ", point.prior_pt_init)
 	else:
-		if network and is_instance_valid(network) and network.debug:
+		if container and is_instance_valid(container) and container.debug:
 			print_debug("Cannot auto-fix cyclic reference")
 
 	# This would ordinarily actually trigger a full rebuild, which
@@ -622,6 +648,6 @@ func _autofix_noncyclic_references(
 	# the internal call_deferred to rebuild. But not good to depend on this,
 	# sine the implementation could change technically.
 	# TODO: Implement better solution not depending on self-internals.
-	network._dirty = true
-	network.auto_refresh = init_refresh
-	network._dirty = false
+	container._dirty = true
+	container.auto_refresh = init_refresh
+	container._dirty = false

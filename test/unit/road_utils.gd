@@ -1,10 +1,10 @@
 extends "res://addons/gut/test.gd"
 
-## Utility to create a single segment network (2 points)
-func create_oneseg_network(network):
-	network.setup_road_network()
-	var points = network.get_node(network.points)
-	var segments = network.get_node(network.segments)
+## Utility to create a single segment container (2 points)
+func create_oneseg_container(container):
+	container.setup_road_container()
+	var points = container.get_node(container.points)
+	var segments = container.get_node(container.segments)
 
 	assert_eq(points.get_child_count(), 0, "No initial point children")
 	assert_eq(segments.get_child_count(), 0, "No initial segment children")

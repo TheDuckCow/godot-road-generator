@@ -1,6 +1,6 @@
 ## Manager used to generate the actual road segments when needed.
 tool
-class_name RoadNetwork, "road_segment.png"
+class_name RoadContainer, "../resources/road_container.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -8,15 +8,28 @@ extends Spatial
 ## which will contain a list of nothing.
 signal on_road_updated (updated_segments)
 
-const RoadMaterial = preload("res://addons/road-generator/road_texture.material")
-const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
 
 export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
-export(bool) var use_lowpoly_preview:bool = false  # Whether to reduce geo mid transform.
 
+# Generate procedural road geometry
+# If off, it indicates the developer will load in their own custom mesh + collision.
+export(bool) var create_geo := true setget _set_create_geo
+# If create_geo is true, then whether to reduce geo mid transform.
+export(bool) var use_lowpoly_preview:bool = false
+
+## Auto generated exposed variables dused to conneect this RoadContainer to
+## another RoadContainer.
+# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
+#   which should be connected to this indicie's roadpoint.
+# connection_indicies = list of indicies, to indicate which index of the *target's*
+#   children list of RoadPoint to use
+export(Array, NodePath) var connection_nodepaths;
+export(Array, int) var connection_indicies;
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -36,15 +49,20 @@ var _draw_lanes_game:bool = false
 # or making changes that get immediately removed as soon as a road is regenerated.
 var debug_scene_visible:bool = false
 
-# Flag used to defer calls to setup_road_network via _dirty_rebuild_deferred,
+# Flag used to defer calls to setup_road_container via _dirty_rebuild_deferred,
 # important during scene startup whereby class properties are called in
 # succession during scene init and otherwise would lead to duplicate calls.
 var _dirty:bool = false
 
 
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
 func _ready():
-	# setup_road_network won't work in _ready unless call_deferred is used
-	call_deferred("setup_road_network")
+	# setup_road_container won't work in _ready unless call_deferred is used
+	call_deferred("setup_road_container")
 
 	# Per below, this is technicaly redundant/not really doing anything.
 	_dirty = true
@@ -59,7 +77,27 @@ func _ready():
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
 
+# Workaround for cyclic typing
+func is_road_container() -> bool:
+	return true
+
+
 func _get_configuration_warning() -> String:
+
+	if get_tree().get_edited_scene_root() != self:
+		var any_manager := false
+		var _last_par = get_parent()
+		while true:
+			if _last_par.get_path() == "/root":
+				break
+			if _last_par.has_method("is_road_manager"):
+				any_manager = true
+				_last_par._skip_warn_found_rc_child = true
+				break
+			_last_par = _last_par.get_parent()
+		if any_manager == false:
+			return "A RoadContainer should have a RoadManager somewhere in its parent hierarchy or be the scene root"
+
 	var has_rp_child = false
 	for ch in get_children():
 		if ch is RoadPoint:
@@ -127,6 +165,28 @@ func _set_draw_lanes_game(value: bool):
 
 func _get_draw_lanes_game() -> bool:
 	return _draw_lanes_game
+
+
+func _set_create_geo(value: bool) -> void:
+	if value == create_geo:
+		return
+	create_geo = value
+	for ch in get_children():
+		# Cyclic loading, have to use workaround
+		if not ch.has_method("is_road_point"):
+			continue
+		for rp_ch in ch.get_children():
+			# Cycling loading, have to use workaround
+			if rp_ch.has_method("is_road_segment"):
+				rp_ch.do_roadmesh_creation()
+	if value == true:
+		_dirty = true
+		call_deferred("_dirty_rebuild_deferred")
+
+
+# ------------------------------------------------------------------------------
+# Container methods
+# ------------------------------------------------------------------------------
 
 
 ## Returns all RoadSegments which are directly children of RoadPoints.
@@ -197,7 +257,7 @@ func rebuild_segments(clear_existing=false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
-	# Aim to do a single signal emission across the whole network update.
+	# Aim to do a single signal emission across the whole container update.
 	emit_signal("on_road_updated", signal_rebuilt)
 
 
@@ -371,13 +431,13 @@ func _exit_tree():
 
 
 ## Adds points, segments, and material if they're unassigned
-func setup_road_network():
+func setup_road_container():
 	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
-	# be assigned an "owner". Use the RoadNetwork's owner. But, the RoadNetwork
+	# be assigned an "owner". Use the RoadContainer's owner. But, the RoadContainer
 	# won't have an owner if it is the scene root. In that case, make the
-	# RoadNetwork the owner.
+	# RoadContainer the owner.
 	var own
 	if owner:
 		own = owner
@@ -411,7 +471,7 @@ func _check_migrate_points():
 	if moved_pts == 0:
 		return
 
-	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadNetwork parent %s" % [
+	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadContainer parent %s" % [
 		moved_pts, self.name
 	])
 

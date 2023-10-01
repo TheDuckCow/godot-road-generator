@@ -25,7 +25,7 @@ var curve:Curve3D
 var road_mesh:MeshInstance
 var material:Material
 var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
-var network # The managing network node for this road segment (grandparent).
+var container # The managing container node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
@@ -35,26 +35,72 @@ var low_poly := false  # If true, then was (or will be) generated as low poly.
 var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
 
-func _init(_network):
-	if not _network:
-		push_error("Invalid network assigned")
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
+func _init(_container):
+	if not _container:
+		push_error("Invalid container assigned")
 		return
-	network = _network
+	container = _container
 	curve = Curve3D.new()
 
 
 func _ready():
-	road_mesh = MeshInstance.new()
-	add_child(road_mesh)
-	if network.debug_scene_visible:
-		road_mesh.owner = network.owner
-	road_mesh.name = "road_mesh"
+	if container.debug_scene_visible:
+		road_mesh.owner = container.owner
 
-	var res = connect("check_rebuild", network, "segment_rebuild")
+	do_roadmesh_creation()
+
+	var res = connect("check_rebuild", container, "segment_rebuild")
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
 	#emit_signal("check_rebuild", self)
+
+
+# Workaround for cyclic typing
+func is_road_segment() -> bool:
+	return true
+
+
+func should_add_mesh() -> bool:
+	var should_add_mesh = true
+	var par = get_parent()
+	if not is_instance_valid(par) or not par is RoadPoint:
+		return should_add_mesh
+
+	if par.create_geo == false:
+		should_add_mesh = false
+
+	if container.create_geo == false:
+		should_add_mesh = false
+
+	return should_add_mesh
+
+
+func do_roadmesh_creation():
+	var do_create := should_add_mesh()
+	if do_create:
+		add_road_mesh()
+	else:
+		remove_road_mesh()
+
+
+func add_road_mesh() -> void:
+	if is_instance_valid(road_mesh):
+		return
+	road_mesh = MeshInstance.new()
+	add_child(road_mesh)
+	road_mesh.name = "road_mesh"
+
+
+func remove_road_mesh():
+	if road_mesh == null:
+		return
+	road_mesh.queue_free()
 
 
 ## Unique identifier for a segment based on what its connected to.
@@ -79,7 +125,7 @@ func get_id() -> String:
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return
 	#emit_signal("check_rebuild", self)
 func _init_start_get():
@@ -89,7 +135,7 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return
 	#emit_signal("check_rebuild", self)
 func _init_end_get():
@@ -101,7 +147,7 @@ func _init_end_get():
 func check_rebuild() -> bool:
 	if is_queued_for_deletion():
 		return false
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
@@ -126,7 +172,7 @@ func check_rebuild() -> bool:
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(_debug: bool = false) -> bool:
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
@@ -182,13 +228,13 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			add_child(ln_child)
-			if network.debug_scene_visible:
-				ln_child.owner = network.owner
-			ln_child.add_to_group(network.ai_lane_group)
+			if container.debug_scene_visible:
+				ln_child.owner = container.owner
+			ln_child.add_to_group(container.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
-		# road lanes later (handled by RoadNetwork).
+		# road lanes later (handled by RoadContainer).
 		new_ln.lane_prior_tag = this_match[2]
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
@@ -227,8 +273,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			curve.get_point_out(1))
 
 		# Visually display.
-		new_ln.draw_in_editor = network.draw_lanes_editor
-		new_ln.draw_in_game = network.draw_lanes_game
+		new_ln.draw_in_editor = container.draw_lanes_editor
+		new_ln.draw_in_game = container.draw_lanes_game
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
 
@@ -335,8 +381,8 @@ func _rebuild():
 		return
 
 	get_id()
-	if network and network.density > 0:
-		density = network.density
+	if container and container.density > 0:
+		density = container.density
 
 	# Reset its transform to undo the rotation of the parent
 	var tr = get_parent().transform
@@ -364,7 +410,7 @@ func _update_curve():
 	_set_curve_point(curve, end_point, end_point.prior_mag)
 
 	# Show this primary curve in the scene hierarchy if the debug state set.
-	if network.debug_scene_visible:
+	if container.debug_scene_visible:
 		var found_path = false
 		var path_node: Path
 		for ch in self.get_children():
@@ -377,7 +423,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path.new()
 			self.add_child(path_node)
-			path_node.owner = network.owner
+			path_node.owner = container.owner
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
@@ -436,7 +482,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
 	var tangent_l = pt2 - pt1
 
-	# Using local transforms. Both are transforms relative to the parent RoadNetwork,
+	# Using local transforms. Both are transforms relative to the parent RoadContainer,
 	# and the current mesh we are writing to already has the inverse of the start_point
 	# (or whichever it is parented to) rotation applied.
 	var start_up = start_point.transform.basis.y

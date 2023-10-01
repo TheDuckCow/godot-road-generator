@@ -10,7 +10,7 @@ enum HandleType {
 	FWD_WIDTH_MAG
 }
 
-const GizmoBlueHandle := preload("res://addons/road-generator/gizmo_blue_handle.png")
+const GizmoBlueHandle := preload("res://addons/road-generator/ui/gizmo_blue_handle.png")
 const LaneOffset := 0.25
 
 var _editor_plugin: EditorPlugin
@@ -328,8 +328,8 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		undo_redo.add_undo_method(self, "redraw", gizmo)
 		# Ensure that on undo/redo, the point update is triggered to force
 		# regeneration/placement of RoadLanes.
-		undo_redo.add_do_method(point.network, "on_point_update", point, false)
-		undo_redo.add_undo_method(point.network, "on_point_update", point, false)
+		undo_redo.add_do_method(point.container, "on_point_update", point, false)
+		undo_redo.add_undo_method(point.container, "on_point_update", point, false)
 
 		undo_redo.commit_action()
 		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
