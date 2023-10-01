@@ -102,13 +102,13 @@ func test_error_no_traffic_dir():
 
 func test_autofix_noncyclic_added_next():
 	var container = add_child_autofree(RoadContainer.new())
-	container.auto_refresh = false
+	container._auto_refresh = false
 
 	var points = create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
-	container.auto_refresh = true
+	container._auto_refresh = true
 	watch_signals(container)
 
 	# The change which should trigger an auto path fix and thus a signal
@@ -130,7 +130,7 @@ func test_autofix_noncyclic_added_next():
 
 func test_junction_validate_init_path_just_removed():
 	var container = add_child_autofree(RoadContainer.new())
-	container.auto_refresh = false
+	container._auto_refresh = false
 
 	var points = create_unconnected_container(container)
 	var p1 = points[0]
@@ -141,7 +141,7 @@ func test_junction_validate_init_path_just_removed():
 	p2.prior_pt_init = p2.get_path_to(p1)
 
 	# Trigger build.
-	container.auto_refresh = true
+	container._auto_refresh = true
 	container.rebuild_segments(true)
 
 	# should have a child segment now, TODO assert this.
@@ -162,7 +162,7 @@ func test_junction_validate_init_path_just_removed():
 
 func test_on_road_updated_pt_transform():
 	var container = add_child_autofree(RoadContainer.new())
-	container.auto_refresh = false
+	container._auto_refresh = false
 
 	var points = create_unconnected_container(container)
 	var p1 = points[0]
@@ -172,7 +172,7 @@ func test_on_road_updated_pt_transform():
 	p1.next_pt_init = p1.get_path_to(p2)
 	p2.prior_pt_init = p2.get_path_to(p1)
 
-	container.auto_refresh = true
+	container._auto_refresh = true
 	# should have a child segment now, TODO assert this.
 	watch_signals(container)
 

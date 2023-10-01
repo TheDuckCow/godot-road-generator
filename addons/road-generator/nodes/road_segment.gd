@@ -381,8 +381,14 @@ func _rebuild():
 		return
 
 	get_id()
-	if container and container.density > 0:
+	if not container or not is_instance_valid(container):
+		pass
+	elif container.density > 0:
 		density = container.density
+	elif is_instance_valid(container.get_manager()):
+		density = container.get_manager().density
+	else:
+		pass
 
 	# Reset its transform to undo the rotation of the parent
 	var tr = get_parent().transform

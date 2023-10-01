@@ -494,8 +494,8 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	else:
 		new_road_point.set_owner(container.owner)
 
-	var refresh = container.auto_refresh
-	container.auto_refresh = false
+	var refresh = container._auto_refresh
+	container._auto_refresh = false
 	match pt_init:
 		PointInit.NEXT:
 			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
@@ -505,7 +505,9 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 			new_road_point.transform.origin -= SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.next_pt_init = new_road_point.get_path_to(self)
 			prior_pt_init = get_path_to(new_road_point)
-	container.auto_refresh = refresh
+	container._auto_refresh = refresh
+	if not container._auto_refresh:
+		container._needs_refresh = true
 
 
 func _exit_tree():
@@ -596,7 +598,7 @@ func _autofix_noncyclic_references(
 		old_point_path: NodePath,
 		new_point_path: NodePath,
 		for_prior: bool) -> void:
-	var init_refresh = container.auto_refresh
+	var init_refresh = container._auto_refresh
 	var point:RoadPoint
 	var is_clearing: bool # clearing value vs setting new path.
 
@@ -614,7 +616,7 @@ func _autofix_noncyclic_references(
 		push_warning("Instance not valid on point for cyclic check")
 		return
 
-	container.auto_refresh = false
+	container._auto_refresh = false
 
 	if is_clearing:
 		# Scenario where the user is attempting to CLEAR the _pt_init
@@ -649,5 +651,5 @@ func _autofix_noncyclic_references(
 	# sine the implementation could change technically.
 	# TODO: Implement better solution not depending on self-internals.
 	container._dirty = true
-	container.auto_refresh = init_refresh
+	container._auto_refresh = init_refresh
 	container._dirty = false
