@@ -48,6 +48,7 @@ var geom # For tool usage, drawing lane directions and end points
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
+var _draw_override: bool = false
 var _display_fins: bool = false
 
 
@@ -118,9 +119,9 @@ func get_vehicles() -> Array:
 func _instantiate_geom() -> void:
 
 	if Engine.is_editor_hint():
-		_display_fins = _draw_in_editor
+		_display_fins = _draw_in_editor or _draw_override
 	else:
-		_display_fins = _draw_in_game
+		_display_fins = _draw_in_game or _draw_override
 
 	if not _display_fins:
 		if geom:
@@ -202,6 +203,6 @@ func _get_draw_in_editor() -> bool:
 
 
 func show_fins(value: bool) -> void:
-	_draw_in_editor = false
+	_draw_override = value
 	rebuild_geom()
 
