@@ -468,7 +468,7 @@ func is_road_point_selected(editor_selection) -> bool:
 
 
 ## Adds a numeric sequence to the end of a RoadPoint name
-func increment_name(name: String) -> String:
+static func increment_name(name: String) -> String:
 	# The original intent of this routine was to numerically increment node
 	# names. But, it turned out that Godot already did a pretty good job of that
 	# if a name ended in a number. So, this routine mainly makes sure that

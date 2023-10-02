@@ -10,5 +10,5 @@ script = ExtResource( 1 )
 margin_right = 53.0
 margin_bottom = 20.0
 text = "Create"
-items = [ "Refresh roads", null, 0, false, false, 0, 0, null, "", false, "Select network", null, 0, false, false, 1, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "2x2 road", null, 0, false, false, 2, 0, null, "", false ]
+items = [ "Refresh roads", null, 0, false, false, 0, 0, null, "", false ]
 script = ExtResource( 2 )
