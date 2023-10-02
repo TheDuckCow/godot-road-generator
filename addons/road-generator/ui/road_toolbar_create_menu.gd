@@ -1,6 +1,10 @@
 tool
 extends MenuButton
 
+const ICN_CT = preload("../resources/road_container.png")
+const ICN_RP = preload("../resources/road_point.png")
+const ICN_LN = preload("../resources/road_lane.png")
+
 signal regenerate_pressed
 signal select_container_pressed
 signal create_container
@@ -26,9 +30,9 @@ func _enter_tree() -> void:
 	get_popup().add_item("Select container", CreateMenu.SELECT_CONTAINER)
 
 	get_popup().add_separator()
-	get_popup().add_item("RoadContainer", CreateMenu.CONTAINER)
-	get_popup().add_item("RoadPoint", CreateMenu.POINT)
-	get_popup().add_item("RoadLane (AI path)", CreateMenu.LANE)
+	get_popup().add_icon_item(ICN_CT, "RoadContainer", CreateMenu.CONTAINER)
+	get_popup().add_icon_item(ICN_RP, "RoadPoint", CreateMenu.POINT)
+	get_popup().add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
 	get_popup().add_separator()
 	get_popup().add_item("2x2 road", CreateMenu.TWO_X_TWO)
 
