@@ -11,10 +11,10 @@ signal on_road_updated (updated_segments)
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
-export(bool) var auto_refresh = true setget _ui_refresh_set
 export(Material) var material_resource:Material setget _set_material
 
-export(float) var density:float = 1.0  setget _set_density # Mesh density of generated segments.
+# Mesh density of generated segments. -1 implies to use the parent RoadManager's value.
+export(float) var density:float = -1.0  setget _set_density
 
 # Generate procedural road geometry
 # If off, it indicates the developer will load in their own custom mesh + collision.
@@ -31,6 +31,7 @@ export(bool) var use_lowpoly_preview:bool = false
 export(Array, NodePath) var connection_nodepaths;
 export(Array, int) var connection_indicies;
 
+
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
 
@@ -41,9 +42,6 @@ export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
 
-var _draw_lanes_editor:bool = false
-var _draw_lanes_game:bool = false
-
 # Non-exposed developer control, which allows showing all nodes (including generated) in the scene
 # tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
 # or making changes that get immediately removed as soon as a road is regenerated.
@@ -53,6 +51,17 @@ var debug_scene_visible:bool = false
 # important during scene startup whereby class properties are called in
 # succession during scene init and otherwise would lead to duplicate calls.
 var _dirty:bool = false
+
+# Flag to auto rebuild specific segments under any relevant setting change.
+# Default to true, but should be set by the parent RoadManager
+var _auto_refresh = true
+var _needs_refresh = false
+
+var _draw_lanes_editor:bool = false
+var _draw_lanes_game:bool = false
+
+## Refernce to the parent road manager if any.
+var _manager:RoadManager
 
 
 # ------------------------------------------------------------------------------
@@ -77,6 +86,9 @@ func _ready():
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
 
+	get_manager()
+
+
 # Workaround for cyclic typing
 func is_road_container() -> bool:
 	return true
@@ -96,7 +108,7 @@ func _get_configuration_warning() -> String:
 				break
 			_last_par = _last_par.get_parent()
 		if any_manager == false:
-			return "A RoadContainer should have a RoadManager somewhere in its parent hierarchy or be the scene root"
+			return "A RoadContainer should either be the scene root, or have a RoadManager somewhere in its parent hierarchy"
 
 	var has_rp_child = false
 	for ch in get_children():
@@ -105,45 +117,43 @@ func _get_configuration_warning() -> String:
 			break
 	if not has_rp_child:
 		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
+
+	if _needs_refresh:
+		return "Refresh outdated geometry by selecting this node and going to 3D view > Create menu > Refresh Roads"
 	return ""
 
 
-func _ui_refresh_set(value):
-	if value and not _dirty:
+func _defer_refresh_on_change() -> void:
+	if _dirty:
+		return
+	elif _auto_refresh:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
-	auto_refresh = value
+	else: # We would have done a rebuild if auto_refresh, so set the flag.
+		_needs_refresh = true
 
 
-func _set_gen_ai_lanes(value: bool):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
+func _set_gen_ai_lanes(value: bool) -> void:
+	_defer_refresh_on_change()
 	generate_ai_lanes = value
 
 
-func _set_ai_lane_group(value: String):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
+func _set_ai_lane_group(value: String) -> void:
+	_defer_refresh_on_change()
 	ai_lane_group = value
 
 
-func _set_density(value):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
+func _set_density(value) -> void:
+	_defer_refresh_on_change()
 	density = value
 
 
-func _set_material(value):
-	if auto_refresh and not _dirty:
-		_dirty = true
-		call_deferred("_dirty_rebuild_deferred")
+func _set_material(value) -> void:
+	_defer_refresh_on_change()
 	material_resource = value
 
 
-func _dirty_rebuild_deferred():
+func _dirty_rebuild_deferred() -> void:
 	if _dirty:
 		_dirty = false
 		call_deferred("rebuild_segments", true)
@@ -189,6 +199,22 @@ func _set_create_geo(value: bool) -> void:
 # ------------------------------------------------------------------------------
 
 
+## Get the highest-level RoadManager parent to this node.
+##
+## If multiple in hiearchy, the top-most one will be used.
+func get_manager(): # -> Optional[RoadManager]
+	var _this_manager = null
+	var _last_par = get_parent()
+	while true:
+		if _last_par.get_path() == "/root":
+			break
+		if _last_par.has_method("is_road_manager"):
+			_this_manager = _last_par
+		_last_par = _last_par.get_parent()
+	_manager = _this_manager
+	return _manager
+
+
 ## Returns all RoadSegments which are directly children of RoadPoints.
 ##
 ## Will not return RoadSegmetns of nested scenes, presumed to be static.
@@ -205,6 +231,7 @@ func get_segments() -> Array:
 
 
 func rebuild_segments(clear_existing=false):
+	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments")
 
@@ -264,9 +291,8 @@ func rebuild_segments(clear_existing=false):
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
 func remove_segment(seg:RoadSegment) -> void:
 	if not seg or not is_instance_valid(seg):
-		print("What is seg now?, ", seg)
-		push_warning("RoadSegment is invalid, cannot remove")
-		print("Did NOT signal for the removal here", seg)
+		push_warning("RoadSegment is invalid, cannot remove: ")
+		#print("Did NOT signal for the removal here", seg)
 		return
 	var id := seg.get_id()
 	seg.queue_free()
@@ -361,7 +387,8 @@ func update_lane_seg_connections():
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
-	if not auto_refresh:
+	if not _auto_refresh:
+		_needs_refresh = true
 		return
 	elif not is_instance_valid(point):
 		return
@@ -369,7 +396,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	var segs_updated = []  # For signal emission
 	var res
 
-	point.validate_junctions(auto_refresh)
+	point.validate_junctions(_auto_refresh)
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly

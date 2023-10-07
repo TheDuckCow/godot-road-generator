@@ -62,7 +62,7 @@ func test_road_container_create():
 
 func test_on_road_updated_single_segment():
 	var container = add_child_autofree(RoadContainer.new())
-	container.auto_refresh = false
+	container._auto_refresh = false
 
 	create_oneseg_container(container)
 
@@ -78,7 +78,7 @@ func test_on_road_updated_single_segment():
 ## Ensure that users can manually assign two points to connect with auto_refresh
 func test_RoadContainer_validations_with_autorefresh():
 	var container = add_child_autofree(RoadContainer.new())
-	container.auto_refresh = true  # Will kick in validation
+	container._auto_refresh = true  # Will kick in validation
 
 	create_oneseg_container(container)
 
@@ -89,3 +89,33 @@ func test_RoadContainer_validations_with_autorefresh():
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+
+
+func test_get_manager_null():
+	var container = add_child_autofree(RoadContainer.new())
+
+	# No manager
+	var res = container.get_manager()
+	assert_eq(res, null)
+
+
+func test_get_manager_parent():
+	# Direct manager
+	var manager = add_child_autofree(RoadManager.new())
+	var container = autoqfree(RoadContainer.new())
+	manager.add_child(container)
+
+	var res = container.get_manager()
+	assert_eq(res, manager)
+
+
+func test_get_manager_grandparent():
+	# Direct manager
+	var manager = add_child_autofree(RoadManager.new())
+	var spatial = autoqfree(Spatial.new())
+	var container = autoqfree(RoadContainer.new())
+	manager.add_child(spatial)
+	spatial.add_child(container)
+
+	var res = container.get_manager()
+	assert_eq(res, manager)
