@@ -215,6 +215,18 @@ func get_manager(): # -> Optional[RoadManager]
 	return _manager
 
 
+func get_roadpoints() -> Array:
+	var rps = []
+	for obj in get_children():
+		if not obj is RoadPoint:
+			continue
+		if not obj.visible:
+			continue # Assume local chunk has dealt with the geo visibility.
+		var pt:RoadPoint = obj
+		rps.append(pt)
+	return rps
+
+
 ## Returns all RoadSegments which are directly children of RoadPoints.
 ##
 ## Will not return RoadSegmetns of nested scenes, presumed to be static.
@@ -248,11 +260,7 @@ func rebuild_segments(clear_existing=false):
 	# is there, or needs to be added.
 	var rebuilt = 0
 	var signal_rebuilt = []
-	for obj in get_children():
-		if not obj.visible:
-			continue # Assume local chunk has dealt with the geo visibility.
-		if not obj is RoadPoint:
-			continue
+	for obj in get_roadpoints():
 		var pt:RoadPoint = obj
 
 		var prior_pt
@@ -337,16 +345,17 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 
 		return [true, new_seg]
 
+
 # Update the lane_next and lane_prior connections based on tags assigned.
 #
 # Process over each end of "connecting" Lanes, therefore best to iterate
 # over RoadPoints.
 func update_lane_seg_connections():
 	for obj in get_children():
-		if not obj.visible:
-			continue # Assume local chunk has dealt with the geo visibility.
 		if not obj is RoadPoint:
 			continue
+		if not obj.visible:
+			continue # Assume local chunk has dealt with the geo visibility.
 		var pt:RoadPoint = obj
 
 		# update prior lanes to match next lanes first.
@@ -441,22 +450,6 @@ func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
 
 
-# Cleanup the road segments specifically, in case they aren't children.
-func _exit_tree():
-	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
-	# freed instances.
-	segid_map = {}
-	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()
-
-
 ## Adds points, segments, and material if they're unassigned
 func setup_road_container():
 	use_lowpoly_preview = true
@@ -502,3 +495,18 @@ func _check_migrate_points():
 		moved_pts, self.name
 	])
 
+
+# Cleanup the road segments specifically, in case they aren't children.
+func _exit_tree():
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	segid_map = {}
+	return
+
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
