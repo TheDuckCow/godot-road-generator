@@ -79,7 +79,7 @@ func forward_spatial_gui_input(camera: Camera, event: InputEvent)->bool:
 
 ## Render the editor indicators for RoadPoints and RoadLanes if selected.
 func _on_selection_changed() -> void:
-	var selected_node = get_selected_node(_eds.get_selected_nodes())
+	var selected_node = get_selected_node()
 
 	if new_selection:
 		select_road_point(new_selection)
@@ -113,7 +113,7 @@ func _on_selection_changed() -> void:
 
 
 func _on_scene_changed(scene_root: Node) -> void:
-	var selected = get_selected_node(_eds.get_selected_nodes())
+	var selected = get_selected_node()
 	if selected and (selected is RoadContainer or selected is RoadPoint):
 		_show_road_toolbar()
 	else:
@@ -128,14 +128,62 @@ func refresh() -> void:
 	get_editor_interface().get_inspector().refresh()
 
 
+# ------------------------------------------------------------------------------
+# Selection utilities
+# ------------------------------------------------------------------------------
+
+
 ## Returns the primary selection or null if nothing is selected
-func get_selected_node(selected_nodes: Array) -> Node:
-	# TTD: Update this algorithm to figure out which node is really the
+func get_selected_node() -> Node:
+	# TODO: Update this algorithm to figure out which node is really the
 	# primary selection rather than always assuming index 0 is the selection.
+	var selected_nodes = _eds.get_selected_nodes()
 	if not selected_nodes.empty():
 		return selected_nodes[0]
 	else:
 		return null
+
+
+## Returns the next highest level RoadManager from current primary selection.
+func get_manager_from_selection(): # -> Optional[RoadManager]
+	var selected_node = get_selected_node()
+
+	if not is_instance_valid(selected_node):
+		push_error("Invalid selection to add road segment")
+		return
+	elif selected_node is RoadManager:
+		return selected_node
+	elif selected_node is RoadContainer:
+		return selected_node.get_manager()
+	elif selected_node is RoadPoint:
+		if is_instance_valid(selected_node.container):
+			return selected_node.container.get_manager()
+		else:
+			push_error("Invalid RoadContainer instance for RoadPoint's parent")
+			return
+	push_warning("No relevant Road* node selected")
+	return
+
+
+## Gets the RoadContainer from selection of either roadcontainer or roadpoint.
+func get_container_from_selection(): # -> Optional[RoadContainer]
+	var selected_node = get_selected_node()
+	var t_container = null
+
+	if not is_instance_valid(selected_node):
+		push_error("Invalid selection to add road segment")
+		return
+	if selected_node is RoadContainer:
+		return selected_node
+	elif selected_node is RoadPoint:
+		if is_instance_valid(selected_node.container):
+			return selected_node.container
+		else:
+			push_error("Invalid container for roadpoint")
+			return
+	else:
+		push_warning("Invalid selection for adding new road segments")
+		return
 
 
 func select_road_point(point) -> void:
@@ -242,47 +290,6 @@ func _hide_road_toolbar() -> void:
 		_road_toolbar.create_menu.disconnect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
-
-func get_manager_from_selection(): # -> Optional[RoadManager]
-	var selected_node = get_selected_node(_eds.get_selected_nodes())
-
-	if not is_instance_valid(selected_node):
-		push_error("Invalid selection to add road segment")
-		return
-	elif selected_node is RoadManager:
-		return selected_node
-	elif selected_node is RoadContainer:
-		return selected_node.get_manager()
-	elif selected_node is RoadPoint:
-		if is_instance_valid(selected_node.container):
-			return selected_node.container.get_manager()
-		else:
-			push_error("Invalid RoadContainer instance for RoadPoint's parent")
-			return
-	push_warning("No relevant Road* node selected")
-	return
-
-
-func get_container_from_selection(): # -> Optional[RoadContainer]
-	var selected_node = get_selected_node(_eds.get_selected_nodes())
-	var t_container = null
-
-	if not is_instance_valid(selected_node):
-		push_error("Invalid selection to add road segment")
-		return
-	if selected_node is RoadContainer:
-		return selected_node
-	elif selected_node is RoadPoint:
-		if is_instance_valid(selected_node.container):
-			return selected_node.container
-		else:
-			push_error("Invalid container for roadpoint")
-			return
-	else:
-		push_warning("Invalid selection for adding new road segments")
-		return
-
-
 func _on_regenerate_pressed():
 	var t_container = get_container_from_selection()
 	t_container.rebuild_segments(true)
@@ -302,13 +309,16 @@ func _create_container_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 
+	var init_sel = get_selected_node()
+	# if init_sel is RoadPoint: and is an "edge" roadpoint,
+
 	undo_redo.create_action("Add RoadContainer")
-	undo_redo.add_do_method(self, "_create_road_container_do", t_manager)
-	undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager)
+	undo_redo.add_do_method(self, "_create_road_container_do", t_manager, init_sel)
+	undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, init_sel)
 	undo_redo.commit_action()
 
 
-func _create_road_container_do(t_manager: RoadManager) -> void:
+func _create_road_container_do(t_manager: RoadManager, init_sel: Node) -> void:
 	var default_name = "Road_001"
 
 	if not is_instance_valid(t_manager) or not t_manager is RoadManager:
@@ -331,7 +341,8 @@ func _create_road_container_do(t_manager: RoadManager) -> void:
 	set_selection(t_container)
 
 
-func _create_road_container_undo(selected_node: Node) -> void:
+
+func _create_road_container_undo(selected_node: Node, init_sel: Node) -> void:
 	# Make a likely bad assumption that the last child is the one to
 	# be undone, but this is likely quite flakey.
 	# TODO: Perform proper undo/redo support, ideally getting add_do_reference
@@ -431,7 +442,7 @@ func _create_2x2_road_undo(selected_node: RoadContainer, single_point: bool) -> 
 ## Adds a single RoadLane to the scene.
 func _create_lane_pressed() -> void:
 	var undo_redo = get_undo_redo()
-	var target_parent = get_selected_node(_eds.get_selected_nodes())
+	var target_parent = get_selected_node()
 
 	if not is_instance_valid(target_parent):
 		push_error("No valid parent node selected to add RoadLane to")
