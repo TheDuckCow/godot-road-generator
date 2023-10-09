@@ -47,11 +47,11 @@ func validate_edges_equal_size(container):
 
 	# now also validate that all local children name match actual names in editor,
 	# since we depend on node names for making connections.
-	var ch_names = []
+	var ch_paths = []
 	for ch in container.get_children():
-		ch_names.append(ch.name)
-	for rp_name in container.edge_rp_locals:
-		assert_has(ch_names, rp_name, "edge_rp_local name not matching any child")
+		ch_paths.append(container.get_path_to(ch))
+	for rp_path in container.edge_rp_locals:
+		assert_has(ch_paths, rp_path, "edge_rp_local name not matching any child")
 
 
 # ------------------------------------------------------------------------------

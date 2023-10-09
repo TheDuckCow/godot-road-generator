@@ -22,27 +22,27 @@ export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
 
-## Auto generated exposed variables dused to conneect this RoadContainer to
-## another RoadContainer.
-# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
-#   which should be connected to this indicie's roadpoint.
-# edge_indicies = list of indicies, to indicate which index of the *target's*
-#   children list of RoadPoint to use
-export(Array, NodePath) var edge_containers # Paths to other containers
-export(Array, String) var edge_rp_targets  # Node names within other containers
-export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
-export(Array, String) var edge_rp_locals  # Node names within this container
-export(Array, String) var edge_rp_local_dirs  # Bools, true = next_init
-
-# Mapping maintained of individual segments and their corresponding resources.
-var segid_map = {}
-
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
 
 export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
+
+## Auto generated exposed variables dused to conneect this RoadContainer to
+## another RoadContainer.
+# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
+#   which should be connected to this indicie's roadpoint.
+# edge_indicies = list of indicies, to indicate which index of the *target's*
+#   children list of RoadPoint to use
+export(Array, NodePath) var edge_containers # Paths to other containers, relative to this contianer
+export(Array, NodePath) var edge_rp_targets  # Node paths within other containers, relative to the *target* container (not self here)
+export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
+export(Array, NodePath) var edge_rp_locals  # Node paths within this container, relative to this container
+export(Array, String) var edge_rp_local_dirs  # Bools, true = next_init
+
+# Mapping maintained of individual segments and their corresponding resources.
+var segid_map = {}
 
 # Non-exposed developer control, which allows showing all nodes (including generated) in the scene
 # tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
@@ -281,13 +281,13 @@ func update_edges():
 			if is_edge == false:
 				continue
 
-			_tmp_rp_locals.append(pt.name)
+			_tmp_rp_locals.append(self.get_path_to(pt))
 			_tmp_rp_local_dirs.append(this_dir)
 
 			# Lookup pre-existing connections to apply, match of name + dir
 			var idx = -1
 			for _find_idx in len(edge_rp_locals):
-				if edge_rp_locals[_find_idx] != pt.name:
+				if edge_rp_locals[_find_idx] != self.get_path_to(pt):
 					continue
 				if edge_rp_local_dirs[_find_idx] != this_dir:
 					continue
