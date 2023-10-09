@@ -29,12 +29,12 @@ export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
 
-## Auto generated exposed variables dused to conneect this RoadContainer to
+## Auto generated exposed variables used to connect this RoadContainer to
 ## another RoadContainer.
 ## These should *never* be manually adjusted, they are only export vars to
 ## facilitate the connection of RoadContainers needing to connect to points in
 ## different scenes, where said connection needs to be established in the editor
-export(Array, NodePath) var edge_containers # Paths to other containers, relative to this contianer
+export(Array, NodePath) var edge_containers # Paths to other containers, relative to this container
 export(Array, NodePath) var edge_rp_targets  # Node paths within other containers, relative to the *target* container (not self here)
 export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
 export(Array, NodePath) var edge_rp_locals  # Node paths within this container, relative to this container
@@ -258,7 +258,7 @@ func update_edges():
 		#var dir := 0  # -1 is for prior init, 1 is for next init
 
 		for this_dir in [-1, 1]:
-			var is_edge = false
+			var is_edge := false
 			var dir_pt_init
 			if this_dir == -1:
 				dir_pt_init = pt.prior_pt_init
@@ -266,16 +266,15 @@ func update_edges():
 				dir_pt_init = pt.next_pt_init
 
 			if dir_pt_init == "":
-				# Set this rp to indicate it's next point is the container,
+				# Set this rp to indicate its next point is the container,
 				# making it aware it is an "edge".
-				print("%s edge by one %s" % [pt.name, this_dir])
 				is_edge = true
 			elif dir_pt_init == pt.get_path_to(self):
-				print("%s edge by linkedto container %s" % [pt.name, this_dir])
 				# Already self identified as an edge as connected to this container
 				is_edge = true
 			else:
-				print("%s not edge dir %s" % [pt.name, this_dir])
+				# Must be 'interior' as it is connected but not to container
+				is_edge = false
 
 			if is_edge == false:
 				continue
@@ -292,7 +291,6 @@ func update_edges():
 					continue
 				idx = _find_idx
 				break
-			print("Foudn pre-existing match", idx)
 
 			if idx >= 0:
 				_tmp_containers.append(edge_containers[idx])
