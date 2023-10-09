@@ -38,6 +38,22 @@ func create_oneseg_container(container):
 	p2.prior_pt_init = p2.get_path_to(p1)
 
 
+func validate_edges_equal_size(container):
+	var edges = len(container.edge_containers)
+	assert_eq(len(container.edge_rp_targets), edges)
+	assert_eq(len(container.edge_rp_target_dirs), edges)
+	assert_eq(len(container.edge_rp_locals), edges)
+	assert_eq(len(container.edge_rp_local_dirs), edges)
+
+	# now also validate that all local children name match actual names in editor,
+	# since we depend on node names for making connections.
+	var ch_names = []
+	for ch in container.get_children():
+		ch_names.append(ch.name)
+	for rp_name in container.edge_rp_locals:
+		assert_has(ch_names, rp_name, "edge_rp_local name not matching any child")
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -119,3 +135,46 @@ func test_get_manager_grandparent():
 
 	var res = container.get_manager()
 	assert_eq(res, manager)
+
+
+## Verify update_edges works, called whenever updating RP prior/next rp init
+func test_update_edges():
+	var container = add_child_autofree(RoadContainer.new())
+	container._auto_refresh = false
+	# even with auto_refresh off, container.update_edges() gets called automatically
+	# via the _autofix_noncyclic_references method.
+	# TODO: could validate that "called" on update_edges?
+
+	# First case: no edges
+	assert_eq(len(container.edge_rp_locals), 0, "Should zero edges")
+	validate_edges_equal_size(container)
+
+	# Second case: 2 edges over 2 points
+	create_oneseg_container(container)
+	container.rebuild_segments()
+	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges")
+	validate_edges_equal_size(container)
+
+	# Third case: 2 edges over 3 points
+	var p2 = container.get_roadpoints()[1]
+	var p3 = autoqfree(RoadPoint.new())
+	container.add_child(p3)
+	p2.next_pt_init = p2.get_path_to(p3)
+	p3.prior_pt_init = p3.get_path_to(p2)
+	container.rebuild_segments()
+	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges still")
+	validate_edges_equal_size(container)
+
+	# Fourth case: 3 edges over 4 points (one point entirely disconnected)
+	# In this case, the disconencted point should count as 2 open edges.
+	var p4 = autoqfree(RoadPoint.new())
+	container.add_child(p4)  # unconnected
+	container.rebuild_segments()
+	assert_eq(len(container.edge_rp_locals), 4, "Should have 3 edges now")
+	validate_edges_equal_size(container)
+
+	# Fifth case: 3 edges over 4 points, one edge conencted to Container itself.
+	p3.next_pt_init = p3.get_path_to(container)
+	container.rebuild_segments()
+	assert_eq(len(container.edge_rp_locals), 4, "Should still have 3 edges now")
+	validate_edges_equal_size(container)

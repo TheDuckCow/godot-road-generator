@@ -26,11 +26,13 @@ export(bool) var use_lowpoly_preview:bool = false
 ## another RoadContainer.
 # connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
 #   which should be connected to this indicie's roadpoint.
-# connection_indicies = list of indicies, to indicate which index of the *target's*
+# edge_indicies = list of indicies, to indicate which index of the *target's*
 #   children list of RoadPoint to use
-export(Array, NodePath) var connection_nodepaths;
-export(Array, int) var connection_indicies;
-
+export(Array, NodePath) var edge_containers # Paths to other containers
+export(Array, String) var edge_rp_targets  # Node names within other containers
+export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
+export(Array, String) var edge_rp_locals  # Node names within this container
+export(Array, String) var edge_rp_local_dirs  # Bools, true = next_init
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -87,6 +89,7 @@ func _ready():
 	# the _dirty flag is already set.
 
 	get_manager()
+	update_edges()
 
 
 # Workaround for cyclic typing
@@ -241,8 +244,77 @@ func get_segments() -> Array:
 			segs.append(pt_ch)
 	return segs
 
+## Update export variable lengths and counts to account for connection to
+## other RoadContainers
+func update_edges():
+
+	var _tmp_containers := []
+	var _tmp_rp_targets := []
+	var _tmp_rp_target_dirs := []
+	var _tmp_rp_locals := []
+	var _tmp_rp_local_dirs := []
+
+	for ch in get_roadpoints():
+		var pt:RoadPoint = ch
+		#var dir := 0  # -1 is for prior init, 1 is for next init
+
+		for this_dir in [-1, 1]:
+			var is_edge = false
+			var dir_pt_init
+			if this_dir == -1:
+				dir_pt_init = pt.prior_pt_init
+			else:
+				dir_pt_init = pt.next_pt_init
+
+			if dir_pt_init == "":
+				# Set this rp to indicate it's next point is the container,
+				# making it aware it is an "edge".
+				print("%s edge by one %s" % [pt.name, this_dir])
+				is_edge = true
+			elif dir_pt_init == pt.get_path_to(self):
+				print("%s edge by linkedto container %s" % [pt.name, this_dir])
+				# Already self identified as an edge as connected to this container
+				is_edge = true
+			else:
+				print("%s not edge dir %s" % [pt.name, this_dir])
+
+			if is_edge == false:
+				continue
+
+			_tmp_rp_locals.append(pt.name)
+			_tmp_rp_local_dirs.append(this_dir)
+
+			# Lookup pre-existing connections to apply, match of name + dir
+			var idx = -1
+			for _find_idx in len(edge_rp_locals):
+				if edge_rp_locals[_find_idx] != pt.name:
+					continue
+				if edge_rp_local_dirs[_find_idx] != this_dir:
+					continue
+				idx = _find_idx
+				break
+			print("Foudn pre-existing match", idx)
+
+			if idx >= 0:
+				_tmp_containers.append(edge_containers[idx])
+				_tmp_rp_targets.append(edge_rp_targets[idx])
+				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
+			else:
+				_tmp_containers.append("")
+				_tmp_rp_targets.append("")
+				_tmp_rp_target_dirs.append(0)
+
+	# Finally, do a near-synchronous update of the export var references
+	edge_containers = _tmp_containers
+	edge_rp_targets = _tmp_rp_targets
+	edge_rp_target_dirs = _tmp_rp_target_dirs
+	edge_rp_locals = _tmp_rp_locals
+	edge_rp_local_dirs = _tmp_rp_local_dirs
+
+
 
 func rebuild_segments(clear_existing=false):
+	update_edges()
 	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments")
@@ -267,8 +339,12 @@ func rebuild_segments(clear_existing=false):
 		var next_pt
 		if pt.prior_pt_init:
 			prior_pt = pt.get_node(pt.prior_pt_init)
+			if not prior_pt.has_method("is_road_point"):
+				prior_pt = null
 		if pt.next_pt_init:
 			next_pt = pt.get_node(pt.next_pt_init)
+			if not next_pt.has_method("is_road_point"):
+				next_pt = null
 
 		if not prior_pt and not next_pt:
 			push_warning("Road point %s not connected to anything yet" % pt.name)
@@ -419,9 +495,10 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
-		res = _process_seg(prior, point, use_lowpoly)
-		if res[0] == true:
-			segs_updated.append(res[1])  # Track an updated RoadSegment
+		if prior.has_method("is_road_point"):  # ie skip road container.
+			res = _process_seg(prior, point, use_lowpoly)
+			if res[0] == true:
+				segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
@@ -435,9 +512,10 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
-		res = _process_seg(point, next, use_lowpoly)
-		if res[0] == true:
-			segs_updated.append(res[1])  # Track an updated RoadSegment
+		if next.has_method("is_road_point"):  # ie skip road container.
+			res = _process_seg(point, next, use_lowpoly)
+			if res[0] == true:
+				segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if len(segs_updated) > 0:
 		if self.debug:

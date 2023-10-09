@@ -418,6 +418,8 @@ func _create_2x2_road_do(t_container: RoadContainer, single_point: bool):
 	else:
 		set_selection(first_road_point)
 
+	t_container.update_edges() # Since we updated a roadpoint name after adding.
+
 
 func _create_2x2_road_undo(selected_node: RoadContainer, single_point: bool) -> void:
 	# Make a likely bad assumption that the last two children are the ones to
