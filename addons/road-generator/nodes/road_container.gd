@@ -22,25 +22,26 @@ export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
 
-## Auto generated exposed variables dused to conneect this RoadContainer to
-## another RoadContainer.
-# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
-#   which should be connected to this indicie's roadpoint.
-# connection_indicies = list of indicies, to indicate which index of the *target's*
-#   children list of RoadPoint to use
-export(Array, NodePath) var connection_nodepaths;
-export(Array, int) var connection_indicies;
-
-
-# Mapping maintained of individual segments and their corresponding resources.
-var segid_map = {}
-
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
 
 export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
 export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
+
+## Auto generated exposed variables used to connect this RoadContainer to
+## another RoadContainer.
+## These should *never* be manually adjusted, they are only export vars to
+## facilitate the connection of RoadContainers needing to connect to points in
+## different scenes, where said connection needs to be established in the editor
+export(Array, NodePath) var edge_containers # Paths to other containers, relative to this container
+export(Array, NodePath) var edge_rp_targets  # Node paths within other containers, relative to the *target* container (not self here)
+export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
+export(Array, NodePath) var edge_rp_locals  # Node paths within this container, relative to this container
+export(Array, String) var edge_rp_local_dirs  # Bools, true = next_init
+
+# Mapping maintained of individual segments and their corresponding resources.
+var segid_map = {}
 
 # Non-exposed developer control, which allows showing all nodes (including generated) in the scene
 # tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
@@ -87,6 +88,7 @@ func _ready():
 	# the _dirty flag is already set.
 
 	get_manager()
+	update_edges()
 
 
 # Workaround for cyclic typing
@@ -241,8 +243,75 @@ func get_segments() -> Array:
 			segs.append(pt_ch)
 	return segs
 
+## Update export variable lengths and counts to account for connection to
+## other RoadContainers
+func update_edges():
+
+	var _tmp_containers := []
+	var _tmp_rp_targets := []
+	var _tmp_rp_target_dirs := []
+	var _tmp_rp_locals := []
+	var _tmp_rp_local_dirs := []
+
+	for ch in get_roadpoints():
+		var pt:RoadPoint = ch
+		#var dir := 0  # -1 is for prior init, 1 is for next init
+
+		for this_dir in [-1, 1]:
+			var is_edge := false
+			var dir_pt_init
+			if this_dir == -1:
+				dir_pt_init = pt.prior_pt_init
+			else:
+				dir_pt_init = pt.next_pt_init
+
+			if dir_pt_init == "":
+				# Set this rp to indicate its next point is the container,
+				# making it aware it is an "edge".
+				is_edge = true
+			elif dir_pt_init == pt.get_path_to(self):
+				# Already self identified as an edge as connected to this container
+				is_edge = true
+			else:
+				# Must be 'interior' as it is connected but not to container
+				is_edge = false
+
+			if is_edge == false:
+				continue
+
+			_tmp_rp_locals.append(self.get_path_to(pt))
+			_tmp_rp_local_dirs.append(this_dir)
+
+			# Lookup pre-existing connections to apply, match of name + dir
+			var idx = -1
+			for _find_idx in len(edge_rp_locals):
+				if edge_rp_locals[_find_idx] != self.get_path_to(pt):
+					continue
+				if edge_rp_local_dirs[_find_idx] != this_dir:
+					continue
+				idx = _find_idx
+				break
+
+			if idx >= 0:
+				_tmp_containers.append(edge_containers[idx])
+				_tmp_rp_targets.append(edge_rp_targets[idx])
+				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
+			else:
+				_tmp_containers.append("")
+				_tmp_rp_targets.append("")
+				_tmp_rp_target_dirs.append(0)
+
+	# Finally, do a near-synchronous update of the export var references
+	edge_containers = _tmp_containers
+	edge_rp_targets = _tmp_rp_targets
+	edge_rp_target_dirs = _tmp_rp_target_dirs
+	edge_rp_locals = _tmp_rp_locals
+	edge_rp_local_dirs = _tmp_rp_local_dirs
+
+
 
 func rebuild_segments(clear_existing=false):
+	update_edges()
 	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments")
@@ -267,8 +336,12 @@ func rebuild_segments(clear_existing=false):
 		var next_pt
 		if pt.prior_pt_init:
 			prior_pt = pt.get_node(pt.prior_pt_init)
+			if not prior_pt.has_method("is_road_point"):
+				prior_pt = null
 		if pt.next_pt_init:
 			next_pt = pt.get_node(pt.next_pt_init)
+			if not next_pt.has_method("is_road_point"):
+				next_pt = null
 
 		if not prior_pt and not next_pt:
 			push_warning("Road point %s not connected to anything yet" % pt.name)
@@ -419,9 +492,10 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
-		res = _process_seg(prior, point, use_lowpoly)
-		if res[0] == true:
-			segs_updated.append(res[1])  # Track an updated RoadSegment
+		if prior.has_method("is_road_point"):  # ie skip road container.
+			res = _process_seg(prior, point, use_lowpoly)
+			if res[0] == true:
+				segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
@@ -435,9 +509,10 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
-		res = _process_seg(point, next, use_lowpoly)
-		if res[0] == true:
-			segs_updated.append(res[1])  # Track an updated RoadSegment
+		if next.has_method("is_road_point"):  # ie skip road container.
+			res = _process_seg(point, next, use_lowpoly)
+			if res[0] == true:
+				segs_updated.append(res[1])  # Track an updated RoadSegment
 
 	if len(segs_updated) > 0:
 		if self.debug:

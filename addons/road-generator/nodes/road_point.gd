@@ -120,6 +120,12 @@ func _ready():
 
 	connect("on_transform", container, "on_point_update")
 
+	# TODO: If a new roadpoint is just added, we need to trigger this. But,
+	# if this is just a scene startup, would be better to call it once only
+	# across all roadpoint children. Consequence could be updating references
+	# that aren't ready.
+	container.update_edges()
+
 
 func _to_string():
 	var parname
@@ -522,6 +528,10 @@ func _exit_tree():
 		if not rp_init or not is_instance_valid(get_node(rp_init)):
 			continue
 		var rp_ref = get_node(rp_init)
+		if rp_ref.has_method("is_road_container"):
+			# Edge connection.
+			# TODO: update that corresponding connected road container.
+			continue
 
 		# Clean up the right connection, could be either or both prior and next
 		# (think: circle with just two roadpoints)
@@ -545,10 +555,15 @@ func validate_junctions(auto_refresh: bool):
 	var next_point: RoadPoint
 
 	# Get valid Prior and Next RoadPoints for THIS RoadPoint
+	var _tmp_ref
 	if prior_pt_init and not prior_pt_init == "":
-		prior_point = get_node(prior_pt_init)
+		_tmp_ref = get_node(prior_pt_init)
+		if _tmp_ref.has_method("is_road_point"):
+			prior_point = _tmp_ref
 	if next_pt_init and not next_pt_init == "":
-		next_point = get_node(next_pt_init)
+		_tmp_ref = get_node(next_pt_init)
+		if _tmp_ref.has_method("is_road_point"):
+			next_point = get_node(next_pt_init)
 
 	# Clear invalid junctions
 	if is_instance_valid(prior_point):
@@ -602,10 +617,19 @@ func _autofix_noncyclic_references(
 	var point:RoadPoint
 	var is_clearing: bool # clearing value vs setting new path.
 
+	if old_point_path == "" and new_point_path == "":
+		return
+	elif old_point_path == new_point_path:
+		return
+
 	if new_point_path != "":
 		# Use the just recently set value.
 		is_clearing = false
-		point = get_node(new_point_path)
+		var connection = get_node(new_point_path)
+		if connection.has_method("is_road_container"):
+			return # Nothing further to update now.
+		else:
+			point = connection
 	else:
 		# we are in clearing mode, so use the value that was just overwritten
 		is_clearing = true
@@ -653,3 +677,7 @@ func _autofix_noncyclic_references(
 	container._dirty = true
 	container._auto_refresh = init_refresh
 	container._dirty = false
+
+	# In the event of change in edges, update all references.
+	print("Running update_edges from autofix")
+	container.update_edges()
