@@ -31,10 +31,9 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 
 ## Auto generated exposed variables dused to conneect this RoadContainer to
 ## another RoadContainer.
-# connection_nodepaths = list of Nodepaths to pther RoadContainers, to indicate
-#   which should be connected to this indicie's roadpoint.
-# edge_indicies = list of indicies, to indicate which index of the *target's*
-#   children list of RoadPoint to use
+## These should *never* be manually adjusted, they are only export vars to
+## facilitate the connection of RoadContainers needing to connect to points in
+## different scenes, where said connection needs to be established in the editor
 export(Array, NodePath) var edge_containers # Paths to other containers, relative to this contianer
 export(Array, NodePath) var edge_rp_targets  # Node paths within other containers, relative to the *target* container (not self here)
 export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
