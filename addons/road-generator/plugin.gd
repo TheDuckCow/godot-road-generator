@@ -4,12 +4,15 @@ extends EditorPlugin
 
 const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
+const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+var tool_mode # = RoadToolbar.InputMode.SELECT
+
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
-var _road_toolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn").instance()
+var _road_toolbar # = RoadToolbar.instance()
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
@@ -30,6 +33,17 @@ func _enter_tree():
 	#add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
 	#add_custom_type("RoadContainer", "Spatial", preload("road_container.gd"), preload("road_segment.png"))
 	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
+
+	var gui = get_editor_interface().get_base_control()
+	_road_toolbar = RoadToolbar.instance()
+	_road_toolbar.gui = gui
+	_road_toolbar.update_icons()
+
+	# Update toolbar connections
+	_road_toolbar.connect("mode_changed", self, "_on_mode_change")
+
+	# Initial mode
+	tool_mode = _road_toolbar.InputMode.SELECT
 
 
 func _exit_tree():
@@ -124,6 +138,11 @@ func _on_scene_changed(scene_root: Node) -> void:
 
 func _on_scene_closed(_value) -> void:
 	_hide_road_toolbar()
+
+
+## Input is
+func _on_mode_change(_mode: int) -> void:
+	tool_mode = _mode  # Instance of RoadToolbar.InputMode
 
 
 func refresh() -> void:
@@ -247,6 +266,8 @@ func handles(object: Object):
 
 
 func _show_road_toolbar() -> void:
+	_road_toolbar.mode = tool_mode
+
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 		_road_toolbar.selected_nodes = _eds.get_selected_nodes()
