@@ -633,7 +633,10 @@ func _autofix_noncyclic_references(
 	else:
 		# we are in clearing mode, so use the value that was just overwritten
 		is_clearing = true
-		point = get_node(old_point_path)
+		var connection = get_node(old_point_path)
+		if connection.has_method("is_road_container"):
+			return # Nothing further to update now.
+		point = connection
 
 	if not is_instance_valid(point):
 		# Shouldn't get to this branch, we check valid upstream first!

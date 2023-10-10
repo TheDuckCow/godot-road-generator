@@ -104,7 +104,9 @@ func _on_selection_changed() -> void:
 	var eligible = (
 		selected_node is RoadPoint
 		or selected_node is RoadContainer
-		or selected_node is RoadManager)
+		or selected_node is RoadManager
+		or selected_node is RoadIntersection
+		or selected_node is RoadLane)
 	var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
 	if eligible and non_instance:
 		_show_road_toolbar()
