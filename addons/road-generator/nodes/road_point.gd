@@ -61,6 +61,8 @@ export(float) var shoulder_width_l := 2.0 setget _set_shoulder_width_l, _get_sho
 export(float) var shoulder_width_r := 2.0 setget _set_shoulder_width_r, _get_shoulder_width_r
 # Profile: x: how far out the gutter goes, y: how far down to clip.
 export(Vector2) var gutter_profile := Vector2(0.5, -0.5) setget _set_profile, _get_profile
+
+# Path to next/prior RoadPoint, relative to this RoadPoint itself.
 export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
 export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
 # Handle magniture
@@ -493,12 +495,7 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	var basis_z = new_road_point.transform.basis.z
 
 	new_road_point.name = increment_name(name)
-
-	# If container is scene root, assign directly.
-	if get_tree().get_edited_scene_root() == container:
-		new_road_point.set_owner(container)
-	else:
-		new_road_point.set_owner(container.owner)
+	new_road_point.set_owner(get_tree().get_edited_scene_root())
 
 	var refresh = container._auto_refresh
 	container._auto_refresh = false
