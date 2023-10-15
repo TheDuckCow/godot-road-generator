@@ -8,11 +8,11 @@ const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
-var tool_mode # = RoadToolbar.InputMode.SELECT
+var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
-var _road_toolbar # = RoadToolbar.instance()
+var _road_toolbar
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
@@ -549,7 +549,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 		_sel = selection
 	# elif selection is RoadManager:
 	# add_container = true, but would need to somehow pass through reference
-	else: # RoadManager or
+	else: # RoadManager or RoadLane.
 		push_error("Invalid selection context, RoadContainer parent")
 		return
 
