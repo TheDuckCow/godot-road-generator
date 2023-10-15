@@ -12,6 +12,7 @@ enum HandleType {
 
 const GizmoBlueHandle := preload("res://addons/road-generator/ui/gizmo_blue_handle.png")
 const LaneOffset := 0.25
+const BaseColliderSize := Vector3(2, 0.175, 2)
 
 var _editor_plugin: EditorPlugin
 var _editor_selection  # Of type: EditorSelection, but can't type due to exports.
@@ -31,6 +32,7 @@ var arrow_right_mesh := PrismMesh.new()
 var lane_divider_mesh := CubeMesh.new()
 var road_width_line_mesh := CubeMesh.new()
 
+var prior_lane_width: float = -1
 
 func get_name():
 	return "RoadPoint"
@@ -46,7 +48,7 @@ func _init(editor_plugin: EditorPlugin):
 	var mat_blue_handles = get_material("blue_handles")
 	mat_blue_handles.albedo_texture = GizmoBlueHandle
 	init_handle = null
-	collider.size = Vector3(2, 0.175, 2)
+	collider.size = BaseColliderSize
 	collider_tri_mesh = collider.generate_triangle_mesh()
 	setup_lane_widgets()
 
@@ -98,6 +100,24 @@ func has_gizmo(spatial) -> bool:
 func redraw(gizmo) -> void:
 	gizmo.clear()
 	var point = gizmo.get_spatial_node() as RoadPoint
+	var need_size_update = prior_lane_width < 0 or prior_lane_width != point.lane_width
+	prior_lane_width = point.lane_width
+
+	# Add lane dividers:
+	# Start placing dividers at side opposite of dragged handle. Draw
+	# dividers for real and potential lanes based on handle position. Re-use
+	# existing dividers. Create more dividers when needed. Hide dividers
+	# when not needed.
+	var lane_width = point.lane_width
+	var width_scale: float = lane_width / 4.0  # 4m is the default for which assets were scaled.
+	var width_scale_v := Vector3(width_scale, width_scale, width_scale)
+	var lane_count
+	var div_start_pos
+	var lane_width_offset = lane_width * LaneOffset
+
+	# Re-process the handler
+	if need_size_update:
+		collider.size = BaseColliderSize * width_scale
 
 	var lines = PoolVector3Array()
 	lines.push_back(Vector3(0, 1, 0))
@@ -119,6 +139,9 @@ func redraw(gizmo) -> void:
 	var width_handles = PoolVector3Array()
 	var rev_width_idle = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
 	var fwd_width_idle = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
+	if need_size_update:
+		point.rev_width_mag = rev_width_idle
+		point.fwd_width_mag = fwd_width_idle
 	var rev_width_mag = point.rev_width_mag
 	var fwd_width_mag = point.fwd_width_mag
 	width_handles.push_back(Vector3(rev_width_mag, 0, 0))
@@ -129,21 +152,13 @@ func redraw(gizmo) -> void:
 	lane_widget.visible = true
 	lane_widget.transform = point.global_transform
 	arrow_left.translation = Vector3(rev_width_mag, 0, 0)
+	arrow_left.scale = width_scale_v
 	arrow_right.translation = Vector3(fwd_width_mag, 0, 0)
+	arrow_right.scale = width_scale_v
 	var line_width = fwd_width_mag - rev_width_mag
 	var line_pos = (rev_width_mag + fwd_width_mag) / 2
-	road_width_line_mesh.size = Vector3(line_width, 0.2, 0.2)
+	road_width_line_mesh.size = Vector3(line_width, 0.2 * width_scale, 0.2 * width_scale)
 	road_width_line.translation = Vector3(line_pos, 0, 0)
-
-	# Add lane dividers:
-	# Start placing dividers at side opposite of dragged handle. Draw
-	# dividers for real and potential lanes based on handle position. Re-use
-	# existing dividers. Create more dividers when needed. Hide dividers
-	# when not needed.
-	var lane_width = point.lane_width
-	var lane_count
-	var div_start_pos
-	var lane_width_offset = lane_width * LaneOffset
 
 	if rev_width_mag != rev_width_idle:
 		div_start_pos = fwd_width_idle - lane_width_offset
@@ -166,6 +181,7 @@ func redraw(gizmo) -> void:
 		if i < lane_count:
 			div.visible = true
 			div.translation = Vector3(x_pos, 0, 0)
+			div.scale = Vector3(width_scale, width_scale, width_scale)
 			x_pos += lane_width
 		else:
 			div.visible = false
@@ -426,4 +442,5 @@ func refresh_gizmo(gizmo: EditorSpatialGizmo):
 
 
 func on_selection_changed():
+	prior_lane_width = -1
 	lane_widget.visible = false
