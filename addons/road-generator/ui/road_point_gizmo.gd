@@ -106,68 +106,69 @@ func redraw(gizmo) -> void:
 
 	gizmo.add_collision_triangles(collider_tri_mesh)
 	gizmo.add_mesh(collider, false, null, get_material("collider", gizmo))
-	if point.is_road_point_selected(_editor_selection):
+	if not point.is_road_point_selected(_editor_selection):
+		return
 
-		# Add mag handles
-		var handles = PoolVector3Array()
-		handles.push_back(Vector3(0, 0, -point.prior_mag))
-		handles.push_back(Vector3(0, 0, point.next_mag))
-		gizmo.add_handles(handles, get_material("handles", gizmo))
+	# Add mag handles
+	var handles = PoolVector3Array()
+	handles.push_back(Vector3(0, 0, -point.prior_mag))
+	handles.push_back(Vector3(0, 0, point.next_mag))
+	gizmo.add_handles(handles, get_material("handles", gizmo))
 
-		# Add width handles
-		var width_handles = PoolVector3Array()
-		var rev_width_idle = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
-		var fwd_width_idle = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
-		var rev_width_mag = point.rev_width_mag
-		var fwd_width_mag = point.fwd_width_mag
-		width_handles.push_back(Vector3(rev_width_mag, 0, 0))
-		width_handles.push_back(Vector3(fwd_width_mag, 0, 0))
-		gizmo.add_handles(width_handles, get_material("blue_handles", gizmo))
+	# Add width handles
+	var width_handles = PoolVector3Array()
+	var rev_width_idle = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
+	var fwd_width_idle = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
+	var rev_width_mag = point.rev_width_mag
+	var fwd_width_mag = point.fwd_width_mag
+	width_handles.push_back(Vector3(rev_width_mag, 0, 0))
+	width_handles.push_back(Vector3(fwd_width_mag, 0, 0))
+	gizmo.add_handles(width_handles, get_material("blue_handles", gizmo))
 
-		# Add lane widget
-		lane_widget.visible = true
-		lane_widget.transform = point.global_transform
-		arrow_left.translation = Vector3(rev_width_mag, 0, 0)
-		arrow_right.translation = Vector3(fwd_width_mag, 0, 0)
-		var line_width = fwd_width_mag - rev_width_mag
-		var line_pos = (rev_width_mag + fwd_width_mag) / 2
-		road_width_line_mesh.size = Vector3(line_width, 0.2, 0.2)
-		road_width_line.translation = Vector3(line_pos, 0, 0)
+	# Add lane widget
+	lane_widget.visible = true
+	lane_widget.transform = point.global_transform
+	arrow_left.translation = Vector3(rev_width_mag, 0, 0)
+	arrow_right.translation = Vector3(fwd_width_mag, 0, 0)
+	var line_width = fwd_width_mag - rev_width_mag
+	var line_pos = (rev_width_mag + fwd_width_mag) / 2
+	road_width_line_mesh.size = Vector3(line_width, 0.2, 0.2)
+	road_width_line.translation = Vector3(line_pos, 0, 0)
 
-		# Add lane dividers:
-		# Start placing dividers at side opposite of dragged handle. Draw
-		# dividers for real and potential lanes based on handle position. Re-use
-		# existing dividers. Create more dividers when needed. Hide dividers
-		# when not needed.
-		var lane_width = point.lane_width
-		var lane_count
-		var div_start_pos
-		var lane_width_offset = lane_width * LaneOffset
+	# Add lane dividers:
+	# Start placing dividers at side opposite of dragged handle. Draw
+	# dividers for real and potential lanes based on handle position. Re-use
+	# existing dividers. Create more dividers when needed. Hide dividers
+	# when not needed.
+	var lane_width = point.lane_width
+	var lane_count
+	var div_start_pos
+	var lane_width_offset = lane_width * LaneOffset
 
-		if rev_width_mag != rev_width_idle:
-			div_start_pos = fwd_width_idle - lane_width_offset
-			lane_count = floor(abs((fwd_width_idle - rev_width_mag + lane_width_offset) / lane_width)) + 1
-			lane_width = -lane_width
+	if rev_width_mag != rev_width_idle:
+		div_start_pos = fwd_width_idle - lane_width_offset
+		lane_count = floor(abs((fwd_width_idle - rev_width_mag + lane_width_offset) / lane_width)) + 1
+		lane_width = -lane_width
+	else:
+		div_start_pos = rev_width_idle + lane_width_offset
+		lane_count = floor(abs((rev_width_idle - fwd_width_mag - lane_width_offset) / lane_width)) + 1
+
+	var x_pos = div_start_pos
+	var div_count = lane_dividers.get_child_count()
+	var div: Spatial
+	for i in range(max(lane_count, div_count)):
+		if div_count == 0 or i >= div_count:
+			div = lane_divider.duplicate()
+			lane_dividers.add_child(div)
 		else:
-			div_start_pos = rev_width_idle + lane_width_offset
-			lane_count = floor(abs((rev_width_idle - fwd_width_mag - lane_width_offset) / lane_width)) + 1
+			div = lane_dividers.get_child(i)
 
-		var x_pos = div_start_pos
-		var div_count = lane_dividers.get_child_count()
-		var div: Spatial
-		for i in range(max(lane_count, div_count)):
-			if div_count == 0 or i >= div_count:
-				div = lane_divider.duplicate()
-				lane_dividers.add_child(div)
-			else:
-				div = lane_dividers.get_child(i)
-
-			if i < lane_count:
-				div.visible = true
-				div.translation = Vector3(x_pos, 0, 0)
-				x_pos += lane_width
-			else:
-				div.visible = false
+		if i < lane_count:
+			div.visible = true
+			div.translation = Vector3(x_pos, 0, 0)
+			x_pos += lane_width
+		else:
+			div.visible = false
 
 
 func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
