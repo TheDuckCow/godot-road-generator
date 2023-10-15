@@ -208,6 +208,8 @@ func get_manager(): # -> Optional[RoadManager]
 	var _this_manager = null
 	var _last_par = get_parent()
 	while true:
+		if _last_par == null:
+			break
 		if _last_par.get_path() == "/root":
 			break
 		if _last_par.has_method("is_road_manager"):
@@ -391,9 +393,7 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 	# but doing this for simplicity now.
 
 	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
-	if sid in segid_map:
-		if not is_instance_valid(segid_map[sid]):
-			push_error("Instance was not valid on sid: %s" % sid)
+	if sid in segid_map and is_instance_valid(segid_map[sid]):
 		var was_rebuilt = segid_map[sid].check_rebuild()
 		return [was_rebuilt, segid_map[sid]]
 	else:
