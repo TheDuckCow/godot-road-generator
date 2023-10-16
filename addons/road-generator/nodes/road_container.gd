@@ -478,7 +478,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	var segs_updated = []  # For signal emission
 	var res
 
-	point.validate_junctions(_auto_refresh)
+	if _auto_refresh:
+		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
