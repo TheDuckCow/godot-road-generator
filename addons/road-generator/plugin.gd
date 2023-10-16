@@ -182,9 +182,11 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 		# Shoot a ray and see if it hits anything
 		var point = get_nearest_road_point(camera, event.position)
 		if point and not event.pressed:
-			set_selection(point)
-			_on_selection_changed()
-			return true
+			# Using this method creates a conflcit with buultin drag n drop & 3d gizmo usage
+			#set_selection(point)
+			#_on_selection_changed()
+			new_selection = point
+			return false
 	return false
 
 
