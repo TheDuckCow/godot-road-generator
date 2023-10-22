@@ -338,11 +338,11 @@ func rebuild_segments(clear_existing=false):
 		var next_pt
 		if pt.prior_pt_init:
 			prior_pt = pt.get_node(pt.prior_pt_init)
-			if not prior_pt.has_method("is_road_point"):
+			if not is_instance_valid(prior_pt) or not prior_pt.has_method("is_road_point"):
 				prior_pt = null
 		if pt.next_pt_init:
 			next_pt = pt.get_node(pt.next_pt_init)
-			if not next_pt.has_method("is_road_point"):
+			if not is_instance_valid(next_pt) or not next_pt.has_method("is_road_point"):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
