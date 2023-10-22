@@ -121,7 +121,7 @@ func _get_configuration_warning() -> String:
 		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
 
 	if _needs_refresh:
-		return "Refresh outdated geometry by selecting this node and going to 3D view > Create menu > Refresh Roads"
+		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
 	return ""
 
 
