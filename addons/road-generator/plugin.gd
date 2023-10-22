@@ -154,12 +154,13 @@ func forward_spatial_gui_input(camera: Camera, event: InputEvent) -> bool:
 # ------------------------------------------------------------------------------
 
 
+## Identifies roads relevant for built in toolbar operations.
 func is_road_node(node: Node) -> bool:
+	# Not counting RoadLane, since they are just native curves with extra draws
 	return (node is RoadPoint
 		or node is RoadContainer
 		or node is RoadManager
-		or node is RoadIntersection
-		or node is RoadLane)
+		or node is RoadIntersection)
 
 
 func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
