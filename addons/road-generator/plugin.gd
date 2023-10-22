@@ -257,24 +257,26 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 
 
 func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
-	if event is InputEventMouseMotion:
+	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		var point = get_nearest_road_point(camera, event.position)
 		var selection = get_selected_node()
 		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
+		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
+		var max_dist = 50 # ie only auto suggest deleting RP if it's within this dist to mouse.
 		if point:
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 			_overlay_hint_delete = true
-		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init:
+		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init and mouse_dist < max_dist:
 			_overlay_rp_hovering = selection
-			_overlay_hovering_pos = camera.unproject_position(selection.global_transform.origin)
+			_overlay_hovering_pos = _overlay_hovering_from
 			_overlay_hint_delete = true
 		else:
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = Vector2(-1, -1)
 			_overlay_hint_delete = false
 		update_overlays()
-		return true
+		return false
 	if not event is InputEventMouseButton:
 		return false
 	if not event.button_index == BUTTON_LEFT:
