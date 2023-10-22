@@ -265,6 +265,10 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 			_overlay_hint_delete = true
+		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init:
+			_overlay_rp_hovering = selection
+			_overlay_hovering_pos = camera.unproject_position(selection.global_transform.origin)
+			_overlay_hint_delete = true
 		else:
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = Vector2(-1, -1)
@@ -275,10 +279,9 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 		return false
 	if not event.button_index == BUTTON_LEFT:
 		return false
-	if event.pressed:
-		# Do an immediate delete
-		var point = get_nearest_road_point(camera, event.position)
-		_delete_rp_on_click(point)
+	if event.pressed and _overlay_rp_hovering != null:
+		# Always match what the UI is showing
+		_delete_rp_on_click(_overlay_rp_hovering)
 	return true
 
 
@@ -411,7 +414,7 @@ func set_selection(node: Node) -> void:
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-func get_nearest_road_point(camera: Camera, mouse_pos: Vector2)->RoadPoint:
+func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
