@@ -519,6 +519,8 @@ func add_road_point(new_road_point: RoadPoint, direction):
 
 
 ## Function to explicitly connect this RoadNode to another
+##
+## this_direction & target_direction: of type PointInit
 func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: int):
 	if not target_rp.has_method("is_road_point"):
 		push_error("Second input must be a valid RoadPoint")

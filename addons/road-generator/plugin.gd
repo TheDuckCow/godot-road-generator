@@ -649,6 +649,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	var parent: Node
 	var _sel: Node
 	var add_container = false
+	var t_manager: Node = null
 	if selection is RoadPoint:
 		parent = selection.get_parent()
 		if selection.next_pt_init and selection.prior_pt_init:
@@ -864,6 +865,7 @@ func _delete_rp_on_click(selection: Node):
 		return
 
 	var rp:RoadPoint = selection
+	var container:RoadContainer = rp.container
 	var prior_rp = null
 	var prior_samedir: bool = true
 	var next_rp = null
@@ -893,22 +895,19 @@ func _delete_rp_on_click(selection: Node):
 	# "Do" steps
 
 	undo_redo.create_action("Dissolve RoadPoint")
-	undo_redo.add_do_property(rp, "prior_pt_init", "")
-	undo_redo.add_do_property(rp, "next_pt_init", "")
 	if dissolve:
 		print("Setting up for dissolve")
-		if prior_samedir:
-			undo_redo.add_do_property(prior_rp, "next_pt_init", "")
-			undo_redo.add_do_property(prior_rp, "next_pt_init", prior_rp.get_path_to(next_rp))
-		else:
-			undo_redo.add_do_property(prior_rp, "prior_pt_init", "")
-			undo_redo.add_do_property(prior_rp, "prior_pt_init", prior_rp.get_path_to(next_rp))
-		if next_samedir:
-			undo_redo.add_do_property(next_rp, "prior_pt_init", "")
-			undo_redo.add_do_property(next_rp, "prior_pt_init", next_rp.get_path_to(prior_rp))
-		else:
-			undo_redo.add_do_property(next_rp, "next_pt_init", "")
-			undo_redo.add_do_property(next_rp, "next_pt_init", next_rp.get_path_to(prior_rp))
+		var this_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
+		var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
+		print("assigning: this ", this_dir, " vs next", next_dir)
+		undo_redo.add_do_method(
+			prior_rp,
+			"connect_roadpoint",
+			this_dir,
+			next_rp,
+			next_dir
+		)
+
 	if prior_rp:
 		undo_redo.add_do_method(self, "set_selection", prior_rp)
 	elif next_rp:
@@ -919,8 +918,10 @@ func _delete_rp_on_click(selection: Node):
 	# might need to do:
 	# container.remove_segment(seg)
 	if dissolve:
-		undo_redo.add_do_method(prior_rp, "on_transform")
-		undo_redo.add_do_method(next_rp, "on_transform") # Technicall only one should be needed
+		#undo_redo.add_do_method(prior_rp, "on_transform")
+		#undo_redo.add_do_method(next_rp, "on_transform") # Technicall only one should be needed
+		# TODO: Directly triggering on_transform wasn't enough, having to do rebuild_segments instead
+		undo_redo.add_do_method(container, "rebuild_segments", true)
 
 	# ""Undo" steps
 
@@ -931,27 +932,32 @@ func _delete_rp_on_click(selection: Node):
 	undo_redo.add_undo_property(rp, "prior_pt_init", rp.prior_pt_init)
 	undo_redo.add_undo_property(rp, "next_pt_init", rp.next_pt_init)
 	if dissolve:
-		if prior_samedir:
-			undo_redo.add_do_property(prior_rp, "next_pt_init", "")
-			undo_redo.add_do_property(prior_rp, "next_pt_init", prior_rp.next_pt_init)
-		else:
-			undo_redo.add_do_property(prior_rp, "prior_pt_init", "")
-			undo_redo.add_do_property(prior_rp, "prior_pt_init", prior_rp.prior_pt_init)
-		if next_samedir:
-			undo_redo.add_do_property(next_rp, "prior_pt_init", "")
-			undo_redo.add_do_property(next_rp, "prior_pt_init", next_rp.prior_pt_init)
-		else:
-			undo_redo.add_do_property(next_rp, "next_pt_init", "")
-			undo_redo.add_do_property(next_rp, "next_pt_init", next_rp.next_pt_init)
-		#undo_redo.add_undo_property(prior_rp, "prior_pt_init", prior_rp.prior_pt_init)
-		#undo_redo.add_undo_property(prior_rp, "next_pt_init", prior_rp.next_pt_init)
-		#undo_redo.add_undo_property(next_rp, "prior_pt_init", next_rp.prior_pt_init)
-		#undo_redo.add_undo_property(next_rp, "next_pt_init", next_rp.next_pt_init)
+		# Adding back two connections
+		var prior_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
+		var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
+
+		undo_redo.add_undo_method(
+			rp,
+			"connect_roadpoint",
+			RoadPoint.PointInit.PRIOR,
+			prior_rp,
+			prior_dir
+		)
+		undo_redo.add_undo_method(
+			rp,
+			"connect_roadpoint",
+			RoadPoint.PointInit.NEXT,
+			next_rp,
+			next_dir
+		)
 	undo_redo.add_undo_method(self, "set_selection", rp)
 	undo_redo.add_undo_method(rp, "on_transform")
+	# Trigger on prior and next to clean up extra geo needed
+	# TODO: Directly triggering on_transform wasn't enough, having to do rebuild_segments instead
+	# TODO: to increase performance, should be able to more directly clean up
+	# the one road seg that's leftover here somehow.
 	if dissolve:
-		undo_redo.add_undo_method(prior_rp, "on_transform")
-		undo_redo.add_undo_method(next_rp, "on_transform")
+		undo_redo.add_undo_method(container, "rebuild_segments", true)
 
 	undo_redo.commit_action()
 
