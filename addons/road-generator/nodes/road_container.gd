@@ -121,7 +121,7 @@ func _get_configuration_warning() -> String:
 		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
 
 	if _needs_refresh:
-		return "Refresh outdated geometry by selecting this node and going to 3D view > Create menu > Refresh Roads"
+		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
 	return ""
 
 
@@ -338,11 +338,11 @@ func rebuild_segments(clear_existing=false):
 		var next_pt
 		if pt.prior_pt_init:
 			prior_pt = pt.get_node(pt.prior_pt_init)
-			if not prior_pt.has_method("is_road_point"):
+			if not is_instance_valid(prior_pt) or not prior_pt.has_method("is_road_point"):
 				prior_pt = null
 		if pt.next_pt_init:
 			next_pt = pt.get_node(pt.next_pt_init)
-			if not next_pt.has_method("is_road_point"):
+			if not is_instance_valid(next_pt) or not next_pt.has_method("is_road_point"):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
@@ -478,7 +478,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	var segs_updated = []  # For signal emission
 	var res
 
-	point.validate_junctions(_auto_refresh)
+	if _auto_refresh:
+		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly

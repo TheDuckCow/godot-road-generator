@@ -23,18 +23,34 @@ enum CreateMenu {
 }
 
 func _enter_tree() -> void:
-	get_popup().clear()
-	get_popup().connect("id_pressed", self, "_create_menu_item_clicked")
+	var pup:Popup = get_popup()
+	var idx = 0
+	pup.clear()
+	pup.connect("id_pressed", self, "_create_menu_item_clicked")
 
-	get_popup().add_item("Refresh roads", CreateMenu.REGENERATE)
-	get_popup().add_item("Select container", CreateMenu.SELECT_CONTAINER)
+	pup.add_item("Refresh roads", CreateMenu.REGENERATE)
+	pup.set_item_tooltip(idx, "Re-generate geometry and resolve warnings")
+	idx += 1
+	pup.add_item("Select container", CreateMenu.SELECT_CONTAINER)
+	pup.set_item_tooltip(idx, "Select this RoadPoint's parent RoadContainer")
+	idx += 1
 
-	get_popup().add_separator()
-	get_popup().add_icon_item(ICN_CT, "RoadContainer", CreateMenu.CONTAINER)
-	get_popup().add_icon_item(ICN_RP, "RoadPoint", CreateMenu.POINT)
-	get_popup().add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
-	get_popup().add_separator()
-	get_popup().add_item("2x2 road", CreateMenu.TWO_X_TWO)
+	pup.add_separator()
+	idx += 1
+	pup.add_icon_item(ICN_CT, "RoadContainer", CreateMenu.CONTAINER)
+	pup.set_item_tooltip(idx, "Adds a RoadContianer child to RoadManager")
+	idx += 1
+	pup.add_icon_item(ICN_RP, "RoadPoint", CreateMenu.POINT)
+	pup.set_item_tooltip(idx, "Adds a new RoadPoint")
+	idx += 1
+	pup.add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
+	pup.set_item_tooltip(idx, "Adds a RoadLane which can be used for AI paths")
+	idx += 1
+	pup.add_separator()
+	idx += 1
+	pup.add_item("2x2 road", CreateMenu.TWO_X_TWO)
+	pup.set_item_tooltip(idx, "Adds a segment of road with 2 lanes each way")
+	idx += 1
 
 
 func _exit_tree() -> void:

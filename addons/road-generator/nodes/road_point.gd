@@ -86,6 +86,7 @@ var geom:ImmediateGeometry # For tool usage, drawing lane directions and end poi
 #var refresh_geom := true
 
 var _last_update_ms # To calculate min updates.
+var _is_internal_updating: bool = false # Very special cases to bypass autofix cyclic
 
 
 # ------------------------------------------------------------------------------
@@ -135,8 +136,7 @@ func _to_string():
 		parname = self.get_parent()
 	else:
 		parname = "[not in scene]"
-	return "RoadPoint of [%s] at %s between [%s]:[%s]" % [
-		parname,  self.translation, prior_pt_init, next_pt_init]
+	return "RoadPoint %s (id:%s)" % [self.name,  self.get_instance_id()]
 
 
 func _get_configuration_warning() -> String:
@@ -287,6 +287,7 @@ func _set_create_geo(value: bool) -> void:
 			ch.do_roadmesh_creation()
 	if value == true:
 		on_transform()
+
 
 # ------------------------------------------------------------------------------
 # Editor interactions
@@ -489,7 +490,7 @@ static func increment_name(name: String) -> String:
 
 
 ## Adds a RoadPoint to SceneTree and transfers settings from another RoadPoint
-func add_road_point(new_road_point: RoadPoint, pt_init):
+func add_road_point(new_road_point: RoadPoint, direction):
 	container.add_child(new_road_point, true)
 	new_road_point.copy_settings_from(self)
 	var basis_z = new_road_point.transform.basis.z
@@ -503,7 +504,7 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 
 	var refresh = container._auto_refresh
 	container._auto_refresh = false
-	match pt_init:
+	match direction:
 		PointInit.NEXT:
 			new_road_point.transform.origin += SEG_DIST_MULT * lane_width * basis_z
 			new_road_point.prior_pt_init = new_road_point.get_path_to(self)
@@ -515,6 +516,86 @@ func add_road_point(new_road_point: RoadPoint, pt_init):
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
+
+
+## Function to explicitly connect this RoadNode to another
+##
+## this_direction & target_direction: of type PointInit
+func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: int):
+	if not target_rp.has_method("is_road_point"):
+		push_error("Second input must be a valid RoadPoint")
+		return
+
+	if self.container != target_rp.container:
+		push_error("Not supported yet: Connecting roadpoints from different RoadContainers")
+		return
+
+	var local_path = get_path_to(target_rp)
+	var target_path = target_rp.get_path_to(self)
+	#print("Connecting %s (%s) and %s (%s)" % [self, this_direction, target_rp, target_direction])
+
+	var refresh = container._auto_refresh
+	container._auto_refresh = false
+
+	# Skip the auto fix, so we can override both directions at once.
+	self._is_internal_updating = true
+	target_rp._is_internal_updating = true
+
+	match this_direction:
+		PointInit.NEXT:
+			self.next_pt_init = local_path
+		PointInit.PRIOR:
+			self.prior_pt_init = local_path
+	match target_direction:
+		PointInit.NEXT:
+			target_rp.next_pt_init = target_path
+		PointInit.PRIOR:
+			target_rp.prior_pt_init = target_path
+	container._auto_refresh = refresh
+	if not container._auto_refresh:
+		container._needs_refresh = true
+
+	self._is_internal_updating = false
+	target_rp._is_internal_updating = false
+
+	container.update_edges()
+	on_transform()
+
+
+## Function to explicitly connect this RoadNode to another
+func disconnect_roadpoint(this_direction: int, target_direction: int):
+	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
+	var refresh = container._auto_refresh
+	container._auto_refresh = false
+	var disconnect_from: Node
+
+	match this_direction:
+		PointInit.NEXT:
+			disconnect_from = get_node(next_pt_init)
+			self.next_pt_init = ""
+		PointInit.PRIOR:
+			disconnect_from = get_node(prior_pt_init)
+			self.prior_pt_init = ""
+	match target_direction:
+		PointInit.NEXT:
+			disconnect_from.next_pt_init = ""
+		PointInit.PRIOR:
+			disconnect_from.prior_pt_init = ""
+	container._auto_refresh = refresh
+	if not container._auto_refresh:
+		container._needs_refresh = true
+	self.validate_junctions()
+	disconnect_from.validate_junctions()
+
+	container.update_edges()
+	on_transform()
+
+
+func connect_container(container: Node, set_next):
+	if not container.has_method("is_road_container"):
+		push_error("Input needs to be a RoadContainer")
+		return
+	push_error("Not yet implemented: Connecting RoadPoints to other Containers")
 
 
 func _exit_tree():
@@ -546,12 +627,8 @@ func _exit_tree():
 
 ## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
 ## describe a valid junction. A junction is valid if THIS RoadPoint agrees with
-## what the associated RoadPoint is saying. Invalid junctions are cleared. But,
-## only if auto_refresh is true.
-func validate_junctions(auto_refresh: bool):
-	if not auto_refresh:
-		return
-
+## what the associated RoadPoint is saying. Invalid junctions are cleared.
+func validate_junctions():
 	var prior_point: RoadPoint
 	var next_point: RoadPoint
 
@@ -598,6 +675,7 @@ func _is_junction_valid(point: RoadPoint)->bool:
 			return true
 	return false
 
+
 ## If one RoadPoint references the other, but not the other way around,
 ## but itself has an empty slot in the right "orientation", then we assume
 ## that the user is manually connecting these two points, and we should finish
@@ -614,9 +692,14 @@ func _autofix_noncyclic_references(
 		old_point_path: NodePath,
 		new_point_path: NodePath,
 		for_prior: bool) -> void:
+	if _is_internal_updating:
+		return
 	var init_refresh = container._auto_refresh
 	var point:RoadPoint
 	var is_clearing: bool # clearing value vs setting new path.
+
+	#var which_init = "prior_pt_init" if for_prior else "next_pt_init"
+	#print("autofix %s.%s: %s -> %s" % [self.name, which_init, old_point_path, new_point_path])
 
 	if old_point_path == "" and new_point_path == "":
 		return
@@ -645,6 +728,7 @@ func _autofix_noncyclic_references(
 		return
 
 	container._auto_refresh = false
+	self._is_internal_updating = true
 
 	if is_clearing:
 		# Scenario where the user is attempting to CLEAR the _pt_init
@@ -681,6 +765,7 @@ func _autofix_noncyclic_references(
 	container._dirty = true
 	container._auto_refresh = init_refresh
 	container._dirty = false
+	self._is_internal_updating = false
 
 	# In the event of change in edges, update all references.
 	print("Running update_edges from autofix")
