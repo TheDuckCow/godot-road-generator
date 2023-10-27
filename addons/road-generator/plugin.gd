@@ -661,16 +661,25 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
-	# elif selection is RoadManager:
-	# add_container = true, but would need to somehow pass through reference
+	elif selection is RoadManager:
+		add_container = true
+		t_manager = selection
 	else: # RoadManager or RoadLane.
 		push_error("Invalid selection context, need RoadContainer parent")
 		return
 
 
-	undo_redo.create_action("Add next RoadPoint")
-	undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent)
-	undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
+	if add_container:
+		undo_redo.create_action("Add RoadContainer")
+		undo_redo.add_do_method(self, "_create_road_container_do", t_manager, selection)
+	else:
+		undo_redo.create_action("Add next RoadPoint")
+		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent)
+
+	if not add_container:
+		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
+	else:
+		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
 	undo_redo.commit_action()
 
 
