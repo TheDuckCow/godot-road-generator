@@ -392,7 +392,8 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 	# TODO: The id setup below will have issues if a "next" goes into "prior", ie rev dir
 	# but doing this for simplicity now.
 
-	var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
+	#var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
+	var sid = RoadSegment.get_id_for_points(pt1, pt2)
 	if sid in segid_map and is_instance_valid(segid_map[sid]):
 		var was_rebuilt = segid_map[sid].check_rebuild()
 		return [was_rebuilt, segid_map[sid]]

@@ -105,17 +105,27 @@ func remove_road_mesh():
 
 ## Unique identifier for a segment based on what its connected to.
 func get_id() -> String:
-	# TODO: consider changing so that the smaller resource id is first,
-	# so that we avoid bidirectional issues.
-	if start_point and end_point:
-		name = "%s-%s" % [start_point.get_instance_id(), end_point.get_instance_id()]
-	elif start_point:
-		name = "%s-x" % start_point.get_instance_id()
-	elif end_point:
-		name = "x-%s" % end_point.get_instance_id()
-	else:
-		name = "x-x"
+	name = get_id_for_points(start_point, end_point)
 	return name
+
+
+## Generic function for getting a consistent ID given a start and end point
+static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
+	var id: String
+	if _start and _end:
+		var start_id = _start.get_instance_id()
+		var end_id = _end.get_instance_id()
+		if start_id < end_id:
+			id = "%s-%s" % [start_id, end_id]
+		else:
+			id = "%s-%s" % [end_id, start_id]
+	elif _start:
+		id = "%s-x" % _start.get_instance_id()
+	elif _end:
+		id = "x-%s" % _end.get_instance_id()
+	else:
+		id = "x-x"
+	return id
 
 
 # ------------------------------------------------------------------------------
