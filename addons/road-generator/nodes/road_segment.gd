@@ -34,6 +34,13 @@ var low_poly := false  # If true, then was (or will be) generated as low poly.
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
 var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
+# Indicator that this sequence is the connection of two "Next's" or two "Prior's"
+# and therefore we need to do some flipping around.
+var _start_flip: bool = false
+var _end_flip: bool = false
+# For easier calculation, to account for flipped directions.
+var _start_flip_mult: int = 1
+var _end_flip_mult: int = 1
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -161,8 +168,20 @@ func check_rebuild() -> bool:
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
-	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
-	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
+
+	if _start_flip:
+		start_point.prior_seg = self
+		_start_flip_mult = -1
+	else:
+		start_point.next_seg = self
+		_start_flip_mult = 1
+	if _end_flip:
+		end_point.next_seg = self
+		_end_flip_mult = -1
+	else:
+		end_point.prior_seg = self
+		_end_flip_mult = 1
+
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
 		push_warning("Undirtied as node unready: start_point %s" % start_point)
 		is_dirty = false
@@ -261,8 +280,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
 		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
 
-		in_pos += start_point.global_transform.basis.x * in_offset
-		out_pos += end_point.global_transform.basis.x * out_offset
+		in_pos += start_point.global_transform.basis.x * in_offset * _start_flip_mult
+		out_pos += end_point.global_transform.basis.x * out_offset * _end_flip_mult
 
 		# Set direction
 		# TODO: When directionality is made consistent, we should no longer
@@ -422,8 +441,10 @@ func _update_curve():
 	# path.transform. clear rotation.
 
 	# Setup in and out handle of curve points
-	_set_curve_point(curve, start_point, start_point.next_mag)
-	_set_curve_point(curve, end_point, end_point.prior_mag)
+	var start_mag = start_point.next_mag if _start_flip == false else start_point.prior_mag
+	_set_curve_point(curve, start_point, start_mag, _start_flip_mult)
+	var end_mag = end_point.prior_mag if _end_flip == false else end_point.next_mag
+	_set_curve_point(curve, end_point, end_mag, _end_flip_mult)
 
 	# Show this primary curve in the scene hierarchy if the debug state set.
 	if container.debug_scene_visible:
@@ -444,15 +465,16 @@ func _update_curve():
 		path_node.curve = curve
 
 ## Helper to set a curve point taking into account transform of rp (if parent)
-func _set_curve_point(_curve: Curve3D, rp: RoadPoint, mag_val: float) ->  void:
+func _set_curve_point(_curve: Curve3D, rp: RoadPoint, mag_val: float, flip_fac: int) ->  void:
 	var pos_g = rp.global_transform.origin
 	var pos = to_local(pos_g)
-	var handle_in= rp.global_transform.basis.z * -mag_val
-	var handle_out = rp.global_transform.basis.z * mag_val
+	var handle_in = rp.global_transform.basis.z * -mag_val * flip_fac
+	var handle_out = rp.global_transform.basis.z * mag_val * flip_fac
 	var handle_in_l = to_local(handle_in + pos_g)
 	var handle_out_l = to_local(handle_out + pos_g)
 	_curve.add_point(pos, handle_in_l-pos, handle_out_l-pos)
 	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation, skip this.
+
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates
 ## between the start and end points. Applies "easing" to prevent potentially
@@ -486,10 +508,10 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return start_point.transform.basis.x
+		return start_point.transform.basis.x * _start_flip_mult
 	elif sample_position >= 1.0 - offset_amount * 0.5:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return end_point.transform.basis.x
+		return end_point.transform.basis.x * _end_flip_mult
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
@@ -500,7 +522,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 
 	# Using local transforms. Both are transforms relative to the parent RoadContainer,
 	# and the current mesh we are writing to already has the inverse of the start_point
-	# (or whichever it is parented to) rotation applied.
+	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
 	var start_up = start_point.transform.basis.y
 	var end_up = end_point.transform.basis.y
 
