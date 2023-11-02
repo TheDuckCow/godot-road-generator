@@ -17,7 +17,8 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
-var _overlay_rp_hovering: Node
+var _overlay_rp_selected: Node # Matching active selection or according RP child
+var _overlay_rp_hovering: Node # Matching what the mouse is hovering over
 var _overlay_hovering_pos := Vector2(-1, -1)
 var _overlay_hovering_from := Vector2(-1, -1)
 var _overlay_hint_disconnect := false
@@ -77,7 +78,7 @@ func _exit_tree():
 
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_spatial_draw_over_viewport(overlay: Control):
-	var selected = get_selected_node()
+	var selected = _overlay_rp_selected
 
 	if tool_mode == _road_toolbar.InputMode.SELECT:
 		return
@@ -202,46 +203,76 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 		# trigger overlay updates to draw/update indicators
 		var point = get_nearest_road_point(camera, event.position)
 		var selection = get_selected_node()
-		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
+		var src_is_contianer := false
+		var target:RoadPoint
+
+		if selection is RoadContainer:
+			src_is_contianer = true
+			var closest_rp = get_nearest_edge_road_point(selection, camera, event.position)
+			if closest_rp:
+				target = closest_rp
+			else:
+				point = null # nothing to point from, so skip below on what we're pointing to
+		else:
+			target = selection
+
+		_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 		if point:
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 
-			if selection == point:
+			# if not selection.has_method("is_road_point"):
+			# could be container?
+			if target == point:
+				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
-			elif selection.prior_pt_init and selection.get_node(selection.prior_pt_init) == point:
+			elif src_is_contianer and point.container == selection:
+				# If a container is selected, don't (dis)connect internal rp's to itself.
+				_overlay_rp_selected = null
+				_overlay_rp_hovering = null
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = false
+			elif target.prior_pt_init and target.get_node(target.prior_pt_init) == point:
+				# If this pt is directly connected to the target, offer quick dis-connect tool
+				_overlay_rp_selected = null # not needed
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif selection.next_pt_init and selection.get_node(selection.next_pt_init) == point:
+			elif target.next_pt_init and target.get_node(target.next_pt_init) == point:
+				# If this pt is directly connected to the selection, offer quick dis-connect tool
+				_overlay_rp_selected = null # not needed
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif selection.prior_pt_init and selection.next_pt_init:
-				# _overlay_rp_hovering = null
+			elif target.prior_pt_init and target.next_pt_init:
+				# Fully connected roadpoint, nothing to do.
 				# In the future, this could be a mode to convert into an intersection
+				_overlay_rp_selected = null
+				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			else:
 				# Open connection scenario
+				_overlay_rp_selected = point # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 		else:
+			_overlay_rp_selected = null
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = event.position
 			_overlay_hint_disconnect = false
 			_overlay_hint_connection = false
 		update_overlays()
-
 		# Consume the event no matter what.
 		return false
+
 	if not event is InputEventMouseButton:
 		return false
 	if not event.button_index == BUTTON_LEFT:
 		return false
 	if not event.pressed:
-		# Should consume all left click operations
 		return true
+	# Should consume all left click operation hereafter.
 
 	var selection = get_selected_node()
 	if _overlay_hint_disconnect:
@@ -445,6 +476,29 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 				nearest_point = start_point
 
 			return nearest_point
+
+
+func get_nearest_edge_road_point(container: RoadContainer, camera: Camera, mouse_pos: Vector2):
+	# get the nearest edge RoadPoint for the given container
+	var closest_rp:RoadPoint
+	var closest_dist: float
+	for pth in container.edge_rp_locals:
+		var rp = container.get_node(pth)
+		#print("\tChecking dist to %s" % rp.name)
+		if not is_instance_valid(rp):
+			continue
+		# TODO: check if this point is behind the camera, ignore
+		var cam2rp = rp.global_transform.origin - camera.global_transform.origin
+		if camera.global_transform.basis.z.dot(cam2rp) > 0: # fwd is -z
+				continue
+		var rp_screen_pos:Vector2 = camera.unproject_position(rp.global_transform.origin)
+		var this_dist = mouse_pos.distance_squared_to(rp_screen_pos)
+		#print("\trp_screen_pos: %s:%s - %s to mouse at %s" % [
+		#	rp.name, rp_screen_pos, this_dist, mouse_pos])
+		if not closest_dist or this_dist < closest_dist:
+			closest_dist = this_dist
+			closest_rp = rp
+	return closest_rp
 
 
 ## Convert a given click to the nearest, best fitting 3d pos + normal for click.
