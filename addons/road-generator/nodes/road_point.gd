@@ -565,30 +565,37 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 ## Function to explicitly connect this RoadNode to another
 func disconnect_roadpoint(this_direction: int, target_direction: int):
 	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
-	var refresh = container._auto_refresh
-	container._auto_refresh = false
 	var disconnect_from: Node
+
+	self._is_internal_updating = true
+	var seg
 
 	match this_direction:
 		PointInit.NEXT:
 			disconnect_from = get_node(next_pt_init)
 			self.next_pt_init = ""
+			seg = self.next_seg
 		PointInit.PRIOR:
 			disconnect_from = get_node(prior_pt_init)
 			self.prior_pt_init = ""
+			seg = self.prior_seg
+
+	disconnect_from._is_internal_updating = true
+
 	match target_direction:
 		PointInit.NEXT:
 			disconnect_from.next_pt_init = ""
 		PointInit.PRIOR:
 			disconnect_from.prior_pt_init = ""
-	container._auto_refresh = refresh
-	if not container._auto_refresh:
-		container._needs_refresh = true
+	self._is_internal_updating = false
+	disconnect_from._is_internal_updating = false
+
+	container.remove_segment(seg)
+
 	self.validate_junctions()
 	disconnect_from.validate_junctions()
 
 	container.update_edges()
-	on_transform()
 
 
 func connect_container(container: Node, set_next):
