@@ -80,14 +80,28 @@ func _exit_tree():
 func forward_spatial_draw_over_viewport(overlay: Control):
 	var selected = _overlay_rp_selected
 
+	# White margin background
+	var margin := 3
+	var white_col = Color(1, 1, 1, 0.9)
+
 	if tool_mode == _road_toolbar.InputMode.SELECT:
 		return
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
-			var col = Color.rosybrown
+			var col = Color.coral
 
 			var radius := 24.0  # Radius of the rounded ends
 			var hf := radius / 2.0
+			# white bg
+			overlay.draw_line(
+				_overlay_hovering_pos + Vector2(-hf-margin, -hf-margin),
+				_overlay_hovering_pos + Vector2(hf+margin, hf+margin),
+				white_col, 6 + margin)
+			overlay.draw_line(
+				_overlay_hovering_pos + Vector2(-hf-margin, hf+margin),
+				_overlay_hovering_pos + Vector2(hf+margin, -hf-margin),
+				white_col, 6 + margin)
+			# Red part on top
 			overlay.draw_line(
 				_overlay_hovering_pos + Vector2(-hf, -hf),
 				_overlay_hovering_pos + Vector2(hf, hf),
@@ -101,33 +115,49 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	# Add mode
 	var rad_size := 10.0
 	var col:Color
-	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering):
+	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
 		return # Nothing to draw
-	elif _overlay_hint_disconnect:
+	var hovering:RoadPoint = _overlay_rp_hovering
+	if _overlay_hint_disconnect:
 		# Hovering node is directly connected to this node already, offer to disconnect
-		col = Color.rosybrown
-	elif selected is RoadPoint and selected.next_pt_init and selected.prior_pt_init:
+		col = Color.coral
+	elif hovering.next_pt_init and hovering.prior_pt_init:
 		# Where we're coming from is already fully connected.
 		# Eventually though, this could be an intersection.
 		return
+	elif selected.next_pt_init and selected.prior_pt_init:
+		# Fully connected, though eventually this could be an intersection.
+		return
+	elif selected.container != hovering.container:
+		col = Color.cadetblue
 	else:
-		# Connect mode
-		var pt:RoadPoint = _overlay_rp_hovering
-		if pt.next_pt_init and pt.prior_pt_init:
-			# Fully connected, though eventually this could be an intersection.
-			return
-		else:
-			col = Color.aqua
+		# Connection mode intra RoadContainer
+		col = Color.aqua
+	# TODO: make color slight transparent, but requires merging draw positions
+	# as one call instead of multiple shapes.
 
+	if not selected is RoadPoint:
+		return
+
+	# White margin background
+	overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+	overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+	overlay.draw_line(
+		_overlay_hovering_from,
+		_overlay_hovering_pos,
+		white_col,
+		2+margin*2,
+		true)
+
+	# Now color based on opration
 	overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-	if selected is RoadPoint:
-		overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			col,
-			2,
-			true)
+	overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+	overlay.draw_line(
+		_overlay_hovering_from,
+		_overlay_hovering_pos,
+		col,
+		2,
+		true)
 
 
 ## Handle or pass on event in the 3D editor
@@ -236,12 +266,12 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 				_overlay_hint_connection = false
 			elif target.prior_pt_init and target.get_node(target.prior_pt_init) == point:
 				# If this pt is directly connected to the target, offer quick dis-connect tool
-				_overlay_rp_selected = null # not needed
+				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
 			elif target.next_pt_init and target.get_node(target.next_pt_init) == point:
 				# If this pt is directly connected to the selection, offer quick dis-connect tool
-				_overlay_rp_selected = null # not needed
+				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
 			elif target.prior_pt_init and target.next_pt_init:
@@ -253,7 +283,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 				_overlay_hint_connection = false
 			else:
 				# Open connection scenario
-				_overlay_rp_selected = point # could be the selection, or child of selected container
+				_overlay_rp_selected = target # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 		else:
