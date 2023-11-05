@@ -1,10 +1,8 @@
 tool
 extends HBoxContainer
 
-const ToolbarMenu = preload("res://addons/road-generator/ui/road_toolbar_create_menu.gd")
 
 signal mode_changed
-
 
 enum InputMode {
 	NONE,  # e.g. if a Road*Node is not selected.
@@ -21,6 +19,7 @@ var create_menu:MenuButton
 var selected_nodes: Array # of Nodes
 var gui # For fetching built in icons (not yet working)
 var mode # Passed in by parent
+
 
 func _enter_tree():
 	update_refs()
@@ -48,13 +47,7 @@ func on_show(_selected_nodes: Array):
 	var is_subscene := false
 	if len(selected_nodes) > 0:
 		primary_sel = selected_nodes[0]
-		if primary_sel.has_method("is_subscene"):
-			is_subscene = primary_sel.is_subscene()
-	create_menu.on_toolbar_show()
-	if is_subscene:
-		create_menu.menu_mode = create_menu.MenuMode.SAVED_SUBSCENE
-	else:
-		create_menu.menu_mode = create_menu.MenuMode.STANADARD
+	create_menu.on_toolbar_show(primary_sel)
 
 
 func update_icons():

@@ -36,7 +36,12 @@ func _enter_tree() -> void:
 	pup.connect("id_pressed", self, "_create_menu_item_clicked")
 
 
-func on_toolbar_show() -> void:
+func on_toolbar_show(primary_sel: Node) -> void:
+	if primary_sel.has_method("is_subscene") and primary_sel.is_subscene():
+		menu_mode = MenuMode.SAVED_SUBSCENE
+	else:
+		menu_mode = MenuMode.STANDARD
+
 	var pup:Popup = get_popup()
 	var idx = 0
 	pup.clear()
