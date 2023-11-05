@@ -240,11 +240,6 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 		var src_is_contianer := false
 		var target:RoadPoint
 
-		# Check if selection or parent is a subscene, if so treat as though the
-		# manager were selected
-		if point and point.container.is_subscene():
-			point = null
-
 		if selection is RoadContainer:
 			src_is_contianer = true
 			var closest_rp = get_nearest_edge_road_point(selection, camera, event.position)
