@@ -96,6 +96,9 @@ func is_road_container() -> bool:
 	return true
 
 
+func is_subscene() -> bool:
+	return filename and self != get_tree().edited_scene_root
+
 func _get_configuration_warning() -> String:
 
 	if get_tree().get_edited_scene_root() != self:

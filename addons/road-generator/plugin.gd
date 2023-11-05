@@ -27,7 +27,7 @@ var _overlay_hint_delete := false
 
 var _press_init_pos: Vector2
 
-var new_selection: RoadPoint # Reference for passing selected node
+var _new_selection: Node # RoadPoint or RoadContainer
 
 
 func _enter_tree():
@@ -214,10 +214,14 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 		# Shoot a ray and see if it hits anything
 		var point = get_nearest_road_point(camera, event.position)
 		if point and not event.pressed:
-			# Using this method creates a conflcit with buultin drag n drop & 3d gizmo usage
+			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
 			#set_selection(point)
 			#_on_selection_changed()
-			new_selection = point
+
+			if point.container.is_subscene():
+				_new_selection = point.container
+			else:
+				_new_selection = point
 			return false
 	return false
 
@@ -352,10 +356,10 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 func _on_selection_changed() -> void:
 	var selected_node = get_selected_node()
 
-	if new_selection:
-		select_road_point(new_selection)
-		selected_node = new_selection
-		new_selection = null
+	if _new_selection:
+		set_selection(_new_selection)
+		selected_node = _new_selection
+		_new_selection = null
 	elif not selected_node:
 		_hide_road_toolbar()
 		return
@@ -374,7 +378,7 @@ func _on_selection_changed() -> void:
 	# scene instance itself (non editable).
 	# TOOD: Change show/hide to occur on button-release, for consistency with internal panels.
 	var eligible = is_road_node(selected_node)
-	var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
+	var non_instance = true
 	if eligible and non_instance:
 		_show_road_toolbar()
 	else:
@@ -616,7 +620,7 @@ func _show_road_toolbar() -> void:
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.selected_nodes = _eds.get_selected_nodes()
+		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
 		_road_toolbar.create_menu.connect(

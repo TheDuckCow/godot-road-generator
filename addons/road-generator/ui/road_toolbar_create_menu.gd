@@ -22,11 +22,24 @@ enum CreateMenu {
 	TWO_X_TWO,
 }
 
+enum MenuMode {
+	STANDARD,
+	SAVED_SUBSCENE, # Don't offer to create children
+	EDGE_SELECTED # Not yet used, could offer intersections/next pieces to add.
+}
+
+var menu_mode = MenuMode.STANDARD
+
+
 func _enter_tree() -> void:
+	var pup:Popup = get_popup()
+	pup.connect("id_pressed", self, "_create_menu_item_clicked")
+
+
+func on_toolbar_show() -> void:
 	var pup:Popup = get_popup()
 	var idx = 0
 	pup.clear()
-	pup.connect("id_pressed", self, "_create_menu_item_clicked")
 
 	pup.add_item("Refresh roads", CreateMenu.REGENERATE)
 	pup.set_item_tooltip(idx, "Re-generate geometry and resolve warnings")
@@ -34,6 +47,10 @@ func _enter_tree() -> void:
 	pup.add_item("Select container", CreateMenu.SELECT_CONTAINER)
 	pup.set_item_tooltip(idx, "Select this RoadPoint's parent RoadContainer")
 	idx += 1
+
+	if menu_mode == MenuMode.SAVED_SUBSCENE:
+		# Don't offer to modify subscenes
+		return
 
 	pup.add_separator()
 	idx += 1
