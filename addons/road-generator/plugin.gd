@@ -240,6 +240,11 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 		var src_is_contianer := false
 		var target:RoadPoint
 
+		# Check if selection or parent is a subscene, if so treat as though the
+		# manager were selected
+		if point and point.container.is_subscene():
+			point = null
+
 		if selection is RoadContainer:
 			src_is_contianer = true
 			var closest_rp = get_nearest_edge_road_point(selection, camera, event.position)
@@ -247,22 +252,26 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 				target = closest_rp
 			else:
 				point = null # nothing to point from, so skip below on what we're pointing to
-		else:
+		elif selection is RoadManager:
+			point = null
+			target = null
+		elif selection is RoadPoint:
 			target = selection
+		else:
+			point = null
+			target = null
 
-		_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
-		if point:
+		if point and target:
+			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 
-			# if not selection.has_method("is_road_point"):
-			# could be container?
 			if target == point:
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
-			elif src_is_contianer and point.container == selection:
+			elif src_is_contianer and point and point.container == selection:
 				# If a container is selected, don't (dis)connect internal rp's to itself.
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
@@ -309,6 +318,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	# Should consume all left click operation hereafter.
 
 	var selection = get_selected_node()
+
 	if _overlay_hint_disconnect:
 		_disconnect_rp_on_click(selection, _overlay_rp_hovering)
 	elif _overlay_hint_connection:
@@ -317,7 +327,11 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 		var res := get_click_point_with_context(camera, event.position, selection)
 		var pos:Vector3 = res[0]
 		var nrm:Vector3 = res[1]
-		_add_next_rp_on_click(pos, nrm, selection)
+
+		if selection is RoadContainer and selection.is_subscene():
+			_add_next_rp_on_click(pos, nrm, selection.get_manager())
+		else:
+			_add_next_rp_on_click(pos, nrm, selection)
 	return true
 
 
@@ -328,7 +342,12 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
 		var max_dist = 50 # ie only auto suggest deleting RP if it's within this dist to mouse.
-		if point:
+		if point and point.container.is_subscene():
+			# Don't offer changing saved scenes in any way.
+			_overlay_rp_hovering = null
+			_overlay_hovering_pos = Vector2(-1, -1)
+			_overlay_hint_delete = false
+		elif point:
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 			_overlay_hint_delete = true
@@ -1191,4 +1210,3 @@ func _create_lane_undo(parent: Node) -> void:
 
 	if initial_children[-1] is RoadLane:
 		initial_children[-1].queue_free()
-
