@@ -38,6 +38,16 @@ func create_oneseg_container(container):
 	p2.prior_pt_init = p2.get_path_to(p1)
 
 
+func create_two_containers(container_a, container_b):
+	create_oneseg_container(container_a)
+	create_oneseg_container(container_b)
+
+	assert_eq(len(container_a.edge_containers), 2, "Cont A should have 2 empty edge container slots")
+	assert_eq(len(container_b.edge_containers), 2, "Cont B should have 2 empty edge container slots")
+	#container_a.update_edges() # should be auto-called
+	#container_b.update_edges() # should be auto-called
+
+
 func validate_edges_equal_size(container):
 	var edges = len(container.edge_containers)
 	assert_eq(len(container.edge_rp_targets), edges)
@@ -178,3 +188,57 @@ func test_update_edges():
 	container.rebuild_segments()
 	assert_eq(len(container.edge_rp_locals), 4, "Should still have 3 edges now")
 	validate_edges_equal_size(container)
+
+
+func test_container_connection():
+	var cont_a = add_child_autofree(RoadContainer.new())
+	var cont_b = add_child_autofree(RoadContainer.new())
+	cont_a._auto_refresh = false
+	cont_b._auto_refresh = false
+
+	create_two_containers(cont_a, cont_b)
+	var pt1 = cont_a.get_roadpoints()[0]
+	var pt2 = cont_b.get_roadpoints()[1]
+
+	var init_edge_rp_locals = cont_a.edge_rp_locals
+	var init_edge_rp_local_dirs = cont_a.edge_rp_local_dirs
+
+	# Should have initial edges open
+	assert_eq(len(cont_a.edge_rp_locals), 2, "cont_a should have initial edges open")
+	assert_eq(len(cont_b.edge_rp_locals), 2, "cont_b should have initial edges open")
+
+	var err = pt1.connect_container(RoadPoint.PointInit.NEXT, pt2, RoadPoint.PointInit.PRIOR)
+	assert_false(err, "Connection should not be a successful when using the already connected directions")
+
+	# Making assumption that first open dir is Next, and second is Prio.
+	var res = pt1.connect_container(RoadPoint.PointInit.PRIOR, pt2, RoadPoint.PointInit.NEXT)
+	assert_true(res, "Connection should be a success")
+
+	# One of the connections made should be the other container
+	var any_connected = false
+	print(cont_a.edge_containers)
+	for connections in cont_a.edge_containers:
+		if connections and cont_a.get_node(connections) == cont_b:
+			any_connected = true
+	assert_true(any_connected, "cont_a connection should exist to cont_b")
+
+	any_connected = false
+	for connections in cont_b.edge_containers:
+		if connections and cont_b.get_node(connections) == cont_a:
+			any_connected = true
+	assert_true(any_connected, "cont_b connection should exist to cont_a")
+
+	# TODO: Validate the right changes made; though may be overkill to test.
+	#cont_a.edge_containers = []
+	#cont_a.edge_rp_targets = []
+	#cont_a.edge_rp_target_dirs = []
+
+	# Should NOT have changed
+	assert_eq(cont_a.edge_rp_locals, init_edge_rp_locals)
+	assert_eq(cont_a.edge_rp_local_dirs, init_edge_rp_local_dirs)
+	# TODO: also verify no prior and next of points have not changed,
+	# since this operation should work the same even for saved scenes.
+
+
+func test_container_disconnection():
+	pending('Container disconnection test not implemented yet')

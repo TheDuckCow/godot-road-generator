@@ -317,7 +317,8 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	if _overlay_hint_disconnect:
 		_disconnect_rp_on_click(selection, _overlay_rp_hovering)
 	elif _overlay_hint_connection:
-		_connect_rp_on_click(selection, _overlay_rp_hovering)
+		#print("Connect: %s to %s" % [selection.name, _overlay_rp_hovering.name])
+		_connect_rp_on_click(_overlay_rp_selected, _overlay_rp_hovering)
 	else:
 		var res := get_click_point_with_context(camera, event.position, selection)
 		var pos:Vector3 = res[0]
@@ -678,8 +679,15 @@ func _hide_road_toolbar() -> void:
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 func _on_regenerate_pressed():
+	var nd = get_selected_node()
+	if nd is RoadManager:
+		for ch_container in nd.get_containers():
+			ch_container.rebuild_segments(true)
+		return
 	var t_container = get_container_from_selection()
-	t_container.rebuild_segments(true)
+	if t_container:
+		t_container.rebuild_segments(true)
+		return
 
 
 func _on_select_container_pressed():
@@ -919,9 +927,16 @@ func _connect_rp_on_click(rp_a, rp_b):
 		else:
 			target_dir = RoadPoint.PointInit.PRIOR
 
+	# Finally, determine if we are doing a intra- or inter-RoadContainer
+	var inter_container: bool = rp_a.container != rp_b.container
+
 	undo_redo.create_action("Connect RoadPoints")
-	undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
-	undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
+	if inter_container:
+		undo_redo.add_do_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
+		undo_redo.add_undo_method(rp_a, "disconnect_container", from_dir, target_dir)
+	else:
+		undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
+		undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
 	undo_redo.commit_action()
 
 
@@ -950,9 +965,16 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 		push_error("Not initially connected")
 		return
 
+	# Finally, determine if we are doing a intra- or inter-RoadContainer
+	var inter_container: bool = rp_a.container != rp_b.container
+
 	undo_redo.create_action("Disconnect RoadPoints")
-	undo_redo.add_do_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
-	undo_redo.add_undo_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
+	if inter_container:
+		undo_redo.add_do_method(rp_a, "disconnect_container", from_dir, target_dir)
+		undo_redo.add_undo_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
+	else:
+		undo_redo.add_do_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
+		undo_redo.add_undo_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
 	undo_redo.commit_action()
 
 

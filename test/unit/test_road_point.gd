@@ -189,3 +189,23 @@ func test_on_road_updated_pt_transform():
 		var segments_updated = res[0]
 		assert_eq(len(segments_updated), 1, "Single segment created")
 		assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+
+
+func test_connect_roadpoint():
+	var container = add_child_autofree(RoadContainer.new())
+	container._auto_refresh = false
+
+	var points = create_unconnected_container(container)
+	var p1 = points[0]
+	var p2 = points[1]
+
+	var res = p1.connect_roadpoint(RoadPoint.PointInit.NEXT, p2, RoadPoint.PointInit.PRIOR)
+	assert_true(res, "Connect RPs with no prior connections")
+	res = p1.connect_roadpoint(RoadPoint.PointInit.NEXT, p2, RoadPoint.PointInit.PRIOR)
+	assert_false(res, "Should fail to re-connect the same RP and direction")
+	res = p1.connect_roadpoint(RoadPoint.PointInit.PRIOR, p2, RoadPoint.PointInit.PRIOR)
+	assert_false(res, "Should fail to connect an already connected directions")
+
+
+func test_roadpoint_disconnection():
+	pending('Roadpoint disconnection test not implemented yet')

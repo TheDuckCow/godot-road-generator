@@ -521,14 +521,15 @@ func add_road_point(new_road_point: RoadPoint, direction):
 ## Function to explicitly connect this RoadNode to another
 ##
 ## this_direction & target_direction: of type PointInit
-func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: int):
+## returns bool. True if success, and false on failure + a pushed error.
+func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: int) -> bool:
 	if not target_rp.has_method("is_road_point"):
 		push_error("Second input must be a valid RoadPoint")
-		return
+		return false
 
 	if self.container != target_rp.container:
-		push_error("Not supported yet: Connecting roadpoints from different RoadContainers")
-		return
+		push_error("Wrong function: Connecting roadpoints from different RoadContainers should use connect_container")
+		return false
 
 	var local_path = get_path_to(target_rp)
 	var target_path = target_rp.get_path_to(self)
@@ -541,16 +542,36 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	self._is_internal_updating = true
 	target_rp._is_internal_updating = true
 
+	# Short circuit before setting any properties if we need to exit, hence
+	match target_direction:
+		PointInit.NEXT:
+			if target_rp.next_pt_init:
+				push_error("The connecting RP's next point is already set")
+				return false # already connected
+		PointInit.PRIOR:
+			if target_rp.prior_pt_init:
+				push_error("The connecting RP's prior point is already set")
+
+	# Now do actual property setting
 	match this_direction:
 		PointInit.NEXT:
+			if self.next_pt_init:
+				push_error("RP's next point is already set")
+				return false # already connected
 			self.next_pt_init = local_path
 		PointInit.PRIOR:
+			if self.next_pt_init:
+				push_error("RP's prior point is already set")
+				return false # already connected
 			self.prior_pt_init = local_path
+
+	# Alreaedy short circuited prior connections for target
 	match target_direction:
 		PointInit.NEXT:
 			target_rp.next_pt_init = target_path
 		PointInit.PRIOR:
 			target_rp.prior_pt_init = target_path
+
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
@@ -560,10 +581,11 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 
 	container.update_edges()
 	on_transform()
+	return true
 
 
 ## Function to explicitly connect this RoadNode to another
-func disconnect_roadpoint(this_direction: int, target_direction: int):
+func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
 	var disconnect_from: Node
 
@@ -582,6 +604,10 @@ func disconnect_roadpoint(this_direction: int, target_direction: int):
 
 	disconnect_from._is_internal_updating = true
 
+	if self.container != disconnect_from.container:
+		push_warning("Wrong function: Disconnecting roadpoints from different RoadContainers, should use disconnect_container")
+		# already made some changes, so continue.
+
 	match target_direction:
 		PointInit.NEXT:
 			disconnect_from.next_pt_init = ""
@@ -596,13 +622,82 @@ func disconnect_roadpoint(this_direction: int, target_direction: int):
 	disconnect_from.validate_junctions()
 
 	container.update_edges()
+	return true
 
 
-func connect_container(container: Node, set_next):
-	if not container.has_method("is_road_container"):
-		push_error("Input needs to be a RoadContainer")
-		return
-	push_error("Not yet implemented: Connecting RoadPoints to other Containers")
+## Function to explicitly connect this RoadPoint to another container and corresponding RP.
+##
+## this_direction & target_direction: of type PointInit
+## returns whether connection was a success, if false there will be an accompanying error pushed.
+##
+## This function will assign values to each of the 5 export vars used to identify
+## cross-RoadContainer paths:
+## - edge_containers
+## - edge_rp_targets
+## - edge_rp_target_dirs
+## - edge_rp_locals -> Already set locally, for reading only
+## - edge_rp_local_dirs -> Already set locally, for reading only
+func connect_container(this_direction: int, target_rp: Node, target_direction: int) -> bool:
+	if not target_rp.has_method("is_road_point"):
+		push_error("Second input must be a valid RoadPoint")
+		return false
+
+	if self.container == target_rp.container:
+		push_error("Wrong function: Connecting roadpoints from same RoadContainers, should use connect_roadpoint")
+		return false
+
+	# Identify which container edge this RP and target RP are.
+	var target_ct = target_rp.container
+	var this_idx = -1
+	var target_idx = -1
+	for idx in range(len(container.edge_rp_locals)):
+		var _rp_local = container.edge_rp_locals[idx]
+		var _rp_localdir = container.edge_rp_local_dirs[idx]
+		if container.get_node(_rp_local) == self and _rp_localdir == this_direction:
+			this_idx = idx
+			break
+	for idx in range(len(target_ct.edge_rp_locals)):
+		var _rp_local = target_ct.edge_rp_locals[idx]
+		var _rp_localdir = target_ct.edge_rp_local_dirs[idx]
+		if target_ct.get_node(_rp_local) == target_rp and _rp_localdir == target_direction:
+			target_idx = idx
+			break
+
+	if this_idx < 0:
+		push_error("Local RP not at edge of RoadContainer: %s" % self.name)
+		return false
+	elif target_idx < 0:
+		push_error("Target RP not at edge of RoadContainer: %s" % target_rp.name)
+		return false
+
+	# Update this container pointing to target rp
+	container.edge_containers[this_idx] = container.get_path_to(target_ct)
+	container.edge_rp_targets[this_idx] = target_ct.get_path_to(target_rp)
+	container.edge_rp_target_dirs[this_idx] = target_direction
+
+	# Update target container pointing to this rp
+	target_ct.edge_containers[this_idx] = target_ct.get_path_to(container)
+	target_ct.edge_rp_targets[this_idx] = container.get_path_to(self)
+	target_ct.edge_rp_target_dirs[this_idx] = this_direction
+
+	# TODO: should we validate or warn if roadpoint positions not yet aligned?
+	var same_origin = self.global_transform.origin == target_rp.global_transform.origin
+	var same_basis = self.global_transform.basis.z == target_rp.global_transform.basis.z
+	var same_basis_rev = self.global_transform.basis.z*-1 == target_rp.global_transform.basis.z
+	if not same_origin or not (same_basis or same_basis_rev):
+		push_warning("Connection made to RoadPoints not already in same position/orientation")
+
+	# container.update_edges()
+	on_transform() # Only changes that should happen: Update connections of AI lanes.
+	target_rp.on_transform()
+	return true
+
+
+## Function to explicitly disconnect this edge RP from another edge RP
+func disconnect_container(this_direction: int, target_direction: int) -> bool:
+	push_error("Not yet implemented: Disconnecting Roadpoints across Containers")
+	container.update_edges()
+	return false
 
 
 func _exit_tree():
