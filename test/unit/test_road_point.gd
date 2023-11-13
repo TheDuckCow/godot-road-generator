@@ -208,4 +208,27 @@ func test_connect_roadpoint():
 
 
 func test_roadpoint_disconnection():
-	pending('Roadpoint disconnection test not implemented yet')
+	# Setup: create and connect two RoadPoints
+	var container = add_child_autofree(RoadContainer.new())
+	container._auto_refresh = false
+
+	var points = create_unconnected_container(container)
+	var p1 = points[0]
+	var p2 = points[1]
+
+	# Connect the two together
+	p1.next_pt_init = p1.get_path_to(p2)
+	p2.prior_pt_init = p2.get_path_to(p1)
+
+	container._auto_refresh = true
+	# should have a child segment now, TODO assert this.
+	watch_signals(container)
+
+	# Now use the disconnect function explicitly
+	var res = p1.disconnect_roadpoint(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR)
+	assert_true(res, "Should be able to disconnect valid connection")
+	res = p1.disconnect_roadpoint(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR)
+	assert_false(res, "Should fail to disconnect already disconnected rp")
+	res = p1.disconnect_roadpoint(RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.PRIOR)
+	assert_false(res, "Should fail to disconnect invalid connection prior to prior")
+

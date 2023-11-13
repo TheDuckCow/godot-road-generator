@@ -34,7 +34,7 @@ enum TrafficUpdate{
 	MOVE_DIVIDER_RIGHT
 }
 
-
+# TODO: swap these, so that "NEXT" is intuitively a higher enum int value.
 enum PointInit {
 	NEXT,
 	PRIOR,
@@ -63,8 +63,8 @@ export(float) var shoulder_width_r := 2.0 setget _set_shoulder_width_r, _get_sho
 export(Vector2) var gutter_profile := Vector2(2.0, -2.0) setget _set_profile, _get_profile
 
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
-export(NodePath) var prior_pt_init setget _set_prior_pt, _get_prior_pt
-export(NodePath) var next_pt_init setget _set_next_pt, _get_next_pt
+export(NodePath) var prior_pt_init setget _set_prior_pt_init, _get_prior_pt_init
+export(NodePath) var next_pt_init setget _set_next_pt_init, _get_next_pt_init
 # Handle magniture
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
@@ -223,7 +223,7 @@ func _get_profile():
 	return gutter_profile
 
 
-func _set_prior_pt(value:NodePath):
+func _set_prior_pt_init(value:NodePath):
 	var _pre_assign = prior_pt_init
 	prior_pt_init = value
 	if not is_instance_valid(container):
@@ -237,11 +237,11 @@ func _set_prior_pt(value:NodePath):
 	on_transform()
 
 
-func _get_prior_pt():
+func _get_prior_pt_init():
 	return prior_pt_init
 
 
-func _set_next_pt(value:NodePath):
+func _set_next_pt_init(value:NodePath):
 	var _pre_assign = next_pt_init
 	next_pt_init = value
 	if not is_instance_valid(container):
@@ -255,7 +255,7 @@ func _set_next_pt(value:NodePath):
 	on_transform()
 
 
-func _get_next_pt():
+func _get_next_pt_init():
 	return next_pt_init
 
 
@@ -594,10 +594,16 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 
 	match this_direction:
 		PointInit.NEXT:
+			if not next_pt_init:
+				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
+				return false
 			disconnect_from = get_node(next_pt_init)
 			self.next_pt_init = ""
 			seg = self.next_seg
 		PointInit.PRIOR:
+			if not prior_pt_init:
+				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
+				return false
 			disconnect_from = get_node(prior_pt_init)
 			self.prior_pt_init = ""
 			seg = self.prior_seg
@@ -676,16 +682,18 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 	container.edge_rp_target_dirs[this_idx] = target_direction
 
 	# Update target container pointing to this rp
-	target_ct.edge_containers[this_idx] = target_ct.get_path_to(container)
-	target_ct.edge_rp_targets[this_idx] = container.get_path_to(self)
-	target_ct.edge_rp_target_dirs[this_idx] = this_direction
+	target_ct.edge_containers[target_idx] = target_ct.get_path_to(container)
+	target_ct.edge_rp_targets[target_idx] = container.get_path_to(self)
+	target_ct.edge_rp_target_dirs[target_idx] = this_direction
 
-	# TODO: should we validate or warn if roadpoint positions not yet aligned?
+	# Ensure that both RoadPoints have the same position and orientation
+	# TODO: Should be able to deterministically specify which z direction is "correct",
+	# instead of allowing both ways.
 	var same_origin = self.global_transform.origin == target_rp.global_transform.origin
 	var same_basis = self.global_transform.basis.z == target_rp.global_transform.basis.z
 	var same_basis_rev = self.global_transform.basis.z*-1 == target_rp.global_transform.basis.z
 	if not same_origin or not (same_basis or same_basis_rev):
-		push_warning("Connection made to RoadPoints not already in same position/orientation")
+		push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
 	on_transform() # Only changes that should happen: Update connections of AI lanes.
@@ -695,9 +703,63 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 
 ## Function to explicitly disconnect this edge RP from another edge RP
 func disconnect_container(this_direction: int, target_direction: int) -> bool:
-	push_error("Not yet implemented: Disconnecting Roadpoints across Containers")
-	container.update_edges()
-	return false
+
+	# Identify which container edge this RP and target RP are.
+	var this_idx = -1
+	var target_idx = -1
+	for idx in range(len(container.edge_rp_locals)):
+		var _rp_local = container.edge_rp_locals[idx]
+		var _rp_localdir = container.edge_rp_local_dirs[idx]
+		if container.get_node(_rp_local) == self and _rp_localdir == this_direction:
+			this_idx = idx
+			break
+
+	if this_idx < 0:
+		push_error("RoadPoint not found to be an edge RoadPoint for its container, cannot disconnect")
+		return false
+
+	var target_ct_path = container.edge_containers[this_idx]
+	var target_pt_path = container.edge_rp_targets[this_idx]
+
+	var target_ct
+	var target_pt
+
+	if not target_ct_path:
+		push_error("Failed to disconnect container, empty path to target container")
+		return false
+	elif not target_pt_path:
+		push_error("Failed to disconnect container, empty path to target point")
+		return false
+	else:
+		target_ct = container.get_node(target_ct_path)
+		target_pt = target_ct.get_node(target_pt_path)
+		for idx in range(len(target_ct.edge_rp_locals)):
+			var _rp_local = target_ct.edge_rp_locals[idx]
+			var _rp_localdir = target_ct.edge_rp_local_dirs[idx]
+			if _rp_local == target_pt_path and _rp_localdir == target_direction:
+				target_idx = idx
+				break
+
+	# Update this container pointing to target rp
+	container.edge_containers[this_idx] = ""
+	container.edge_rp_targets[this_idx] = ""
+	container.edge_rp_target_dirs[this_idx] = -1
+
+	# Update target container pointing to this rp
+	if not target_ct:
+		pass # alert would have already happened above
+	elif this_idx < 0:
+		push_error("Target RoadContainer did not indicate being connected to this RoadPoint/container")
+		return false
+	else:
+		target_ct.edge_containers[target_idx] = ""
+		target_ct.edge_rp_targets[target_idx] = ""
+		target_ct.edge_rp_target_dirs[target_idx] = -1
+		if target_pt and is_instance_valid(target_pt):
+			target_pt.on_transform()
+
+	on_transform() # Only changes that should happen: Update connections of AI lanes.
+	return true
 
 
 func _exit_tree():
