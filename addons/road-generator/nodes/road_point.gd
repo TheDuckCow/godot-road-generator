@@ -627,7 +627,7 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 				return false # already connected
 			self.next_pt_init = local_path
 		PointInit.PRIOR:
-			if self.next_pt_init:
+			if self.prior_pt_init:
 				push_error("RP's prior point is already set")
 				return false # already connected
 			self.prior_pt_init = local_path

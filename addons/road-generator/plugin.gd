@@ -889,11 +889,10 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 
 func _connect_rp_on_click(rp_a, rp_b):
 	var undo_redo = get_undo_redo()
+	var init_sel = get_selected_node()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
 		push_error("Cannot connect non-roadpoints")
 		return
-
-	# TOOD: must handle if they belong to different RoadContainers
 
 	var from_dir
 	var target_dir
@@ -912,7 +911,6 @@ func _connect_rp_on_click(rp_a, rp_b):
 		else:
 			from_dir = RoadPoint.PointInit.PRIOR
 
-	# not the poitn we'll connect to.
 	if rp_b.prior_pt_init and rp_b.next_pt_init:
 		print("Cannot connect, fully connected")
 		return true
@@ -930,11 +928,59 @@ func _connect_rp_on_click(rp_a, rp_b):
 	# Finally, determine if we are doing a intra- or inter-RoadContainer
 	var inter_container: bool = rp_a.container != rp_b.container
 
-	undo_redo.create_action("Connect RoadPoints")
 	if inter_container:
-		undo_redo.add_do_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
-		undo_redo.add_undo_method(rp_a, "disconnect_container", from_dir, target_dir)
+		undo_redo.create_action("Connect RoadContainers")
+		var add_point = false
+		var new_rp = null # new one we might be adding
+		var parent = null
+		var from_rp = null # the one in the same container it'll connect to.
+		var cross_rp = null # the one in another container
+
+		if rp_a.container.is_subscene() and rp_b.container.is_subscene():
+			push_warning("Connected RoadContainer of saved scenes may not visually appaer connected")
+			# TODO: Create a new container in the middle which connects these two,
+			# or offer to snape one to the other.
+		elif rp_a.container.is_subscene():
+			# If THIS container (A) is a subscene, create new point in container B, at A's position
+			add_point = true
+			new_rp = RoadPoint.new()
+			parent = rp_b.container
+			from_rp = rp_b
+			cross_rp = rp_a
+		else:
+			# rp_b is a saved scene, or *neither* is a saved scene.
+			# In both cases, make new child of container A (current selection)
+			add_point = true
+			new_rp = RoadPoint.new()
+			parent = rp_a.container
+			from_rp = rp_a
+			cross_rp = rp_b
+
+		# In all cases, make sure we do the connection
+		if add_point:
+			undo_redo.add_do_reference(new_rp)
+			undo_redo.add_do_method(parent, "add_child", new_rp, true)
+			undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
+			undo_redo.add_do_method(new_rp, "copy_settings_from", cross_rp)
+			undo_redo.add_do_property(new_rp, "name", from_rp.name)
+			# Using the same "from_dir" as above, since the new child has copied transforms from
+			# the RP on the other container we are connecting to.
+			undo_redo.add_do_method(from_rp, "connect_roadpoint", from_dir, new_rp, target_dir)
+			# But now we need to flip the connection direction since we're connecting the 'other'
+			# side of this newly added point.
+			var flip_target_dir = RoadPoint.PointInit.NEXT if target_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+			undo_redo.add_do_method(new_rp, "connect_container", flip_target_dir, cross_rp, target_dir)
+			undo_redo.add_do_method(self, "set_selection", new_rp)
+
+			undo_redo.add_undo_method(new_rp, "disconnect_container", flip_target_dir, target_dir)
+			undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", from_dir, target_dir)
+			undo_redo.add_undo_method(parent, "remove_child", new_rp)  # Queuefree borqs with undoredo
+			undo_redo.add_undo_method(self, "set_selection", init_sel)
+		else:
+			undo_redo.add_do_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
+			undo_redo.add_undo_method(rp_a, "disconnect_container", from_dir, target_dir)
 	else:
+		undo_redo.create_action("Connect RoadPoints")
 		undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
 		undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
 	undo_redo.commit_action()
