@@ -313,6 +313,73 @@ func on_transform(low_poly=false):
 # Utilities
 # ------------------------------------------------------------------------------
 
+
+## Indicates whether this direction is connected, accounting for container connections
+func is_prior_connected() -> bool:
+	if self.prior_pt_init:
+		return true
+	# If no sibling point, could still have a cross-container connection
+	for _idx in range(len(container.edge_rp_locals)):
+		if container.get_node(container.edge_rp_locals[_idx]) != self:
+			continue
+		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
+			continue
+		return container.edge_containers[_idx] != ""
+	push_warning("RP should have been present in container edge list")
+	return false
+
+
+## Indicates whether this direction is connected, accounting for container connections
+func is_next_connected() -> bool:
+	if self.next_pt_init:
+		return true
+	# If no sibling point, could still have a cross-container connection
+	for _idx in range(len(container.edge_rp_locals)):
+		if container.get_node(container.edge_rp_locals[_idx]) != self:
+			continue
+		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
+			continue
+		return container.edge_containers[_idx] != ""
+	push_warning("RP should have been present in container edge list")
+	return false
+
+
+## Returns prior RP direct reference, accounting for cross-container connections
+func get_prior_rp():
+	if self.prior_pt_init:
+		return get_node(prior_pt_init)
+	# If no sibling point, could still have a cross-container connection
+	for _idx in range(len(container.edge_rp_locals)):
+		if container.get_node(container.edge_rp_locals[_idx]) != self:
+			continue
+		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
+			continue
+		if not container.edge_containers[_idx]:
+			return null
+		var target_container = container.get_node(container.edge_containers[_idx])
+		return target_container.get_node(container.edge_rp_targets[_idx])
+	push_warning("RP should have been present in container edge list")
+	return null
+
+
+## Returns prior RP direct reference, accounting for cross-container connections
+func get_next_rp():
+	if self.next_pt_init:
+		return get_node(next_pt_init)
+	# If no sibling point, could still have a cross-container connection
+	for _idx in range(len(container.edge_rp_locals)):
+		if container.get_node(container.edge_rp_locals[_idx]) != self:
+			continue
+		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
+			continue
+		if not container.edge_containers[_idx]:
+			return null
+		var target_container = container.get_node(container.edge_containers[_idx])
+		return target_container.get_node(container.edge_rp_targets[_idx])
+	push_warning("RP should have been present in container edge list")
+	return null
+
+
 # Goal is to assign the appropriate sequence of textures for this lane.
 #
 # This will intelligently construct the sequence of left-right textures, knowing
@@ -585,6 +652,8 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 
 
 ## Function to explicitly connect this RoadNode to another
+##
+## Only meant to connect RoadPoints belonging to the same RoadContainer.
 func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
 	var disconnect_from: Node
@@ -792,6 +861,8 @@ func _exit_tree():
 ## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
 ## describe a valid junction. A junction is valid if THIS RoadPoint agrees with
 ## what the associated RoadPoint is saying. Invalid junctions are cleared.
+##
+## Only meant to consider RoadPoints of the same RoadContainer.
 func validate_junctions():
 	var prior_point: RoadPoint
 	var next_point: RoadPoint
@@ -932,5 +1003,4 @@ func _autofix_noncyclic_references(
 	self._is_internal_updating = false
 
 	# In the event of change in edges, update all references.
-	print("Running update_edges from autofix")
 	container.update_edges()

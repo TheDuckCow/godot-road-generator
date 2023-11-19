@@ -255,9 +255,12 @@ func get_segments() -> Array:
 			segs.append(pt_ch)
 	return segs
 
+
 ## Update export variable lengths and counts to account for connection to
 ## other RoadContainers
 func update_edges():
+	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
+	#print("Debug: Updating container edges %s" % self.name)
 
 	var _tmp_containers := []
 	var _tmp_rp_targets := []
@@ -590,7 +593,7 @@ func _check_migrate_points():
 	])
 
 
-# Cleanup the road segments specifically, in case they aren't children.
+## Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
 	# TODO: Verify we don't get orphans below.
 	# However, at the time of this early exit, doing this prevented roads

@@ -121,11 +121,11 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	if _overlay_hint_disconnect:
 		# Hovering node is directly connected to this node already, offer to disconnect
 		col = Color.coral
-	elif hovering.next_pt_init and hovering.prior_pt_init:
+	elif hovering.is_next_connected() and hovering.is_prior_connected():
 		# Where we're coming from is already fully connected.
 		# Eventually though, this could be an intersection.
 		return
-	elif selected.next_pt_init and selected.prior_pt_init:
+	elif selected.is_next_connected() and selected.is_prior_connected():
 		# Fully connected, though eventually this could be an intersection.
 		return
 	elif selected.container != hovering.container:
@@ -272,17 +272,17 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
-			elif target.prior_pt_init and target.get_node(target.prior_pt_init) == point:
+			elif target.get_prior_rp() == point:
 				# If this pt is directly connected to the target, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif target.next_pt_init and target.get_node(target.next_pt_init) == point:
+			elif target.get_next_rp() == point:
 				# If this pt is directly connected to the selection, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif target.prior_pt_init and target.next_pt_init:
+			elif target.is_prior_connected() and target.is_next_connected():
 				# Fully connected roadpoint, nothing to do.
 				# In the future, this could be a mode to convert into an intersection
 				_overlay_rp_selected = null
@@ -950,16 +950,16 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 
 	var from_dir
 	var target_dir
-	if rp_a.prior_pt_init and rp_a.get_node(rp_a.prior_pt_init) == rp_b:
+	if rp_a.get_prior_rp() == rp_b:
 		from_dir = RoadPoint.PointInit.PRIOR
-	elif rp_a.next_pt_init and rp_a.get_node(rp_a.next_pt_init) == rp_b:
+	elif rp_a.get_next_rp() == rp_b:
 		from_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
 		return
-	if rp_b.prior_pt_init and rp_b.get_node(rp_b.prior_pt_init) == rp_a:
+	if rp_b.get_prior_rp() == rp_a:
 		target_dir = RoadPoint.PointInit.PRIOR
-	elif rp_b.next_pt_init and rp_b.get_node(rp_b.next_pt_init) == rp_a:
+	elif rp_b.get_next_rp() == rp_a:
 		target_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
