@@ -936,7 +936,12 @@ func _connect_rp_on_click(rp_a, rp_b):
 		var from_rp = null # the one in the same container it'll connect to.
 		var cross_rp = null # the one in another container
 
-		if rp_a.container.is_subscene() and rp_b.container.is_subscene():
+
+		if rp_a.global_transform.origin == rp_b.global_transform.origin:
+			# They are already in the same position, so we should not add a new RP anyways.
+			# TODO: Could also check for rotation being aligned.
+			pass
+		elif rp_a.container.is_subscene() and rp_b.container.is_subscene():
 			push_warning("Connected RoadContainer of saved scenes may not visually appaer connected")
 			# TODO: Create a new container in the middle which connects these two,
 			# or offer to snape one to the other.
