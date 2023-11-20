@@ -935,7 +935,7 @@ func _connect_rp_on_click(rp_a, rp_b):
 		var parent = null
 		var from_rp = null # the one in the same container it'll connect to.
 		var cross_rp = null # the one in another container
-
+		var flip_inputs = false # condition where we needed to do some switching around, empirically.
 
 		if rp_a.global_transform.origin == rp_b.global_transform.origin:
 			# They are already in the same position, so we should not add a new RP anyways.
@@ -952,6 +952,12 @@ func _connect_rp_on_click(rp_a, rp_b):
 			parent = rp_b.container
 			from_rp = rp_b
 			cross_rp = rp_a
+
+			# Hack workaround, to get right combination below, since we're
+			# effectively swapping to as though the user flipped which was
+			# selected vs hovering
+			# TOOD: Do this more gracefully than this if/else.
+			flip_inputs = true
 		else:
 			# rp_b is a saved scene, or *neither* is a saved scene.
 			# In both cases, make new child of container A (current selection)
@@ -963,23 +969,36 @@ func _connect_rp_on_click(rp_a, rp_b):
 
 		# In all cases, make sure we do the connection
 		if add_point:
+			new_rp.name = from_rp.name
 			undo_redo.add_do_reference(new_rp)
 			undo_redo.add_do_method(parent, "add_child", new_rp, true)
 			undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
 			undo_redo.add_do_method(new_rp, "copy_settings_from", cross_rp)
-			undo_redo.add_do_property(new_rp, "name", from_rp.name)
-			# Using the same "from_dir" as above, since the new child has copied transforms from
-			# the RP on the other container we are connecting to.
-			undo_redo.add_do_method(from_rp, "connect_roadpoint", from_dir, new_rp, target_dir)
-			# But now we need to flip the connection direction since we're connecting the 'other'
-			# side of this newly added point.
+
 			var flip_target_dir = RoadPoint.PointInit.NEXT if target_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
-			undo_redo.add_do_method(new_rp, "connect_container", flip_target_dir, cross_rp, target_dir)
+			var flip_from_dir = RoadPoint.PointInit.NEXT if from_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+
+			if flip_inputs:
+				# Connect existing container rp to this newly created one
+				undo_redo.add_do_method(from_rp, "connect_roadpoint", flip_from_dir, new_rp, flip_target_dir)
+				# using target + flipped target, as the newly added point has orientation matching pt of other container
+				undo_redo.add_do_method(new_rp, "connect_container", target_dir, cross_rp, flip_target_dir)
+			else:
+				# Connect existing container rp to this newly created one
+				undo_redo.add_do_method(from_rp, "connect_roadpoint", from_dir, new_rp, target_dir)
+				# using flipped target + target, as the newly added point has orientation matching pt of other container
+				undo_redo.add_do_method(new_rp, "connect_container", flip_target_dir, cross_rp, target_dir)
+
 			undo_redo.add_do_method(self, "set_selection", new_rp)
 
-			undo_redo.add_undo_method(new_rp, "disconnect_container", flip_target_dir, target_dir)
-			undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", from_dir, target_dir)
-			undo_redo.add_undo_method(parent, "remove_child", new_rp)  # Queuefree borqs with undoredo
+			if flip_inputs:
+				undo_redo.add_undo_method(new_rp, "disconnect_container", target_dir, flip_target_dir)
+				undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", flip_from_dir, flip_target_dir)
+			else:
+				undo_redo.add_undo_method(new_rp, "disconnect_container", flip_target_dir, target_dir)
+				undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", from_dir, target_dir)
+
+			undo_redo.add_undo_method(parent, "remove_child", new_rp)
 			undo_redo.add_undo_method(self, "set_selection", init_sel)
 		else:
 			undo_redo.add_do_method(rp_a, "connect_container", from_dir, rp_b, target_dir)

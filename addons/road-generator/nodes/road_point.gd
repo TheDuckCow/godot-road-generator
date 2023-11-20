@@ -613,22 +613,26 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	match target_direction:
 		PointInit.NEXT:
 			if target_rp.next_pt_init:
-				push_error("The connecting RP's next point is already set")
+				push_error("The connecting RP's next point is already set %s:%s" % [
+					target_rp.name, target_rp.next_pt_init])
 				return false # already connected
 		PointInit.PRIOR:
 			if target_rp.prior_pt_init:
-				push_error("The connecting RP's prior point is already set")
+				push_error("The connecting RP's prior point is already set: %s:%s" % [
+					target_rp.name, target_rp.prior_pt_init])
 
 	# Now do actual property setting
 	match this_direction:
 		PointInit.NEXT:
 			if self.next_pt_init:
-				push_error("RP's next point is already set")
+				push_error("This RP's next point is already set: %s:%s" % [
+					self.name, self.next_pt_init])
 				return false # already connected
 			self.next_pt_init = local_path
 		PointInit.PRIOR:
 			if self.prior_pt_init:
-				push_error("RP's prior point is already set")
+				push_error("This RP's prior point is already set: %s:%s" % [
+					self.name, self.prior_pt_init])
 				return false # already connected
 			self.prior_pt_init = local_path
 
