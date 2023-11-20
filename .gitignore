@@ -5,6 +5,7 @@ addons/godot-reload-scene/
 *.DS_store
 # Place where local instances of godot go, for automated testing
 godot_versions.txt
+.gut_editor_shortcuts.cfg
 
 # Official gitignore items to include for Asset Library contributions, per:
 # https://raw.githubusercontent.com/aaronfranke/gitignore/godot/Godot.gitignore
