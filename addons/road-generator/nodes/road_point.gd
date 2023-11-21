@@ -609,7 +609,7 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	self._is_internal_updating = true
 	target_rp._is_internal_updating = true
 
-	# Short circuit before setting any properties if we need to exit, hence
+	# Short circuit before setting any properties if we need to exit.
 	match target_direction:
 		PointInit.NEXT:
 			if target_rp.next_pt_init:
@@ -620,6 +620,8 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 			if target_rp.prior_pt_init:
 				push_error("The connecting RP's prior point is already set: %s:%s" % [
 					target_rp.name, target_rp.prior_pt_init])
+				return false
+
 
 	# Now do actual property setting
 	match this_direction:
