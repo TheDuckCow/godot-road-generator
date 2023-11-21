@@ -1,8 +1,8 @@
 tool
 extends HBoxContainer
 
-signal mode_changed
 
+signal mode_changed
 
 enum InputMode {
 	NONE,  # e.g. if a Road*Node is not selected.
@@ -20,9 +20,9 @@ var selected_nodes: Array # of Nodes
 var gui # For fetching built in icons (not yet working)
 var mode # Passed in by parent
 
+
 func _enter_tree():
 	update_refs()
-
 	match mode:
 		InputMode.SELECT:
 			select_mode.pressed = true
@@ -37,6 +37,17 @@ func update_refs():
 	add_mode = $add_mode
 	delete_mode = $delete_mode
 	create_menu = $CreateMenu
+
+
+func on_show(_selected_nodes: Array):
+	selected_nodes = _selected_nodes
+	print("On show:", selected_nodes)
+
+	var primary_sel = null
+	var is_subscene := false
+	if len(selected_nodes) > 0:
+		primary_sel = selected_nodes[0]
+	create_menu.on_toolbar_show(primary_sel)
 
 
 func update_icons():

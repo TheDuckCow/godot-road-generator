@@ -17,7 +17,8 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
-var _overlay_rp_hovering: Node
+var _overlay_rp_selected: Node # Matching active selection or according RP child
+var _overlay_rp_hovering: Node # Matching what the mouse is hovering over
 var _overlay_hovering_pos := Vector2(-1, -1)
 var _overlay_hovering_from := Vector2(-1, -1)
 var _overlay_hint_disconnect := false
@@ -26,7 +27,7 @@ var _overlay_hint_delete := false
 
 var _press_init_pos: Vector2
 
-var new_selection: RoadPoint # Reference for passing selected node
+var _new_selection: Node # RoadPoint or RoadContainer
 
 
 func _enter_tree():
@@ -77,16 +78,30 @@ func _exit_tree():
 
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_spatial_draw_over_viewport(overlay: Control):
-	var selected = get_selected_node()
+	var selected = _overlay_rp_selected
+
+	# White margin background
+	var margin := 3
+	var white_col = Color(1, 1, 1, 0.9)
 
 	if tool_mode == _road_toolbar.InputMode.SELECT:
 		return
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
-			var col = Color.rosybrown
+			var col = Color.coral
 
 			var radius := 24.0  # Radius of the rounded ends
 			var hf := radius / 2.0
+			# white bg
+			overlay.draw_line(
+				_overlay_hovering_pos + Vector2(-hf-margin, -hf-margin),
+				_overlay_hovering_pos + Vector2(hf+margin, hf+margin),
+				white_col, 6 + margin)
+			overlay.draw_line(
+				_overlay_hovering_pos + Vector2(-hf-margin, hf+margin),
+				_overlay_hovering_pos + Vector2(hf+margin, -hf-margin),
+				white_col, 6 + margin)
+			# Red part on top
 			overlay.draw_line(
 				_overlay_hovering_pos + Vector2(-hf, -hf),
 				_overlay_hovering_pos + Vector2(hf, hf),
@@ -100,33 +115,49 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	# Add mode
 	var rad_size := 10.0
 	var col:Color
-	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering):
+	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
 		return # Nothing to draw
-	elif _overlay_hint_disconnect:
+	var hovering:RoadPoint = _overlay_rp_hovering
+	if _overlay_hint_disconnect:
 		# Hovering node is directly connected to this node already, offer to disconnect
-		col = Color.rosybrown
-	elif selected is RoadPoint and selected.next_pt_init and selected.prior_pt_init:
+		col = Color.coral
+	elif hovering.is_next_connected() and hovering.is_prior_connected():
 		# Where we're coming from is already fully connected.
 		# Eventually though, this could be an intersection.
 		return
+	elif selected.is_next_connected() and selected.is_prior_connected():
+		# Fully connected, though eventually this could be an intersection.
+		return
+	elif selected.container != hovering.container:
+		col = Color.cadetblue
 	else:
-		# Connect mode
-		var pt:RoadPoint = _overlay_rp_hovering
-		if pt.next_pt_init and pt.prior_pt_init:
-			# Fully connected, though eventually this could be an intersection.
-			return
-		else:
-			col = Color.aqua
+		# Connection mode intra RoadContainer
+		col = Color.aqua
+	# TODO: make color slight transparent, but requires merging draw positions
+	# as one call instead of multiple shapes.
 
+	if not selected is RoadPoint:
+		return
+
+	# White margin background
+	overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+	overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+	overlay.draw_line(
+		_overlay_hovering_from,
+		_overlay_hovering_pos,
+		white_col,
+		2+margin*2,
+		true)
+
+	# Now color based on opration
 	overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-	if selected is RoadPoint:
-		overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			col,
-			2,
-			true)
+	overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+	overlay.draw_line(
+		_overlay_hovering_from,
+		_overlay_hovering_pos,
+		col,
+		2,
+		true)
 
 
 ## Handle or pass on event in the 3D editor
@@ -183,10 +214,14 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 		# Shoot a ray and see if it hits anything
 		var point = get_nearest_road_point(camera, event.position)
 		if point and not event.pressed:
-			# Using this method creates a conflcit with buultin drag n drop & 3d gizmo usage
+			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
 			#set_selection(point)
 			#_on_selection_changed()
-			new_selection = point
+
+			if point.container.is_subscene():
+				_new_selection = point.container
+			else:
+				_new_selection = point
 			return false
 	return false
 
@@ -202,57 +237,97 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 		# trigger overlay updates to draw/update indicators
 		var point = get_nearest_road_point(camera, event.position)
 		var selection = get_selected_node()
-		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
-		if point:
+		var src_is_contianer := false
+		var target:RoadPoint
+
+		if selection is RoadContainer:
+			src_is_contianer = true
+			var closest_rp = get_nearest_edge_road_point(selection, camera, event.position)
+			if closest_rp:
+				target = closest_rp
+			else:
+				point = null # nothing to point from, so skip below on what we're pointing to
+		elif selection is RoadManager:
+			point = null
+			target = null
+		elif selection is RoadPoint:
+			target = selection
+		else:
+			point = null
+			target = null
+
+		if point and target:
+			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 
-			if selection == point:
+			if target == point:
+				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
-			elif selection.prior_pt_init and selection.get_node(selection.prior_pt_init) == point:
+			elif src_is_contianer and point and point.container == selection:
+				# If a container is selected, don't (dis)connect internal rp's to itself.
+				_overlay_rp_selected = null
+				_overlay_rp_hovering = null
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = false
+			elif target.get_prior_rp() == point:
+				# If this pt is directly connected to the target, offer quick dis-connect tool
+				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif selection.next_pt_init and selection.get_node(selection.next_pt_init) == point:
+			elif target.get_next_rp() == point:
+				# If this pt is directly connected to the selection, offer quick dis-connect tool
+				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif selection.prior_pt_init and selection.next_pt_init:
-				# _overlay_rp_hovering = null
+			elif target.is_prior_connected() and target.is_next_connected():
+				# Fully connected roadpoint, nothing to do.
 				# In the future, this could be a mode to convert into an intersection
+				_overlay_rp_selected = null
+				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			else:
 				# Open connection scenario
+				_overlay_rp_selected = target # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 		else:
+			_overlay_rp_selected = null
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = event.position
 			_overlay_hint_disconnect = false
 			_overlay_hint_connection = false
 		update_overlays()
-
 		# Consume the event no matter what.
 		return false
+
 	if not event is InputEventMouseButton:
 		return false
 	if not event.button_index == BUTTON_LEFT:
 		return false
 	if not event.pressed:
-		# Should consume all left click operations
 		return true
+	# Should consume all left click operation hereafter.
 
 	var selection = get_selected_node()
+
 	if _overlay_hint_disconnect:
 		_disconnect_rp_on_click(selection, _overlay_rp_hovering)
 	elif _overlay_hint_connection:
-		_connect_rp_on_click(selection, _overlay_rp_hovering)
+		#print("Connect: %s to %s" % [selection.name, _overlay_rp_hovering.name])
+		_connect_rp_on_click(_overlay_rp_selected, _overlay_rp_hovering)
 	else:
 		var res := get_click_point_with_context(camera, event.position, selection)
 		var pos:Vector3 = res[0]
 		var nrm:Vector3 = res[1]
-		_add_next_rp_on_click(pos, nrm, selection)
+
+		if selection is RoadContainer and selection.is_subscene():
+			_add_next_rp_on_click(pos, nrm, selection.get_manager())
+		else:
+			_add_next_rp_on_click(pos, nrm, selection)
 	return true
 
 
@@ -263,7 +338,12 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
 		var max_dist = 50 # ie only auto suggest deleting RP if it's within this dist to mouse.
-		if point:
+		if point and point.container.is_subscene():
+			# Don't offer changing saved scenes in any way.
+			_overlay_rp_hovering = null
+			_overlay_hovering_pos = Vector2(-1, -1)
+			_overlay_hint_delete = false
+		elif point:
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
 			_overlay_hint_delete = true
@@ -291,10 +371,10 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 func _on_selection_changed() -> void:
 	var selected_node = get_selected_node()
 
-	if new_selection:
-		select_road_point(new_selection)
-		selected_node = new_selection
-		new_selection = null
+	if _new_selection:
+		set_selection(_new_selection)
+		selected_node = _new_selection
+		_new_selection = null
 	elif not selected_node:
 		_hide_road_toolbar()
 		return
@@ -313,7 +393,7 @@ func _on_selection_changed() -> void:
 	# scene instance itself (non editable).
 	# TOOD: Change show/hide to occur on button-release, for consistency with internal panels.
 	var eligible = is_road_node(selected_node)
-	var non_instance = (not selected_node.filename) or selected_node == get_tree().edited_scene_root
+	var non_instance = true
 	if eligible and non_instance:
 		_show_road_toolbar()
 	else:
@@ -447,6 +527,29 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 			return nearest_point
 
 
+func get_nearest_edge_road_point(container: RoadContainer, camera: Camera, mouse_pos: Vector2):
+	# get the nearest edge RoadPoint for the given container
+	var closest_rp:RoadPoint
+	var closest_dist: float
+	for pth in container.edge_rp_locals:
+		var rp = container.get_node(pth)
+		#print("\tChecking dist to %s" % rp.name)
+		if not is_instance_valid(rp):
+			continue
+		# TODO: check if this point is behind the camera, ignore
+		var cam2rp = rp.global_transform.origin - camera.global_transform.origin
+		if camera.global_transform.basis.z.dot(cam2rp) > 0: # fwd is -z
+				continue
+		var rp_screen_pos:Vector2 = camera.unproject_position(rp.global_transform.origin)
+		var this_dist = mouse_pos.distance_squared_to(rp_screen_pos)
+		#print("\trp_screen_pos: %s:%s - %s to mouse at %s" % [
+		#	rp.name, rp_screen_pos, this_dist, mouse_pos])
+		if not closest_dist or this_dist < closest_dist:
+			closest_dist = this_dist
+			closest_rp = rp
+	return closest_rp
+
+
 ## Convert a given click to the nearest, best fitting 3d pos + normal for click.
 ##
 ## Includes selection node so that if there's no intersection made, we can still
@@ -532,7 +635,7 @@ func _show_road_toolbar() -> void:
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.selected_nodes = _eds.get_selected_nodes()
+		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
 		_road_toolbar.create_menu.connect(
@@ -576,8 +679,15 @@ func _hide_road_toolbar() -> void:
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
 func _on_regenerate_pressed():
+	var nd = get_selected_node()
+	if nd is RoadManager:
+		for ch_container in nd.get_containers():
+			ch_container.rebuild_segments(true)
+		return
 	var t_container = get_container_from_selection()
-	t_container.rebuild_segments(true)
+	if t_container:
+		t_container.rebuild_segments(true)
+		return
 
 
 func _on_select_container_pressed():
@@ -779,11 +889,10 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 
 func _connect_rp_on_click(rp_a, rp_b):
 	var undo_redo = get_undo_redo()
+	var init_sel = get_selected_node()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
 		push_error("Cannot connect non-roadpoints")
 		return
-
-	# TOOD: must handle if they belong to different RoadContainers
 
 	var from_dir
 	var target_dir
@@ -802,7 +911,6 @@ func _connect_rp_on_click(rp_a, rp_b):
 		else:
 			from_dir = RoadPoint.PointInit.PRIOR
 
-	# not the poitn we'll connect to.
 	if rp_b.prior_pt_init and rp_b.next_pt_init:
 		print("Cannot connect, fully connected")
 		return true
@@ -817,9 +925,88 @@ func _connect_rp_on_click(rp_a, rp_b):
 		else:
 			target_dir = RoadPoint.PointInit.PRIOR
 
-	undo_redo.create_action("Connect RoadPoints")
-	undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
-	undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
+	# Finally, determine if we are doing a intra- or inter-RoadContainer
+	var inter_container: bool = rp_a.container != rp_b.container
+
+	if inter_container:
+		undo_redo.create_action("Connect RoadContainers")
+		var add_point = false
+		var new_rp = null # new one we might be adding
+		var parent = null
+		var from_rp = null # the one in the same container it'll connect to.
+		var cross_rp = null # the one in another container
+		var flip_inputs = false # condition where we needed to do some switching around, empirically.
+
+		if rp_a.global_transform.origin == rp_b.global_transform.origin:
+			# They are already in the same position, so we should not add a new RP anyways.
+			# TODO: Could also check for rotation being aligned.
+			pass
+		elif rp_a.container.is_subscene() and rp_b.container.is_subscene():
+			push_warning("Connected RoadContainer of saved scenes may not visually appaer connected")
+			# TODO: Create a new container in the middle which connects these two,
+			# or offer to snape one to the other.
+		elif rp_a.container.is_subscene():
+			# If THIS container (A) is a subscene, create new point in container B, at A's position
+			add_point = true
+			new_rp = RoadPoint.new()
+			parent = rp_b.container
+			from_rp = rp_b
+			cross_rp = rp_a
+
+			# Hack workaround, to get right combination below, since we're
+			# effectively swapping to as though the user flipped which was
+			# selected vs hovering
+			# TOOD: Do this more gracefully than this if/else.
+			flip_inputs = true
+		else:
+			# rp_b is a saved scene, or *neither* is a saved scene.
+			# In both cases, make new child of container A (current selection)
+			add_point = true
+			new_rp = RoadPoint.new()
+			parent = rp_a.container
+			from_rp = rp_a
+			cross_rp = rp_b
+
+		# In all cases, make sure we do the connection
+		if add_point:
+			new_rp.name = from_rp.name
+			undo_redo.add_do_reference(new_rp)
+			undo_redo.add_do_method(parent, "add_child", new_rp, true)
+			undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
+			undo_redo.add_do_method(new_rp, "copy_settings_from", cross_rp)
+
+			var flip_target_dir = RoadPoint.PointInit.NEXT if target_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+			var flip_from_dir = RoadPoint.PointInit.NEXT if from_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+
+			if flip_inputs:
+				# Connect existing container rp to this newly created one
+				undo_redo.add_do_method(from_rp, "connect_roadpoint", flip_from_dir, new_rp, flip_target_dir)
+				# using target + flipped target, as the newly added point has orientation matching pt of other container
+				undo_redo.add_do_method(new_rp, "connect_container", target_dir, cross_rp, flip_target_dir)
+			else:
+				# Connect existing container rp to this newly created one
+				undo_redo.add_do_method(from_rp, "connect_roadpoint", from_dir, new_rp, target_dir)
+				# using flipped target + target, as the newly added point has orientation matching pt of other container
+				undo_redo.add_do_method(new_rp, "connect_container", flip_target_dir, cross_rp, target_dir)
+
+			undo_redo.add_do_method(self, "set_selection", new_rp)
+
+			if flip_inputs:
+				undo_redo.add_undo_method(new_rp, "disconnect_container", target_dir, flip_target_dir)
+				undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", flip_from_dir, flip_target_dir)
+			else:
+				undo_redo.add_undo_method(new_rp, "disconnect_container", flip_target_dir, target_dir)
+				undo_redo.add_undo_method(from_rp, "disconnect_roadpoint", from_dir, target_dir)
+
+			undo_redo.add_undo_method(parent, "remove_child", new_rp)
+			undo_redo.add_undo_method(self, "set_selection", init_sel)
+		else:
+			undo_redo.add_do_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
+			undo_redo.add_undo_method(rp_a, "disconnect_container", from_dir, target_dir)
+	else:
+		undo_redo.create_action("Connect RoadPoints")
+		undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
+		undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
 	undo_redo.commit_action()
 
 
@@ -833,24 +1020,31 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 
 	var from_dir
 	var target_dir
-	if rp_a.prior_pt_init and rp_a.get_node(rp_a.prior_pt_init) == rp_b:
+	if rp_a.get_prior_rp() == rp_b:
 		from_dir = RoadPoint.PointInit.PRIOR
-	elif rp_a.next_pt_init and rp_a.get_node(rp_a.next_pt_init) == rp_b:
+	elif rp_a.get_next_rp() == rp_b:
 		from_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
 		return
-	if rp_b.prior_pt_init and rp_b.get_node(rp_b.prior_pt_init) == rp_a:
+	if rp_b.get_prior_rp() == rp_a:
 		target_dir = RoadPoint.PointInit.PRIOR
-	elif rp_b.next_pt_init and rp_b.get_node(rp_b.next_pt_init) == rp_a:
+	elif rp_b.get_next_rp() == rp_a:
 		target_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
 		return
 
+	# Finally, determine if we are doing a intra- or inter-RoadContainer
+	var inter_container: bool = rp_a.container != rp_b.container
+
 	undo_redo.create_action("Disconnect RoadPoints")
-	undo_redo.add_do_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
-	undo_redo.add_undo_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
+	if inter_container:
+		undo_redo.add_do_method(rp_a, "disconnect_container", from_dir, target_dir)
+		undo_redo.add_undo_method(rp_a, "connect_container", from_dir, rp_b, target_dir)
+	else:
+		undo_redo.add_do_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
+		undo_redo.add_undo_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
 	undo_redo.commit_action()
 
 
@@ -1103,4 +1297,3 @@ func _create_lane_undo(parent: Node) -> void:
 
 	if initial_children[-1] is RoadLane:
 		initial_children[-1].queue_free()
-

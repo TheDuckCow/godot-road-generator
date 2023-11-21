@@ -34,11 +34,18 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 ## These should *never* be manually adjusted, they are only export vars to
 ## facilitate the connection of RoadContainers needing to connect to points in
 ## different scenes, where said connection needs to be established in the editor
-export(Array, NodePath) var edge_containers # Paths to other containers, relative to this container
-export(Array, NodePath) var edge_rp_targets  # Node paths within other containers, relative to the *target* container (not self here)
-export(Array, String) var edge_rp_target_dirs  # Bools, true = next_init
-export(Array, NodePath) var edge_rp_locals  # Node paths within this container, relative to this container
-export(Array, String) var edge_rp_local_dirs  # Bools, true = next_init
+
+# Paths to other containers, relative to this container (self)
+export(Array, NodePath) var edge_containers
+# Node paths within other containers, relative to the *target* container (not self here)
+export(Array, NodePath) var edge_rp_targets
+# Direction of which RP we are connecting to, used to make unique key along with
+# the edge_rp_targets path above. Enum value of RoadPoint.PointInit
+export(Array, int) var edge_rp_target_dirs
+# Node paths within this container, relative to this container
+export(Array, NodePath) var edge_rp_locals
+# Local RP directions, enum value of RoadPoint.PointInit
+export(Array, int) var edge_rp_local_dirs  #
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -95,6 +102,9 @@ func _ready():
 func is_road_container() -> bool:
 	return true
 
+
+func is_subscene() -> bool:
+	return filename and self != get_tree().edited_scene_root
 
 func _get_configuration_warning() -> String:
 
@@ -245,9 +255,12 @@ func get_segments() -> Array:
 			segs.append(pt_ch)
 	return segs
 
+
 ## Update export variable lengths and counts to account for connection to
 ## other RoadContainers
 func update_edges():
+	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
+	#print("Debug: Updating container edges %s" % self.name)
 
 	var _tmp_containers := []
 	var _tmp_rp_targets := []
@@ -257,12 +270,11 @@ func update_edges():
 
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
-		#var dir := 0  # -1 is for prior init, 1 is for next init
 
-		for this_dir in [-1, 1]:
+		for this_dir in [RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR]:
 			var is_edge := false
 			var dir_pt_init
-			if this_dir == -1:
+			if this_dir == RoadPoint.PointInit.PRIOR:
 				dir_pt_init = pt.prior_pt_init
 			else:
 				dir_pt_init = pt.next_pt_init
@@ -301,7 +313,7 @@ func update_edges():
 			else:
 				_tmp_containers.append("")
 				_tmp_rp_targets.append("")
-				_tmp_rp_target_dirs.append(0)
+				_tmp_rp_target_dirs.append(-1) # -1 to mean an unconnected index, since valid enums are 0+
 
 	# Finally, do a near-synchronous update of the export var references
 	edge_containers = _tmp_containers
@@ -581,7 +593,7 @@ func _check_migrate_points():
 	])
 
 
-# Cleanup the road segments specifically, in case they aren't children.
+## Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
 	# TODO: Verify we don't get orphans below.
 	# However, at the time of this early exit, doing this prevented roads
