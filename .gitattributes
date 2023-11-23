@@ -1,8 +1,5 @@
 
 # LFS attributes
-icon.png filter=lfs diff=lfs merge=lfs -text
-*.png filter=lfs diff=lfs merge=lfs -text
-*.afdesign filter=lfs diff=lfs merge=lfs -text
 
 # Export ignores, so that these files are ignored when someone installs the
 # plugin from the Godot Asset Library. You can test the changes by
@@ -21,4 +18,5 @@ icon.png filter=lfs diff=lfs merge=lfs -text
 /project.godot               export-ignore
 /README.md                   export-ignore
 /release.sh                  export-ignore
+/run_tests.sh                export-ignore
 /test/                       export-ignore
