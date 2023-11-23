@@ -18,4 +18,5 @@
 /project.godot               export-ignore
 /README.md                   export-ignore
 /release.sh                  export-ignore
+/run_tests.sh                export-ignore
 /test/                       export-ignore
