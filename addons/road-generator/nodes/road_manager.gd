@@ -1,6 +1,6 @@
 ## Manager for all children RoadContainers
 tool
-class_name RoadManager, "../resources/road_manager.png"
+class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
 extends Spatial
 
 

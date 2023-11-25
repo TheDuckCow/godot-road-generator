@@ -2,7 +2,7 @@
 ##
 ## Should be contained within a RoadContainer and a sibling to 1+ RoadPoints
 tool
-class_name RoadIntersection, "../resources/road_intersection.png"
+class_name RoadIntersection, "res://addons/road-generator/resources/road_intersection.png"
 extends Spatial
 
 
@@ -12,6 +12,8 @@ extends Spatial
 
 
 func _get_configuration_warning() -> String:
+	return "Intersections not yet implemented"
+
 	var par = get_parent()
 	if par.has_method("is_road_container"):
 		return ""
