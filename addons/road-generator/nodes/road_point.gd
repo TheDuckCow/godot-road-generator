@@ -1,6 +1,6 @@
 ## Definition for a single point handle, which 2+ road segments connect to.
 tool
-class_name RoadPoint, "../resources/road_point.png"
+class_name RoadPoint, "res://addons/road-generator/resources/road_point.png"
 extends Spatial
 
 signal on_transform(node, low_poly)

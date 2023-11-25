@@ -4,7 +4,7 @@
 
 tool # Draw in the editor things like path direction and width
 extends Path
-class_name RoadLane, "../resources/road_lane.png"
+class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
