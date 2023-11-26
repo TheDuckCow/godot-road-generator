@@ -20,3 +20,4 @@
 /release.sh                  export-ignore
 /run_tests.sh                export-ignore
 /test/                       export-ignore
+/addons/road-generator/gizmo-designs.afdesign export-ignore
