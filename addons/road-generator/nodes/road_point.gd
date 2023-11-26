@@ -302,6 +302,9 @@ func _notification(what):
 
 
 func on_transform(low_poly=false):
+	if _is_internal_updating:
+		# Special internal update should bypass on_transform, such as moving two edges in parallel
+		return
 	if auto_lanes:
 		assign_lanes()
 	if is_instance_valid(gizmo):
@@ -312,6 +315,12 @@ func on_transform(low_poly=false):
 # ------------------------------------------------------------------------------
 # Utilities
 # ------------------------------------------------------------------------------
+
+## Checks if this RoadPoint is an open edge connection for its parent container.
+func is_on_edge() -> bool:
+	if self.prior_pt_init and self.next_pt_init:
+		return false
+	return true
 
 
 ## Indicates whether this direction is connected, accounting for container connections

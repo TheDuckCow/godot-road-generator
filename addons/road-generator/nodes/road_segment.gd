@@ -55,6 +55,7 @@ func _init(_container):
 	curve = Curve3D.new()
 
 
+
 func _ready():
 	if container.debug_scene_visible:
 		road_mesh.owner = container.owner
