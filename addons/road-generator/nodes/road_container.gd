@@ -136,7 +136,7 @@ func _get_configuration_warning() -> String:
 			has_rp_child = true
 			break
 	if not has_rp_child:
-		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
+		return "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
 
 	if _needs_refresh:
 		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
