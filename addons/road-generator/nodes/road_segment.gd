@@ -55,6 +55,7 @@ func _init(_container):
 	curve = Curve3D.new()
 
 
+
 func _ready():
 	if container.debug_scene_visible:
 		road_mesh.owner = container.owner
@@ -225,6 +226,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
 
+	var _par = get_parent() # Add RoadLanes to the parent RoadPoint, with option to add as children directly.
+
 	# We need to keep track of the number of reverse lane subtractions and
 	# forward subtractions. The left side (reverse) needs to be precalcuated,
 	# while the right (forward) can be a running sum during the loop itself.
@@ -256,7 +259,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var ln_child = null
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
-			add_child(ln_child)
+			_par.add_child(ln_child)
 			if container.debug_scene_visible:
 				ln_child.owner = container.owner
 			ln_child.add_to_group(container.ai_lane_group)
@@ -383,7 +386,8 @@ func get_transition_offset(
 ## Returns list of only valid RoadLanes
 func get_lanes() -> Array:
 	var lanes = []
-	for ch in self.get_children():
+	var _par = get_parent()
+	for ch in _par.get_children():
 		if not is_instance_valid(ch):
 			continue
 		elif not ch is RoadLane:
@@ -395,9 +399,21 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments():
+	var _par = get_parent()
+	for ch in _par.get_children():
+		if ch is RoadLane:
+			ch.queue_free()
+	# Legacy, RoadLanes used to be children of the segment class, but are now
+	# direct children of the RoadPoint with the option to be visualized in editor later.
 	for ch in get_children():
 		if ch is RoadLane:
 			ch.queue_free()
+
+
+func update_lane_visibility():
+	for lane in get_lanes():
+		lane.draw_in_editor = container.draw_lanes_editor
+		lane.draw_in_game = container.draw_lanes_game
 
 
 # ------------------------------------------------------------------------------

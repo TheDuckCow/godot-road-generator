@@ -34,6 +34,9 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 ## These should *never* be manually adjusted, they are only export vars to
 ## facilitate the connection of RoadContainers needing to connect to points in
 ## different scenes, where said connection needs to be established in the editor
+##
+# TODO: In Godot 4.3ish, these should be @export_storage, hidden to users
+# https://github.com/godotengine/godot/pull/82122
 
 # Paths to other containers, relative to this container (self)
 export(Array, NodePath) var edge_containers
@@ -71,6 +74,9 @@ var _draw_lanes_game:bool = false
 ## Refernce to the parent road manager if any.
 var _manager:RoadManager
 
+# Edge-related error state
+var _edge_error: String = ""
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -96,6 +102,7 @@ func _ready():
 
 	get_manager()
 	update_edges()
+	validate_edges()
 
 
 # Workaround for cyclic typing
@@ -105,6 +112,7 @@ func is_road_container() -> bool:
 
 func is_subscene() -> bool:
 	return filename and self != get_tree().edited_scene_root
+
 
 func _get_configuration_warning() -> String:
 
@@ -128,10 +136,13 @@ func _get_configuration_warning() -> String:
 			has_rp_child = true
 			break
 	if not has_rp_child:
-		return "Add RoadPoint nodes as children to form a road, or use the create menu in the 3D view header"
+		return "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
 
 	if _needs_refresh:
 		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
+
+	if _edge_error != "":
+		return "Refresh roads to clear invalid connections:\n%s" % _edge_error
 	return ""
 
 
@@ -168,12 +179,14 @@ func _set_material(value) -> void:
 func _dirty_rebuild_deferred() -> void:
 	if _dirty:
 		_dirty = false
-		call_deferred("rebuild_segments", true)
+		call_deferred("rebuild_segments", false)
 
 
 func _set_draw_lanes_editor(value: bool):
 	_draw_lanes_editor = value
-	call_deferred("rebuild_segments", true)
+	for seg in get_segments():
+		seg.update_lane_visibility()
+
 
 
 func _get_draw_lanes_editor() -> bool:
@@ -182,7 +195,8 @@ func _get_draw_lanes_editor() -> bool:
 
 func _set_draw_lanes_game(value: bool):
 	_draw_lanes_game = value
-	call_deferred("rebuild_segments", true)
+	for seg in get_segments():
+		seg.update_lane_visibility()
 
 
 func _get_draw_lanes_game() -> bool:
@@ -323,9 +337,122 @@ func update_edges():
 	edge_rp_local_dirs = _tmp_rp_local_dirs
 
 
+## Check for any invalid connections between containers
+##
+## Checks to see that connections are reciprocol.
+## Returns true if any invalid/autofixed (reciprocol disconnection)
+func validate_edges(autofix: bool = false) -> bool:
+	var is_valid := true
+	for _idx in range(len(edge_rp_locals)):
+		var this_pt_path = edge_rp_locals[_idx]
+
+		# Pre-check, ensure local node paths are good.
+		var this_pt = get_node(this_pt_path)
+		if not is_instance_valid(this_pt):
+			is_valid = false
+			_invalidate_edge(_idx, autofix, "edge_rp_local node reference is invalid")
+			continue
+
+		var this_dir = edge_rp_local_dirs[_idx]
+		var target_pt = edge_rp_targets[_idx]
+		var target_dir = edge_rp_target_dirs[_idx]
+		var target = null  # the presumed connected RP.
+
+		if this_dir == this_pt.PointInit.NEXT:
+			if this_pt.next_pt_init != "":
+				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
+				is_valid = false
+				_invalidate_edge(_idx, autofix, "next_pt_init should be empty for this edge's next pt")
+				continue
+			else:
+				target = this_pt.get_next_rp()
+		elif this_dir == this_pt.PointInit.PRIOR:
+			if this_pt.prior_pt_init != "":
+				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
+				is_valid = false
+				_invalidate_edge(_idx, autofix, "prior_pt_init should be empty for this edge's prior pt")
+				continue
+			else:
+				target = this_pt.get_prior_rp()
+		elif this_dir == -1:
+			# The local dir should never be -1, since it's defined locally.
+			is_valid = false
+			_invalidate_edge(_idx, autofix, "edge_rp_local_dir is -1, should not happen")
+			continue
+		else:
+			# Invalid value assigned for direction.
+			is_valid = false
+			_invalidate_edge(_idx, autofix, "edge_rp_local_dirs value invalid")
+			continue
+
+		if edge_containers[_idx] != "":
+			# Connection should be there, verify values.
+			var cont = get_node(edge_containers[_idx])
+			if not is_instance_valid(cont):
+				is_valid = false
+				_invalidate_edge(_idx, autofix, "edge_container reference not valid")
+				continue
+
+			var tg_node = cont.get_node(target_pt)
+			if not is_instance_valid(tg_node):
+				is_valid = false
+				_invalidate_edge(_idx, autofix, "edge_rp_target reference not valid")
+				continue
+			if not target_dir in [tg_node.PointInit.NEXT, tg_node.PointInit.PRIOR]:
+				is_valid = false
+				_invalidate_edge(_idx, autofix, "edge_rp_target_dirs value invalid")
+				continue
+
+			# check they occupy the same position / size / etc
+			if tg_node.global_transform.origin != this_pt.global_transform.origin:
+				var loc_diff = tg_node.global_transform.origin - this_pt.global_transform.origin
+				if loc_diff.length() < 0.001:
+					pass  # floating point rounding margin
+				elif autofix:
+					snap_and_update(tg_node, this_pt)
+					continue
+				else:
+					# don't auto-clear this ever, as it's not related to export var references
+					is_valid = false
+					_invalidate_edge(_idx, false, "Edge points don't occupy the same location: %s/%s and %s/%s" % [
+						tg_node.container.name, tg_node.name, this_pt.container.name, this_pt.name
+					])
+					continue
+
+		else:
+			# If edge_container is empty, then ensure that RP in that direction
+			# does not think it's connected.
+			pass
+	if is_valid:
+		_edge_error = ""
+		if debug:
+			print("All edges are valid on %s" % self.name)
+	elif debug:
+		print("Found invalid edges on %s" % self.name)
+	return is_valid
+
+
+## A data cleanup way to clear invalid edges.
+##
+## Normally would use a roadpoint's disconnect_container function,
+## but if there's data inconsistency, we need to manually clear connections.
+func _invalidate_edge(_idx, autofix: bool, reason=""):
+	# First, try to clear the reciprocol container.
+	_edge_error = reason
+	var reason_str = "" if reason == "" else " due to %s" % reason
+	push_warning("Invalid cross-container connection, %s with edge index %s%s" % [
+		self.name, _idx, reason_str
+	])
+	if not autofix:
+		return
+	edge_containers[_idx] = ""
+	edge_rp_targets[_idx] = ""
+	edge_rp_target_dirs[_idx] = -1
+
 
 func rebuild_segments(clear_existing=false):
 	update_edges()
+	validate_edges(clear_existing)
 	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments")
@@ -336,7 +463,7 @@ func rebuild_segments(clear_existing=false):
 			ch.queue_free()
 	else:
 		# TODO: think of using groups instead, to have a single manager
-		# that is not dependnet on this parenting structure.
+		# that is not dependent on this parenting structure.
 		pass
 
 	# Goal is to loop through all RoadPoints, and check if an existing segment
@@ -396,6 +523,46 @@ func remove_segment(seg:RoadSegment) -> void:
 	# If this function is triggered by during an onpoint update (such as
 	# setting next_pt_init to ""), then this would be a repeat signal call.
 	#emit_signal("on_road_updated", [])
+
+
+## Attempt to relocate a given pair of RoadPoints to each other with aligned settings.
+##
+## Useful to fix or update after the transformation of points / road containers
+## with connections to other containers.
+func snap_and_update(rp_a: Node, rp_b: Node) -> void:
+	if debug:
+		print("Snapping %s and %s" % [rp_a.name, rp_b.name])
+	var rpa_sub = rp_a.container.is_subscene()
+	var rpb_sub = rp_b.container.is_subscene()
+	if rpa_sub and rpb_sub:
+		push_warning("Cannot snap together two RoadPoints both of saved subscenes")
+		return
+
+	var src_pt
+	var tgt_pt
+
+	# Prefer to snap the other point to this one, since this one is most likely
+	# the one which was just (intentionally) moved by the user.
+	if rpb_sub:
+		src_pt = rp_b
+		tgt_pt = rp_a
+	else: # rpa_sub is true or both not subscenes: move B (exterior) to A (selected container)
+		src_pt = rp_a
+		tgt_pt = rp_b
+	if debug:
+		print("Snapping %s/%s to position/settings of %s/%s" % [
+			tgt_pt.container.name, tgt_pt.name, src_pt.container.name, src_pt.name])
+
+	# Update all other settings; this (possibly badly!) assumes that the
+	# edge being updated is oriented the same way as the source (ie prio -> next)
+	tgt_pt._is_internal_updating = true
+	tgt_pt._is_internal_updating = true
+	tgt_pt.global_transform = src_pt.global_transform
+	tgt_pt.copy_settings_from(src_pt)
+	tgt_pt._is_internal_updating = false
+	tgt_pt._is_internal_updating = false
+	# Trigger on_transform only once
+	# tgt_pt.on_transform() causes crashing, but is *definitely* in need of refreshing.
 
 
 ## Create a new road segment based on input prior and next RoadPoints.
@@ -495,6 +662,19 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		return
 	elif not is_instance_valid(point):
 		return
+
+	# Update warnings for this or connected containers
+	if point.is_on_edge():
+		var prior = point.get_prior_rp()
+		var next = point.get_next_rp()
+		# TODO: Need to trigger transform updates on these nodes,
+		# without triggering on_transform etc, these turn into infinite loops or godot crashes
+		#if is_instance_valid(prior) and prior.container != self:
+		#	snap_and_update(point, prior) # many prop changes, ensure internal skip
+		#if is_instance_valid(next) and next.container != self:
+		#	snap_and_update(point, next) # many prop changes, ensure internal skip
+
+		point.container.validate_edges()  # could still have problems, if both are subscene.
 
 	var segs_updated = []  # For signal emission
 	var res

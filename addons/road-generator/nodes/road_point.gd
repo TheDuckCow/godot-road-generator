@@ -302,6 +302,9 @@ func _notification(what):
 
 
 func on_transform(low_poly=false):
+	if _is_internal_updating:
+		# Special internal update should bypass on_transform, such as moving two edges in parallel
+		return
 	if auto_lanes:
 		assign_lanes()
 	if is_instance_valid(gizmo):
@@ -312,6 +315,12 @@ func on_transform(low_poly=false):
 # ------------------------------------------------------------------------------
 # Utilities
 # ------------------------------------------------------------------------------
+
+## Checks if this RoadPoint is an open edge connection for its parent container.
+func is_on_edge() -> bool:
+	if self.prior_pt_init and self.next_pt_init:
+		return false
+	return true
 
 
 ## Indicates whether this direction is connected, accounting for container connections
@@ -843,25 +852,6 @@ func _exit_tree():
 		prior_seg.queue_free()
 	if is_instance_valid(next_seg):
 		next_seg.queue_free()
-
-	# Clean up references to this RoadPoint to anything connected to it.
-	for rp_init in [prior_pt_init, next_pt_init]:
-		if not rp_init or not is_instance_valid(get_node(rp_init)):
-			continue
-		var rp_ref = get_node(rp_init)
-		if rp_ref.has_method("is_road_container"):
-			# Edge connection.
-			# TODO: update that corresponding connected road container.
-			continue
-
-		# Clean up the right connection, could be either or both prior and next
-		# (think: circle with just two roadpoints)
-		for singling_rp_ref in [rp_ref.prior_pt_init, rp_ref.next_pt_init]:
-			if not singling_rp_ref:
-				continue
-			if singling_rp_ref != rp_ref.get_path_to(self):
-				pass
-			singling_rp_ref = null
 
 
 ## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
