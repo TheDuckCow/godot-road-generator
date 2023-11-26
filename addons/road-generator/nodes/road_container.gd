@@ -179,12 +179,14 @@ func _set_material(value) -> void:
 func _dirty_rebuild_deferred() -> void:
 	if _dirty:
 		_dirty = false
-		call_deferred("rebuild_segments", true)
+		call_deferred("rebuild_segments", false)
 
 
 func _set_draw_lanes_editor(value: bool):
 	_draw_lanes_editor = value
-	call_deferred("rebuild_segments", true)
+	for seg in get_segments():
+		seg.update_lane_visibility()
+
 
 
 func _get_draw_lanes_editor() -> bool:
@@ -193,7 +195,8 @@ func _get_draw_lanes_editor() -> bool:
 
 func _set_draw_lanes_game(value: bool):
 	_draw_lanes_game = value
-	call_deferred("rebuild_segments", true)
+	for seg in get_segments():
+		seg.update_lane_visibility()
 
 
 func _get_draw_lanes_game() -> bool:

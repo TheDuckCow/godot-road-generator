@@ -1115,7 +1115,7 @@ func _delete_rp_on_click(selection: Node):
 		#undo_redo.add_do_method(prior_rp, "on_transform")
 		#undo_redo.add_do_method(next_rp, "on_transform") # Technicall only one should be needed
 		# TODO: Directly triggering on_transform wasn't enough, having to do rebuild_segments instead
-		undo_redo.add_do_method(container, "rebuild_segments", true)
+		undo_redo.add_do_method(container, "rebuild_segments", false)
 
 	# ""Undo" steps
 
@@ -1151,7 +1151,7 @@ func _delete_rp_on_click(selection: Node):
 	# TODO: to increase performance, should be able to more directly clean up
 	# the one road seg that's leftover here somehow.
 	if dissolve:
-		undo_redo.add_undo_method(container, "rebuild_segments", true)
+		undo_redo.add_undo_method(container, "rebuild_segments", false)
 
 	undo_redo.commit_action()
 
