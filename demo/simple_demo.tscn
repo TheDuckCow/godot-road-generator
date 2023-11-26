@@ -1,0 +1,77 @@
+[gd_scene load_steps=5 format=2]
+
+[ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=1]
+[ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=2]
+[ext_resource path="res://addons/road-generator/resources/road_texture.material" type="Material" id=3]
+[ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=4]
+
+[node name="Spatial" type="Spatial"]
+
+[node name="RoadManager" type="Spatial" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.551694, 0, -0.343994 )
+script = ExtResource( 4 )
+
+[node name="RoadContainer" type="Spatial" parent="RoadManager"]
+script = ExtResource( 2 )
+material_resource = ExtResource( 3 )
+use_lowpoly_preview = true
+
+[node name="RP_001" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -7.46775, 0, -7.2427 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 1 ]
+lanes = [ 5, 5 ]
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../RP_002")
+prior_mag = 12.0106
+next_mag = 15.6816
+
+[node name="RP_002" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( 0.992258, 0, -0.12419, 0, 1, 0, 0.12419, 0, 0.992258, -8.9407e-07, 0, 32 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 1 ]
+lanes = [ 5, 5 ]
+prior_pt_init = NodePath("../RP_001")
+next_pt_init = NodePath("../RP_006")
+prior_mag = 20.4879
+next_mag = 12.5911
+
+[node name="RP_003" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( -0.370339, 0.0143865, -0.928785, 0, 0.99988, 0.0154877, 0.928897, 0.00573569, -0.370294, -55.874, 1, 64.3428 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1, 1, 1 ]
+lanes = [ 2, 4, 4, 3, 2 ]
+prior_pt_init = NodePath("../RP_006")
+next_pt_init = NodePath("../RP_004")
+prior_mag = 31.7792
+next_mag = 22.0669
+
+[node name="RP_004" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( -0.975633, 0.126177, 0.179496, 0.0135937, 0.851285, -0.524527, -0.218986, -0.509306, -0.832257, -75.4414, 17.3831, 0.315222 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1, 1, 1 ]
+lanes = [ 2, 4, 4, 3, 2 ]
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_005")
+prior_mag = 39.1419
+next_mag = 16.0
+
+[node name="RP_005" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( 0.533503, -0.0195546, 0.845572, 0.0151977, 0.999793, 0.0135323, -0.845661, 0.00563117, 0.53369, -17.4717, 2.27198, -37.7687 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1, 1 ]
+lanes = [ 2, 4, 4, 2 ]
+prior_pt_init = NodePath("../RP_004")
+next_pt_init = NodePath("../RP_001")
+prior_mag = 16.0
+next_mag = 16.0
+
+[node name="RP_006" type="Spatial" parent="RoadManager/RoadContainer"]
+transform = Transform( 0.797377, 0.0135357, -0.60333, 0.0032786, 0.999636, 0.02676, 0.603473, -0.0233159, 0.797042, -6.88818, 0.819894, 63.1532 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1, 1, 1 ]
+lanes = [ 2, 4, 4, 3, 2 ]
+prior_pt_init = NodePath("../RP_002")
+next_pt_init = NodePath("../RP_003")
+prior_mag = 15.9757
+next_mag = 13.9234

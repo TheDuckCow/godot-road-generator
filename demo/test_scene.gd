@@ -1,13 +1,13 @@
 extends Spatial
 
 
-onready var network = $RoadNetwork
-onready var a_point = $RoadNetwork/points/first_point
+onready var container = $RoadManager/RoadContainer
+onready var a_point = $RoadManager/RoadContainer/first_point
 onready var tween = $Tween
 
 
 func _ready():
-	return # Shortcut.
+	#return # Shortcut.
 	var _auto_close_timer = get_tree().create_timer(1.5)
 	var res = _auto_close_timer.connect("timeout", self, "_on_timeout")
 	assert(res == OK)

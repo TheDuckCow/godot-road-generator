@@ -1,0 +1,42 @@
+[gd_scene load_steps=5 format=2]
+
+[ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=1]
+[ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=2]
+[ext_resource path="res://addons/road-generator/resources/road_texture.png" type="Texture" id=3]
+
+[sub_resource type="SpatialMaterial" id=1]
+params_diffuse_mode = 4
+albedo_color = Color( 0.686275, 1, 0.933333, 1 )
+albedo_texture = ExtResource( 3 )
+
+[node name="SavedRoad" type="Spatial"]
+script = ExtResource( 2 )
+material_resource = SubResource( 1 )
+use_lowpoly_preview = true
+edge_containers = [ "", "" ]
+edge_rp_targets = [ "", "" ]
+edge_rp_target_dirs = [ -1, -1 ]
+edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_002") ]
+edge_rp_local_dirs = [ 0, 1 ]
+
+[node name="RP_001" type="Spatial" parent="."]
+transform = Transform( 0.84086, 0, -0.541253, 0, 1, 0, 0.541253, 0, 0.84086, -2.69297, -4.79603, 8.28172 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1 ]
+lanes = [ 2, 4, 5 ]
+shoulder_width_l = 0.5
+shoulder_width_r = 0.5
+gutter_profile = Vector2( 1, -0.5 )
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Spatial" parent="."]
+transform = Transform( 0.898923, 0.00019793, 0.438106, -0.0131816, 0.999559, 0.026595, -0.437908, -0.0296818, 0.89853, 8.84054, -3.74278, -23.5236 )
+script = ExtResource( 1 )
+traffic_dir = [ 2, 2, 1 ]
+lanes = [ 2, 4, 5 ]
+shoulder_width_l = 0.5
+shoulder_width_r = 0.5
+gutter_profile = Vector2( 1, -0.5 )
+next_pt_init = NodePath("../RP_001")
+prior_mag = 16.0
+next_mag = 16.0
