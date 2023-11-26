@@ -22,9 +22,11 @@ echo ""
 echo "Current status (should be empty!)"
 git status
 
-# TODO(Patrick): Directly run tests here in the future and capture success.
-echo "Did you manually run tests?"
-read -p "(Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
+./run_tests.sh
+if [ "$?" != "0" ]; then
+    echo "Tests failed $LINENO."
+    exit 1
+fi
 
 # Extract the current version number.
 VER=$(grep "version=" addons/road-generator/plugin.cfg | awk -F'"' '{print $2}')

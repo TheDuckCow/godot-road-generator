@@ -34,6 +34,12 @@ To get GUT set up:
 
 To run tests, you now should see a "GUT" tab at the bottom of your main window (to the right of Animation). Inside this window, you just need to `Run All` to run all tests.
 
+You can also run tests from the command line (script set up for Linux/Max OSX):
+
+1. Create a `godot_versions.txt` file in the root of the repo. This should not be checked in (already added to gitignores)
+1. Create a single line with the path to the godot versions you want to use for testing. It should be the full path to the binary executable (not just the .app, for instance on OSX)
+1. Then execute `run_tests.sh` and you should see test results in progress. As of this writing, Godot opens, tests run, and then godot closes all in less than 5 seconds.
+
 
 ## General guidance
 

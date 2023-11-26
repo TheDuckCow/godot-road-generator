@@ -25,7 +25,7 @@ var curve:Curve3D
 var road_mesh:MeshInstance
 var material:Material
 var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
-var network # The managing network node for this road segment (grandparent).
+var container # The managing container node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
@@ -34,40 +34,106 @@ var low_poly := false  # If true, then was (or will be) generated as low poly.
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
 var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
+# Indicator that this sequence is the connection of two "Next's" or two "Prior's"
+# and therefore we need to do some flipping around.
+var _start_flip: bool = false
+var _end_flip: bool = false
+# For easier calculation, to account for flipped directions.
+var _start_flip_mult: int = 1
+var _end_flip_mult: int = 1
 
-func _init(_network):
-	if not _network:
-		push_error("Invalid network assigned")
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
+
+
+func _init(_container):
+	if not _container:
+		push_error("Invalid container assigned")
 		return
-	network = _network
+	container = _container
 	curve = Curve3D.new()
 
 
-func _ready():
-	road_mesh = MeshInstance.new()
-	add_child(road_mesh)
-	road_mesh.name = "road_mesh"
 
-	var res = connect("check_rebuild", network, "segment_rebuild")
+func _ready():
+	if container.debug_scene_visible:
+		road_mesh.owner = container.owner
+
+	do_roadmesh_creation()
+
+	var res = connect("check_rebuild", container, "segment_rebuild")
 	assert(res == OK)
 	#emit_signal("seg_ready", self)
 	#is_dirty = true
 	#emit_signal("check_rebuild", self)
 
 
+# Workaround for cyclic typing
+func is_road_segment() -> bool:
+	return true
+
+
+func should_add_mesh() -> bool:
+	var should_add_mesh = true
+	var par = get_parent()
+	if not is_instance_valid(par) or not par is RoadPoint:
+		return should_add_mesh
+
+	if par.create_geo == false:
+		should_add_mesh = false
+
+	if container.create_geo == false:
+		should_add_mesh = false
+
+	return should_add_mesh
+
+
+func do_roadmesh_creation():
+	var do_create := should_add_mesh()
+	if do_create:
+		add_road_mesh()
+	else:
+		remove_road_mesh()
+
+
+func add_road_mesh() -> void:
+	if is_instance_valid(road_mesh):
+		return
+	road_mesh = MeshInstance.new()
+	add_child(road_mesh)
+	road_mesh.name = "road_mesh"
+
+
+func remove_road_mesh():
+	if road_mesh == null:
+		return
+	road_mesh.queue_free()
+
+
 ## Unique identifier for a segment based on what its connected to.
 func get_id() -> String:
-	# TODO: consider changing so that the smaller resource id is first,
-	# so that we avoid bidirectional issues.
-	if start_point and end_point:
-		name = "%s-%s" % [start_point.get_instance_id(), end_point.get_instance_id()]
-	elif start_point:
-		name = "%s-x" % start_point.get_instance_id()
-	elif end_point:
-		name = "x-%s" % end_point.get_instance_id()
-	else:
-		name = "x-x"
+	name = get_id_for_points(start_point, end_point)
 	return name
+
+
+## Generic function for getting a consistent ID given a start and end point
+static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
+	var id: String
+	if _start and _end:
+		var start_id = _start.get_instance_id()
+		var end_id = _end.get_instance_id()
+		if start_id < end_id:
+			id = "%s-%s" % [start_id, end_id]
+		else:
+			id = "%s-%s" % [end_id, start_id]
+	elif _start:
+		id = "%s-x" % _start.get_instance_id()
+	elif _end:
+		id = "x-%s" % _end.get_instance_id()
+	else:
+		id = "x-x"
+	return id
 
 
 # ------------------------------------------------------------------------------
@@ -77,7 +143,7 @@ func get_id() -> String:
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return
 	#emit_signal("check_rebuild", self)
 func _init_start_get():
@@ -87,7 +153,7 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return
 	#emit_signal("check_rebuild", self)
 func _init_end_get():
@@ -99,12 +165,24 @@ func _init_end_get():
 func check_rebuild() -> bool:
 	if is_queued_for_deletion():
 		return false
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
-	start_point.next_seg = self # TODO: won't work if next/prior is flipped for next node.
-	end_point.prior_seg = self # TODO: won't work if next/prior is flipped for next node.
+
+	if _start_flip:
+		start_point.prior_seg = self
+		_start_flip_mult = -1
+	else:
+		start_point.next_seg = self
+		_start_flip_mult = 1
+	if _end_flip:
+		end_point.next_seg = self
+		_end_flip_mult = -1
+	else:
+		end_point.prior_seg = self
+		_end_flip_mult = 1
+
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
 		push_warning("Undirtied as node unready: start_point %s" % start_point)
 		is_dirty = false
@@ -124,7 +202,7 @@ func check_rebuild() -> bool:
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(_debug: bool = false) -> bool:
-	if not is_instance_valid(network):
+	if not is_instance_valid(container):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
@@ -147,6 +225,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
+
+	var _par = get_parent() # Add RoadLanes to the parent RoadPoint, with option to add as children directly.
 
 	# We need to keep track of the number of reverse lane subtractions and
 	# forward subtractions. The left side (reverse) needs to be precalcuated,
@@ -179,12 +259,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var ln_child = null
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
-			add_child(ln_child)
-			ln_child.add_to_group(network.ai_lane_group)
+			_par.add_child(ln_child)
+			if container.debug_scene_visible:
+				ln_child.owner = container.owner
+			ln_child.add_to_group(container.ai_lane_group)
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
-		# road lanes later (handled by RoadNetwork).
+		# road lanes later (handled by RoadContainer).
 		new_ln.lane_prior_tag = this_match[2]
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
@@ -201,8 +283,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
 		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
 
-		in_pos += start_point.global_transform.basis.x * in_offset
-		out_pos += end_point.global_transform.basis.x * out_offset
+		in_pos += start_point.global_transform.basis.x * in_offset * _start_flip_mult
+		out_pos += end_point.global_transform.basis.x * out_offset * _end_flip_mult
 
 		# Set direction
 		# TODO: When directionality is made consistent, we should no longer
@@ -223,8 +305,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			curve.get_point_out(1))
 
 		# Visually display.
-		new_ln.draw_in_editor = network.draw_lanes_editor
-		new_ln.draw_in_game = network.draw_lanes_game
+		new_ln.draw_in_editor = container.draw_lanes_editor
+		new_ln.draw_in_game = container.draw_lanes_game
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
 
@@ -304,7 +386,8 @@ func get_transition_offset(
 ## Returns list of only valid RoadLanes
 func get_lanes() -> Array:
 	var lanes = []
-	for ch in self.get_children():
+	var _par = get_parent()
+	for ch in _par.get_children():
 		if not is_instance_valid(ch):
 			continue
 		elif not ch is RoadLane:
@@ -316,9 +399,21 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments():
+	var _par = get_parent()
+	for ch in _par.get_children():
+		if ch is RoadLane:
+			ch.queue_free()
+	# Legacy, RoadLanes used to be children of the segment class, but are now
+	# direct children of the RoadPoint with the option to be visualized in editor later.
 	for ch in get_children():
 		if ch is RoadLane:
 			ch.queue_free()
+
+
+func update_lane_visibility():
+	for lane in get_lanes():
+		lane.draw_in_editor = container.draw_lanes_editor
+		lane.draw_in_game = container.draw_lanes_game
 
 
 # ------------------------------------------------------------------------------
@@ -331,8 +426,18 @@ func _rebuild():
 		return
 
 	get_id()
-	if network and network.density > 0:
-		density = network.density
+	if not container or not is_instance_valid(container):
+		pass
+	elif container.density > 0:
+		density = container.density
+	elif is_instance_valid(container.get_manager()):
+		density = container.get_manager().density
+	else:
+		pass
+
+	# Reset its transform to undo the rotation of the parent
+	var tr = get_parent().transform
+	transform = tr.inverse()
 
 	# Reposition this node to be physically located between both RoadPoints.
 	global_transform.origin = (
@@ -351,17 +456,40 @@ func _update_curve():
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
 
-	# Setup in handle of curve
-	var pos = to_local(start_point.global_transform.origin)
-	var handle = start_point.global_transform.basis.z * start_point.next_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(0, start_point.rotation.z)  # Doing custom interpolation
+	# Setup in and out handle of curve points
+	var start_mag = start_point.next_mag if _start_flip == false else start_point.prior_mag
+	_set_curve_point(curve, start_point, start_mag, _start_flip_mult)
+	var end_mag = end_point.prior_mag if _end_flip == false else end_point.next_mag
+	_set_curve_point(curve, end_point, end_mag, _end_flip_mult)
 
-	# Out handle.
-	pos = to_local(end_point.global_transform.origin)
-	handle = end_point.global_transform.basis.z * end_point.prior_mag
-	curve.add_point(pos, -handle, handle)
-	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation
+	# Show this primary curve in the scene hierarchy if the debug state set.
+	if container.debug_scene_visible:
+		var found_path = false
+		var path_node: Path
+		for ch in self.get_children():
+			if not ch is Path:
+				continue
+			found_path = true
+			path_node = ch
+			break
+
+		if not found_path:
+			path_node = Path.new()
+			self.add_child(path_node)
+			path_node.owner = container.owner
+			path_node.name = "RoadSeg primary curve"
+		path_node.curve = curve
+
+## Helper to set a curve point taking into account transform of rp (if parent)
+func _set_curve_point(_curve: Curve3D, rp: RoadPoint, mag_val: float, flip_fac: int) ->  void:
+	var pos_g = rp.global_transform.origin
+	var pos = to_local(pos_g)
+	var handle_in = rp.global_transform.basis.z * -mag_val * flip_fac
+	var handle_out = rp.global_transform.basis.z * mag_val * flip_fac
+	var handle_in_l = to_local(handle_in + pos_g)
+	var handle_out_l = to_local(handle_out + pos_g)
+	_curve.add_point(pos, handle_in_l-pos, handle_out_l-pos)
+	# curve.set_point_tilt(1, end_point.rotation.z)  # Doing custom interpolation, skip this.
 
 
 ## Calculates the horizontal vector of a Segment geometry loop. Interpolates
@@ -369,12 +497,12 @@ func _update_curve():
 ## unwanted rotation on the loops at the ends of the curve.
 ## Inputs:
 ## curve - The curve this Segment will follow.
-## sample_position - Curve sample position to use for interpolation. Normalized.
-## Returns: Normalized Vector3
+## sample_position - Curve sample position 0.0 - 1.0 to use for interpolation. Normalized.
+## Returns: Normalized Vector3 in local space.
 func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 	# Calculate interpolation amount for curve sample point
 	return _normal_for_offset_eased(curve, sample_position)
-	# return _normal_for_offset_legacy(curve, sample_position)
+	#return _normal_for_offset_legacy(curve, sample_position)
 
 
 ## Alternate method which doesn't guarentee consistent lane width.
@@ -395,23 +523,34 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	var start_offset: float
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
-		return start_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return start_point.transform.basis.x * _start_flip_mult
 	elif sample_position >= 1.0 - offset_amount * 0.5:
-		return end_point.global_transform.basis.x
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return end_point.transform.basis.x * _end_flip_mult
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
 	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
 	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var tangent := pt2 - pt1
-	var sample_eased = ease(sample_position, smooth_amount)
-	var up_vec:Vector3 = lerp(
-		start_point.global_transform.basis.y,
-		end_point.global_transform.basis.y,
+	var tangent_l = pt2 - pt1
+
+	# Using local transforms. Both are transforms relative to the parent RoadContainer,
+	# and the current mesh we are writing to already has the inverse of the start_point
+	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
+	var start_up = start_point.transform.basis.y
+	var end_up = end_point.transform.basis.y
+
+	var up_vec_l:Vector3 = lerp(
+		start_up.normalized(),
+		end_up.normalized(),
 		sample_position)
-	var normal = up_vec.cross(tangent)
-	return normal.normalized()
+	var normal_l = up_vec_l.cross(tangent_l)
+
+	#var sample_eased = ease(sample_position, smooth_amount)
+
+	return normal_l.normalized()
 
 
 func _build_geo():
@@ -456,7 +595,6 @@ func _build_geo():
 	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
 	var uv_width = 0.125 # 1/8 for breakdown of texture.
 
-
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
@@ -471,6 +609,8 @@ func _build_geo():
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
+	for ch in road_mesh.get_children():
+		ch.queue_free()  # Prior collision meshes
 	road_mesh.create_trimesh_collision() # Call deferred?
 	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
 

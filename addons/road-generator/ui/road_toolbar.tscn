@@ -1,14 +1,52 @@
-[gd_scene load_steps=3 format=2]
+[gd_scene load_steps=7 format=2]
 
 [ext_resource path="res://addons/road-generator/ui/road_toolbar.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" type="Script" id=2]
+[ext_resource path="res://addons/road-generator/resources/road_container.png" type="Texture" id=3]
+[ext_resource path="res://addons/road-generator/resources/road_point.png" type="Texture" id=4]
+[ext_resource path="res://addons/road-generator/resources/road_lane.png" type="Texture" id=5]
+[ext_resource path="res://addons/road-generator/ui/gizmo_blue_handle.png" type="Texture" id=6]
 
-[node name="HBoxContainer" type="HBoxContainer"]
+[node name="RoadToolbar" type="HBoxContainer"]
 script = ExtResource( 1 )
 
+[node name="select_mode" type="ToolButton" parent="."]
+margin_right = 28.0
+margin_bottom = 24.0
+hint_tooltip = "Select RoadPoints
+Click on road mesh to select
+nearest RoadPoint"
+toggle_mode = true
+icon = ExtResource( 6 )
+
+[node name="add_mode" type="ToolButton" parent="."]
+margin_left = 32.0
+margin_right = 60.0
+margin_bottom = 24.0
+hint_tooltip = "Add & connect RoadPoints
+Click in empty space to add roadpoint,
+snapped to a collider if any. Hover over
+and connect RoadPoints with open ends,
+or disconnect a connected RoadPoint"
+toggle_mode = true
+icon = ExtResource( 6 )
+
+[node name="delete_mode" type="ToolButton" parent="."]
+margin_left = 64.0
+margin_right = 92.0
+margin_bottom = 24.0
+hint_tooltip = "Delete RoadPoint"
+toggle_mode = true
+icon = ExtResource( 6 )
+
 [node name="CreateMenu" type="MenuButton" parent="."]
-margin_right = 53.0
-margin_bottom = 20.0
-text = "Create"
-items = [ "Refresh roads", null, 0, false, false, 0, 0, null, "", false, "Select network", null, 0, false, false, 1, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "2x2 road", null, 0, false, false, 2, 0, null, "", false ]
+margin_left = 96.0
+margin_right = 146.0
+margin_bottom = 24.0
+text = "Roads"
+items = [ "Refresh roads", null, 0, false, false, 0, 0, null, "", false, "Select container", null, 0, false, false, 1, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "RoadContainer", ExtResource( 3 ), 0, false, false, 2, 0, null, "", false, "RoadPoint", ExtResource( 4 ), 0, false, false, 3, 0, null, "", false, "RoadLane (AI path)", ExtResource( 5 ), 0, false, false, 4, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "2x2 road", null, 0, false, false, 5, 0, null, "", false ]
 script = ExtResource( 2 )
+
+[connection signal="pressed" from="select_mode" to="." method="_on_select_mode_pressed"]
+[connection signal="pressed" from="add_mode" to="." method="_on_add_mode_pressed"]
+[connection signal="pressed" from="delete_mode" to="." method="_on_delete_mode_pressed"]
