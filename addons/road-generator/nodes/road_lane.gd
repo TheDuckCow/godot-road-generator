@@ -2,7 +2,8 @@
 #
 # Could, but does not have to be, parented to a RoadSegment class object.
 
-tool # Draw in the editor things like path direction and width
+# Draw in the editor things like path direction and width
+tool
 extends Path
 class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
 

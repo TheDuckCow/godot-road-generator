@@ -18,14 +18,14 @@ enum CreateMenu {
 	SELECT_CONTAINER,
 	CONTAINER,
 	POINT,
-	LANE
+	LANE,
 	TWO_X_TWO,
 }
 
 enum MenuMode {
 	STANDARD,
 	SAVED_SUBSCENE, # Don't offer to create children
-	EDGE_SELECTED # Not yet used, could offer intersections/next pieces to add.
+	EDGE_SELECTED, # Not yet used, could offer intersections/next pieces to add.
 }
 
 var menu_mode = MenuMode.STANDARD

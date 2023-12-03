@@ -34,8 +34,12 @@ var road_width_line_mesh := CubeMesh.new()
 
 var prior_lane_width: float = -1
 
-func get_name():
+func get_name() -> String:
 	return "RoadPoint"
+
+# For godot 4
+func _get_gizmo_name() -> String:
+	return get_name()
 
 
 func _init(editor_plugin: EditorPlugin):
@@ -187,6 +191,8 @@ func redraw(gizmo) -> void:
 			div.visible = false
 
 
+# Godot 4 compatibility:
+#func _get_handle_name(gizmo: EditorNode3DGizmo, index: int, secondary: bool) -> String:
 func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
 	var point = gizmo.get_spatial_node() as RoadPoint
 	match index:
@@ -202,6 +208,8 @@ func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
 			return "RoadPoint %s unknown handle" % point.name
 
 
+# Godot 4:
+#func _get_handle_value(gizmo: EditorNode3DGizmo, index: int, secondary: bool) -> Variant:
 func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 #	print("get_handle_value")
 	var point = gizmo.get_spatial_node() as RoadPoint
@@ -306,6 +314,11 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 		redraw(gizmo)
 
 
+# Godot4:
+#func _commit_handle(gizmo: EditorNode3DGizmo,
+#					index: int, secondary: bool,
+#					restore: Variant,
+#					cancel: bool = false) -> void:
 func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
 
 	match index:

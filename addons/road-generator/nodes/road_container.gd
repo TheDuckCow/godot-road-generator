@@ -38,6 +38,7 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 # TODO: In Godot 4.3ish, these should be @export_storage, hidden to users
 # https://github.com/godotengine/godot/pull/82122
 
+# In godot 4.1, becomes: @export var edge_containers: Array[NodePath]
 # Paths to other containers, relative to this container (self)
 export(Array, NodePath) var edge_containers
 # Node paths within other containers, relative to the *target* container (not self here)
@@ -48,7 +49,7 @@ export(Array, int) var edge_rp_target_dirs
 # Node paths within this container, relative to this container
 export(Array, NodePath) var edge_rp_locals
 # Local RP directions, enum value of RoadPoint.PointInit
-export(Array, int) var edge_rp_local_dirs  #
+export(Array, int) var edge_rp_local_dirs
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -111,6 +112,8 @@ func is_road_container() -> bool:
 
 
 func is_subscene() -> bool:
+	#gd4
+	#return scene_file_path and self != get_tree().edited_scene_root
 	return filename and self != get_tree().edited_scene_root
 
 
@@ -120,6 +123,7 @@ func _get_configuration_warning() -> String:
 		var any_manager := false
 		var _last_par = get_parent()
 		while true:
+			# TODO: make better forward compatible
 			if _last_par.get_path() == "/root":
 				break
 			if _last_par.has_method("is_road_manager"):
@@ -142,7 +146,8 @@ func _get_configuration_warning() -> String:
 		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
 
 	if _edge_error != "":
-		return "Refresh roads to clear invalid connections:\n%s" % _edge_error
+		var warn_str = "Refresh roads to clear invalid connections:\n%s" % _edge_error
+		return warn_str
 	return ""
 
 
@@ -276,11 +281,12 @@ func update_edges():
 	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
 	#print("Debug: Updating container edges %s" % self.name)
 
-	var _tmp_containers := []
-	var _tmp_rp_targets := []
-	var _tmp_rp_target_dirs := []
-	var _tmp_rp_locals := []
-	var _tmp_rp_local_dirs := []
+	# In gd 4, would require more formal typing like Array[NodePath]
+	var _tmp_containers:Array = []
+	var _tmp_rp_targets:Array = []
+	var _tmp_rp_target_dirs:Array = []
+	var _tmp_rp_locals:Array = []
+	var _tmp_rp_local_dirs:Array = []
 
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
@@ -561,8 +567,8 @@ func snap_and_update(rp_a: Node, rp_b: Node) -> void:
 	tgt_pt.copy_settings_from(src_pt)
 	tgt_pt._is_internal_updating = false
 	tgt_pt._is_internal_updating = false
-	# Trigger on_transform only once
-	# tgt_pt.on_transform() causes crashing, but is *definitely* in need of refreshing.
+	# Trigger emit_transform only once
+	# tgt_pt.emit_transform() causes crashing, but is *definitely* in need of refreshing.
 
 
 ## Create a new road segment based on input prior and next RoadPoints.
@@ -668,7 +674,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		var prior = point.get_prior_rp()
 		var next = point.get_next_rp()
 		# TODO: Need to trigger transform updates on these nodes,
-		# without triggering on_transform etc, these turn into infinite loops or godot crashes
+		# without triggering emit_transform etc, these turn into infinite loops or godot crashes
 		#if is_instance_valid(prior) and prior.container != self:
 		#	snap_and_update(point, prior) # many prop changes, ensure internal skip
 		#if is_instance_valid(next) and next.container != self:

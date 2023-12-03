@@ -162,7 +162,7 @@ func _set_lanes(values):
 	lanes = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_lanes():
 	return lanes
 
@@ -171,7 +171,7 @@ func _set_auto_lanes(value):
 	auto_lanes = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_auto_lanes():
 	return auto_lanes
 
@@ -180,7 +180,7 @@ func _set_dir(values):
 	traffic_dir = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_dir():
 	return traffic_dir
 
@@ -189,7 +189,7 @@ func _set_lane_width(value):
 	lane_width = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_lane_width():
 	return lane_width
 
@@ -198,7 +198,7 @@ func _set_shoulder_width_l(value):
 	shoulder_width_l = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_shoulder_width_l():
 	return shoulder_width_l
 
@@ -207,7 +207,7 @@ func _set_shoulder_width_r(value):
 	shoulder_width_r = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_shoulder_width_r():
 	return shoulder_width_r
 
@@ -216,7 +216,7 @@ func _set_profile(value:Vector2):
 	gutter_profile = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 
 
 func _get_profile():
@@ -234,7 +234,7 @@ func _set_prior_pt_init(value:NodePath):
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, true)
 
-	on_transform()
+	emit_transform()
 
 
 func _get_prior_pt_init():
@@ -252,7 +252,7 @@ func _set_next_pt_init(value:NodePath):
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, false)
 
-	on_transform()
+	emit_transform()
 
 
 func _get_next_pt_init():
@@ -286,7 +286,7 @@ func _set_create_geo(value: bool) -> void:
 		if ch.has_method("is_road_segment"):
 			ch.do_roadmesh_creation()
 	if value == true:
-		on_transform()
+		emit_transform()
 
 
 # ------------------------------------------------------------------------------
@@ -298,15 +298,16 @@ func _notification(what):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
-		on_transform(low_poly)
+		emit_transform(low_poly)
 
 
-func on_transform(low_poly=false):
+func emit_transform(low_poly=false):
 	if _is_internal_updating:
-		# Special internal update should bypass on_transform, such as moving two edges in parallel
+		# Special internal update should bypass emit_transform, such as moving two edges in parallel
 		return
 	if auto_lanes:
 		assign_lanes()
+	# TODO: See if we can make forward compatibility for godot4
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
@@ -519,7 +520,7 @@ func update_traffic_dir(traffic_update):
 
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 
 
 ## Takes an existing RoadPoint and returns a new copy
@@ -662,7 +663,7 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	target_rp._is_internal_updating = false
 
 	container.update_edges()
-	on_transform()
+	emit_transform()
 	return true
 
 
@@ -780,8 +781,8 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 		push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
-	on_transform() # Only changes that should happen: Update connections of AI lanes.
-	target_rp.on_transform()
+	emit_transform() # Only changes that should happen: Update connections of AI lanes.
+	target_rp.emit_transform()
 	return true
 
 
@@ -840,9 +841,9 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 		target_ct.edge_rp_targets[target_idx] = ""
 		target_ct.edge_rp_target_dirs[target_idx] = -1
 		if target_pt and is_instance_valid(target_pt):
-			target_pt.on_transform()
+			target_pt.emit_transform()
 
-	on_transform() # Only changes that should happen: Update connections of AI lanes.
+	emit_transform() # Only changes that should happen: Update connections of AI lanes.
 	return true
 
 

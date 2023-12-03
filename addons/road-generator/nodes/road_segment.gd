@@ -532,9 +532,11 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
-	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
-	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var tangent_l = pt2 - pt1
+	#gd4
+	# interpolate_baked -> sample_baked
+	var pt1:Vector3 = curve.interpolate_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.interpolate_baked(end_offset * curve.get_baked_length())
+	var tangent_l:Vector3 = pt2 - pt1
 
 	# Using local transforms. Both are transforms relative to the parent RoadContainer,
 	# and the current mesh we are writing to already has the inverse of the start_point
@@ -649,11 +651,11 @@ func _insert_geo_loop(
 
 	# Calculate lane widths
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s_ease)
-	var near_add_width = lerp(0, end_point.lane_width, offset_s_ease)
-	var near_rem_width = lerp(start_point.lane_width, 0, offset_s_ease)
+	var near_add_width = lerp(0.0, end_point.lane_width, offset_s_ease)
+	var near_rem_width = lerp(start_point.lane_width, 0.0, offset_s_ease)
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e_ease)
-	var far_add_width = lerp(0, end_point.lane_width, offset_e_ease)
-	var far_rem_width = lerp(start_point.lane_width, 0, offset_e_ease)
+	var far_add_width = lerp(0.0, end_point.lane_width, offset_e_ease)
+	var far_rem_width = lerp(start_point.lane_width, 0.0, offset_e_ease)
 
 	# Sum the lane widths and get position of left edge
 	var near_width_offset

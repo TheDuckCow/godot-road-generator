@@ -8,6 +8,12 @@ const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+# Forwards the InputEvent to other EditorPlugins.
+const INPUT_PASS := false # in godot 4: EditorPlugin.AFTER_GUI_INPUT_PASS
+# Prevents the InputEvent from reaching other Editor classes.
+const INPUT_STOP := true # in godot 4: EditorPlugin.AFTER_GUI_INPUT_STOP
+
+
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
 var road_point_gizmo = RoadPointGizmo.new(self)
@@ -28,7 +34,6 @@ var _overlay_hint_delete := false
 var _press_init_pos: Vector2
 
 var _new_selection: Node # RoadPoint or RoadContainer
-
 
 func _enter_tree():
 	add_spatial_gizmo_plugin(road_point_gizmo)
@@ -198,18 +203,18 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
 	if not event is InputEventMouseButton:
-		return false
+		return INPUT_PASS
 	if event.button_index == BUTTON_LEFT:
 
 		if event.pressed:
 			# Nothing done until click up, but detect initial position
 			# to differentiate between drags and direct clicks.
 			_press_init_pos = event.position
-			return false
+			return INPUT_PASS
 		elif _press_init_pos != event.position:
 			# TODO: possibly add min distance before treated as a drag
 			# (does built in godot have a tolerance before counted as a drag?)
-			return false  # Is a drag event
+			return INPUT_PASS  # Is a drag event
 
 		# Shoot a ray and see if it hits anything
 		var point = get_nearest_road_point(camera, event.position)
@@ -222,8 +227,8 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				_new_selection = point.container
 			else:
 				_new_selection = point
-			return false
-	return false
+			return INPUT_PASS
+	return INPUT_PASS
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
@@ -302,14 +307,14 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 			_overlay_hint_connection = false
 		update_overlays()
 		# Consume the event no matter what.
-		return false
+		return INPUT_PASS
 
 	if not event is InputEventMouseButton:
-		return false
+		return INPUT_PASS
 	if not event.button_index == BUTTON_LEFT:
-		return false
+		return INPUT_PASS
 	if not event.pressed:
-		return true
+		return INPUT_STOP
 	# Should consume all left click operation hereafter.
 
 	var selection = get_selected_node()
@@ -328,7 +333,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 			_add_next_rp_on_click(pos, nrm, selection.get_manager())
 		else:
 			_add_next_rp_on_click(pos, nrm, selection)
-	return true
+	return INPUT_STOP
 
 
 func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
@@ -356,15 +361,15 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 			_overlay_hovering_pos = Vector2(-1, -1)
 			_overlay_hint_delete = false
 		update_overlays()
-		return false
+		return INPUT_PASS
 	if not event is InputEventMouseButton:
-		return false
+		return INPUT_PASS
 	if not event.button_index == BUTTON_LEFT:
-		return false
+		return INPUT_PASS
 	if event.pressed and _overlay_rp_hovering != null:
 		# Always match what the UI is showing
 		_delete_rp_on_click(_overlay_rp_hovering)
-	return true
+	return INPUT_STOP
 
 
 ## Render the editor indicators for RoadPoints and RoadLanes if selected.
