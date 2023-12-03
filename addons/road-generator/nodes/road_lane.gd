@@ -3,43 +3,77 @@
 # Could, but does not have to be, parented to a RoadSegment class object.
 
 @tool # Draw in the editor things like path direction and width
+@icon("res://addons/road-generator/resources/road_lane.png")
 extends Path3D
-class_name LaneSegment
+class_name RoadLane
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-var _reverse_direction: bool
-@export var reverse_direction:bool = false:
-	get:
-		return _reverse_direction
-	set(value):
-		_reverse_direction = value
-		refresh_geom = true
-		rebuild_geom()
-
-
+@export var reverse_direction:bool = false: get = _get_direction, set = _set_direction
 @export var lane_left:NodePath # Used to indicate allowed lane changes
 @export var lane_right:NodePath # Used to indicate allowed lane changes
-@export var lane_next:NodePath # LaneSegment or intersection
-@export var lane_previous:NodePath # LaneSegment or intersection
-@export var draw_in_game = false # Can override to draw if outside the editor
+@export var lane_next:NodePath # RoadLane or intersection
+@export var lane_prior:NodePath # RoadLane or intersection
+
+# Can override to draw if outside the editor
+@export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
+@export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
+
+
+# Tags are used help populate the lane_next and lane_prior NodePaths above.
+#
+# Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
+# matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
+# lane_prior_tag (since lane_B follows lane_A in this situation).
+#
+# Any matching name will do, and it will match the first match. Auto-generated
+# lanes have a convention of a prefix F or R (for forward or reverse lane,
+# relative to the road segment) followed by a 0-indexed integer, based on how
+# far from the middle of the road (middle = where the lane direction flips).
+#
+# This way, the inner most lanes are always matched together. A lane F2 being
+# removed on the right (forward) will be recognized as needing to have it's
+# lane_next_tag set to F1, representing cars merging from this removed lane into
+# the next interior lane.
+@export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+@export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom # For tool usage, drawing lane directions and end points
 
 var _vehicles_in_lane = [] # Registration
+var _draw_in_game: bool = false
+var _draw_in_editor: bool = false
+var _draw_override: bool = false
 var _display_fins: bool = false
+
+
+# ------------------------------------------------------------------------------
+# Setup and export setter/getters
+# ------------------------------------------------------------------------------
 
 
 func _ready():
 	set_notify_transform(true)
 	set_notify_local_transform(true)
-	connect("curve_changed",Callable(self,"curve_changed"))
+	connect("curve_changed", Callable(self, "curve_changed"))
 	rebuild_geom()
+	#_instantiate_geom()
+
+
+func _set_direction(value):
+	reverse_direction = value
+	refresh_geom = true
+	rebuild_geom()
+
+
+func _get_direction():
+	return reverse_direction
 
 
 func get_lane_start() -> Vector3:
@@ -72,7 +106,7 @@ func unregister_vehicle(vehicle: Node) -> void:
 
 
 ## Return all vehicles registered to this lane, performing cleanup as needed.
-func get_vehicles()  -> Array:
+func get_vehicles() -> Array:
 	for vehicle in _vehicles_in_lane:
 		if not is_instance_valid(vehicle):
 			_vehicles_in_lane.erase(vehicle)
@@ -84,7 +118,13 @@ func get_vehicles()  -> Array:
 
 
 func _instantiate_geom() -> void:
-	if not _display_fins and (Engine.is_editor_hint() or draw_in_game):
+
+	if Engine.is_editor_hint():
+		_display_fins = _draw_in_editor or _draw_override
+	else:
+		_display_fins = _draw_in_game or _draw_override
+
+	if not _display_fins:
 		if geom:
 			geom.clear()
 		return
@@ -146,8 +186,24 @@ func curve_changed() -> void:
 	rebuild_geom()
 
 
-func show_fins(value: bool) -> void:
-	_display_fins = value
+func _set_draw_in_game(value: bool) -> void:
+	refresh_geom = true
+	_draw_in_game = value
 	rebuild_geom()
 
+func _get_draw_in_game() -> bool:
+	return _draw_in_game
+
+func _set_draw_in_editor(value: bool) -> void:
+	refresh_geom = true
+	_draw_in_editor = value
+	rebuild_geom()
+
+func _get_draw_in_editor() -> bool:
+	return _draw_in_editor
+
+
+func show_fins(value: bool) -> void:
+	_draw_override = value
+	rebuild_geom()
 

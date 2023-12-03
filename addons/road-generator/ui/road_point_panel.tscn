@@ -106,7 +106,7 @@ offset_left = 482.0
 offset_top = 4.0
 offset_right = 496.0
 offset_bottom = 18.0
-custom_colors/font_color = Color( 0.952941, 0.733333, 0.0666667, 1 )
+theme_override_colors/font_color = Color( 0.952941, 0.733333, 0.0666667, 1 )
 text = "||"
 
 [node name="fwd_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]

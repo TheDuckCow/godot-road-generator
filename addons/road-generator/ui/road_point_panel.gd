@@ -1,12 +1,12 @@
-# Panel which is added to UI and used to trigger callbacks to update road points
 @tool
+# Panel which is added to UI and used to trigger callbacks to update road points
 extends VBoxContainer
 
 signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 
 var sel_road_point: RoadPoint
-var _edi: EditorInterface : set = set_edi
+var _edi: EditorInterface: set = set_edi
 @onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 @onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 @onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
@@ -22,14 +22,14 @@ var _edi: EditorInterface : set = set_edi
 
 
 func _ready():
-	btn_add_lane_fwd.connect("pressed",Callable(self,"add_lane_fwd_pressed"))
-	btn_add_lane_rev.connect("pressed",Callable(self,"add_lane_rev_pressed"))
-	btn_rem_lane_fwd.connect("pressed",Callable(self,"rem_lane_fwd_pressed"))
-	btn_rem_lane_rev.connect("pressed",Callable(self,"rem_lane_rev_pressed"))
-	btn_sel_rp_next.connect("pressed",Callable(self,"sel_rp_next_pressed"))
-	btn_sel_rp_prior.connect("pressed",Callable(self,"sel_rp_prior_pressed"))
-	btn_add_rp_next.connect("pressed",Callable(self,"add_rp_next_pressed"))
-	btn_add_rp_prior.connect("pressed",Callable(self,"add_rp_prior_pressed"))
+	btn_add_lane_fwd.connect("pressed", Callable(self, "add_lane_fwd_pressed"))
+	btn_add_lane_rev.connect("pressed", Callable(self, "add_lane_rev_pressed"))
+	btn_rem_lane_fwd.connect("pressed", Callable(self, "rem_lane_fwd_pressed"))
+	btn_rem_lane_rev.connect("pressed", Callable(self, "rem_lane_rev_pressed"))
+	btn_sel_rp_next.connect("pressed", Callable(self, "sel_rp_next_pressed"))
+	btn_sel_rp_prior.connect("pressed", Callable(self, "sel_rp_prior_pressed"))
+	btn_add_rp_next.connect("pressed", Callable(self, "add_rp_next_pressed"))
+	btn_add_rp_prior.connect("pressed", Callable(self, "add_rp_prior_pressed"))
 
 
 func update_road_point_panel():

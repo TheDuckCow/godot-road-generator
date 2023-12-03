@@ -2,13 +2,11 @@ extends EditorInspectorPlugin
 
 const RoadPointPanel = preload("res://addons/road-generator/ui/road_point_panel.tscn")
 var panel_instance
-var _editor_plugin: EditorPlugin
-var _edi :EditorInterface : set = set_edi
+var undo_redo:EditorUndoRedoManager
 
-
-func _init(editor_plugin: EditorPlugin):
-	_editor_plugin = editor_plugin
-
+func _init(plugin:EditorPlugin) -> void:
+	undo_redo = plugin.get_undo_redo()
+	pass
 
 func can_handle(object):
 	# Only road points are supported.
@@ -17,8 +15,7 @@ func can_handle(object):
 
 # Add controls to the beginning of the Inspector property list
 func parse_begin(object):
-	panel_instance = RoadPointPanel.instantiate()
-	panel_instance.call("set_edi", _edi)
+	panel_instance = RoadPointPanel.instance()
 	panel_instance.call_deferred("update_selected_road_point", object)
 	add_custom_control(panel_instance)
 	panel_instance.connect(
@@ -28,8 +25,7 @@ func parse_begin(object):
 
 
 
-func set_edi(value):
-	_edi = value
+
 
 
 ## Handles signals from the RoadPoint panel to add or remove lanes.
@@ -37,7 +33,6 @@ func set_edi(value):
 ## selected: RoadPoint
 ## change_type: RoadPoint.TrafficUpdate enum value
 func _handle_on_lane_change_pressed(selected, change_type):
-	var undo_redo = _editor_plugin.get_undo_redo()
 	match change_type:
 		RoadPoint.TrafficUpdate.ADD_FORWARD:
 			undo_redo.create_action("Add forward lane")
@@ -67,8 +62,6 @@ func _handle_on_lane_change_pressed(selected, change_type):
 ## selection: The initially selected RoadPoint
 ## point_init_type: Value from RoadPoint.PointInit enum
 func _handle_add_connected_rp(selection, point_init_type):
-	var undo_redo = _editor_plugin.get_undo_redo()
-
 	match point_init_type:
 		RoadPoint.PointInit.PRIOR:
 			undo_redo.create_action("Add prior RoadPoint")
@@ -89,16 +82,16 @@ func _handle_add_connected_rp_do(selection, point_init_type):
 	match point_init_type:
 		RoadPoint.PointInit.PRIOR:
 			var prior_pt = selection.get_node(selection.prior_pt_init)
-			_edi.get_selection().call_deferred("add_node", prior_pt)
+			EditorInterface.get_selection().call_deferred("add_node", prior_pt)
 		RoadPoint.PointInit.NEXT:
 			var next_pt = selection.get_node(selection.next_pt_init)
-			_edi.get_selection().call_deferred("add_node", next_pt)
+			EditorInterface.get_selection().call_deferred("add_node", next_pt)
 
-	_edi.get_selection().call_deferred("remove_node", selection)
+	EditorInterface.get_selection().call_deferred("remove_node", selection)
 
 
 func _handle_add_connected_rp_undo(selection, point_init_type):
-	_edi.get_selection().call_deferred("add_node", selection)
+	EditorInterface.get_selection().call_deferred("add_node", selection)
 	var rp = null
 	match point_init_type:
 		RoadPoint.PointInit.PRIOR:
@@ -107,6 +100,6 @@ func _handle_add_connected_rp_undo(selection, point_init_type):
 		RoadPoint.PointInit.NEXT:
 			rp = selection.get_node(selection.next_pt_init)
 			selection.next_pt_init = null
-	_edi.get_selection().call_deferred("remove_node", rp)
+	EditorInterface.get_selection().call_deferred("remove_node", rp)
 	if is_instance_valid(rp):
 		rp.queue_free()

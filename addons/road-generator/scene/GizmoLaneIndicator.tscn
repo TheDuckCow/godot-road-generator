@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://dd7qc821pljp5"]
+
+[sub_resource type="BoxMesh" id="1"]
+size = Vector3(0.5, 0.5, 2)
+
+[sub_resource type="BoxMesh" id="3"]
+size = Vector3(0.5, 0.5, 2)
+
+[node name="GizmoLaneIndicator" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1.00065, 0, 0, 0, 1.00065, 0, 0, 0, 2.44929, 0.000378732, 0.00273072, 0.000607927)
+mesh = SubResource("1")
+
+[node name="MeshInstance2" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.887933, 0, 0, 0, 0.887933, 0, 0, 0, 2.38737, -1.23619e-07, -8.91276e-07, -1.9843e-07)
+mesh = SubResource("3")
