@@ -101,7 +101,6 @@ func register_vehicle(vehicle: Node) -> void:
 ## Optional but good cleanup of references.
 func unregister_vehicle(vehicle: Node) -> void:
 	if vehicle in _vehicles_in_lane:
-		print("Unregistering vehicle.")
 		_vehicles_in_lane.erase(vehicle)
 
 
