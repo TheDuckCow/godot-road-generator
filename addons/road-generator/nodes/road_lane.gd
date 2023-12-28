@@ -110,9 +110,6 @@ func get_vehicles() -> Array:
 		if (not is_instance_valid(vehicle)) or vehicle.is_queued_for_deletion():
 			_vehicles_in_lane.erase(vehicle)
 			continue
-#		if not vehicle or not vehicle._ai or vehicle._ai.follow_path != self:
-#			_vehicles_in_lane.erase(vehicle)
-#			continue
 	return _vehicles_in_lane
 
 
