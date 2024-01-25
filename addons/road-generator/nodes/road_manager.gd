@@ -1,6 +1,8 @@
-## Manager for all children RoadContainers
 tool
+## Manager for all children RoadContainers
 class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
+#gd4
+#@icon("res://addons/road-generator/resources/road_manager.png")
 extends Spatial
 
 
@@ -42,6 +44,8 @@ func _ready():
 	_ui_refresh_set(auto_refresh)
 
 
+#gd4
+#func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
 	if _skip_warn_found_rc_child:
 		return ""

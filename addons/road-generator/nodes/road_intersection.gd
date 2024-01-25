@@ -1,8 +1,10 @@
+tool
 ## Center point of an intersection
 ##
 ## Should be contained within a RoadContainer and a sibling to 1+ RoadPoints
-tool
 class_name RoadIntersection, "res://addons/road-generator/resources/road_intersection.png"
+#gd4
+#@icon("res://addons/road-generator/resources/road_intersection.png")
 extends Spatial
 
 
@@ -11,6 +13,8 @@ extends Spatial
 # ------------------------------------------------------------------------------
 
 
+#gd4
+#func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
 	return "Intersections not yet implemented"
 

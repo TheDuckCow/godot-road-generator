@@ -1,6 +1,8 @@
-## Definition for a single point handle, which 2+ road segments connect to.
 tool
+## Definition for a single point handle, which 2+ road segments connect to.
 class_name RoadPoint, "res://addons/road-generator/resources/road_point.png"
+#gd4
+#@icon("res://addons/road-generator/resources/road_point.png")
 extends Spatial
 
 signal on_transform(node, low_poly)
@@ -139,12 +141,18 @@ func _to_string():
 	return "RoadPoint %s (id:%s)" % [self.name,  self.get_instance_id()]
 
 
+#gd4
+#func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
 	#if not par is RoadContainer:
 	if not par.has_method("is_road_container"):
+		#gd4
+		#return ["Must be a child of a RoadContainer"]
 		return "Must be a child of a RoadContainer"
+	#gd4
+	#return []
 	return ""
 
 
@@ -307,7 +315,8 @@ func emit_transform(low_poly=false):
 		return
 	if auto_lanes:
 		assign_lanes()
-	# TODO: See if we can make forward compatibility for godot4
+	# TODO: See if we can make forward compatibility for gd4
+	#gd4 need updates
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
@@ -334,6 +343,8 @@ func is_prior_connected() -> bool:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
 			continue
+		#gd4
+		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	push_warning("RP should have been present in container edge list")
 	return false
@@ -349,6 +360,8 @@ func is_next_connected() -> bool:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
 			continue
+		#gd4
+		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	push_warning("RP should have been present in container edge list")
 	return false
@@ -826,6 +839,9 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 				break
 
 	# Update this container pointing to target rp
+	#gd4
+	#container.edge_containers[this_idx] = ^""
+	#container.edge_rp_targets[this_idx] = ^""
 	container.edge_containers[this_idx] = ""
 	container.edge_rp_targets[this_idx] = ""
 	container.edge_rp_target_dirs[this_idx] = -1
@@ -866,10 +882,14 @@ func validate_junctions():
 
 	# Get valid Prior and Next RoadPoints for THIS RoadPoint
 	var _tmp_ref
+	#gd4
+	#if not prior_pt_init.is_empty():
 	if prior_pt_init and not prior_pt_init == "":
 		_tmp_ref = get_node(prior_pt_init)
 		if _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
+	#gd4
+	#if not prior_pt_init.is_empty():
 	if next_pt_init and not next_pt_init == "":
 		_tmp_ref = get_node(next_pt_init)
 		if _tmp_ref.has_method("is_road_point"):
@@ -893,8 +913,12 @@ func _is_junction_valid(point: RoadPoint)->bool:
 	var next_point: RoadPoint
 
 	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
+	#gd4
+	#if not point.prior_pt_init.is_empty():
 	if point.prior_pt_init and not point.prior_pt_init == "":
 		prior_point = get_node(point.prior_pt_init)
+	#gd4
+	#if not point.next_pt_init.is_empty():
 	if point.next_pt_init and not point.next_pt_init == "":
 		next_point = get_node(point.next_pt_init)
 
@@ -933,11 +957,15 @@ func _autofix_noncyclic_references(
 	#var which_init = "prior_pt_init" if for_prior else "next_pt_init"
 	#print("autofix %s.%s: %s -> %s" % [self.name, which_init, old_point_path, new_point_path])
 
+	#gd4
+	#if old_point_path.is_empty() and new_point_path.is_empty():
 	if old_point_path == "" and new_point_path == "":
 		return
 	elif old_point_path == new_point_path:
 		return
 
+	#gd4
+	#if not new_point_path.is_empty():
 	if new_point_path != "":
 		# Use the just recently set value.
 		is_clearing = false
@@ -975,11 +1003,14 @@ func _autofix_noncyclic_references(
 			point.prior_pt_init = ""
 			seg = self.next_seg
 		container.remove_segment(seg)
-
+	#gd4
+	#elif for_prior and not point.next_pt_init.is_empty():
 	elif for_prior and point.next_pt_init == "":
 		# self's prior RP is `point`, so make point's next RP be self if slot was empty
 		point.next_pt_init = point.get_path_to(self)
 		#print_debug(point.get_path_to(self), " -> ", point.next_pt_init)
+	#gd4
+	#elif not for_prior and point.prior_pt_init.is_empty():
 	elif not for_prior and point.prior_pt_init == "":
 		# Flipped scenario
 		point.prior_pt_init = point.get_path_to(self)

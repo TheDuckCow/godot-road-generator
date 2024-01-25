@@ -1,6 +1,8 @@
-## Manager used to generate the actual road segments when needed.
 tool
+## Manager used to generate the actual road segments when needed.
 class_name RoadContainer, "../resources/road_container.png"
+#gd4
+#@icon("res://addons/road-generator/resources/road_container.png")
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -117,13 +119,17 @@ func is_subscene() -> bool:
 	return filename and self != get_tree().edited_scene_root
 
 
+#gd4
+#func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
+	var warnstr
 
 	if get_tree().get_edited_scene_root() != self:
 		var any_manager := false
 		var _last_par = get_parent()
 		while true:
-			# TODO: make better forward compatible
+			#gd4
+			#if _last_par.get_path() == ^"/root":
 			if _last_par.get_path() == "/root":
 				break
 			if _last_par.has_method("is_road_manager"):
@@ -132,7 +138,10 @@ func _get_configuration_warning() -> String:
 				break
 			_last_par = _last_par.get_parent()
 		if any_manager == false:
-			return "A RoadContainer should either be the scene root, or have a RoadManager somewhere in its parent hierarchy"
+			warnstr = "A RoadContainer should either be the scene root, or have a RoadManager somewhere in its parent hierarchy"
+			#gd4
+			#return [warnstr]
+			return warnstr
 
 	var has_rp_child = false
 	for ch in get_children():
@@ -140,14 +149,22 @@ func _get_configuration_warning() -> String:
 			has_rp_child = true
 			break
 	if not has_rp_child:
-		return "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
+		warnstr = "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
+		#gd4
+		#return [warnstr]
+		return warnstr
 
 	if _needs_refresh:
-		return "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
+		warnstr = "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
+		#gd4
+		#return [warnstr]
+		return warnstr
 
 	if _edge_error != "":
-		var warn_str = "Refresh roads to clear invalid connections:\n%s" % _edge_error
-		return warn_str
+		warnstr = "Refresh roads to clear invalid connections:\n%s" % _edge_error
+		#gd4
+		#return [warnstr]
+		return warnstr
 	return ""
 
 
@@ -239,6 +256,8 @@ func get_manager(): # -> Optional[RoadManager]
 	while true:
 		if _last_par == null:
 			break
+		#gd4
+		# if _last_par.get_path() == ^"/root":
 		if _last_par.get_path() == "/root":
 			break
 		if _last_par.has_method("is_road_manager"):
@@ -299,6 +318,8 @@ func update_edges():
 			else:
 				dir_pt_init = pt.next_pt_init
 
+			#gd4
+			#if dir_pt_init == ^"":
 			if dir_pt_init == "":
 				# Set this rp to indicate its next point is the container,
 				# making it aware it is an "edge".
@@ -391,6 +412,8 @@ func validate_edges(autofix: bool = false) -> bool:
 			_invalidate_edge(_idx, autofix, "edge_rp_local_dirs value invalid")
 			continue
 
+		#gd4
+		#if edge_containers[_idx] != ^"":
 		if edge_containers[_idx] != "":
 			# Connection should be there, verify values.
 			var cont = get_node(edge_containers[_idx])
@@ -451,6 +474,9 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	])
 	if not autofix:
 		return
+	#gd4
+	#edge_containers[_idx] = ^""
+	#edge_rp_targets[_idx] = ^""
 	edge_containers[_idx] = ""
 	edge_rp_targets[_idx] = ""
 	edge_rp_target_dirs[_idx] = -1

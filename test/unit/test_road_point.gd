@@ -179,7 +179,7 @@ func test_on_road_updated_pt_transform():
 	# Trigger a transform equivalent to moving the point in the viewport.
 	# Changing global_transform doesn't work since it checks for editor,
 	# so we need to directly call the on_transform function.
-	p1.on_transform()
+	p1.emit_transform()
 
 	# Validate that the road segment was generated (based on signal emission)
 	var res = get_signal_parameters(container, 'on_road_updated')

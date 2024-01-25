@@ -1,11 +1,11 @@
-# Class for defining a directional or bidirectional lane.
-#
-# Could, but does not have to be, parented to a RoadSegment class object.
-
-# Draw in the editor things like path direction and width
 tool
-extends Path
+## Class for defining a directional or bidirectional lane.
+##
+## Could, but does not have to be, parented to a RoadSegment class object.
 class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
+#gd4
+#@icon("res://addons/road-generator/resources/road_lane.png")
+extends Path
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
