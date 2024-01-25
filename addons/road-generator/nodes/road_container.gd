@@ -1,9 +1,8 @@
-tool
+@tool
+@icon("res://addons/road-generator/resources/road_container.png")
 ## Manager used to generate the actual road segments when needed.
-class_name RoadContainer, "../resources/road_container.png"
-#gd4
-#@icon("res://addons/road-generator/resources/road_container.png")
-extends Spatial
+class_name RoadContainer
+extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array. Will also trigger on segments deleted,
@@ -13,23 +12,23 @@ signal on_road_updated (updated_segments)
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
-export(Material) var material_resource:Material setget _set_material
+@export var material_resource: Material: set = _set_material
 
 # Mesh density of generated segments. -1 implies to use the parent RoadManager's value.
-export(float) var density:float = -1.0  setget _set_density
+@export var density: float = -1.0: set = _set_density
 
 # Generate procedural road geometry
 # If off, it indicates the developer will load in their own custom mesh + collision.
-export(bool) var create_geo := true setget _set_create_geo
+@export var create_geo := true: set = _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
-export(bool) var use_lowpoly_preview:bool = false
+@export var use_lowpoly_preview: bool = false
 
-export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
-export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+@export var generate_ai_lanes := false: set = _set_gen_ai_lanes
+@export var ai_lane_group := "road_lanes": set = _set_ai_lane_group
 
-export(bool) var debug := false
-export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
-export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
+@export var debug := false
+@export var draw_lanes_editor := false: get = _get_draw_lanes_editor, set = _set_draw_lanes_editor
+@export var draw_lanes_game := false: get = _get_draw_lanes_game, set = _set_draw_lanes_game
 
 ## Auto generated exposed variables used to connect this RoadContainer to
 ## another RoadContainer.
@@ -42,16 +41,16 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 
 # In godot 4.1, becomes: @export var edge_containers: Array[NodePath]
 # Paths to other containers, relative to this container (self)
-export(Array, NodePath) var edge_containers
+@export var edge_containers: Array[NodePath]
 # Node paths within other containers, relative to the *target* container (not self here)
-export(Array, NodePath) var edge_rp_targets
+@export var edge_rp_targets:Array[NodePath] # (Array, NodePath)
 # Direction of which RP we are connecting to, used to make unique key along with
 # the edge_rp_targets path above. Enum value of RoadPoint.PointInit
-export(Array, int) var edge_rp_target_dirs
+@export var edge_rp_target_dirs:Array[int]
 # Node paths within this container, relative to this container
-export(Array, NodePath) var edge_rp_locals
+@export var edge_rp_locals:Array[NodePath]
 # Local RP directions, enum value of RoadPoint.PointInit
-export(Array, int) var edge_rp_local_dirs
+@export var edge_rp_local_dirs:Array[int]
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -114,23 +113,17 @@ func is_road_container() -> bool:
 
 
 func is_subscene() -> bool:
-	#gd4
-	#return scene_file_path and self != get_tree().edited_scene_root
-	return filename and self != get_tree().edited_scene_root
+	return scene_file_path and self != get_tree().edited_scene_root
 
 
-#gd4
-#func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warning() -> String:
+func _get_configuration_warnings() -> PackedStringArray:
 	var warnstr
 
 	if get_tree().get_edited_scene_root() != self:
 		var any_manager := false
 		var _last_par = get_parent()
 		while true:
-			#gd4
-			#if _last_par.get_path() == ^"/root":
-			if _last_par.get_path() == "/root":
+			if _last_par.get_path() == ^"/root":
 				break
 			if _last_par.has_method("is_road_manager"):
 				any_manager = true
@@ -139,9 +132,7 @@ func _get_configuration_warning() -> String:
 			_last_par = _last_par.get_parent()
 		if any_manager == false:
 			warnstr = "A RoadContainer should either be the scene root, or have a RoadManager somewhere in its parent hierarchy"
-			#gd4
-			#return [warnstr]
-			return warnstr
+			return [warnstr]
 
 	var has_rp_child = false
 	for ch in get_children():
@@ -150,22 +141,16 @@ func _get_configuration_warning() -> String:
 			break
 	if not has_rp_child:
 		warnstr = "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
-		#gd4
-		#return [warnstr]
-		return warnstr
+		return [warnstr]
 
 	if _needs_refresh:
 		warnstr = "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
-		#gd4
-		#return [warnstr]
-		return warnstr
+		return [warnstr]
 
 	if _edge_error != "":
 		warnstr = "Refresh roads to clear invalid connections:\n%s" % _edge_error
-		#gd4
-		#return [warnstr]
-		return warnstr
-	return ""
+		return [warnstr]
+	return [""]
 
 
 func _defer_refresh_on_change() -> void:
@@ -256,9 +241,7 @@ func get_manager(): # -> Optional[RoadManager]
 	while true:
 		if _last_par == null:
 			break
-		#gd4
-		# if _last_par.get_path() == ^"/root":
-		if _last_par.get_path() == "/root":
+		if _last_par.get_path() == ^"/root":
 			break
 		if _last_par.has_method("is_road_manager"):
 			_this_manager = _last_par
@@ -318,9 +301,7 @@ func update_edges():
 			else:
 				dir_pt_init = pt.next_pt_init
 
-			#gd4
-			#if dir_pt_init == ^"":
-			if dir_pt_init == "":
+			if dir_pt_init == ^"":
 				# Set this rp to indicate its next point is the container,
 				# making it aware it is an "edge".
 				is_edge = true
@@ -412,9 +393,7 @@ func validate_edges(autofix: bool = false) -> bool:
 			_invalidate_edge(_idx, autofix, "edge_rp_local_dirs value invalid")
 			continue
 
-		#gd4
-		#if edge_containers[_idx] != ^"":
-		if edge_containers[_idx] != "":
+		if edge_containers[_idx] != ^"":
 			# Connection should be there, verify values.
 			var cont = get_node(edge_containers[_idx])
 			if not is_instance_valid(cont):
@@ -474,11 +453,8 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	])
 	if not autofix:
 		return
-	#gd4
-	#edge_containers[_idx] = ^""
-	#edge_rp_targets[_idx] = ^""
-	edge_containers[_idx] = ""
-	edge_rp_targets[_idx] = ""
+	edge_containers[_idx] = ^""
+	edge_rp_targets[_idx] = ^""
 	edge_rp_target_dirs[_idx] = -1
 
 

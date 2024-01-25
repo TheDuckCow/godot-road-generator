@@ -1,4 +1,4 @@
-tool
+@tool
 extends MenuButton
 
 const ICN_CT = preload("../resources/road_container.png")
@@ -33,7 +33,7 @@ var menu_mode = MenuMode.STANDARD
 
 func _enter_tree() -> void:
 	var pup:Popup = get_popup()
-	pup.connect("id_pressed", self, "_create_menu_item_clicked")
+	pup.connect("id_pressed", Callable(self, "_create_menu_item_clicked"))
 
 
 func on_toolbar_show(primary_sel: Node) -> void:
@@ -76,7 +76,7 @@ func on_toolbar_show(primary_sel: Node) -> void:
 
 
 func _exit_tree() -> void:
-	get_popup().disconnect("id_pressed", self, "_create_menu_item_clicked")
+	get_popup().disconnect("id_pressed", Callable(self, "_create_menu_item_clicked"))
 
 
 func _create_menu_item_clicked(id: int) -> void:

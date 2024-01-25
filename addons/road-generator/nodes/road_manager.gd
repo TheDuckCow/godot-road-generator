@@ -1,9 +1,8 @@
-tool
+@tool
+@icon("res://addons/road-generator/resources/road_manager.png")
 ## Manager for all children RoadContainers
-class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
-#gd4
-#@icon("res://addons/road-generator/resources/road_manager.png")
-extends Spatial
+class_name RoadManager
+extends Node3D
 
 
 # ------------------------------------------------------------------------------
@@ -11,7 +10,7 @@ extends Spatial
 # ------------------------------------------------------------------------------
 
 
-export(float) var density:float = 2.0  setget _set_density # Mesh density of generated segments.
+@export var density: float = 2.0: set = _set_density
 
 
 # ------------------------------------------------------------------------------
@@ -22,7 +21,7 @@ export(float) var density:float = 2.0  setget _set_density # Mesh density of gen
 # Auto refresh on transforms or other actions on roads. Good to disable if
 # you modify roads during runtime and want to manually trigger refreshes on
 # specific RoadContainers/RoadPoints at a time.
-export(bool) var auto_refresh = true setget _ui_refresh_set
+@export var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 # ------------------------------------------------------------------------------
@@ -44,11 +43,9 @@ func _ready():
 	_ui_refresh_set(auto_refresh)
 
 
-#gd4
-#func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warning() -> String:
+func _get_configuration_warnings() -> PackedStringArray:
 	if _skip_warn_found_rc_child:
-		return ""
+		return [""]
 	var any_containers := false
 	for ch in get_children():
 		if ch.has_method("is_road_container"):
@@ -56,9 +53,9 @@ func _get_configuration_warning() -> String:
 			break
 
 	if any_containers:
-		return ""
+		return [""]
 	else:
-		return "No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"
+		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
 
 
 # Workaround for cyclic typing

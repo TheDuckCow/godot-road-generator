@@ -3,7 +3,7 @@ extends EditorInspectorPlugin
 const RoadPointPanel = preload("res://addons/road-generator/ui/road_point_panel.tscn")
 var panel_instance
 var _editor_plugin: EditorPlugin
-var _edi :EditorInterface setget set_edi
+var _edi :EditorInterface: set = set_edi
 
 
 func _init(editor_plugin: EditorPlugin):

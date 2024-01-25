@@ -2,7 +2,7 @@
 ##
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
-extends Spatial
+extends Node3D
 
 # Disabled, since we don't want users to manually via the UI to add this class.
 #class_name RoadSegment, "road_segment.png"
@@ -14,14 +14,14 @@ const LOWPOLY_FACTOR = 3.0
 
 signal seg_ready(road_segment)
 
-export(NodePath) var start_init setget _init_start_set, _init_start_get
-export(NodePath) var end_init setget _init_end_set, _init_end_get
+@export var start_init: NodePath: get = _init_start_get, set = _init_start_set
+@export var end_init: NodePath: get = _init_end_get, set = _init_end_set
 
 var start_point:RoadPoint
 var end_point:RoadPoint
 
 var curve:Curve3D
-var road_mesh:MeshInstance
+var road_mesh:MeshInstance3D
 var material:Material
 var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
 var container # The managing container node for this road segment (grandparent).
@@ -93,7 +93,7 @@ func do_roadmesh_creation():
 func add_road_mesh() -> void:
 	if is_instance_valid(road_mesh):
 		return
-	road_mesh = MeshInstance.new()
+	road_mesh = MeshInstance3D.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 
@@ -456,16 +456,16 @@ func _update_curve():
 	# Show this primary curve in the scene hierarchy if the debug state set.
 	if container.debug_scene_visible:
 		var found_path = false
-		var path_node: Path
+		var path_node: Path3D
 		for ch in self.get_children():
-			if not ch is Path:
+			if not ch is Path3D:
 				continue
 			found_path = true
 			path_node = ch
 			break
 
 		if not found_path:
-			path_node = Path.new()
+			path_node = Path3D.new()
 			self.add_child(path_node)
 			path_node.owner = container.owner
 			path_node.name = "RoadSeg primary curve"
@@ -498,7 +498,7 @@ func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 
 ## Alternate method which doesn't guarentee consistent lane width.
 func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector3:
-	var loop_point: Transform
+	var loop_point: Transform3D
 	var _smooth_amount := -1.5
 	var interp_amount: float = ease(sample_position, _smooth_amount)
 
@@ -523,10 +523,8 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
-	#gd4
-	# interpolate_baked -> sample_baked
-	var pt1:Vector3 = curve.interpolate_baked(start_offset * curve.get_baked_length())
-	var pt2:Vector3 = curve.interpolate_baked(end_offset * curve.get_baked_length())
+	var pt1:Vector3 = curve.sample_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.sample_baked(end_offset * curve.get_baked_length())
 	var tangent_l:Vector3 = pt2 - pt1
 
 	# Using local transforms. Both are transforms relative to the parent RoadContainer,
@@ -605,7 +603,7 @@ func _build_geo():
 	for ch in road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
 	road_mesh.create_trimesh_collision() # Call deferred?
-	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _insert_geo_loop(
