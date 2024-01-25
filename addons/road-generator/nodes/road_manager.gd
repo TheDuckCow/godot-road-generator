@@ -1,8 +1,8 @@
 tool
-## Manager for all children RoadContainers
-class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
 #gd4
 #@icon("res://addons/road-generator/resources/road_manager.png")
+## Manager for all children RoadContainers
+class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
 extends Spatial
 
 
@@ -48,6 +48,8 @@ func _ready():
 #func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
 	if _skip_warn_found_rc_child:
+		#gd4
+		#return []
 		return ""
 	var any_containers := false
 	for ch in get_children():
@@ -56,8 +58,12 @@ func _get_configuration_warning() -> String:
 			break
 
 	if any_containers:
+		#gd4
+		#return []
 		return ""
 	else:
+		#gd4
+		#return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
 		return "No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"
 
 

@@ -1,8 +1,8 @@
 tool
-## Manager used to generate the actual road segments when needed.
-class_name RoadContainer, "../resources/road_container.png"
 #gd4
 #@icon("res://addons/road-generator/resources/road_container.png")
+## Manager used to generate the actual road segments when needed.
+class_name RoadContainer, "../resources/road_container.png"
 extends Spatial
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -40,17 +40,26 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 # TODO: In Godot 4.3ish, these should be @export_storage, hidden to users
 # https://github.com/godotengine/godot/pull/82122
 
-# In godot 4.1, becomes: @export var edge_containers: Array[NodePath]
 # Paths to other containers, relative to this container (self)
+#gd4
+#@export var edge_containers: Array[NodePath]
 export(Array, NodePath) var edge_containers
 # Node paths within other containers, relative to the *target* container (not self here)
+#gd4
+#@export var edge_rp_targets: Array[NodePath]
 export(Array, NodePath) var edge_rp_targets
 # Direction of which RP we are connecting to, used to make unique key along with
 # the edge_rp_targets path above. Enum value of RoadPoint.PointInit
+#gd4
+#@export var edge_rp_target_dirs: Array[int]
 export(Array, int) var edge_rp_target_dirs
 # Node paths within this container, relative to this container
+#gd4
+#@export var edge_rp_locals: Array[NodePath]
 export(Array, NodePath) var edge_rp_locals
 # Local RP directions, enum value of RoadPoint.PointInit
+#gd4
+#@export var edge_rp_local_dirs: Array[int]
 export(Array, int) var edge_rp_local_dirs
 
 # Mapping maintained of individual segments and their corresponding resources.
@@ -165,6 +174,8 @@ func _get_configuration_warning() -> String:
 		#gd4
 		#return [warnstr]
 		return warnstr
+	#gd4
+	#return []
 	return ""
 
 
@@ -300,7 +311,12 @@ func update_edges():
 	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
 	#print("Debug: Updating container edges %s" % self.name)
 
-	# In gd 4, would require more formal typing like Array[NodePath]
+	#gd4
+	#var _tmp_containers:Array[NodePath] = []
+	#var _tmp_rp_targets:Array[NodePath] = []
+	#var _tmp_rp_target_dirs:Array[int] = []
+	#var _tmp_rp_locals:Array[NodePath] = []
+	#var _tmp_rp_local_dirs:Array[int] = []
 	var _tmp_containers:Array = []
 	var _tmp_rp_targets:Array = []
 	var _tmp_rp_target_dirs:Array = []

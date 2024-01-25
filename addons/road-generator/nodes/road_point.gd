@@ -1,8 +1,8 @@
 tool
-## Definition for a single point handle, which 2+ road segments connect to.
-class_name RoadPoint, "res://addons/road-generator/resources/road_point.png"
 #gd4
 #@icon("res://addons/road-generator/resources/road_point.png")
+## Definition for a single point handle, which 2+ road segments connect to.
+class_name RoadPoint, "res://addons/road-generator/resources/road_point.png"
 extends Spatial
 
 signal on_transform(node, low_poly)
@@ -47,7 +47,17 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign the direction of traffic order. This i
+# Assign the direction of traffic order.
+#gd4
+#var _traffic_dir: Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]
+#@export var traffic_dir:Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]:
+#	get:
+#		return _traffic_dir
+#	set(value):
+#		_traffic_dir = value
+#		_notify_network_on_set(value)
 export(Array, LaneDir) var traffic_dir:Array setget _set_dir, _get_dir
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
@@ -853,6 +863,9 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 		push_error("Target RoadContainer did not indicate being connected to this RoadPoint/container")
 		return false
 	else:
+		#gd4
+		#target_ct.edge_containers[target_idx] = ^""
+		#target_ct.edge_rp_targets[target_idx] = ^""
 		target_ct.edge_containers[target_idx] = ""
 		target_ct.edge_rp_targets[target_idx] = ""
 		target_ct.edge_rp_target_dirs[target_idx] = -1
@@ -898,9 +911,13 @@ func validate_junctions():
 	# Clear invalid junctions
 	if is_instance_valid(prior_point):
 		if not _is_junction_valid(prior_point):
+			#gd4
+			#prior_pt_init = ^""
 			prior_pt_init = null
 	if is_instance_valid(next_point):
 		if not _is_junction_valid(next_point):
+			#gd4
+			#next_pt_init = ^""
 			next_pt_init = null
 
 

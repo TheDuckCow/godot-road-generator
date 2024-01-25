@@ -9,9 +9,13 @@ const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 # Forwards the InputEvent to other EditorPlugins.
-const INPUT_PASS := false # in godot 4: EditorPlugin.AFTER_GUI_INPUT_PASS
+#gd4
+#const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
+const INPUT_PASS := false
 # Prevents the InputEvent from reaching other Editor classes.
-const INPUT_STOP := true # in godot 4: EditorPlugin.AFTER_GUI_INPUT_STOP
+#gd4
+#const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
+const INPUT_STOP := true
 
 
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
@@ -167,7 +171,11 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 
 ## Handle or pass on event in the 3D editor
 ## If return true, consumes the event, otherwise forwards event
+#gd4
+#func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 func forward_spatial_gui_input(camera: Camera, event: InputEvent) -> bool:
+	#gd4
+	#var ret := 0
 	var ret := false
 
 	var selected = get_selected_node()
@@ -199,6 +207,8 @@ func is_road_node(node: Node) -> bool:
 		or node is RoadIntersection)
 
 
+#gd4
+#func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> int:
 func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
@@ -232,6 +242,8 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
+#gd4
+#func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> int:
 func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
@@ -336,6 +348,8 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	return INPUT_STOP
 
 
+#gd4
+#func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> int:
 func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		var point = get_nearest_road_point(camera, event.position)
@@ -643,12 +657,19 @@ func _show_road_toolbar() -> void:
 		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
+		#gd4
+		#_road_toolbar.create_menu.regenerate_pressed.connect(_on_regenerate_pressed)
+		#_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
 		_road_toolbar.create_menu.connect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
 		_road_toolbar.create_menu.connect(
 			"select_container_pressed", self, "_on_select_container_pressed")
 
 		# Native nodes
+		#gd4
+		#_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
+		#_road_toolbar.create_menu.create_roadpoint.connect(_create_roadpoint_pressed)
+		#_road_toolbar.create_menu.create_lane.connect(_create_lane_pressed)
 		_road_toolbar.create_menu.connect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.connect(
@@ -657,6 +678,8 @@ func _show_road_toolbar() -> void:
 			"create_lane", self, "_create_lane_pressed")
 
 		# Specials / prefabs
+		#gd4
+		#_road_toolbar.create_menu.create_2x2_road.connect(_create_2x2_road_pressed)
 		_road_toolbar.create_menu.connect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
@@ -666,12 +689,19 @@ func _hide_road_toolbar() -> void:
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 
 		# Utilities
+		#gd4
+		#_road_toolbar.create_menu.regenerate_pressed.disconnect(_on_regenerate_pressed)
+		#_road_toolbar.create_menu.select_container_pressed.disconnect(_on_select_container_pressed)
 		_road_toolbar.create_menu.disconnect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
 		_road_toolbar.create_menu.disconnect(
 			"select_container_pressed", self, "_on_select_container_pressed")
 
 		# Native nodes
+		#gd4
+		#_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
+		#_road_toolbar.create_menu.create_roadpoint.disconnect(_create_roadpoint_pressed)
+		#_road_toolbar.create_menu.create_lane.disconnect(_create_lane_pressed)
 		_road_toolbar.create_menu.disconnect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.disconnect(
@@ -680,10 +710,12 @@ func _hide_road_toolbar() -> void:
 			"create_lane", self, "_create_lane_pressed")
 
 		# Specials / prefabs
+		#gd4
+		#_road_toolbar.create_menu.create_2x2_road.disconnect(_create_2x2_road_pressed)
 		_road_toolbar.create_menu.disconnect(
 			"create_2x2_road", self, "_create_2x2_road_pressed")
 
-func _on_regenerate_pressed():
+func _on_regenerate_pressed() -> void:
 	var nd = get_selected_node()
 	if nd is RoadManager:
 		for ch_container in nd.get_containers():
@@ -1205,12 +1237,15 @@ func _create_2x2_road_do(t_container: RoadContainer, single_point: bool):
 	var first_road_point = RoadPoint.new()
 	t_container.add_child(first_road_point, true)
 	first_road_point.name = first_road_point.increment_name(default_name)
-	first_road_point.traffic_dir = [
+	#gd4
+	#var new_dirs: Array[RoadPoint.LaneDir] = [
+	var new_dirs := [
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.FORWARD,
 		RoadPoint.LaneDir.FORWARD
 	]
+	first_road_point.traffic_dir = new_dirs
 	first_road_point.auto_lanes = true
 	first_road_point.set_owner(get_tree().get_edited_scene_root())
 

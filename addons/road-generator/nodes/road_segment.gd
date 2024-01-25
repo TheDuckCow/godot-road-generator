@@ -631,8 +631,12 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
+	#gd4
+	#start_loop = curve.sample_baked(offset_s * clength)
 	start_loop = curve.interpolate_baked(offset_s * clength)
 	start_basis = _normal_for_offset(curve, offset_s)
+	#gd4
+	#end_loop = curve.sample_baked(offset_e * clength)
 	end_loop = curve.interpolate_baked(offset_e * clength)
 	end_basis = _normal_for_offset(curve, offset_e)
 
@@ -869,8 +873,10 @@ func _insert_geo_loop(
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st, uvs:Array, pts:Array) -> void:
+static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
+	#gd4
+	#st.set_uv(uvs[0]) # here and below
 	st.add_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
