@@ -12,7 +12,6 @@ extends Spatial
 
 const LOWPOLY_FACTOR = 3.0
 
-#signal check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
 export(NodePath) var start_init setget _init_start_set, _init_start_get
@@ -61,12 +60,6 @@ func _ready():
 		road_mesh.owner = container.owner
 
 	do_roadmesh_creation()
-
-	#var res = connect("check_rebuild", container, "segment_rebuild")
-	#assert(res == OK)
-	#emit_signal("seg_ready", self)
-	#is_dirty = true
-	#emit_signal("check_rebuild", self)
 
 
 # Workaround for cyclic typing
@@ -145,7 +138,6 @@ func _init_start_set(value):
 	is_dirty = true
 	if not is_instance_valid(container):
 		return
-	#emit_signal("check_rebuild", self)
 func _init_start_get():
 	return start_init
 
@@ -155,7 +147,6 @@ func _init_end_set(value):
 	is_dirty = true
 	if not is_instance_valid(container):
 		return
-	#emit_signal("check_rebuild", self)
 func _init_end_get():
 	return end_init
 
