@@ -368,6 +368,9 @@ func update_edges():
 				_tmp_rp_targets.append(edge_rp_targets[idx])
 				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
 			else:
+				#gd4
+				#_tmp_containers.append(^"")
+				#_tmp_rp_targets.append(^"")
 				_tmp_containers.append("")
 				_tmp_rp_targets.append("")
 				_tmp_rp_target_dirs.append(-1) # -1 to mean an unconnected index, since valid enums are 0+
