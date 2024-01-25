@@ -867,7 +867,7 @@ func _insert_geo_loop(
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st, uvs:Array, pts:Array) -> void:
+static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
 	st.add_uv(uvs[0])
 	# Add normal explicitly?

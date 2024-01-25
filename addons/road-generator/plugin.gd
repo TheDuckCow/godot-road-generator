@@ -1205,12 +1205,13 @@ func _create_2x2_road_do(t_container: RoadContainer, single_point: bool):
 	var first_road_point = RoadPoint.new()
 	t_container.add_child(first_road_point, true)
 	first_road_point.name = first_road_point.increment_name(default_name)
-	first_road_point.traffic_dir = [
+	var new_dirs: Array[RoadPoint.LaneDir] = [
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.REVERSE,
 		RoadPoint.LaneDir.FORWARD,
 		RoadPoint.LaneDir.FORWARD
 	]
+	first_road_point.traffic_dir = new_dirs
 	first_road_point.auto_lanes = true
 	first_road_point.set_owner(get_tree().get_edited_scene_root())
 
