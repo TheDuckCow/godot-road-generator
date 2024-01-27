@@ -58,6 +58,12 @@ var _display_fins: bool = false
 # ------------------------------------------------------------------------------
 
 
+func _init():
+	#gd4
+	#curve = Curve3D.new()
+	pass
+
+
 func _ready():
 	set_notify_transform(true)
 	set_notify_local_transform(true)
@@ -148,6 +154,10 @@ func _instantiate_geom() -> void:
 
 		var mat = SpatialMaterial.new()
 		mat.flags_unshaded = true
+		mat.flags_disable_ambient_light = true
+		mat.params_depth_draw_mode = SpatialMaterial.DEPTH_DRAW_DISABLED
+		mat.flags_do_not_receive_shadows = true
+		mat.flags_no_depth_test = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true

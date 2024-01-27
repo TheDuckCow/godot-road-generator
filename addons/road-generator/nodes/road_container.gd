@@ -363,7 +363,7 @@ func update_edges():
 				idx = _find_idx
 				break
 
-			if idx >= 0:
+			if idx >= 0 and len(edge_containers) >= idx:
 				_tmp_containers.append(edge_containers[idx])
 				_tmp_rp_targets.append(edge_rp_targets[idx])
 				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
@@ -405,6 +405,8 @@ func validate_edges(autofix: bool = false) -> bool:
 		var target = null  # the presumed connected RP.
 
 		if this_dir == this_pt.PointInit.NEXT:
+			#gd4
+			#if this_pt.next_pt_init != ^"":
 			if this_pt.next_pt_init != "":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
@@ -413,6 +415,8 @@ func validate_edges(autofix: bool = false) -> bool:
 			else:
 				target = this_pt.get_next_rp()
 		elif this_dir == this_pt.PointInit.PRIOR:
+			#gd4
+			#if this_pt.prior_pt_init != "":
 			if this_pt.prior_pt_init != "":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false

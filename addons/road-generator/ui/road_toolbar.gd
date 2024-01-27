@@ -53,7 +53,7 @@ func on_show(_selected_nodes: Array):
 func update_icons():
 	update_refs()
 	#gd4
-	#var theme = gui.get_editor_interface().get_base_control().theme
+	#var theme = EditorInterface.get_editor_theme()
 	var theme = gui
 	var icn_curve_edit = theme.get_icon("CurveEdit", "EditorIcons")  # File icon_curve_edit.svg
 	var icn_curve_create = theme.get_icon("CurveCreate", "EditorIcons")  # File icon_curve_create.svg
