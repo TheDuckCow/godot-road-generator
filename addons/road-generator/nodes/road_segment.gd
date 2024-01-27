@@ -629,9 +629,9 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
-	start_loop = curve.interpolate_baked(offset_s * clength)
+	start_loop = curve.sample_baked(offset_s * clength)
 	start_basis = _normal_for_offset(curve, offset_s)
-	end_loop = curve.interpolate_baked(offset_e * clength)
+	end_loop = curve.sample_baked(offset_e * clength)
 	end_basis = _normal_for_offset(curve, offset_e)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
@@ -869,19 +869,19 @@ func _insert_geo_loop(
 # will go from bottom left to top right.
 static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
-	st.add_uv(uvs[0])
+	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[2])
+	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up

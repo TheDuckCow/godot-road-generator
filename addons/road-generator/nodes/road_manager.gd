@@ -45,7 +45,7 @@ func _ready():
 
 func _get_configuration_warnings() -> PackedStringArray:
 	if _skip_warn_found_rc_child:
-		return [""]
+		return []
 	var any_containers := false
 	for ch in get_children():
 		if ch.has_method("is_road_container"):
@@ -53,7 +53,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 			break
 
 	if any_containers:
-		return [""]
+		return []
 	else:
 		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
 

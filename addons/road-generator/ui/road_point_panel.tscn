@@ -1,168 +1,128 @@
-[gd_scene load_steps=4 format=2]
+[gd_scene load_steps=4 format=3 uid="uid://cr24o353ia8r2"]
 
-[ext_resource path="res://addons/road-generator/ui/road_point_panel.gd" type="Script" id=1]
+[ext_resource type="Script" path="res://addons/road-generator/ui/road_point_panel.gd" id="1"]
 
-[sub_resource type="StyleBoxFlat" id=2]
+[sub_resource type="StyleBoxFlat" id="2"]
 content_margin_left = 4.0
-content_margin_right = 4.0
 content_margin_top = 4.0
+content_margin_right = 4.0
 content_margin_bottom = 4.0
-bg_color = Color( 0.12549, 0.141176, 0.192157, 1 )
-border_color = Color( 0.411765, 0.411765, 0.411765, 1 )
+bg_color = Color(0.12549, 0.141176, 0.192157, 1)
+border_color = Color(0.411765, 0.411765, 0.411765, 1)
 
-[sub_resource type="Theme" id=1]
-Button/styles/normal = SubResource( 2 )
+[sub_resource type="Theme" id="1"]
+Button/styles/normal = SubResource("2")
 
 [node name="RoadPointPanel" type="VBoxContainer"]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_right = -896.0
 offset_bottom = -480.0
-theme = SubResource( 1 )
-script = ExtResource( 1 )
+theme = SubResource("1")
+script = ExtResource("1")
 
 [node name="SectionLabel" type="Label" parent="."]
-offset_right = 1024.0
-offset_bottom = 14.0
+layout_mode = 2
 text = "Edit RoadPoint"
 
 [node name="HBoxAddNextRP" type="HBoxContainer" parent="."]
-offset_top = 18.0
-offset_right = 1024.0
-offset_bottom = 40.0
+layout_mode = 2
 
 [node name="spacer" type="Label" parent="HBoxAddNextRP"]
-modulate = Color( 1, 1, 1, 0 )
-offset_top = 4.0
-offset_right = 41.0
-offset_bottom = 18.0
-custom_minimum_size = Vector2( 40, 0 )
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
 text = "Lanes:"
 
 [node name="add_rp_front" type="Button" parent="HBoxAddNextRP"]
-offset_left = 45.0
-offset_right = 1024.0
-offset_bottom = 22.0
-tooltip_text = "Add RoadPoint to end of road"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Add RoadPoint to end of road"
 text = "+ Next RoadPoint"
 
 [node name="HBoxSelNextRP" type="HBoxContainer" parent="."]
 visible = false
-offset_top = 44.0
-offset_right = 1024.0
-offset_bottom = 66.0
+layout_mode = 2
 
 [node name="spacer" type="Label" parent="HBoxSelNextRP"]
-modulate = Color( 1, 1, 1, 0 )
-offset_top = 4.0
-offset_right = 41.0
-offset_bottom = 18.0
-custom_minimum_size = Vector2( 40, 0 )
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
 text = "Lanes:"
 
 [node name="sel_rp_front" type="Button" parent="HBoxSelNextRP"]
-offset_left = 45.0
-offset_right = 1024.0
-offset_bottom = 22.0
+layout_mode = 2
 size_flags_horizontal = 3
 text = "Select Next RoadPoint"
 
 [node name="HBoxLanes" type="HBoxContainer" parent="."]
-offset_top = 44.0
-offset_right = 1024.0
-offset_bottom = 66.0
+layout_mode = 2
 
 [node name="LanesLabel" type="Label" parent="HBoxLanes"]
-offset_top = 4.0
-offset_right = 41.0
-offset_bottom = 18.0
+layout_mode = 2
 text = "Lanes:"
 
 [node name="HBoxSubLanes" type="HBoxContainer" parent="HBoxLanes"]
-offset_left = 45.0
-offset_right = 1024.0
-offset_bottom = 22.0
+layout_mode = 2
 size_flags_horizontal = 3
 alignment = 1
 
 [node name="rev_add" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-offset_right = 237.0
-offset_bottom = 22.0
-tooltip_text = "Add Reverse lane"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Add Reverse lane"
 text = "+"
 
 [node name="rev_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-offset_left = 241.0
-offset_right = 478.0
-offset_bottom = 22.0
-tooltip_text = "Remove Reverse lane"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Remove Reverse lane"
 text = "-"
 
 [node name="diver_label" type="Label" parent="HBoxLanes/HBoxSubLanes"]
-offset_left = 482.0
-offset_top = 4.0
-offset_right = 496.0
-offset_bottom = 18.0
-theme_override_colors/font_color = Color( 0.952941, 0.733333, 0.0666667, 1 )
+layout_mode = 2
+theme_override_colors/font_color = Color(0.952941, 0.733333, 0.0666667, 1)
 text = "||"
 
 [node name="fwd_minus" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-offset_left = 500.0
-offset_right = 737.0
-offset_bottom = 22.0
-tooltip_text = "Remove Forward lane"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Remove Forward lane"
 text = "-"
 
 [node name="fwd_add" type="Button" parent="HBoxLanes/HBoxSubLanes"]
-offset_left = 741.0
-offset_right = 979.0
-offset_bottom = 22.0
-tooltip_text = "Add Forward lane"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Add Forward lane"
 text = "+"
 
 [node name="HBoxSelPriorRP" type="HBoxContainer" parent="."]
 visible = false
-offset_top = 70.0
-offset_right = 1024.0
-offset_bottom = 92.0
+layout_mode = 2
 
 [node name="spacer" type="Label" parent="HBoxSelPriorRP"]
-modulate = Color( 1, 1, 1, 0 )
-offset_top = 4.0
-offset_right = 41.0
-offset_bottom = 18.0
-custom_minimum_size = Vector2( 40, 0 )
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
 text = "Lanes:"
 
 [node name="sel_rp_back" type="Button" parent="HBoxSelPriorRP"]
-offset_left = 45.0
-offset_right = 1024.0
-offset_bottom = 22.0
+layout_mode = 2
 size_flags_horizontal = 3
 text = "Select Prior RoadPoint"
 
 [node name="HBoxAddPriorRP" type="HBoxContainer" parent="."]
-offset_top = 70.0
-offset_right = 1024.0
-offset_bottom = 92.0
+layout_mode = 2
 
 [node name="spacer" type="Label" parent="HBoxAddPriorRP"]
-modulate = Color( 1, 1, 1, 0 )
-offset_top = 4.0
-offset_right = 41.0
-offset_bottom = 18.0
-custom_minimum_size = Vector2( 40, 0 )
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
 text = "Lanes:"
 
 [node name="add_rp_back" type="Button" parent="HBoxAddPriorRP"]
-offset_left = 45.0
-offset_right = 1024.0
-offset_bottom = 22.0
-tooltip_text = "Add RoadPoint to beginning of road"
+layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Add RoadPoint to beginning of road"
 text = "+ Prior RoadPoint"

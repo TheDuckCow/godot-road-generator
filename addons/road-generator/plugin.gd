@@ -643,22 +643,16 @@ func _show_road_toolbar() -> void:
 		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
-		_road_toolbar.create_menu.connect(
-			"regenerate_pressed", self, "_on_regenerate_pressed")
-		_road_toolbar.create_menu.connect(
-			"select_container_pressed", self, "_on_select_container_pressed")
+		_road_toolbar.create_menu.regenerate_pressed.connect(_on_regenerate_pressed)
+		_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
 
 		# Native nodes
-		_road_toolbar.create_menu.connect(
-			"create_container", self, "_create_container_pressed")
-		_road_toolbar.create_menu.connect(
-			"create_roadpoint", self, "_create_roadpoint_pressed")
-		_road_toolbar.create_menu.connect(
-			"create_lane", self, "_create_lane_pressed")
+		_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
+		_road_toolbar.create_menu.create_roadpoint.connect(_create_roadpoint_pressed)
+		_road_toolbar.create_menu.create_lane.connect(_create_lane_pressed)
 
 		# Specials / prefabs
-		_road_toolbar.create_menu.connect(
-			"create_2x2_road", self, "_create_2x2_road_pressed")
+		_road_toolbar.create_menu.create_2x2_road.connect(_create_2x2_road_pressed)
 
 
 func _hide_road_toolbar() -> void:
@@ -666,24 +660,18 @@ func _hide_road_toolbar() -> void:
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 
 		# Utilities
-		_road_toolbar.create_menu.disconnect(
-			"regenerate_pressed", self, "_on_regenerate_pressed")
-		_road_toolbar.create_menu.disconnect(
-			"select_container_pressed", self, "_on_select_container_pressed")
+		_road_toolbar.create_menu.regenerate_pressed.disconnect(_on_regenerate_pressed)
+		_road_toolbar.create_menu.select_container_pressed.disconnect(_on_select_container_pressed)
 
 		# Native nodes
-		_road_toolbar.create_menu.disconnect(
-			"create_container", self, "_create_container_pressed")
-		_road_toolbar.create_menu.disconnect(
-			"create_roadpoint", self, "_create_roadpoint_pressed")
-		_road_toolbar.create_menu.disconnect(
-			"create_lane", self, "_create_lane_pressed")
+		_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
+		_road_toolbar.create_menu.create_roadpoint.disconnect(_create_roadpoint_pressed)
+		_road_toolbar.create_menu.create_lane.disconnect(_create_lane_pressed)
 
 		# Specials / prefabs
-		_road_toolbar.create_menu.disconnect(
-			"create_2x2_road", self, "_create_2x2_road_pressed")
+		_road_toolbar.create_menu.create_2x2_road.disconnect(_create_2x2_road_pressed)
 
-func _on_regenerate_pressed():
+func _on_regenerate_pressed() -> void:
 	var nd = get_selected_node()
 	if nd is RoadManager:
 		for ch_container in nd.get_containers():

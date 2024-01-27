@@ -6,7 +6,7 @@ signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 
 var sel_road_point: RoadPoint
-var _edi: EditorInterface: set = set_edi
+var _edi: set = set_edi # EditorInterface, don't use as type: https://github.com/godotengine/godot/issues/85079
 @onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 @onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 @onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus

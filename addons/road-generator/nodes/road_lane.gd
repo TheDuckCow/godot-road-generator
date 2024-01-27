@@ -43,7 +43,8 @@ signal on_transform
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
-var geom # For tool usage, drawing lane directions and end points
+var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
+var geom_node: MeshInstance3D
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
@@ -125,7 +126,7 @@ func _instantiate_geom() -> void:
 
 	if not _display_fins:
 		if geom:
-			geom.clear()
+			geom.clear_surfaces()
 		return
 	if refresh_geom == false:
 		return
@@ -133,16 +134,22 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
+		# Branch check if geom_node is valid
 		geom = ImmediateMesh.new()
 		geom.set_name("geom")
-		add_child(geom)
+		if not is_instance_valid(geom_node):
+			geom_node = MeshInstance3D.new()
+			geom_node.mesh = geom
+			add_child(geom_node)
+		else:
+			geom_node.mesh = geom
 
 		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
-		geom.material_override = mat
+		geom_node.material_override = mat
 
 	_draw_shark_fins()
 
@@ -154,25 +161,25 @@ func _draw_shark_fins() -> void:
 	var tri_count = floor(curve_length / draw_dist)
 
 	var rev = -1 if reverse_direction else 1
-	geom.clear()
+	geom.clear_surfaces()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
 		var xf = Transform3D()
 
-		xf.origin = curve.interpolate_baked(f)
+		xf.origin = curve.sample_baked(f)
 		var lookat = (
-			curve.interpolate_baked(f + 0.1*rev) - xf.origin
+			curve.sample_baked(f + 0.1*rev) - xf.origin
 		).normalized()
 
-		geom.begin(Mesh.PRIMITIVE_TRIANGLES)
+		geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
-			geom.set_color(COLOR_START)
+			geom.surface_set_color(COLOR_START)
 		else:
-			geom.set_color(COLOR_PRIMARY)
-		geom.add_vertex(xf.origin)
-		geom.add_vertex(xf.origin + Vector3(0, 0.5, 0) - lookat*0.2)
-		geom.add_vertex(xf.origin + lookat * 1)
-		geom.end()
+			geom.surface_set_color(COLOR_PRIMARY)
+		geom.surface_add_vertex(xf.origin)
+		geom.surface_add_vertex(xf.origin + Vector3(0, 0.5, 0) - lookat*0.2)
+		geom.surface_add_vertex(xf.origin + lookat * 1)
+		geom.surface_end()
 
 
 func rebuild_geom() -> void:

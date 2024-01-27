@@ -39,7 +39,6 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 # TODO: In Godot 4.3ish, these should be @export_storage, hidden to users
 # https://github.com/godotengine/godot/pull/82122
 
-# In godot 4.1, becomes: @export var edge_containers: Array[NodePath]
 # Paths to other containers, relative to this container (self)
 @export var edge_containers: Array[NodePath]
 # Node paths within other containers, relative to the *target* container (not self here)
@@ -150,7 +149,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if _edge_error != "":
 		warnstr = "Refresh roads to clear invalid connections:\n%s" % _edge_error
 		return [warnstr]
-	return [""]
+	return []
 
 
 func _defer_refresh_on_change() -> void:
@@ -284,11 +283,11 @@ func update_edges():
 	#print("Debug: Updating container edges %s" % self.name)
 
 	# In gd 4, would require more formal typing like Array[NodePath]
-	var _tmp_containers:Array = []
-	var _tmp_rp_targets:Array = []
-	var _tmp_rp_target_dirs:Array = []
-	var _tmp_rp_locals:Array = []
-	var _tmp_rp_local_dirs:Array = []
+	var _tmp_containers:Array[NodePath] = []
+	var _tmp_rp_targets:Array[NodePath] = []
+	var _tmp_rp_target_dirs:Array[int] = []
+	var _tmp_rp_locals:Array[NodePath] = []
+	var _tmp_rp_local_dirs:Array[int] = []
 
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
@@ -328,19 +327,19 @@ func update_edges():
 				idx = _find_idx
 				break
 
-			if idx >= 0:
+			if idx >= 0 and len(edge_containers) >= idx:
 				_tmp_containers.append(edge_containers[idx])
 				_tmp_rp_targets.append(edge_rp_targets[idx])
 				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
 			else:
-				_tmp_containers.append("")
-				_tmp_rp_targets.append("")
+				_tmp_containers.append(^"")
+				_tmp_rp_targets.append(^"")
 				_tmp_rp_target_dirs.append(-1) # -1 to mean an unconnected index, since valid enums are 0+
 
 	# Finally, do a near-synchronous update of the export var references
-	edge_containers = _tmp_containers
-	edge_rp_targets = _tmp_rp_targets
-	edge_rp_target_dirs = _tmp_rp_target_dirs
+	edge_containers = _tmp_containers # TODO: for some reaosn, still none
+	edge_rp_targets = _tmp_rp_targets # TODO: for some reaosn, still none
+	edge_rp_target_dirs = _tmp_rp_target_dirs # But this is ok??
 	edge_rp_locals = _tmp_rp_locals
 	edge_rp_local_dirs = _tmp_rp_local_dirs
 
@@ -367,7 +366,7 @@ func validate_edges(autofix: bool = false) -> bool:
 		var target = null  # the presumed connected RP.
 
 		if this_dir == this_pt.PointInit.NEXT:
-			if this_pt.next_pt_init != "":
+			if this_pt.next_pt_init != ^"":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "next_pt_init should be empty for this edge's next pt")
@@ -375,7 +374,7 @@ func validate_edges(autofix: bool = false) -> bool:
 			else:
 				target = this_pt.get_next_rp()
 		elif this_dir == this_pt.PointInit.PRIOR:
-			if this_pt.prior_pt_init != "":
+			if this_pt.prior_pt_init != ^"":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "prior_pt_init should be empty for this edge's prior pt")
