@@ -10,23 +10,20 @@ func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
 
-func can_handle(object):
+func _can_handle(object):
 	# Only road points are supported.
 	return object is RoadPoint
 
 
 # Add controls to the beginning of the Inspector property list
-func parse_begin(object):
+func _parse_begin(object):
 	print("Did this edit?")
-	panel_instance = RoadPointPanel.instance()
+	panel_instance = RoadPointPanel.instantiate() # instead of instance?
 	panel_instance.call("set_edi", _edi)
 	panel_instance.call_deferred("update_selected_road_point", object)
 	add_custom_control(panel_instance)
-	panel_instance.connect(
-		"on_lane_change_pressed", self, "_handle_on_lane_change_pressed")
-	panel_instance.connect(
-		"on_add_connected_rp", self, "_handle_add_connected_rp")
-
+	panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
+	panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
 
 
 func set_edi(value):

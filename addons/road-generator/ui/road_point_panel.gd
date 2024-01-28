@@ -65,22 +65,22 @@ func update_road_point_panel():
 
 
 func add_lane_fwd_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 
 
 func add_lane_rev_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE)
 	update_road_point_panel()
 
 
 func rem_lane_fwd_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD)
 	update_road_point_panel()
 
 
 func rem_lane_rev_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE)
 	update_road_point_panel()
 
 
