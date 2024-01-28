@@ -505,9 +505,10 @@ func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
-
-	var space_state =  get_viewport().world.direct_space_state
-	var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1)
+	
+	var space_state = get_viewport().world_3d.direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
+	var intersect = space_state.intersect_ray(query)
 
 	if intersect.is_empty():
 		return null
@@ -566,13 +567,18 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
 
-	var space_state =  get_viewport().world.direct_space_state
+	#var space_state = get_viewport().world.direct_space_state
+	var space_state = get_viewport().world_3d.direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
 	# intersect_ray(from, to, exclude, collision_mask, collide_with_bodies, collide_with_areas)
 	# Unfortunately, must have collide with areas off. And this doesn't pick
 	# up collisions with objects that don't have collisions already added, making
 	# it not as convinient for viewport manipulation.
-	var intersect = space_state.intersect_ray(
-		src, src + nrm * dist, [], 1, true, false)
+	var intersect = space_state.intersect_ray(query)
+	# previously:  collide_with_bodies: bool = true, collide_with_areas: bool = false
+	#var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1, true, false)
 
 	if not intersect.is_empty():
 		return [intersect["position"], intersect["normal"]]
@@ -625,7 +631,7 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 	return [hit_pt, up]
 
 
-func handles(object: Object):
+func _handles(object: Object):
 	# Must return "true" in order to use "forward_spatial_gui_input".
 	return true
 

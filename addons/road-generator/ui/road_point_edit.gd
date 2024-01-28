@@ -30,7 +30,6 @@ func parse_begin(object):
 
 
 func set_edi(value):
-	#return # TODO, restore
 	_edi = value
 
 

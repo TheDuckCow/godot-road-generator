@@ -57,6 +57,9 @@ var _display_fins: bool = false
 # Setup and export setter/getters
 # ------------------------------------------------------------------------------
 
+func _init():
+	curve = Curve3D.new()
+
 
 func _ready():
 	set_notify_transform(true)
@@ -146,6 +149,10 @@ func _instantiate_geom() -> void:
 
 		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
+		mat.disable_ambient_light = true
+		mat.disable_receive_shadows = true
+		mat.no_depth_test = true
+		mat.disable_fog
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
