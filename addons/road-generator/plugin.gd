@@ -520,6 +520,10 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
 
+	#gd4
+	#var space_state = get_viewport().world_3d.direct_space_state
+	#var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
+	#var intersect = space_state.intersect_ray(query)
 	var space_state =  get_viewport().world.direct_space_state
 	var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1)
 
@@ -580,6 +584,12 @@ func get_click_point_with_context(camera: Camera, mouse_pos: Vector2, selection:
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
 
+	#gd4
+	#var space_state = get_viewport().world_3d.direct_space_state
+	#var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
+	#query.collide_with_areas = false
+	#query.collide_with_bodies = true
+	#var intersect = space_state.intersect_ray(query)
 	var space_state =  get_viewport().world.direct_space_state
 	# intersect_ray(from, to, exclude, collision_mask, collide_with_bodies, collide_with_areas)
 	# Unfortunately, must have collide with areas off. And this doesn't pick
@@ -638,7 +648,8 @@ func get_click_point_with_context(camera: Camera, mouse_pos: Vector2, selection:
 
 	return [hit_pt, up]
 
-
+#gd4
+#func _handles(object: Object):
 func handles(object: Object):
 	# Must return "true" in order to use "forward_spatial_gui_input".
 	return true

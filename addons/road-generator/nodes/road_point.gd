@@ -706,6 +706,8 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(next_pt_init)
+			#gd4
+			#self.next_pt_init = ^""
 			self.next_pt_init = ""
 			seg = self.next_seg
 		PointInit.PRIOR:
@@ -713,6 +715,8 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(prior_pt_init)
+			#gd4
+			#self.prior_pt_init = ^""
 			self.prior_pt_init = ""
 			seg = self.prior_seg
 
@@ -724,8 +728,12 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 
 	match target_direction:
 		PointInit.NEXT:
+			#gd4
+			#disconnect_from.next_pt_init = ^""
 			disconnect_from.next_pt_init = ""
 		PointInit.PRIOR:
+			#gd4
+			#disconnect_from.prior_pt_init = ^""
 			disconnect_from.prior_pt_init = ""
 	self._is_internal_updating = false
 	disconnect_from._is_internal_updating = false
@@ -899,13 +907,13 @@ func validate_junctions():
 	#if not prior_pt_init.is_empty():
 	if prior_pt_init and not prior_pt_init == "":
 		_tmp_ref = get_node(prior_pt_init)
-		if _tmp_ref.has_method("is_road_point"):
+		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
 	#gd4
 	#if not prior_pt_init.is_empty():
 	if next_pt_init and not next_pt_init == "":
 		_tmp_ref = get_node(next_pt_init)
-		if _tmp_ref.has_method("is_road_point"):
+		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			next_point = get_node(next_pt_init)
 
 	# Clear invalid junctions
@@ -1014,9 +1022,13 @@ func _autofix_noncyclic_references(
 		# so we can still read self.next_pt_init
 		var seg  # RoadSegment.
 		if for_prior:
+			#gd4
+			#point.next_pt_init = ^""
 			point.next_pt_init = ""
 			seg = self.prior_seg
 		else:
+			#gd4
+			#point.prior_pt_init = ^""
 			point.prior_pt_init = ""
 			seg = self.next_seg
 		container.remove_segment(seg)

@@ -1,6 +1,10 @@
 tool
 extends HBoxContainer
 
+#gd4
+# To make the toolbar class work with the new UI, need to go into the tscn
+# file and then for each of the _mode buttons, set the theme: type variation
+# to FlatButton which should be already available.
 
 signal mode_changed
 
