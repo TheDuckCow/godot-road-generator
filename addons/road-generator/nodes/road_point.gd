@@ -1,5 +1,7 @@
-## Definition for a single point handle, which 2+ road segments connect to.
 tool
+#gd4
+#@icon("res://addons/road-generator/resources/road_point.png")
+## Definition for a single point handle, which 2+ road segments connect to.
 class_name RoadPoint, "res://addons/road-generator/resources/road_point.png"
 extends Spatial
 
@@ -45,7 +47,17 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign the direction of traffic order. This i
+# Assign the direction of traffic order.
+#gd4
+#var _traffic_dir: Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]
+#@export var traffic_dir:Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]:
+#	get:
+#		return _traffic_dir
+#	set(value):
+#		_traffic_dir = value
+#		_notify_network_on_set(value)
 export(Array, LaneDir) var traffic_dir:Array setget _set_dir, _get_dir
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
@@ -139,12 +151,18 @@ func _to_string():
 	return "RoadPoint %s (id:%s)" % [self.name,  self.get_instance_id()]
 
 
+#gd4
+#func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
 	#if not par is RoadContainer:
 	if not par.has_method("is_road_container"):
+		#gd4
+		#return ["Must be a child of a RoadContainer"]
 		return "Must be a child of a RoadContainer"
+	#gd4
+	#return []
 	return ""
 
 
@@ -162,7 +180,7 @@ func _set_lanes(values):
 	lanes = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_lanes():
 	return lanes
 
@@ -171,7 +189,7 @@ func _set_auto_lanes(value):
 	auto_lanes = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_auto_lanes():
 	return auto_lanes
 
@@ -180,7 +198,7 @@ func _set_dir(values):
 	traffic_dir = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_dir():
 	return traffic_dir
 
@@ -189,7 +207,7 @@ func _set_lane_width(value):
 	lane_width = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_lane_width():
 	return lane_width
 
@@ -198,7 +216,7 @@ func _set_shoulder_width_l(value):
 	shoulder_width_l = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_shoulder_width_l():
 	return shoulder_width_l
 
@@ -207,7 +225,7 @@ func _set_shoulder_width_r(value):
 	shoulder_width_r = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 func _get_shoulder_width_r():
 	return shoulder_width_r
 
@@ -216,7 +234,7 @@ func _set_profile(value:Vector2):
 	gutter_profile = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 
 
 func _get_profile():
@@ -234,7 +252,7 @@ func _set_prior_pt_init(value:NodePath):
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, true)
 
-	on_transform()
+	emit_transform()
 
 
 func _get_prior_pt_init():
@@ -252,7 +270,7 @@ func _set_next_pt_init(value:NodePath):
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, false)
 
-	on_transform()
+	emit_transform()
 
 
 func _get_next_pt_init():
@@ -286,7 +304,7 @@ func _set_create_geo(value: bool) -> void:
 		if ch.has_method("is_road_segment"):
 			ch.do_roadmesh_creation()
 	if value == true:
-		on_transform()
+		emit_transform()
 
 
 # ------------------------------------------------------------------------------
@@ -298,15 +316,19 @@ func _notification(what):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		var low_poly = Input.is_mouse_button_pressed(BUTTON_LEFT) and Engine.is_editor_hint()
-		on_transform(low_poly)
+		emit_transform(low_poly)
 
 
-func on_transform(low_poly=false):
+func emit_transform(low_poly=false):
 	if _is_internal_updating:
-		# Special internal update should bypass on_transform, such as moving two edges in parallel
+		# Special internal update should bypass emit_transform, such as moving two edges in parallel
 		return
 	if auto_lanes:
 		assign_lanes()
+	#gd4
+	#var _gizmo:Node3DGizmo = get_gizmos()[0]
+	#if is_instance_valid(_gizmo):
+	#	_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
@@ -333,6 +355,8 @@ func is_prior_connected() -> bool:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
 			continue
+		#gd4
+		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	push_warning("RP should have been present in container edge list")
 	return false
@@ -348,6 +372,8 @@ func is_next_connected() -> bool:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
 			continue
+		#gd4
+		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	push_warning("RP should have been present in container edge list")
 	return false
@@ -519,7 +545,7 @@ func update_traffic_dir(traffic_update):
 
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
-	on_transform()
+	emit_transform()
 
 
 ## Takes an existing RoadPoint and returns a new copy
@@ -662,7 +688,7 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	target_rp._is_internal_updating = false
 
 	container.update_edges()
-	on_transform()
+	emit_transform()
 	return true
 
 
@@ -682,6 +708,8 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(next_pt_init)
+			#gd4
+			#self.next_pt_init = ^""
 			self.next_pt_init = ""
 			seg = self.next_seg
 		PointInit.PRIOR:
@@ -689,6 +717,8 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(prior_pt_init)
+			#gd4
+			#self.prior_pt_init = ^""
 			self.prior_pt_init = ""
 			seg = self.prior_seg
 
@@ -700,8 +730,12 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 
 	match target_direction:
 		PointInit.NEXT:
+			#gd4
+			#disconnect_from.next_pt_init = ^""
 			disconnect_from.next_pt_init = ""
 		PointInit.PRIOR:
+			#gd4
+			#disconnect_from.prior_pt_init = ^""
 			disconnect_from.prior_pt_init = ""
 	self._is_internal_updating = false
 	disconnect_from._is_internal_updating = false
@@ -780,8 +814,8 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 		push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
-	on_transform() # Only changes that should happen: Update connections of AI lanes.
-	target_rp.on_transform()
+	emit_transform() # Only changes that should happen: Update connections of AI lanes.
+	target_rp.emit_transform()
 	return true
 
 
@@ -825,6 +859,9 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 				break
 
 	# Update this container pointing to target rp
+	#gd4
+	#container.edge_containers[this_idx] = ^""
+	#container.edge_rp_targets[this_idx] = ^""
 	container.edge_containers[this_idx] = ""
 	container.edge_rp_targets[this_idx] = ""
 	container.edge_rp_target_dirs[this_idx] = -1
@@ -836,13 +873,16 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 		push_error("Target RoadContainer did not indicate being connected to this RoadPoint/container")
 		return false
 	else:
+		#gd4
+		#target_ct.edge_containers[target_idx] = ^""
+		#target_ct.edge_rp_targets[target_idx] = ^""
 		target_ct.edge_containers[target_idx] = ""
 		target_ct.edge_rp_targets[target_idx] = ""
 		target_ct.edge_rp_target_dirs[target_idx] = -1
 		if target_pt and is_instance_valid(target_pt):
-			target_pt.on_transform()
+			target_pt.emit_transform()
 
-	on_transform() # Only changes that should happen: Update connections of AI lanes.
+	emit_transform() # Only changes that should happen: Update connections of AI lanes.
 	return true
 
 
@@ -865,21 +905,29 @@ func validate_junctions():
 
 	# Get valid Prior and Next RoadPoints for THIS RoadPoint
 	var _tmp_ref
+	#gd4
+	#if not prior_pt_init.is_empty():
 	if prior_pt_init and not prior_pt_init == "":
 		_tmp_ref = get_node(prior_pt_init)
-		if _tmp_ref.has_method("is_road_point"):
+		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
+	#gd4
+	#if not prior_pt_init.is_empty():
 	if next_pt_init and not next_pt_init == "":
 		_tmp_ref = get_node(next_pt_init)
-		if _tmp_ref.has_method("is_road_point"):
+		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			next_point = get_node(next_pt_init)
 
 	# Clear invalid junctions
 	if is_instance_valid(prior_point):
 		if not _is_junction_valid(prior_point):
+			#gd4
+			#prior_pt_init = ^""
 			prior_pt_init = null
 	if is_instance_valid(next_point):
 		if not _is_junction_valid(next_point):
+			#gd4
+			#next_pt_init = ^""
 			next_pt_init = null
 
 
@@ -892,8 +940,12 @@ func _is_junction_valid(point: RoadPoint)->bool:
 	var next_point: RoadPoint
 
 	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
+	#gd4
+	#if not point.prior_pt_init.is_empty():
 	if point.prior_pt_init and not point.prior_pt_init == "":
 		prior_point = get_node(point.prior_pt_init)
+	#gd4
+	#if not point.next_pt_init.is_empty():
 	if point.next_pt_init and not point.next_pt_init == "":
 		next_point = get_node(point.next_pt_init)
 
@@ -932,11 +984,15 @@ func _autofix_noncyclic_references(
 	#var which_init = "prior_pt_init" if for_prior else "next_pt_init"
 	#print("autofix %s.%s: %s -> %s" % [self.name, which_init, old_point_path, new_point_path])
 
+	#gd4
+	#if old_point_path.is_empty() and new_point_path.is_empty():
 	if old_point_path == "" and new_point_path == "":
 		return
 	elif old_point_path == new_point_path:
 		return
 
+	#gd4
+	#if not new_point_path.is_empty():
 	if new_point_path != "":
 		# Use the just recently set value.
 		is_clearing = false
@@ -968,17 +1024,24 @@ func _autofix_noncyclic_references(
 		# so we can still read self.next_pt_init
 		var seg  # RoadSegment.
 		if for_prior:
+			#gd4
+			#point.next_pt_init = ^""
 			point.next_pt_init = ""
 			seg = self.prior_seg
 		else:
+			#gd4
+			#point.prior_pt_init = ^""
 			point.prior_pt_init = ""
 			seg = self.next_seg
 		container.remove_segment(seg)
-
+	#gd4
+	#elif for_prior and not point.next_pt_init.is_empty():
 	elif for_prior and point.next_pt_init == "":
 		# self's prior RP is `point`, so make point's next RP be self if slot was empty
 		point.next_pt_init = point.get_path_to(self)
 		#print_debug(point.get_path_to(self), " -> ", point.next_pt_init)
+	#gd4
+	#elif not for_prior and point.prior_pt_init.is_empty():
 	elif not for_prior and point.prior_pt_init == "":
 		# Flipped scenario
 		point.prior_pt_init = point.get_path_to(self)

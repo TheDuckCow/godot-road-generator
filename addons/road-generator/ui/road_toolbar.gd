@@ -1,6 +1,10 @@
 tool
 extends HBoxContainer
 
+#gd4
+# To make the toolbar class work with the new UI, need to go into the tscn
+# file and then for each of the _mode buttons, set the theme: type variation
+# to FlatButton which should be already available.
 
 signal mode_changed
 
@@ -52,9 +56,12 @@ func on_show(_selected_nodes: Array):
 
 func update_icons():
 	update_refs()
-	var icn_curve_edit = gui.get_icon("CurveEdit", "EditorIcons")  # File icon_curve_edit.svg
-	var icn_curve_create = gui.get_icon("CurveCreate", "EditorIcons")  # File icon_curve_create.svg
-	var icn_curve_delete = gui.get_icon("CurveDelete", "EditorIcons")  # File icon_curve_close.svg
+	#gd4
+	#var theme = EditorInterface.get_editor_theme()
+	var theme = gui
+	var icn_curve_edit = theme.get_icon("CurveEdit", "EditorIcons")  # File icon_curve_edit.svg
+	var icn_curve_create = theme.get_icon("CurveCreate", "EditorIcons")  # File icon_curve_create.svg
+	var icn_curve_delete = theme.get_icon("CurveDelete", "EditorIcons")  # File icon_curve_close.svg
 
 	select_mode.icon = icn_curve_edit
 	add_mode.icon = icn_curve_create

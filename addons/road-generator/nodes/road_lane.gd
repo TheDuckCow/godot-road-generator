@@ -1,10 +1,11 @@
-# Class for defining a directional or bidirectional lane.
-#
-# Could, but does not have to be, parented to a RoadSegment class object.
-
-tool # Draw in the editor things like path direction and width
-extends Path
+tool
+#gd4
+#@icon("res://addons/road-generator/resources/road_lane.png")
+## Class for defining a directional or bidirectional lane.
+##
+## Could, but does not have to be, parented to a RoadSegment class object.
 class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
+extends Path
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
@@ -43,7 +44,7 @@ export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
-var geom # For tool usage, drawing lane directions and end points
+var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
@@ -55,6 +56,12 @@ var _display_fins: bool = false
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
 # ------------------------------------------------------------------------------
+
+
+func _init():
+	#gd4
+	#curve = Curve3D.new()
+	pass
 
 
 func _ready():
@@ -122,6 +129,8 @@ func _instantiate_geom() -> void:
 
 	if not _display_fins:
 		if geom:
+			#gd4
+			#geom.clear_surfaces()
 			geom.clear()
 		return
 	if refresh_geom == false:
@@ -130,12 +139,22 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
+		#gd4
+		#var geom_mesh = ImmediateMesh.new()
+		#geom_mesh.set_name("geom")
+		#geom = MeshInstance3D.new()
+		#geom.mesh = geom_mesh
+		#add_child(geom)
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)
 
 		var mat = SpatialMaterial.new()
 		mat.flags_unshaded = true
+		mat.flags_disable_ambient_light = true
+		mat.params_depth_draw_mode = SpatialMaterial.DEPTH_DRAW_DISABLED
+		mat.flags_do_not_receive_shadows = true
+		mat.flags_no_depth_test = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
@@ -151,16 +170,22 @@ func _draw_shark_fins() -> void:
 	var tri_count = floor(curve_length / draw_dist)
 
 	var rev = -1 if reverse_direction else 1
+	#gd4
+	#geom.clear_surfaces()
 	geom.clear()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
 		var xf = Transform()
 
+		#gd4
+		# interpolate_baked -> sample_baked
 		xf.origin = curve.interpolate_baked(f)
 		var lookat = (
 			curve.interpolate_baked(f + 0.1*rev) - xf.origin
 		).normalized()
 
+		#gd4
+		# Basically prefix all geom.x() with geom.surface_x() below
 		geom.begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
 			geom.set_color(COLOR_START)

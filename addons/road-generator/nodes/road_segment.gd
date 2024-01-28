@@ -12,7 +12,6 @@ extends Spatial
 
 const LOWPOLY_FACTOR = 3.0
 
-signal check_rebuild(road_segment)
 signal seg_ready(road_segment)
 
 export(NodePath) var start_init setget _init_start_set, _init_start_get
@@ -61,12 +60,6 @@ func _ready():
 		road_mesh.owner = container.owner
 
 	do_roadmesh_creation()
-
-	var res = connect("check_rebuild", container, "segment_rebuild")
-	assert(res == OK)
-	#emit_signal("seg_ready", self)
-	#is_dirty = true
-	#emit_signal("check_rebuild", self)
 
 
 # Workaround for cyclic typing
@@ -145,7 +138,6 @@ func _init_start_set(value):
 	is_dirty = true
 	if not is_instance_valid(container):
 		return
-	#emit_signal("check_rebuild", self)
 func _init_start_get():
 	return start_init
 
@@ -155,7 +147,6 @@ func _init_end_set(value):
 	is_dirty = true
 	if not is_instance_valid(container):
 		return
-	#emit_signal("check_rebuild", self)
 func _init_end_get():
 	return end_init
 
@@ -532,9 +523,11 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
-	var pt1 := curve.interpolate_baked(start_offset * curve.get_baked_length())
-	var pt2 := curve.interpolate_baked(end_offset * curve.get_baked_length())
-	var tangent_l = pt2 - pt1
+	#gd4
+	# interpolate_baked -> sample_baked
+	var pt1:Vector3 = curve.interpolate_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.interpolate_baked(end_offset * curve.get_baked_length())
+	var tangent_l:Vector3 = pt2 - pt1
 
 	# Using local transforms. Both are transforms relative to the parent RoadContainer,
 	# and the current mesh we are writing to already has the inverse of the start_point
@@ -638,8 +631,12 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
+	#gd4
+	#start_loop = curve.sample_baked(offset_s * clength)
 	start_loop = curve.interpolate_baked(offset_s * clength)
 	start_basis = _normal_for_offset(curve, offset_s)
+	#gd4
+	#end_loop = curve.sample_baked(offset_e * clength)
 	end_loop = curve.interpolate_baked(offset_e * clength)
 	end_basis = _normal_for_offset(curve, offset_e)
 
@@ -649,11 +646,11 @@ func _insert_geo_loop(
 
 	# Calculate lane widths
 	var near_width = lerp(start_point.lane_width, end_point.lane_width, offset_s_ease)
-	var near_add_width = lerp(0, end_point.lane_width, offset_s_ease)
-	var near_rem_width = lerp(start_point.lane_width, 0, offset_s_ease)
+	var near_add_width = lerp(0.0, end_point.lane_width, offset_s_ease)
+	var near_rem_width = lerp(start_point.lane_width, 0.0, offset_s_ease)
 	var far_width = lerp(start_point.lane_width, end_point.lane_width, offset_e_ease)
-	var far_add_width = lerp(0, end_point.lane_width, offset_e_ease)
-	var far_rem_width = lerp(start_point.lane_width, 0, offset_e_ease)
+	var far_add_width = lerp(0.0, end_point.lane_width, offset_e_ease)
+	var far_rem_width = lerp(start_point.lane_width, 0.0, offset_e_ease)
 
 	# Sum the lane widths and get position of left edge
 	var near_width_offset
@@ -876,8 +873,10 @@ func _insert_geo_loop(
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st, uvs:Array, pts:Array) -> void:
+static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
+	#gd4
+	#st.set_uv(uvs[0]) # here and below
 	st.add_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])

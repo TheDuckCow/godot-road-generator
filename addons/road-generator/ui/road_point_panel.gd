@@ -5,8 +5,10 @@ extends VBoxContainer
 signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 
+# EditorInterface, don't use as type:
+# https://github.com/godotengine/godot/issues/85079
+var _edi setget set_edi
 var sel_road_point: RoadPoint
-var _edi: EditorInterface setget set_edi
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
@@ -65,6 +67,9 @@ func update_road_point_panel():
 
 
 func add_lane_fwd_pressed():
+	#gd4
+	# Here and below, change to:
+	#on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 
