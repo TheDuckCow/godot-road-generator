@@ -67,6 +67,9 @@ func update_road_point_panel():
 
 
 func add_lane_fwd_pressed():
+	#gd4
+	# Here and below, change to:
+	#on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	update_road_point_panel()
 

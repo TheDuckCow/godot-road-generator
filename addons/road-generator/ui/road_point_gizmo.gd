@@ -97,10 +97,14 @@ func setup_lane_widgets():
 	_editor_plugin.add_child(lane_widget)
 
 
+#gd4
+#func _has_gizmo(spatial) -> bool:
 func has_gizmo(spatial) -> bool:
 	return spatial is RoadPoint
 
 
+#gd4
+#func _redraw(gizmo) -> void:
 func redraw(gizmo) -> void:
 	gizmo.clear()
 	var point = gizmo.get_spatial_node() as RoadPoint
@@ -129,6 +133,8 @@ func redraw(gizmo) -> void:
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
 
 	gizmo.add_collision_triangles(collider_tri_mesh)
+	#gd4
+	#gizmo.add_mesh(collider, get_material("collider", gizmo))
 	gizmo.add_mesh(collider, false, null, get_material("collider", gizmo))
 	if not point.is_road_point_selected(_editor_selection):
 		return
@@ -137,6 +143,8 @@ func redraw(gizmo) -> void:
 	var handles = PoolVector3Array()
 	handles.push_back(Vector3(0, 0, -point.prior_mag))
 	handles.push_back(Vector3(0, 0, point.next_mag))
+	#gd4
+	#gizmo.add_handles(handles, get_material("handles", gizmo), [], false, false)
 	gizmo.add_handles(handles, get_material("handles", gizmo))
 
 	# Add width handles
@@ -153,6 +161,8 @@ func redraw(gizmo) -> void:
 	var fwd_width_mag = point.fwd_width_mag
 	width_handles.push_back(Vector3(rev_width_mag, 0, 0))
 	width_handles.push_back(Vector3(fwd_width_mag, 0, 0))
+	#gd4
+	#gizmo.add_handles(width_handles, get_material("blue_handles"), [], false, false)
 	gizmo.add_handles(width_handles, get_material("blue_handles", gizmo))
 
 	# Add lane widget
@@ -235,7 +245,18 @@ func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 
 
 ## Function called when user drags the roadpoint handles.
-func set_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
+#gd4
+#func _set_handle(
+#		gizmo: EditorNode3DGizmo,
+#		handle_id: int,
+#		secondary: bool,
+#		camera: Camera3D,
+#		screen_pos: Vector2) -> void:
+func set_handle(
+		gizmo: EditorSpatialGizmo,
+		index: int,
+		camera: Camera,
+		point: Vector2) -> void:
 	match index:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 			#set_mag_handle(gizmo, index, camera, point)
@@ -276,6 +297,8 @@ func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point
 		roadpoint.prior_mag = -new_mag
 	else:
 		roadpoint.next_mag = new_mag
+	#gd4
+	#_redraw(gizmo)
 	redraw(gizmo)
 
 
@@ -318,6 +341,8 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 				roadpoint.rev_width_mag = new_mag
 			HandleType.FWD_WIDTH_MAG:
 				roadpoint.fwd_width_mag = new_mag
+		#gd4
+		#_redraw(gizmo)
 		redraw(gizmo)
 
 
@@ -468,6 +493,8 @@ func refresh_gizmo(gizmo: EditorSpatialGizmo):
 	point.rev_width_mag = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
 	point.fwd_width_mag = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
 	lane_widget.visible = false
+	#gd4
+	#_redraw(gizmo)
 	redraw(gizmo)
 
 
