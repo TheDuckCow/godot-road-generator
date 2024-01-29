@@ -506,11 +506,20 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 
 
 func rebuild_segments(clear_existing=false):
+	if not is_inside_tree():
+		# This most commonly happens in the editor on project restart, where
+		# each opened scene tab is quickly loaded and then apparently unloaded,
+		# so tab one last saved as not active will defer call rebuild, and by
+		# the time rebuild_segments occurs, it has already been disable.
+		# With this early return, we avoid all the issues of this nature:
+		# Cannot get path of node as it is not in a scene tree.
+		# scene/3d/spatial.cpp:407 - Condition "!is_inside_tree()" is true. Returned: Transform()
+		return
 	update_edges()
 	validate_edges(clear_existing)
 	_needs_refresh = false
 	if debug:
-		print("Rebuilding RoadSegments")
+		print("Rebuilding RoadSegments %s" % self.name)
 
 	if clear_existing:
 		segid_map = {}
