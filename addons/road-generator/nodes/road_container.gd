@@ -99,10 +99,6 @@ func _ready():
 	# setup_road_container won't work in _ready unless call_deferred is used
 	call_deferred("setup_road_container")
 
-	# Per below, this is technicaly redundant/not really doing anything.
-	_dirty = true
-	call_deferred("_dirty_rebuild_deferred")
-
 	# If we call this now, it will end up generating roads twice.
 	#rebuild_segments(true)
 	# This is due, evidently, to godot loading the scene in such a way where
@@ -115,6 +111,10 @@ func _ready():
 	get_manager()
 	update_edges()
 	validate_edges()
+
+	# Per below, this is technicaly redundant/not really doing anything.
+	_dirty = true
+	call_deferred("_dirty_rebuild_deferred")
 
 
 # Workaround for cyclic typing
@@ -393,8 +393,8 @@ func validate_edges(autofix: bool = false) -> bool:
 		var this_pt_path = edge_rp_locals[_idx]
 
 		# Pre-check, ensure local node paths are good.
-		var this_pt = get_node(this_pt_path)
-		if not is_instance_valid(this_pt):
+		var this_pt = get_node_or_null(this_pt_path)
+		if this_pt == null or not is_instance_valid(this_pt):
 			is_valid = false
 			_invalidate_edge(_idx, autofix, "edge_rp_local node reference is invalid")
 			continue
@@ -540,11 +540,11 @@ func rebuild_segments(clear_existing=false):
 		var prior_pt
 		var next_pt
 		if pt.prior_pt_init:
-			prior_pt = pt.get_node(pt.prior_pt_init)
+			prior_pt = pt.get_node_or_null(pt.prior_pt_init)
 			if not is_instance_valid(prior_pt) or not prior_pt.has_method("is_road_point"):
 				prior_pt = null
 		if pt.next_pt_init:
-			next_pt = pt.get_node(pt.next_pt_init)
+			next_pt = pt.get_node_or_null(pt.next_pt_init)
 			if not is_instance_valid(next_pt) or not next_pt.has_method("is_road_point"):
 				next_pt = null
 
@@ -632,10 +632,6 @@ func snap_and_update(rp_a: Node, rp_b: Node) -> void:
 ## Create a new road segment based on input prior and next RoadPoints.
 ## Returns Array[was_updated: bool, RoadSegment]
 func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
-	# TODO: The id setup below will have issues if a "next" goes into "prior", ie rev dir
-	# but doing this for simplicity now.
-
-	#var sid = "%s-%s" % [pt1.get_instance_id(), pt2.get_instance_id()]
 	var sid = RoadSegment.get_id_for_points(pt1, pt2)
 	if sid in segid_map and is_instance_valid(segid_map[sid]):
 		var was_rebuilt = segid_map[sid].check_rebuild()
