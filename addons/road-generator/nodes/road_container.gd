@@ -390,7 +390,7 @@ func validate_edges(autofix: bool = false) -> bool:
 
 		# Pre-check, ensure local node paths are good.
 		var this_pt = get_node_or_null(this_pt_path)
-		if this_pt == null or not is_instance_valid(this_pt):
+		if  not is_instance_valid(this_pt):
 			is_valid = false
 			_invalidate_edge(_idx, autofix, "edge_rp_local node reference is invalid")
 			continue
