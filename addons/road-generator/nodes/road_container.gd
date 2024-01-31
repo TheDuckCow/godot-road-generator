@@ -112,10 +112,6 @@ func _ready():
 	update_edges()
 	validate_edges()
 
-	# Per below, this is technicaly redundant/not really doing anything.
-	_dirty = true
-	call_deferred("_dirty_rebuild_deferred")
-
 
 # Workaround for cyclic typing
 func is_road_container() -> bool:
