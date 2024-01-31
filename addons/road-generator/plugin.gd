@@ -39,6 +39,9 @@ var _press_init_pos: Vector2
 
 var _new_selection: Node # RoadPoint or RoadContainer
 
+var _edi_debug := false
+
+
 func _enter_tree():
 	add_spatial_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
@@ -550,8 +553,11 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 			return nearest_point
 
 
+## Get the nearest edge RoadPoint for the given container
 func get_nearest_edge_road_point(container: RoadContainer, camera: Camera, mouse_pos: Vector2):
-	# get the nearest edge RoadPoint for the given container
+	if _edi_debug:
+		print_debug("get_nearest_edge_road_point")
+
 	var closest_rp:RoadPoint
 	var closest_dist: float
 	for pth in container.edge_rp_locals:
