@@ -288,12 +288,12 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# in and out at the edges.
 		new_ln.curve.add_point(
 			new_ln.to_local(in_pos),
-			curve.get_point_in(0),
-			curve.get_point_out(0))
+			new_ln.to_local(to_global(curve.get_point_in(0))),
+			new_ln.to_local(to_global(curve.get_point_out(0))))
 		new_ln.curve.add_point(
 			new_ln.to_local(out_pos),
-			curve.get_point_in(1),
-			curve.get_point_out(1))
+			new_ln.to_local(to_global(curve.get_point_in(1))),
+			new_ln.to_local(to_global(curve.get_point_out(1))))
 
 		# Visually display.
 		new_ln.draw_in_editor = container.draw_lanes_editor
