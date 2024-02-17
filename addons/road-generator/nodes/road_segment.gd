@@ -286,14 +286,15 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.
-		new_ln.curve.add_point(
-			new_ln.to_local(in_pos),
-			new_ln.to_local(to_global(curve.get_point_in(0))),
-			new_ln.to_local(to_global(curve.get_point_out(0))))
-		new_ln.curve.add_point(
-			new_ln.to_local(out_pos),
-			new_ln.to_local(to_global(curve.get_point_in(1))),
-			new_ln.to_local(to_global(curve.get_point_out(1))))
+#		new_ln.curve.add_point(
+#			new_ln.to_local(in_pos),
+#			new_ln.to_local(to_global(curve.get_point_in(0))),
+#			new_ln.to_local(to_global(curve.get_point_out(0))))
+#		new_ln.curve.add_point(
+#			new_ln.to_local(out_pos),
+#			new_ln.to_local(to_global(curve.get_point_in(1))),
+#			new_ln.to_local(to_global(curve.get_point_out(1))))
+		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point)
 
 		# Visually display.
 		new_ln.draw_in_editor = container.draw_lanes_editor
@@ -319,6 +320,81 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		last_ln = new_ln # For the next loop iteration.
 
 	return any_generated
+
+
+## Prints a curve's points in local coordinates. If a parent object
+## is supplied, then it is used to generate global coordinates.
+#  Accepts optional text that serves as a prefix to the printout.
+#  Input curve is expected to have 2 points and 2 handles.
+func print_curve(curve: Curve3D, prefix: String="", parent=null):
+	# Get point positions in local coordinates
+	var p0 = curve.get_point_position(0)
+	var p0_in = curve.get_point_in(0)
+	var p0_out = curve.get_point_out(0)
+	var p1 = curve.get_point_position(1)
+	var p1_in = curve.get_point_in(1)
+	var p1_out = curve.get_point_out(1)
+	# Get point positions in global coordinates
+	if (not parent == null) and is_instance_valid(parent):
+		p0 = parent.to_global(p0)
+		p0_in = parent.to_global(p0_in)
+		p0_out = parent.to_global(p0_out)
+		p1 = parent.to_global(p1)
+		p1_in = parent.to_global(p1_in)
+		p1_out = parent.to_global(p1_out)
+	print("%sp0 %s, p0_out %s, p1 %s, p1_in %s" % [prefix, p0, p0_out, p1, p1_in])
+
+
+## Offsets a destination curve from a source curve by a specified distance.
+#  Evaluates 4 points on source curve: Point 0 and 1 positions as well as
+#  point-0-out and point-1-in handles. Requires transforms for point 0
+#  and point 1, which determine the direction of the handles. Calculates best
+#  fit position for destination curve given the supplied curves, transforms,
+#  and distance.
+func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, rp0: Spatial, rp1: Spatial):
+	var src = road_seg.curve
+	var dst = road_lane.curve
+	var a_basis_x = -rp0.global_transform.basis.x
+	var a_basis_y = rp0.global_transform.basis.y
+	var a_basis_z = rp0.global_transform.basis.z
+	var d_basis_x = rp1.global_transform.basis.x
+	var d_basis_y = rp1.global_transform.basis.y
+	var d_basis_z = rp1.global_transform.basis.z
+
+	# Get initial point locations
+	var pt_a = to_global(src.get_point_position(0))
+	var pt_b = to_global(src.get_point_position(0) + src.get_point_out(0))
+	var pt_c = to_global(src.get_point_position(1) + src.get_point_in(1))
+	var pt_d = to_global(src.get_point_position(1))
+
+	# TTD: Project point(s) onto plane(s)
+
+	# Project primary curve points to secondary curve points
+	var pt_e = pt_a - (a_basis_x * in_offset)
+	var pt_i = pt_b - (a_basis_x * in_offset)
+	var pt_h = pt_d + (d_basis_x * out_offset)
+	var pt_j = pt_c + (d_basis_x * out_offset)
+
+	# Get vectors from points
+	var vec_ab = pt_b - pt_a
+	var vec_bc = pt_c - pt_b
+	var vec_cd = pt_d - pt_c
+
+	# Calculate secondary curve handles and setup curves
+	var angle_q = -vec_ab.signed_angle_to(vec_bc, a_basis_y) * 0.5
+	var angle_s = vec_cd.signed_angle_to(vec_bc, d_basis_y) * 0.5
+	var offset_q = tan(angle_q) * in_offset
+	var offset_s = tan(angle_s) * out_offset
+	var pt_f = a_basis_z * (vec_ab.length() + offset_q)
+	var pt_g = -d_basis_z * (vec_cd.length() + offset_s)
+	dst.add_point(
+		road_lane.to_local(pt_e),
+		road_lane.to_local(to_global(src.get_point_in(0))),
+		road_lane.to_local(to_global(pt_f)))
+	dst.add_point(
+		road_lane.to_local(pt_h),
+		road_lane.to_local(to_global(pt_g)),
+		road_lane.to_local(to_global(src.get_point_out(1))))
 
 
 ## Offset the curve in/out points based on lane index.
