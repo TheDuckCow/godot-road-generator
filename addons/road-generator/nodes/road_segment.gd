@@ -262,10 +262,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
 
-		# Now decide where the two poitns should go, and their magnitudes.
-		var in_pos: Vector3 = start_point.global_transform.origin
-		var out_pos: Vector3 = end_point.global_transform.origin
-
 		var tmp = get_transition_offset(
 			ln_type, ln_dir, lane_shift, end_is_wider, max_rev_shift)
 		var start_shift:float = tmp[0]
@@ -273,9 +269,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
 		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
-
-		in_pos += start_point.global_transform.basis.x * in_offset * _start_flip_mult
-		out_pos += end_point.global_transform.basis.x * out_offset * _end_flip_mult
 
 		# Set direction
 		# TODO: When directionality is made consistent, we should no longer
@@ -286,14 +279,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.
-#		new_ln.curve.add_point(
-#			new_ln.to_local(in_pos),
-#			new_ln.to_local(to_global(curve.get_point_in(0))),
-#			new_ln.to_local(to_global(curve.get_point_out(0))))
-#		new_ln.curve.add_point(
-#			new_ln.to_local(out_pos),
-#			new_ln.to_local(to_global(curve.get_point_in(1))),
-#			new_ln.to_local(to_global(curve.get_point_out(1))))
 		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point)
 
 		# Visually display.
@@ -322,29 +307,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	return any_generated
 
 
-## Prints a curve's points in local coordinates. If a parent object
-## is supplied, then it is used to generate global coordinates.
-#  Accepts optional text that serves as a prefix to the printout.
-#  Input curve is expected to have 2 points and 2 handles.
-func print_curve(curve: Curve3D, prefix: String="", parent=null):
-	# Get point positions in local coordinates
-	var p0 = curve.get_point_position(0)
-	var p0_in = curve.get_point_in(0)
-	var p0_out = curve.get_point_out(0)
-	var p1 = curve.get_point_position(1)
-	var p1_in = curve.get_point_in(1)
-	var p1_out = curve.get_point_out(1)
-	# Get point positions in global coordinates
-	if (not parent == null) and is_instance_valid(parent):
-		p0 = parent.to_global(p0)
-		p0_in = parent.to_global(p0_in)
-		p0_out = parent.to_global(p0_out)
-		p1 = parent.to_global(p1)
-		p1_in = parent.to_global(p1_in)
-		p1_out = parent.to_global(p1_out)
-	print("%sp0 %s, p0_out %s, p1 %s, p1_in %s" % [prefix, p0, p0_out, p1, p1_in])
-
-
 ## Offsets a destination curve from a source curve by a specified distance.
 #  Evaluates 4 points on source curve: Point 0 and 1 positions as well as
 #  point-0-out and point-1-in handles. Requires transforms for point 0
@@ -352,14 +314,13 @@ func print_curve(curve: Curve3D, prefix: String="", parent=null):
 #  fit position for destination curve given the supplied curves, transforms,
 #  and distance.
 func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, rp0: Spatial, rp1: Spatial):
+
 	var src = road_seg.curve
 	var dst = road_lane.curve
-	var a_basis_x = -rp0.global_transform.basis.x
-	var a_basis_y = rp0.global_transform.basis.y
-	var a_basis_z = rp0.global_transform.basis.z
-	var d_basis_x = rp1.global_transform.basis.x
-	var d_basis_y = rp1.global_transform.basis.y
-	var d_basis_z = rp1.global_transform.basis.z
+	var a_gbasis = rp0.global_transform.basis
+	var d_gbasis = rp1.global_transform.basis
+	var in_pos = start_point.global_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
+	var out_pos = end_point.global_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
 
 	# Get initial point locations
 	var pt_a = to_global(src.get_point_position(0))
@@ -370,10 +331,10 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 	# TTD: Project point(s) onto plane(s)
 
 	# Project primary curve points to secondary curve points
-	var pt_e = pt_a - (a_basis_x * in_offset)
-	var pt_i = pt_b - (a_basis_x * in_offset)
-	var pt_h = pt_d + (d_basis_x * out_offset)
-	var pt_j = pt_c + (d_basis_x * out_offset)
+	var pt_e = pt_a + (a_gbasis.x * in_offset)
+	var pt_i = pt_b + (a_gbasis.x * in_offset)
+	var pt_h = pt_d + (d_gbasis.x * out_offset)
+	var pt_j = pt_c + (d_gbasis.x * out_offset)
 
 	# Get vectors from points
 	var vec_ab = pt_b - pt_a
@@ -381,20 +342,40 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 	var vec_cd = pt_d - pt_c
 
 	# Calculate secondary curve handles and setup curves
-	var angle_q = -vec_ab.signed_angle_to(vec_bc, a_basis_y) * 0.5
-	var angle_s = vec_cd.signed_angle_to(vec_bc, d_basis_y) * 0.5
+	var angle_q = -vec_ab.signed_angle_to(vec_bc, a_gbasis.y) * 0.5
+	var angle_s = vec_cd.signed_angle_to(vec_bc, d_gbasis.y) * 0.5
 	var offset_q = tan(angle_q) * in_offset
 	var offset_s = tan(angle_s) * out_offset
-	var pt_f = a_basis_z * (vec_ab.length() + offset_q)
-	var pt_g = -d_basis_z * (vec_cd.length() + offset_s)
-	dst.add_point(
-		road_lane.to_local(pt_e),
-		road_lane.to_local(to_global(src.get_point_in(0))),
-		road_lane.to_local(to_global(pt_f)))
-	dst.add_point(
-		road_lane.to_local(pt_h),
-		road_lane.to_local(to_global(pt_g)),
-		road_lane.to_local(to_global(src.get_point_out(1))))
+	var pt_f = a_gbasis.z * (vec_ab.length() + offset_q)
+	var pt_g = -d_gbasis.z * (vec_cd.length() + offset_s)
+	var rad_ninety_deg = 1.5707963267949 # 90 degrees in radians
+	var margin = 0.1745329 # Margin to check above/below 90. 0.174 is roughly 10 degrees
+
+	if abs(angle_q) > rad_ninety_deg - margin and abs(angle_q) < rad_ninety_deg + margin:
+		# Angle is close to 90deg. Use default values.
+		dst.add_point(
+			road_lane.to_local(in_pos),
+			road_lane.to_local(to_global(curve.get_point_in(0))),
+			road_lane.to_local(to_global(curve.get_point_out(0))))
+	else:
+		# Use calculated values
+		dst.add_point(
+			road_lane.to_local(pt_e),
+			road_lane.to_local(to_global(src.get_point_in(0))),
+			road_lane.to_local(to_global(pt_f)))
+
+	if abs(angle_s) > rad_ninety_deg - margin and abs(angle_s) < rad_ninety_deg + margin:
+		# Angle is close to 90deg. Use default values.
+		dst.add_point(
+			road_lane.to_local(out_pos),
+			road_lane.to_local(to_global(curve.get_point_in(1))),
+			road_lane.to_local(to_global(curve.get_point_out(1))))
+	else:
+		# Use calculated values
+		dst.add_point(
+			road_lane.to_local(pt_h),
+			road_lane.to_local(to_global(pt_g)),
+			road_lane.to_local(to_global(src.get_point_out(1))))
 
 
 ## Offset the curve in/out points based on lane index.
