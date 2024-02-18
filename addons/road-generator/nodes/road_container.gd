@@ -112,6 +112,10 @@ func _ready():
 	update_edges()
 	validate_edges()
 
+	# Potentially redundant/recalled during scene init
+	_dirty = true
+	call_deferred("_dirty_rebuild_deferred")
+
 
 # Workaround for cyclic typing
 func is_road_container() -> bool:
