@@ -66,6 +66,8 @@ export(bool) var auto_lanes := true setget _set_auto_lanes, _get_auto_lanes
 # Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
+#gd4
+#@export var lanes:Array[LaneType]: get = _get_lanes, set = _set_lanes
 export(Array, LaneType) var lanes:Array setget _set_lanes, _get_lanes
 
 export(float) var lane_width := 4.0 setget _set_lane_width, _get_lane_width
@@ -326,9 +328,14 @@ func emit_transform(low_poly=false):
 	if auto_lanes:
 		assign_lanes()
 	#gd4
-	#var _gizmo:Node3DGizmo = get_gizmos()[0]
-	#if is_instance_valid(_gizmo):
-	#	_gizmo.get_plugin().refresh_gizmo(_gizmo)
+	# var _gizmo:Node3DGizmo = get_gizmos()[0]
+	# var _gizmos = get_gizmos()
+	# if not _gizmos:
+	# 	push_warning("No 3D gizmos found")
+	# 	return
+	# var _gizmo:Node3DGizmo = _gizmos[0]
+	# if is_instance_valid(_gizmo):
+	# 	_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)

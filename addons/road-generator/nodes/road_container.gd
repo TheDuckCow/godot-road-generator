@@ -112,6 +112,10 @@ func _ready():
 	update_edges()
 	validate_edges()
 
+	# Potentially redundant/recalled during scene init
+	_dirty = true
+	call_deferred("_dirty_rebuild_deferred")
+
 
 # Workaround for cyclic typing
 func is_road_container() -> bool:
@@ -359,7 +363,7 @@ func update_edges():
 				idx = _find_idx
 				break
 
-			if idx >= 0 and len(edge_containers) >= idx:
+			if idx >= 0 and len(edge_containers) > idx:
 				_tmp_containers.append(edge_containers[idx])
 				_tmp_rp_targets.append(edge_rp_targets[idx])
 				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
@@ -390,7 +394,7 @@ func validate_edges(autofix: bool = false) -> bool:
 
 		# Pre-check, ensure local node paths are good.
 		var this_pt = get_node_or_null(this_pt_path)
-		if  not is_instance_valid(this_pt):
+		if not is_instance_valid(this_pt):
 			is_valid = false
 			_invalidate_edge(_idx, autofix, "edge_rp_local node reference is invalid")
 			continue
