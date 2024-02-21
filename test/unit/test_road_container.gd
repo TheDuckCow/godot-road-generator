@@ -76,6 +76,8 @@ func has_a2b_connection(cont_a, cont_b) -> bool:
 
 func test_road_container_create():
 	var container = autoqfree(RoadContainer.new())
+	# Must add container to scene for signal to fire.
+	add_child(container)
 	# Check the children are set up.
 
 	watch_signals(container)
