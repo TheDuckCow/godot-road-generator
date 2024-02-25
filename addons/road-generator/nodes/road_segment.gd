@@ -188,12 +188,56 @@ func check_rebuild() -> bool:
 	return false
 
 
+func generate_edge_curves():
+	print("generate_edge_curves")
+	if not is_instance_valid(container):
+		return
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return
+	clear_edge_curves()
+	if not container.create_edge_curves:
+		return
+
+	# First identify all road lanes that will exist.
+	var matched_lanes = self._match_lanes()
+	if len(matched_lanes) == 0:
+		return
+
+	var _par = get_parent() # Add RoadLanes to the parent RoadPoint, with option to add as children directly.
+
+	# Add edge curves
+	if container.create_edge_curves:
+		print("creating edge curves...")
+		var edge_R: Path = _par.get_node_or_null("edge_R")
+		var edge_F: Path = _par.get_node_or_null("edge_F")
+		var temp_offset = 14
+
+		if edge_R == null or not is_instance_valid(edge_R):
+			edge_R = Path.new()
+			edge_R.name = "edge_R"
+			_par.add_child(edge_R)
+			offset_curve(self, edge_R, -temp_offset, -temp_offset, start_point, end_point)
+			edge_R.owner = _par.owner
+			print("created R curve")
+		else:
+			print(edge_R)
+
+		if edge_F == null or not is_instance_valid(edge_F):
+			edge_F = Path.new()
+			edge_F.name = "edge_F"
+			_par.add_child(edge_F)
+			offset_curve(self, edge_F, temp_offset, temp_offset, start_point, end_point)
+			edge_F.owner = _par.owner
+			print("created F curve")
+
+
 ## Utility to auto generate all road lanes for this road for use by AI.
 ##
 ## debug: No longer used, kept for backwards compatibility.
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(_debug: bool = false) -> bool:
+	print("generate_lane_segments")
 	if not is_instance_valid(container):
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
@@ -458,6 +502,17 @@ func clear_lane_segments():
 	for ch in get_children():
 		if ch is RoadLane:
 			ch.queue_free()
+
+
+## Remove all edge curves attached to this RoadSegment
+func clear_edge_curves():
+	var _par = get_parent()
+	for ch in _par.get_children():
+		if ch is Path and (ch.name == "edge_R" or ch.name == "edge_F"):
+			print("clearing edge curve %s" % [ch.name])
+			_par.remove_child(ch)
+			ch.queue_free()
+#			ch.free()
 
 
 func update_lane_visibility():

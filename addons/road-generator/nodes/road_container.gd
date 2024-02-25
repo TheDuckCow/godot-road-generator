@@ -23,6 +23,7 @@ export(float) var density:float = -1.0  setget _set_density
 export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
+export(bool) var create_edge_curves := false setget _set_create_edge_curves
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
@@ -251,6 +252,11 @@ func _set_create_geo(value: bool) -> void:
 	if value == true:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
+
+
+func _set_create_edge_curves(value: bool) -> void:
+	create_edge_curves = value
+
 
 
 # ------------------------------------------------------------------------------
@@ -663,6 +669,7 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 
 		if generate_ai_lanes:
 			new_seg.generate_lane_segments()
+		new_seg.generate_edge_curves()
 
 		return [true, new_seg]
 
@@ -748,8 +755,10 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.call_deferred("check_rebuild")
 		if not use_lowpoly:
 			point.prior_seg.generate_lane_segments()
+			point.prior_seg.generate_edge_curves()
 		else:
 			point.prior_seg.clear_lane_segments()
+			point.prior_seg.clear_edge_curves()
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
@@ -765,9 +774,11 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.next_seg.call_deferred("check_rebuild")
 		if not use_lowpoly:
 			point.next_seg.generate_lane_segments()
+			point.next_seg.generate_edge_curves()
 		else:
 			if point.next_seg:
 				point.next_seg.clear_lane_segments()
+				point.next_seg.clear_edge_curves()
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
