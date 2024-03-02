@@ -402,7 +402,7 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 		in_pt_out = road_lane.to_local(to_global(curve.get_point_out(0)))
 	else:
 		# Use calculated values
-		in_pos = pt_e
+		in_pos = road_lane.to_local(pt_e)
 		in_pt_out = road_lane.to_local(to_global(pt_f))
 
 	# Compensate for harsh angles on curve's "out" point
@@ -411,7 +411,7 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 		out_pt_in = road_lane.to_local(to_global(curve.get_point_in(1)))
 	else:
 		# Use calculated values
-		out_pos = pt_h
+		out_pos = road_lane.to_local(pt_h)
 		out_pt_in = road_lane.to_local(to_global(pt_g))
 
 	# If curve have existing points, then update them. Otherwise, add new points.

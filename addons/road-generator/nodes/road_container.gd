@@ -765,13 +765,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.generate_edge_curves()
 		if not use_lowpoly:
 			point.prior_seg.generate_lane_segments()
-#			point.prior_seg.generate_edge_curves()
 		else:
 			point.prior_seg.clear_lane_segments()
-			if not create_edge_curves:
-				point.prior_seg.clear_edge_curves()
-#			else:
-#				point.prior_seg.hide_edge_curves(true)
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
@@ -785,14 +780,12 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
+		point.next_seg.generate_edge_curves()
 		if not use_lowpoly:
 			point.next_seg.generate_lane_segments()
-			point.next_seg.generate_edge_curves()
 		else:
 			if point.next_seg:
 				point.next_seg.clear_lane_segments()
-				if not create_edge_curves:
-					point.next_seg.clear_edge_curves()
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
