@@ -256,6 +256,12 @@ func _set_create_geo(value: bool) -> void:
 
 func _set_create_edge_curves(value: bool) -> void:
 	create_edge_curves = value
+	if create_edge_curves:
+		for seg in get_segments():
+			seg.generate_edge_curves()
+	else:
+		for seg in get_segments():
+			seg.clear_edge_curves()
 
 
 
@@ -669,7 +675,11 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 
 		if generate_ai_lanes:
 			new_seg.generate_lane_segments()
-		new_seg.generate_edge_curves()
+
+		if create_edge_curves:
+			new_seg.generate_edge_curves()
+		else:
+			new_seg.clear_edge_curves()
 
 		return [true, new_seg]
 
@@ -729,7 +739,6 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		return
 	elif not is_instance_valid(point):
 		return
-
 	# Update warnings for this or connected containers
 	if point.is_on_edge():
 		var prior = point.get_prior_rp()
@@ -753,12 +762,16 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
+		point.prior_seg.generate_edge_curves()
 		if not use_lowpoly:
 			point.prior_seg.generate_lane_segments()
-			point.prior_seg.generate_edge_curves()
+#			point.prior_seg.generate_edge_curves()
 		else:
 			point.prior_seg.clear_lane_segments()
-			point.prior_seg.clear_edge_curves()
+			if not create_edge_curves:
+				point.prior_seg.clear_edge_curves()
+#			else:
+#				point.prior_seg.hide_edge_curves(true)
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
@@ -778,7 +791,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		else:
 			if point.next_seg:
 				point.next_seg.clear_lane_segments()
-				point.next_seg.clear_edge_curves()
+				if not create_edge_curves:
+					point.next_seg.clear_edge_curves()
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
