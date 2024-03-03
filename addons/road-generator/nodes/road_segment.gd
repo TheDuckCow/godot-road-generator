@@ -188,6 +188,50 @@ func check_rebuild() -> bool:
 	return false
 
 
+func generate_edge_curves():
+	if not is_instance_valid(container):
+		return
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return
+	if not container.create_edge_curves:
+		clear_edge_curves()
+		return
+
+	# Find the road edge positions
+	var matched_lanes = self._match_lanes()
+	if len(matched_lanes) == 0:
+		return
+
+	var _par = get_parent()
+
+	# Add edge curves
+	var edge_R: Path = _par.get_node_or_null("edge_R")
+	var edge_F: Path = _par.get_node_or_null("edge_F")
+	var start_offset_R: float = len(start_point.lanes) * start_point.lane_width * 0.5
+	var start_offset_F := start_offset_R
+	var end_offset_R: float = len(end_point.lanes) * end_point.lane_width * 0.5
+	var end_offset_F := end_offset_R
+	var extra_offset = 0.0
+	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
+	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
+	end_offset_R += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
+	end_offset_F += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
+
+	if edge_R == null or not is_instance_valid(edge_R):
+		edge_R = Path.new()
+		edge_R.name = "edge_R"
+		_par.add_child(edge_R)
+		edge_R.owner = _par.owner
+	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
+
+	if edge_F == null or not is_instance_valid(edge_F):
+		edge_F = Path.new()
+		edge_F.name = "edge_F"
+		_par.add_child(edge_F)
+		edge_F.owner = _par.owner
+	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
+
+
 ## Utility to auto generate all road lanes for this road for use by AI.
 ##
 ## debug: No longer used, kept for backwards compatibility.
@@ -315,12 +359,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##  and point 1, which determine the direction of the handles. Calculates best
 ##  fit position for destination curve given the supplied curves, transforms,
 ##  and distance.
-func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, rp0: Spatial, rp1: Spatial):
-
+func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, start_point: Spatial, end_point: Spatial):
 	var src:Curve3D = road_seg.curve
 	var dst:Curve3D = road_lane.curve
-	var a_gbasis := rp0.global_transform.basis
-	var d_gbasis := rp1.global_transform.basis
+	var a_gbasis := start_point.global_transform.basis
+	var d_gbasis := end_point.global_transform.basis
 	var in_pos := start_point.global_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
 	var out_pos := end_point.global_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
 
@@ -353,31 +396,44 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 
 	var margin := 0.1745329 # Margin to check above/below 90. 0.174 is roughly 10 degrees
 
+	# Calculate final values
+	var in_pt_in := road_lane.to_local(to_global(curve.get_point_in(0)))
+	var in_pt_out: Vector3
+	var out_pt_in: Vector3
+	var out_pt_out := road_lane.to_local(to_global(src.get_point_out(1)))
+
+	# Compensate for harsh angles on curve's "in" point
 	if abs(angle_q) > RAD_NINETY_DEG - margin and abs(angle_q) < RAD_NINETY_DEG + margin:
 		# Angle is close to 90deg. Use default values.
-		dst.add_point(
-			road_lane.to_local(in_pos),
-			road_lane.to_local(to_global(curve.get_point_in(0))),
-			road_lane.to_local(to_global(curve.get_point_out(0))))
+		in_pt_out = road_lane.to_local(to_global(curve.get_point_out(0)))
 	else:
 		# Use calculated values
-		dst.add_point(
-			road_lane.to_local(pt_e),
-			road_lane.to_local(to_global(src.get_point_in(0))),
-			road_lane.to_local(to_global(pt_f)))
+		in_pos = road_lane.to_local(pt_e)
+		in_pt_out = road_lane.to_local(to_global(pt_f))
 
+	# Compensate for harsh angles on curve's "out" point
 	if abs(angle_s) > RAD_NINETY_DEG - margin and abs(angle_s) < RAD_NINETY_DEG + margin:
 		# Angle is close to 90deg. Use default values.
-		dst.add_point(
-			road_lane.to_local(out_pos),
-			road_lane.to_local(to_global(curve.get_point_in(1))),
-			road_lane.to_local(to_global(curve.get_point_out(1))))
+		out_pt_in = road_lane.to_local(to_global(curve.get_point_in(1)))
 	else:
 		# Use calculated values
-		dst.add_point(
-			road_lane.to_local(pt_h),
-			road_lane.to_local(to_global(pt_g)),
-			road_lane.to_local(to_global(src.get_point_out(1))))
+		out_pos = road_lane.to_local(pt_h)
+		out_pt_in = road_lane.to_local(to_global(pt_g))
+
+	# If curve have existing points, then update them. Otherwise, add new points.
+	if dst.get_point_count() > 1:
+		# Update existing points
+		dst.set_point_position(0, in_pos)
+		dst.set_point_in(0, in_pt_in)
+		dst.set_point_out(0, in_pt_out)
+
+		dst.set_point_position(1, out_pos)
+		dst.set_point_in(1, out_pt_in)
+		dst.set_point_out(1, out_pt_out)
+	else:
+		# Add new points
+		dst.add_point(in_pos, in_pt_in, in_pt_out)
+		dst.add_point(out_pos, out_pt_in, out_pt_out)
 
 
 ## Offset the curve in/out points based on lane index.
@@ -458,6 +514,26 @@ func clear_lane_segments():
 	for ch in get_children():
 		if ch is RoadLane:
 			ch.queue_free()
+
+
+## Remove all edge curves attached to this RoadSegment
+func clear_edge_curves():
+	var _par = get_parent()
+	for ch in _par.get_children():
+		if ch is Path and (ch.name == "edge_R" or ch.name == "edge_F"):
+			for gch in ch.get_children():
+				ch.remove_child(gch)
+				gch.queue_free()
+			_par.remove_child(ch)
+			ch.queue_free()
+
+
+## Shows/hides edge curves.
+func hide_edge_curves(hide_edge: bool = false):
+	var _par = get_parent()
+	for ch in _par.get_children():
+		if ch is Path and (ch.name == "edge_R" or ch.name == "edge_F"):
+			ch.visible = not hide_edge
 
 
 func update_lane_visibility():

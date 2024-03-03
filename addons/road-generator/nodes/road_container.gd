@@ -23,6 +23,7 @@ export(float) var density:float = -1.0  setget _set_density
 export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
+export(bool) var create_edge_curves := false setget _set_create_edge_curves
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
@@ -251,6 +252,17 @@ func _set_create_geo(value: bool) -> void:
 	if value == true:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
+
+
+func _set_create_edge_curves(value: bool) -> void:
+	create_edge_curves = value
+	if create_edge_curves:
+		for seg in get_segments():
+			seg.generate_edge_curves()
+	else:
+		for seg in get_segments():
+			seg.clear_edge_curves()
+
 
 
 # ------------------------------------------------------------------------------
@@ -664,6 +676,11 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		if generate_ai_lanes:
 			new_seg.generate_lane_segments()
 
+		if create_edge_curves:
+			new_seg.generate_edge_curves()
+		else:
+			new_seg.clear_edge_curves()
+
 		return [true, new_seg]
 
 
@@ -722,7 +739,6 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		return
 	elif not is_instance_valid(point):
 		return
-
 	# Update warnings for this or connected containers
 	if point.is_on_edge():
 		var prior = point.get_prior_rp()
@@ -746,6 +762,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
+		point.prior_seg.generate_edge_curves()
 		if not use_lowpoly:
 			point.prior_seg.generate_lane_segments()
 		else:
@@ -763,6 +780,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
+		point.next_seg.generate_edge_curves()
 		if not use_lowpoly:
 			point.next_seg.generate_lane_segments()
 		else:
