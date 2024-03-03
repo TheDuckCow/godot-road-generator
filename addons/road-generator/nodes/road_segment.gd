@@ -207,23 +207,29 @@ func generate_edge_curves():
 	# Add edge curves
 	var edge_R: Path = _par.get_node_or_null("edge_R")
 	var edge_F: Path = _par.get_node_or_null("edge_F")
-	var temp_offset = 14
+	var start_offset_R: float = len(start_point.lanes) * start_point.lane_width * 0.5
+	var start_offset_F := start_offset_R
+	var end_offset_R: float = len(end_point.lanes) * end_point.lane_width * 0.5
+	var end_offset_F := end_offset_R
+	var extra_offset = 0.0
+	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
+	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
+	end_offset_R += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
+	end_offset_F += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
 
 	if edge_R == null or not is_instance_valid(edge_R):
 		edge_R = Path.new()
 		edge_R.name = "edge_R"
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
-	offset_curve(self, edge_R, -temp_offset, -temp_offset, start_point, end_point)
+	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
 		edge_F = Path.new()
 		edge_F.name = "edge_F"
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
-	offset_curve(self, edge_F, temp_offset, temp_offset, start_point, end_point)
-#	edge_R.visible = true
-#	edge_F.visible = true
+	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 
 ## Utility to auto generate all road lanes for this road for use by AI.
