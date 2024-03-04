@@ -12,6 +12,9 @@ extends Spatial
 
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 # aka 1.5707963267949, used for offset_curve algorithm
+const EDGE_R_NAME = "edge_R" # Name of reverse lane edge curve
+const EDGE_F_NAME = "edge_F" # Name of forward lane edge curve
+const EDGE_C_NAME = "edge_C" # Name of road center edge curve
 
 signal seg_ready(road_segment)
 
@@ -203,15 +206,17 @@ func generate_edge_curves():
 		return
 
 	var _par = get_parent()
+	var start_half_width: float = len(start_point.lanes) * start_point.lane_width * 0.5
+	var end_half_width: float = len(end_point.lanes) * end_point.lane_width * 0.5
 
 	# Add edge curves
-	var edge_R: Path = _par.get_node_or_null("edge_R")
-	var edge_F: Path = _par.get_node_or_null("edge_F")
-	var start_offset_R: float = len(start_point.lanes) * start_point.lane_width * 0.5
-	var start_offset_F := start_offset_R
-	var end_offset_R: float = len(end_point.lanes) * end_point.lane_width * 0.5
-	var end_offset_F := end_offset_R
-	var extra_offset = 0.0
+	var edge_R: Path = _par.get_node_or_null(EDGE_R_NAME)
+	var edge_F: Path = _par.get_node_or_null(EDGE_F_NAME)
+	var start_offset_R := start_half_width
+	var start_offset_F := start_half_width
+	var end_offset_R := end_half_width
+	var end_offset_F := end_half_width
+	var extra_offset: float = 0.0
 	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
 	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
 	end_offset_R += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
@@ -219,17 +224,31 @@ func generate_edge_curves():
 
 	if edge_R == null or not is_instance_valid(edge_R):
 		edge_R = Path.new()
-		edge_R.name = "edge_R"
+		edge_R.name = EDGE_R_NAME
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
 		edge_F = Path.new()
-		edge_F.name = "edge_F"
+		edge_F.name = EDGE_F_NAME
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
+
+	# Add center curve
+	var edge_C: Path = _par.get_node_or_null(EDGE_C_NAME)
+	var start_width_R: float = start_point.get_rev_lane_count() * start_point.lane_width
+	var end_width_R: float = end_point.get_rev_lane_count() * end_point.lane_width
+	var start_offset_C: float = start_width_R - start_half_width
+	var end_offset_C: float = end_width_R - end_half_width
+
+	if edge_C == null or not is_instance_valid(edge_C):
+		edge_C = Path.new()
+		edge_C.name = EDGE_C_NAME
+		_par.add_child(edge_C)
+		edge_C.owner = _par.owner
+	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
 
 
 ## Utility to auto generate all road lanes for this road for use by AI.
