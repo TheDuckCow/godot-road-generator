@@ -14,7 +14,7 @@ const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 # aka 1.5707963267949, used for offset_curve algorithm
 const EDGE_R_NAME = "edge_R" # Name of reverse lane edge curve
 const EDGE_F_NAME = "edge_F" # Name of forward lane edge curve
-const EDGE_C_NAME = "edge_C" # Name of road center edge curve
+const EDGE_C_NAME = "edge_C" # Name of road center (direction divider) edge curve
 
 signal seg_ready(road_segment)
 
