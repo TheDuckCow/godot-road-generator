@@ -45,7 +45,6 @@ func update_refs():
 
 func on_show(_selected_nodes: Array):
 	selected_nodes = _selected_nodes
-	print("On show:", selected_nodes)
 
 	var primary_sel = null
 	var is_subscene := false
