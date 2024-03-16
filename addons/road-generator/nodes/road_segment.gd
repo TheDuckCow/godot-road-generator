@@ -421,13 +421,14 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 	var out_pt_in: Vector3
 	var out_pt_out := road_lane.to_local(to_global(src.get_point_out(1)))
 
+	in_pos = road_lane.to_local(pt_e)
+	out_pos = road_lane.to_local(pt_h)
 	# Compensate for harsh angles on curve's "in" point
 	if abs(angle_q) > RAD_NINETY_DEG - margin and abs(angle_q) < RAD_NINETY_DEG + margin:
 		# Angle is close to 90deg. Use default values.
 		in_pt_out = road_lane.to_local(to_global(curve.get_point_out(0)))
 	else:
 		# Use calculated values
-		in_pos = road_lane.to_local(pt_e)
 		in_pt_out = road_lane.to_local(to_global(pt_f))
 
 	# Compensate for harsh angles on curve's "out" point
@@ -436,7 +437,6 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 		out_pt_in = road_lane.to_local(to_global(curve.get_point_in(1)))
 	else:
 		# Use calculated values
-		out_pos = road_lane.to_local(pt_h)
 		out_pt_in = road_lane.to_local(to_global(pt_g))
 
 	# If curve have existing points, then update them. Otherwise, add new points.
@@ -539,7 +539,7 @@ func clear_lane_segments():
 func clear_edge_curves():
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path and (ch.name == "edge_R" or ch.name == "edge_F"):
+		if ch is Path and (ch.name == EDGE_R_NAME or ch.name == EDGE_F_NAME or ch.name == EDGE_C_NAME):
 			for gch in ch.get_children():
 				ch.remove_child(gch)
 				gch.queue_free()
