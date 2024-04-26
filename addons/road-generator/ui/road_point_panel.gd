@@ -92,19 +92,29 @@ func rem_lane_rev_pressed():
 func sel_rp_next_pressed():
 	#gd4
 	# not is empty
-	if sel_road_point.next_pt_init:
-		var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
-		_edi.get_selection().call_deferred("remove_node", sel_road_point)
-		_edi.get_selection().call_deferred("add_node", next_pt)
+	if not sel_road_point.next_pt_init:
+		return
+
+	var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
+	if Input.is_key_pressed(KEY_SHIFT):
+		# Jump to to the "end" roadpoint in this direction (if it loops around, returns the same)
+		next_pt = next_pt.get_last_rp(RoadPoint.PointInit.NEXT)
+	_edi.get_selection().call_deferred("remove_node", sel_road_point)
+	_edi.get_selection().call_deferred("add_node", next_pt)
 
 
 func sel_rp_prior_pressed():
 	#gd4
 	# not is empty
-	if sel_road_point.prior_pt_init:
-		var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
-		_edi.get_selection().call_deferred("remove_node", sel_road_point)
-		_edi.get_selection().call_deferred("add_node", prior_pt)
+	if not sel_road_point.prior_pt_init:
+		return
+
+	var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
+	if Input.is_key_pressed(KEY_SHIFT):
+		# Jump to to the "end" roadpoint in this direction (if it loops around, returns the same)
+		prior_pt = prior_pt.get_last_rp(RoadPoint.PointInit.PRIOR)
+	_edi.get_selection().call_deferred("remove_node", sel_road_point)
+	_edi.get_selection().call_deferred("add_node", prior_pt)
 
 
 func add_rp_next_pressed():

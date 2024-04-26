@@ -422,6 +422,50 @@ func get_next_rp():
 	return null
 
 
+## Get the ending node after following this direction
+func get_last_rp(direction: int):
+	var _next_itr_point = null
+	var _prev_itr_point = null
+	var first_loop := true
+	var _count := 0
+	while _next_itr_point != self:  # Exit cond for a full sircle around
+		_count += 1
+		print("Iteration ", _count)
+		if first_loop:
+			first_loop = false
+			# First iteration, should be deterministic which way to go
+			if direction == PointInit.NEXT:
+				if not self.next_pt_init:
+					return self
+				_next_itr_point = self.get_node(self.next_pt_init)
+			else:
+				if not self.prior_pt_init:
+					return self
+				_next_itr_point = self.get_node(self.prior_pt_init)
+			_prev_itr_point = self
+			continue
+
+		# Thereafter, just make sure the next selection != the last
+		var this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.next_pt_init)
+		if this_tmp == null:
+			# means it was the end of the line (as the other dir would be the prior iter)
+			return _next_itr_point
+		if this_tmp == _prev_itr_point:
+			# Doubled back maybe due to flipped dir; Just try the other direction
+			this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.prior_pt_init)
+		if this_tmp == null:
+			# means it was the end of the line!
+			return _next_itr_point
+		if this_tmp == _prev_itr_point:
+			# Infinite loop issue, shouldn't happen. Just return.
+			return this_tmp
+		_prev_itr_point = _next_itr_point
+		_next_itr_point = this_tmp
+
+	# failed to return early, must be a loop
+	return self
+
+
 # Goal is to assign the appropriate sequence of textures for this lane.
 #
 # This will intelligently construct the sequence of left-right textures, knowing
