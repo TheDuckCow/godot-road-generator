@@ -440,13 +440,12 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 		# Initial state for undo
 		undo_redo.create_action("Change lane count")
 
-		# WIP for bulk change with shift
-#		var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
-#		var _pts = []
-#		if bulk:
-#			_pts = point.container.get_roadpoints()
-#		else:
-#			_pts = [point]
+		var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+		var _pts = []
+		if bulk:
+			_pts = point.container.get_roadpoints()
+		else:
+			_pts = [point]
 
 		# Track changes
 		var new_fwd_mag = point.fwd_width_mag
@@ -472,30 +471,34 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
 		elif lane_change < 0:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
 
 
 		refresh_gizmo(gizmo)
