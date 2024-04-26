@@ -70,22 +70,26 @@ func add_lane_fwd_pressed():
 	#gd4
 	# Here and below, change to:
 	#on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
+	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD, bulk)
 	update_road_point_panel()
 
 
 func add_lane_rev_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE)
+	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE, bulk)
 	update_road_point_panel()
 
 
 func rem_lane_fwd_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD)
+	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD, bulk)
 	update_road_point_panel()
 
 
 func rem_lane_rev_pressed():
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE)
+	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE, bulk)
 	update_road_point_panel()
 
 

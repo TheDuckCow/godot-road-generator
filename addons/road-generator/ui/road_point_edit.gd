@@ -45,25 +45,35 @@ func set_edi(value):
 ##
 ## selected: RoadPoint
 ## change_type: RoadPoint.TrafficUpdate enum value
-func _handle_on_lane_change_pressed(selected, change_type):
+func _handle_on_lane_change_pressed(selected, change_type, bulk:bool):
 	var undo_redo = _editor_plugin.get_undo_redo()
+	var loop_over := []
+	if bulk:
+		loop_over = selected.container.get_roadpoints()
+	else:
+		loop_over = [selected]
+
 	match change_type:
 		RoadPoint.TrafficUpdate.ADD_FORWARD:
 			undo_redo.create_action("Add forward lane")
-			undo_redo.add_do_method(selected, "update_traffic_dir", change_type)
-			undo_redo.add_undo_method(selected, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+			for _rp in loop_over:
+				undo_redo.add_do_method(_rp, "update_traffic_dir", change_type)
+				undo_redo.add_undo_method(_rp, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
 		RoadPoint.TrafficUpdate.ADD_REVERSE:
 			undo_redo.create_action("Add reverse lane")
-			undo_redo.add_do_method(selected, "update_traffic_dir", change_type)
-			undo_redo.add_undo_method(selected, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+			for _rp in loop_over:
+				undo_redo.add_do_method(_rp, "update_traffic_dir", change_type)
+				undo_redo.add_undo_method(_rp, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
 		RoadPoint.TrafficUpdate.REM_FORWARD:
 			undo_redo.create_action("Remove forward lane")
-			undo_redo.add_do_method(selected, "update_traffic_dir", change_type)
-			undo_redo.add_undo_method(selected, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+			for _rp in loop_over:
+				undo_redo.add_do_method(_rp, "update_traffic_dir", change_type)
+				undo_redo.add_undo_method(_rp, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
 		RoadPoint.TrafficUpdate.REM_REVERSE:
 			undo_redo.create_action("Remove reverse lane")
-			undo_redo.add_do_method(selected, "update_traffic_dir", change_type)
-			undo_redo.add_undo_method(selected, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+			for _rp in loop_over:
+				undo_redo.add_do_method(_rp, "update_traffic_dir", change_type)
+				undo_redo.add_undo_method(_rp, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
 		_:
 			push_error("Invalid change type")
 			return
