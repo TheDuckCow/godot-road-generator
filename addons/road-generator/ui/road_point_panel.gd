@@ -9,6 +9,7 @@ signal on_add_connected_rp(selection, point_init_type)
 # https://github.com/godotengine/godot/issues/85079
 var _edi setget set_edi
 var sel_road_point: RoadPoint
+onready var top_label = $SectionLabel
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
 onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
@@ -32,6 +33,32 @@ func _ready():
 	btn_sel_rp_prior.connect("pressed", self, "sel_rp_prior_pressed")
 	btn_add_rp_next.connect("pressed", self, "add_rp_next_pressed")
 	btn_add_rp_prior.connect("pressed", self, "add_rp_prior_pressed")
+	update_labels(Input.is_key_pressed(KEY_SHIFT))
+
+func _unhandled_key_input(event: InputEventKey) -> void:
+	if not event.scancode == KEY_SHIFT:
+		return
+	update_labels(event.pressed)
+
+
+func update_labels(shift_pressed: bool) -> void:
+	# Without setting the right min width toggling shift will
+	# actually make the inspector shrink/grow a few pixels,
+	# offsetting the entire 3D view to the left (huge pain!)
+	# TODO: validate this works consistently across OS's and monitor scals/densities,
+	# could also use: # OS.get_screen_max_scale()
+	var fac: float = OS.get_screen_scale()
+	btn_sel_rp_next.rect_min_size.x = 150 * fac
+	btn_add_rp_next.rect_min_size.x = 150 * fac
+
+	if shift_pressed:
+		top_label.text = "Edit Container's RoadPoints"
+		btn_sel_rp_next.text = "Select Last RoadPoint"
+		btn_sel_rp_prior.text = "Select First RoadPoint"
+	else:
+		top_label.text = "Edit RoadPoint"
+		btn_sel_rp_next.text = "Select Next RoadPoint"
+		btn_sel_rp_prior.text = "Select Prior RoadPoint"
 
 
 func update_road_point_panel():
