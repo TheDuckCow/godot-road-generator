@@ -42,17 +42,8 @@ func _unhandled_key_input(event: InputEventKey) -> void:
 
 
 func update_labels(shift_pressed: bool) -> void:
-	# Without setting the right min width toggling shift will
-	# actually make the inspector shrink/grow a few pixels,
-	# offsetting the entire 3D view to the left (huge pain!)
-	# TODO: validate this works consistently across OS's and monitor scals/densities,
-	# could also use: # OS.get_screen_max_scale()
-	var fac: float = OS.get_screen_scale()
-	btn_sel_rp_next.rect_min_size.x = 150 * fac
-	btn_add_rp_next.rect_min_size.x = 150 * fac
-
 	if shift_pressed:
-		top_label.text = "Edit Container's RoadPoints"
+		top_label.text = "Edit RoadPoints [multi]"
 		btn_sel_rp_next.text = "Select Last RoadPoint"
 		btn_sel_rp_prior.text = "Select First RoadPoint"
 	else:

@@ -43,9 +43,11 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 hint_tooltip = "Add RoadPoint to end of road"
 size_flags_horizontal = 3
 text = "+ Next RoadPoint"
+clip_text = true
 
 [node name="HBoxSelNextRP" type="HBoxContainer" parent="."]
 visible = false
@@ -65,8 +67,10 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 size_flags_horizontal = 3
 text = "Select Next RoadPoint"
+clip_text = true
 
 [node name="HBoxLanes" type="HBoxContainer" parent="."]
 margin_top = 44.0
@@ -143,8 +147,10 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 size_flags_horizontal = 3
 text = "Select Prior RoadPoint"
+clip_text = true
 
 [node name="HBoxAddPriorRP" type="HBoxContainer" parent="."]
 margin_top = 70.0
@@ -163,6 +169,8 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 hint_tooltip = "Add RoadPoint to beginning of road"
 size_flags_horizontal = 3
 text = "+ Prior RoadPoint"
+clip_text = true
