@@ -6,6 +6,7 @@ var _editor_plugin: EditorPlugin
 # EditorInterface, don't use as type:
 # https://github.com/godotengine/godot/issues/85079
 var _edi setget set_edi
+var copy_ref:RoadPoint  # For use in panel to copy settings
 
 
 func _init(editor_plugin: EditorPlugin):
@@ -34,6 +35,10 @@ func parse_begin(object):
 	#panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
 	panel_instance.connect("on_lane_change_pressed", self, "_handle_on_lane_change_pressed")
 	panel_instance.connect("on_add_connected_rp", self, "_handle_add_connected_rp")
+	panel_instance.connect("assign_copy_target", self, "_assign_copy_target")
+	panel_instance.connect("apply_settings_target", self, "_apply_settings_target")
+
+	panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
 
 
 
@@ -129,3 +134,41 @@ func _handle_add_connected_rp_undo(selection, point_init_type):
 	_edi.get_selection().call_deferred("remove_node", rp)
 	if is_instance_valid(rp):
 		rp.queue_free()
+
+
+func _assign_copy_target(target) -> void:
+	_editor_plugin.copy_attributes = {
+		"traffic_dir": target.traffic_dir,
+		"auto_lanes": target.auto_lanes,
+		"lanes": target.lanes,
+		"lane_width": target.lane_width,
+		"shoulder_width_l": target.shoulder_width_l,
+		"shoulder_width_r": target.shoulder_width_r,
+		"gutter_profile": target.gutter_profile,
+		"create_geo": target.create_geo
+	}
+
+func _apply_settings_target(target, all:bool) -> void:
+	var undo_redo = _editor_plugin.get_undo_redo()
+
+	var _pts: Array
+	if all:
+		undo_redo.create_action("Apply settings to all container RoadPoints")
+		_pts = target.container.get_roadpoints(false) # Skip cross connected
+	else:
+		undo_redo.create_action("Apply settings to RoadPoint")
+		_pts = [target]
+
+	for itm in _pts:
+		for key in _editor_plugin.copy_attributes.keys():
+			undo_redo.add_do_property(itm, key, _editor_plugin.copy_attributes[key])
+			undo_redo.add_undo_property(itm, key, itm.get(key))
+
+	# Ensure geometry gets updated
+	if all:
+		undo_redo.add_do_method(target.container, "rebuild_segments")
+		undo_redo.add_undo_method(target.container, "rebuild_segments")
+	else:
+		undo_redo.add_do_method(target, "emit_transform")
+		undo_redo.add_undo_method(target, "emit_transform")
+	undo_redo.commit_action()

@@ -4,11 +4,14 @@ extends VBoxContainer
 
 signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
+signal assign_copy_target(selection)
+signal apply_settings_target(selection, all)
 
 # EditorInterface, don't use as type:
 # https://github.com/godotengine/godot/issues/85079
 var _edi setget set_edi
 var sel_road_point: RoadPoint
+var has_copy_ref: bool
 onready var top_label = $SectionLabel
 onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
 onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
@@ -22,6 +25,9 @@ onready var hbox_add_rp_next = $HBoxAddNextRP
 onready var hbox_add_rp_prior = $HBoxAddPriorRP
 onready var hbox_sel_rp_next = $HBoxSelNextRP
 onready var hbox_sel_rp_prior = $HBoxSelPriorRP
+onready var cp_settings: Button = $HBoxContainer/cp_settings
+onready var apply_setting: Button = $HBoxContainer/apply_setting
+onready var cp_to_all: Button = $HBoxContainer/cp_to_all
 
 
 func _ready():
@@ -50,6 +56,12 @@ func update_labels(shift_pressed: bool) -> void:
 		top_label.text = "Edit RoadPoint"
 		btn_sel_rp_next.text = "Select Next RoadPoint"
 		btn_sel_rp_prior.text = "Select Prior RoadPoint"
+
+	apply_setting.visible = not shift_pressed
+	cp_to_all.visible = shift_pressed
+
+	apply_setting.disabled = not has_copy_ref
+	cp_to_all.disabled = not has_copy_ref
 
 
 func update_road_point_panel():
@@ -162,3 +174,22 @@ func update_selected_road_point(object):
 
 func set_edi(value):
 	_edi = value
+
+
+func _on_cp_settings_pressed() -> void:
+	has_copy_ref = true
+	apply_setting.disabled = false
+	cp_to_all.disabled = false
+	emit_signal("assign_copy_target", sel_road_point)
+
+
+func _on_cp_to_all_pressed() -> void:
+	if not has_copy_ref:
+		return
+	emit_signal("apply_settings_target", sel_road_point, true)
+
+
+func _on_apply_setting_pressed() -> void:
+	if not has_copy_ref:
+		return
+	emit_signal("apply_settings_target", sel_road_point, false)

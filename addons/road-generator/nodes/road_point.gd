@@ -616,20 +616,24 @@ func update_traffic_dir(traffic_update):
 
 
 ## Takes an existing RoadPoint and returns a new copy
-func copy_settings_from(ref_road_point: RoadPoint) -> void:
+func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) -> void:
+	var tmp_auto_lane = ref_road_point.auto_lanes
 	auto_lanes = false
 	lanes = ref_road_point.lanes.duplicate(true)
 	traffic_dir = ref_road_point.traffic_dir.duplicate(true)
-	auto_lanes = ref_road_point.auto_lanes
+	auto_lanes = tmp_auto_lane
 	lane_width = ref_road_point.lane_width
 	shoulder_width_l = ref_road_point.shoulder_width_l
 	shoulder_width_r = ref_road_point.shoulder_width_r
 	gutter_profile.x = ref_road_point.gutter_profile.x
 	gutter_profile.y = ref_road_point.gutter_profile.y
-	prior_mag = ref_road_point.prior_mag
-	next_mag = ref_road_point.next_mag
-	global_transform = ref_road_point.global_transform
+	create_geo = ref_road_point.create_geo
 	_last_update_ms = ref_road_point._last_update_ms
+
+	if copy_transform:
+		prior_mag = ref_road_point.prior_mag
+		next_mag = ref_road_point.next_mag
+		global_transform = ref_road_point.global_transform
 
 
 ## Returns true if RoadPoint is primary selection in Scene panel
