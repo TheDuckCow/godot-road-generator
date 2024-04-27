@@ -352,6 +352,22 @@ func is_on_edge() -> bool:
 	return true
 
 
+## Returns true if either the forward or reverse RP connection exists to another container
+##
+## Useful for filtering out edges which should not be modified (given it
+## would no longer match the mirrored RoadPoint on the other container).
+func cross_container_connected() -> bool:
+	if not is_on_edge():
+		return false
+	var _pr = get_prior_rp()
+	if is_instance_valid(_pr) and _pr.container != self.container:
+		return true
+	var _nt = get_next_rp()
+	if is_instance_valid(_nt) and _nt.container != self.container:
+		return true
+	return false
+
+
 ## Indicates whether this direction is connected, accounting for container connections
 func is_prior_connected() -> bool:
 	if self.prior_pt_init:

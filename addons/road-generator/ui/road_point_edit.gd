@@ -49,7 +49,7 @@ func _handle_on_lane_change_pressed(selected, change_type, bulk:bool):
 	var undo_redo = _editor_plugin.get_undo_redo()
 	var loop_over := []
 	if bulk:
-		loop_over = selected.container.get_roadpoints()
+		loop_over = selected.container.get_roadpoints(true) # skip connected edges
 	else:
 		loop_over = [selected]
 

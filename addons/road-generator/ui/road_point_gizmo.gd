@@ -443,7 +443,7 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 		var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
 		var _pts = []
 		if bulk:
-			_pts = point.container.get_roadpoints()
+			_pts = point.container.get_roadpoints(true) # Skip cross-connected
 		else:
 			_pts = [point]
 

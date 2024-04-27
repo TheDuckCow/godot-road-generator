@@ -290,7 +290,7 @@ func get_manager(): # -> Optional[RoadManager]
 	return _manager
 
 
-func get_roadpoints() -> Array:
+func get_roadpoints(skip_edge_connected=false) -> Array:
 	var rps = []
 	for obj in get_children():
 		if not obj is RoadPoint:
@@ -299,6 +299,13 @@ func get_roadpoints() -> Array:
 			continue # Assume local chunk has dealt with the geo visibility.
 		var pt:RoadPoint = obj
 		rps.append(pt)
+
+	if skip_edge_connected:
+		# Filter out pts which shouldn't be lane-changed (ie due to containers)
+		for itm in rps:
+			if itm.cross_container_connected():
+				rps.erase(itm)
+
 	return rps
 
 
