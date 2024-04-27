@@ -438,38 +438,37 @@ func get_next_rp():
 	return null
 
 
-## Get the ending node after following this direction
+## Get the last RoadPoint in this direction, allowing for intermediate flipped directions
 func get_last_rp(direction: int):
 	var _next_itr_point = null
 	var _prev_itr_point = null
 	var first_loop := true
-	var _count := 0
-	while _next_itr_point != self:  # Exit cond for a full sircle around
-		_count += 1
-		print("Iteration ", _count)
+	while _next_itr_point != self:  # Exit cond for a full circle around
 		if first_loop:
 			first_loop = false
 			# First iteration, should be deterministic which way to go
 			if direction == PointInit.NEXT:
 				if not self.next_pt_init:
 					return self
-				_next_itr_point = self.get_node(self.next_pt_init)
+				_next_itr_point = self.get_node_or_null(self.next_pt_init)
 			else:
 				if not self.prior_pt_init:
 					return self
-				_next_itr_point = self.get_node(self.prior_pt_init)
+				_next_itr_point = self.get_node_or_null(self.prior_pt_init)
+			if not is_instance_valid(_next_itr_point) or not _next_itr_point.has_method("is_road_point"):
+				return self
 			_prev_itr_point = self
 			continue
 
 		# Thereafter, just make sure the next selection != the last
 		var this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.next_pt_init)
-		if this_tmp == null:
+		if this_tmp == null or not this_tmp.has_method("is_road_point"):
 			# means it was the end of the line (as the other dir would be the prior iter)
 			return _next_itr_point
 		if this_tmp == _prev_itr_point:
 			# Doubled back maybe due to flipped dir; Just try the other direction
 			this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.prior_pt_init)
-		if this_tmp == null:
+		if this_tmp == null or not this_tmp.has_method("is_road_point"):
 			# means it was the end of the line!
 			return _next_itr_point
 		if this_tmp == _prev_itr_point:
