@@ -41,6 +41,9 @@ var _new_selection: Node # RoadPoint or RoadContainer
 
 var _edi_debug := false
 
+# For use by road_point_edit and panel, keys are props on RoadPoint
+var copy_attributes:Dictionary = {}
+
 
 func _enter_tree():
 	add_spatial_gizmo_plugin(road_point_gizmo)

@@ -43,9 +43,11 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 hint_tooltip = "Add RoadPoint to end of road"
 size_flags_horizontal = 3
 text = "+ Next RoadPoint"
+clip_text = true
 
 [node name="HBoxSelNextRP" type="HBoxContainer" parent="."]
 visible = false
@@ -65,8 +67,10 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 size_flags_horizontal = 3
 text = "Select Next RoadPoint"
+clip_text = true
 
 [node name="HBoxLanes" type="HBoxContainer" parent="."]
 margin_top = 44.0
@@ -143,8 +147,10 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 size_flags_horizontal = 3
 text = "Select Prior RoadPoint"
+clip_text = true
 
 [node name="HBoxAddPriorRP" type="HBoxContainer" parent="."]
 margin_top = 70.0
@@ -163,6 +169,61 @@ text = "Lanes:"
 margin_left = 45.0
 margin_right = 1024.0
 margin_bottom = 22.0
+rect_clip_content = true
 hint_tooltip = "Add RoadPoint to beginning of road"
 size_flags_horizontal = 3
 text = "+ Prior RoadPoint"
+clip_text = true
+
+[node name="spacer" type="Control" parent="."]
+margin_top = 96.0
+margin_right = 1024.0
+margin_bottom = 101.0
+rect_min_size = Vector2( 0, 5 )
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+margin_top = 105.0
+margin_right = 1024.0
+margin_bottom = 127.0
+
+[node name="spacer" type="Label" parent="HBoxContainer"]
+modulate = Color( 1, 1, 1, 0 )
+margin_top = 4.0
+margin_right = 41.0
+margin_bottom = 18.0
+rect_min_size = Vector2( 40, 0 )
+text = "Lanes:"
+
+[node name="cp_settings" type="Button" parent="HBoxContainer"]
+margin_left = 45.0
+margin_right = 532.0
+margin_bottom = 22.0
+rect_clip_content = true
+size_flags_horizontal = 3
+text = "Copy Settings"
+clip_text = true
+
+[node name="apply_setting" type="Button" parent="HBoxContainer"]
+margin_left = 536.0
+margin_right = 1024.0
+margin_bottom = 22.0
+rect_clip_content = true
+size_flags_horizontal = 3
+disabled = true
+text = "Apply"
+clip_text = true
+
+[node name="cp_to_all" type="Button" parent="HBoxContainer"]
+visible = false
+margin_left = 700.0
+margin_right = 1024.0
+margin_bottom = 22.0
+rect_clip_content = true
+size_flags_horizontal = 3
+disabled = true
+text = "Apply All"
+clip_text = true
+
+[connection signal="pressed" from="HBoxContainer/cp_settings" to="." method="_on_cp_settings_pressed"]
+[connection signal="pressed" from="HBoxContainer/apply_setting" to="." method="_on_apply_setting_pressed"]
+[connection signal="pressed" from="HBoxContainer/cp_to_all" to="." method="_on_cp_to_all_pressed"]

@@ -18,6 +18,7 @@ var _editor_plugin: EditorPlugin
 var _editor_selection  # Of type: EditorSelection, but can't type due to exports.
 # Either value, or null if not mid action (magnitude handle mid action).
 var init_handle
+var init_handle_mirror
 var collider := CubeMesh.new()
 var collider_tri_mesh: TriangleMesh
 var lane_widget := Spatial.new()
@@ -291,12 +292,28 @@ func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point
 	if (new_mag < 0 and index > 0) or (new_mag > 0 and index == 0):
 		new_mag = 0
 
+	var do_mirror:bool = Input.is_key_pressed(KEY_SHIFT)
+	var set_init: bool = false
 	if init_handle == null:
 		init_handle = new_mag
+		set_init = true
 	if index == 0:
 		roadpoint.prior_mag = -new_mag
+		if set_init:
+			init_handle_mirror = roadpoint.next_mag
+		if do_mirror:
+			roadpoint.next_mag = -new_mag
+		else:
+			roadpoint.next_mag = init_handle_mirror
 	else:
 		roadpoint.next_mag = new_mag
+		# Handle mirroring:
+		if set_init:
+			init_handle_mirror = roadpoint.prior_mag
+		if do_mirror:
+			roadpoint.prior_mag = new_mag
+		else:
+			roadpoint.prior_mag = init_handle_mirror
 	#gd4
 	#_redraw(gizmo)
 	redraw(gizmo)
@@ -374,18 +391,23 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 	else:
 		if init_handle == null:
 			init_handle = current_value
+			# And init_handle_mirror?
+		var do_mirror:bool = Input.is_key_pressed(KEY_SHIFT)
 
 		if index == HandleType.PRIOR_MAG:
 			undo_redo.create_action("RoadPoint %s in handle" % point.name)
 			undo_redo.add_do_property(point, "prior_mag", current_value)
-			undo_redo.add_undo_property(
-				point,
-				"prior_mag",
-				-init_handle) # Weird this is neg, but seems to be necessary.
+			undo_redo.add_undo_property(point, "prior_mag", -init_handle) # Weird this is neg, but seems to be necessary.
+			if do_mirror:
+				undo_redo.add_do_property(point, "next_mag", current_value)
+				undo_redo.add_undo_property(point, "next_mag", init_handle_mirror)
 		elif index == HandleType.NEXT_MAG:
 			undo_redo.create_action("RoadPoint %s out handle" % point.name)
 			undo_redo.add_do_property(point, "next_mag", current_value)
 			undo_redo.add_undo_property(point, "next_mag", init_handle)
+			if do_mirror:
+				undo_redo.add_do_property(point, "prior_mag", current_value)
+				undo_redo.add_undo_property(point, "prior_mag", -init_handle_mirror)
 
 		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
 		undo_redo.add_do_method(self, "redraw", gizmo)
@@ -398,6 +420,7 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		undo_redo.commit_action()
 		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
 		init_handle = null
+		init_handle_mirror = null
 
 
 func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
@@ -416,6 +439,13 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 
 		# Initial state for undo
 		undo_redo.create_action("Change lane count")
+
+		var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
+		var _pts = []
+		if bulk:
+			_pts = point.container.get_roadpoints(true) # Skip cross-connected
+		else:
+			_pts = [point]
 
 		# Track changes
 		var new_fwd_mag = point.fwd_width_mag
@@ -441,30 +471,34 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
 		elif lane_change < 0:
 			match index:
 				HandleType.REV_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_REVERSE)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_REVERSE)
 				HandleType.FWD_WIDTH_MAG:
 					for i in range(lane_change, 0):
-						undo_redo.add_do_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
-						undo_redo.add_undo_method(
-							point, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
+						for pt in _pts:
+							undo_redo.add_do_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.REM_FORWARD)
+							undo_redo.add_undo_method(
+								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
 
 
 		refresh_gizmo(gizmo)
