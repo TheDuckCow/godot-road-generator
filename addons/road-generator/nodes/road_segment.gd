@@ -37,6 +37,9 @@ var low_poly := false  # If true, then was (or will be) generated as low poly.
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
 var smooth_amount := -2  # Ease in/out smooth, used with ease built function
 
+# Cache for matched lanes, result of _match_lanes() func
+var _matched_lanes: Array = []
+
 # Indicator that this sequence is the connection of two "Next's" or two "Prior's"
 # and therefore we need to do some flipping around.
 var _start_flip: bool = false
@@ -178,6 +181,9 @@ func check_rebuild() -> bool:
 		end_point.prior_seg = self
 		_end_flip_mult = 1
 
+	# Build lane cache, to be used once only
+	_matched_lanes = _match_lanes()
+
 	if not start_point or not is_instance_valid(start_point) or not start_point.visible:
 		push_warning("Undirtied as node unready: start_point %s" % start_point)
 		is_dirty = false
@@ -201,8 +207,10 @@ func generate_edge_curves():
 		return
 
 	# Find the road edge positions
-	var matched_lanes = self._match_lanes()
-	if len(matched_lanes) == 0:
+	if _matched_lanes == []:
+		_matched_lanes = self._match_lanes()
+
+	if len(_matched_lanes) == 0:
 		return
 
 	var _par = get_parent()
@@ -263,8 +271,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		return false
 
 	# First identify all road lanes that will exist.
-	var matched_lanes = self._match_lanes()
-	if len(matched_lanes) == 0:
+	if _matched_lanes == []:
+		_matched_lanes = self._match_lanes()
+	if len(_matched_lanes) == 0:
 		return false
 
 	var any_generated = false
@@ -288,7 +297,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# while the right (forward) can be a running sum during the loop itself.
 	var lane_shift = {"reverse": 0, "forward": 0}
 	var end_is_wider = len(start_point.lanes) < len(end_point.lanes)
-	for this_match in matched_lanes:
+	for this_match in _matched_lanes:
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture)
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir (what we need)
 
@@ -302,7 +311,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	var max_rev_shift = lane_shift.reverse
 
-	for this_match in matched_lanes:
+	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p:%s_n:%s" % [this_match[2], this_match[3]]
 
@@ -706,8 +715,7 @@ func _build_geo():
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	#st.add_smooth_group(true)
-	var lanes = _match_lanes() # This one is what drives actual texture assignments
-	var lane_count = len(lanes)
+	var lane_count := len(_matched_lanes)
 	if lane_count == 0:
 		# Invalid configuration or nothing to draw
 		road_mesh.mesh = st.commit()
@@ -716,7 +724,7 @@ func _build_geo():
 	var clength = curve.get_baked_length()
 	# In this context, loop refers to "quad" faces, not the edges, as it will
 	# be a loop of generated faces.
-	var loops
+	var loops: int
 	if low_poly: # one third the geo
 		# Remove all loops between road points, so it's a straight mesh with no
 		# loops. In the future, this could be reduce to just a lower density.
@@ -727,27 +735,27 @@ func _build_geo():
 		loops = int(max(floor(clength / density), 1.0)) # Need at least 1 loop.
 
 	# Keep track of UV position over lane, to be seamless within the segment.
-	var lane_uvs_length = []
+	var lane_uvs_length := []
 	for ln in range(lane_count):
 		lane_uvs_length.append(0)
 
 	# Number of times the UV will wrap, to ensure seamless at next RoadPoint.
 	#
 	# Use the minimum sized road width for counting.
-	var min_road_width = min(start_point.lane_width, end_point.lane_width)
+	var min_road_width:float = min(start_point.lane_width, end_point.lane_width)
 	# Aim for real-world texture proportions width:height of 2:1 matching texture,
 	# but then the hight of 1 full UV is half the with across all lanes, so another 2x
-	var single_uv_height = min_road_width * 4.0
+	var single_uv_height:float = min_road_width * 4.0
 	var target_uv_tiles:int = int(clength / single_uv_height)
-	var per_loop_uv_size = float(target_uv_tiles) / float(loops)
-	var uv_width = 0.125 # 1/8 for breakdown of texture.
+	var per_loop_uv_size:float = float(target_uv_tiles) / float(loops)
+	var uv_width := 0.125 # 1/8 for breakdown of texture.
 
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
 	for loop in range(loops):
 		_insert_geo_loop(
-			st, loop, loops, lanes,
+			st, loop, loops, _matched_lanes,
 			lane_count, clength,
 			lane_uvs_length, per_loop_uv_size, uv_width)
 
@@ -1056,9 +1064,7 @@ func _flip_traffic_dir(lanes: Array) -> Array:
 		elif itm == RoadPoint.LaneDir.REVERSE:
 			val = RoadPoint.LaneDir.FORWARD
 		_spdir.append(val)
-	print("Before reverse", _spdir)
 	_spdir.invert()
-	print("After reverse", _spdir)
 	return _spdir
 
 
