@@ -706,7 +706,7 @@ func _build_geo():
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	#st.add_smooth_group(true)
-	var lanes = _match_lanes()
+	var lanes = _match_lanes() # This one is what drives actual texture assignments
 	var lane_count = len(lanes)
 	if lane_count == 0:
 		# Invalid configuration or nothing to draw
@@ -1046,6 +1046,22 @@ static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	st.add_uv(uvs[3])
 	st.add_vertex(pts[3])
 
+
+func _flip_traffic_dir(lanes: Array) -> Array:
+	var _spdir:Array = []
+	for itm in lanes:
+		var val = itm
+		if itm == RoadPoint.LaneDir.FORWARD:
+			val = RoadPoint.LaneDir.REVERSE
+		elif itm == RoadPoint.LaneDir.REVERSE:
+			val = RoadPoint.LaneDir.FORWARD
+		_spdir.append(val)
+	print("Before reverse", _spdir)
+	_spdir.invert()
+	print("After reverse", _spdir)
+	return _spdir
+
+
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
 ## the lanes whose directions match and create Add/Remove Transition lanes where
 ## the start or end points are missing lanes. Return an array that includes both
@@ -1060,19 +1076,33 @@ func _match_lanes() -> Array:
 	# Check for invalid lane configuration
 	if len(start_point.traffic_dir) == 0 or len(end_point.traffic_dir) == 0:
 		return []
+
+	# Correct for flipped direction (two next's pointing to each other,
+	# or two reverse's pointing to each other
+	var sp_traffic_dir:Array = start_point.traffic_dir
+	var ep_traffic_dir:Array = end_point.traffic_dir
+	var anyflip := false
+	if _start_flip:
+		sp_traffic_dir = _flip_traffic_dir(sp_traffic_dir)
+		anyflip = true
+	if _end_flip:
+		ep_traffic_dir = _flip_traffic_dir(ep_traffic_dir)
+		anyflip = true
+
 	if (
-		(start_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE
-			and end_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD)
-			or (start_point.traffic_dir[0] == RoadPoint.LaneDir.FORWARD
-			and end_point.traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
+		(sp_traffic_dir[0] == RoadPoint.LaneDir.REVERSE
+			and ep_traffic_dir[0] == RoadPoint.LaneDir.FORWARD)
+			or (sp_traffic_dir[0] == RoadPoint.LaneDir.FORWARD
+			and ep_traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
 	):
 		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
 		return []
 
-	var start_flip_data = _get_lane_flip_data(start_point)
+	var start_flip_data = _get_lane_flip_data(sp_traffic_dir)
 	var start_flip_offset = start_flip_data[0]
 	var start_traffic_dir = start_flip_data[1]
-	var end_flip_data = _get_lane_flip_data(end_point)
+
+	var end_flip_data = _get_lane_flip_data(ep_traffic_dir)
 	var end_flip_offset = end_flip_data[0]
 	var end_traffic_dir = end_flip_data[1]
 
@@ -1096,7 +1126,7 @@ func _match_lanes() -> Array:
 
 	# Build lanes list.
 	var lanes: Array
-	var range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir))
+	var range_to_check = max(len(sp_traffic_dir), len(ep_traffic_dir))
 
 	# Handle FORWARD-only lane setups
 	if (
@@ -1105,20 +1135,21 @@ func _match_lanes() -> Array:
 	):
 		var last_same_i = 0 # last lane where F# was the same at start/end
 		for i in range(range_to_check):
-			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
+			if i < len(sp_traffic_dir) and i < len(ep_traffic_dir):
+				var lni = -1 - i if _start_flip else i
 				lanes.append([
-					start_point.lanes[i],
+					start_point.lanes[lni], # accounting for _start_flip
 					RoadPoint.LaneDir.FORWARD,
 					"F%s" % i,
 					"F%s" % i])
 				last_same_i = i
-			elif i > len(start_point.traffic_dir) - 1:
+			elif i > len(sp_traffic_dir) - 1:
 				lanes.append([
 					RoadPoint.LaneType.TRANSITION_ADD,
 					RoadPoint.LaneDir.FORWARD,
 					"F%sa" % last_same_i,
 					"F%s" % i])
-			elif i > len(end_point.traffic_dir) - 1:
+			elif i > len(ep_traffic_dir) - 1:
 				lanes.append([
 					RoadPoint.LaneType.TRANSITION_REM,
 					RoadPoint.LaneDir.FORWARD,
@@ -1131,20 +1162,21 @@ func _match_lanes() -> Array:
 	):
 		var last_same_i = 0 # last lane where F# was the same at start/end
 		for i in range(range_to_check):
-			if i < len(start_point.traffic_dir) and i < len(end_point.traffic_dir):
+			if i < len(sp_traffic_dir) and i < len(ep_traffic_dir):
+				var lni = i if _start_flip else -1 - i
 				lanes.push_front([
-					start_point.lanes[-i - 1],
+					start_point.lanes[lni], # accounting for _start_flip
 					RoadPoint.LaneDir.REVERSE,
 					"R%s" % i,
 					"R%s" % i])
 				last_same_i = i
-			elif i > len(end_point.traffic_dir) - 1:
+			elif i > len(ep_traffic_dir) - 1:
 				lanes.push_front([
 					RoadPoint.LaneType.TRANSITION_REM,
 					RoadPoint.LaneDir.REVERSE,
 					"R%s" % i,
 					"R%sr" % last_same_i])
-			elif i > len(start_point.traffic_dir) - 1:
+			elif i > len(sp_traffic_dir) - 1:
 				lanes.push_front([
 					RoadPoint.LaneType.TRANSITION_ADD,
 					RoadPoint.LaneDir.REVERSE,
@@ -1182,8 +1214,9 @@ func _match_lanes() -> Array:
 			else:
 				# Lane directions match. Add LaneType from start point.
 				last_same_i += 1
+				var lni = -1 - i if _start_flip else i
 				lanes.push_front([
-					start_point.lanes[i],
+					start_point.lanes[lni],  # Account for lane flip
 					RoadPoint.LaneDir.REVERSE,
 					"R%s" % curr_i,
 					"R%s" % curr_i])
@@ -1196,17 +1229,17 @@ func _match_lanes() -> Array:
 		# the end point, then assign the start point's LaneType. If the iterator is
 		# below the length of start point lanes and there are no more lanes on the
 		# end point, then assign TRANSITION_REM lane(s).
-		range_to_check = max(len(start_point.traffic_dir), len(end_point.traffic_dir) + start_end_offset_diff)
+		range_to_check = max(len(sp_traffic_dir), len(ep_traffic_dir) + start_end_offset_diff)
 		last_same_i = 0 # last lane where F# was the same at start/end
 		for i in range(start_flip_offset, range_to_check):
-			if i > len(start_point.traffic_dir) - 1:
+			if i > len(sp_traffic_dir) - 1:
 				# No pre-existing lane on start point. Add a lane.
 				lanes.append([
 					RoadPoint.LaneType.TRANSITION_ADD,
 					RoadPoint.LaneDir.FORWARD,
 					"F%sa" % last_same_i,
 					"F%s" % (i - start_flip_offset)])
-			elif i < len(start_point.traffic_dir) and i - start_end_offset_diff > len(end_point.traffic_dir) - 1:
+			elif i < len(sp_traffic_dir) and i - start_end_offset_diff > len(ep_traffic_dir) - 1:
 				# No pre-existing lane on end point. Remove a lane.
 				lanes.append([
 					RoadPoint.LaneType.TRANSITION_REM,
@@ -1215,8 +1248,9 @@ func _match_lanes() -> Array:
 					"F%sr" % last_same_i])
 			elif i < len(start_point.lanes):
 				# Lane directions match. Add LaneType from start point.
+				var lni = -1 - i if _start_flip else i
 				lanes.append([
-					start_point.lanes[i],
+					start_point.lanes[lni], # Account for lane flips
 					RoadPoint.LaneDir.FORWARD,
 					"F%s" % (i - start_flip_offset),
 					"F%s" % (i - start_flip_offset)])
@@ -1228,33 +1262,33 @@ func _match_lanes() -> Array:
 ## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
 ## overall traffic direction of the RoadPoint.
 ## Returns: Array[int, RoadPoint.LaneDir]
-func _get_lane_flip_data(road_point: RoadPoint) -> Array:
+func _get_lane_flip_data(traffic_dir: Array) -> Array:
 	# Get lane FORWARD flip offset. If a flip occurs more than once, give
 	# warning.
 	var flip_offset = 0
 	var flip_count = 0
 
-	for i in range(len(road_point.traffic_dir)):
+	for i in range(len(traffic_dir)):
 		if (
 				# Save ID of first FORWARD lane
-				road_point.traffic_dir[i] == RoadPoint.LaneDir.FORWARD
+				traffic_dir[i] == RoadPoint.LaneDir.FORWARD
 				and flip_count == 0
 		):
 			flip_offset = i
 			flip_count += 1
 		if (
 				# Flag unwanted flips. REVERSE always comes before FORWARD.
-				road_point.traffic_dir[i] == RoadPoint.LaneDir.REVERSE
+				traffic_dir[i] == RoadPoint.LaneDir.REVERSE
 				and flip_count > 0
 		):
-			push_warning("Warning: Unable to detect lane flip on road_point %s" % road_point)
+			push_warning("Warning: Unable to detect lane flip on road_point with traffic dirs %s" % traffic_dir)
 			return [-1, RoadPoint.LaneDir.NONE]
-		elif flip_count == 0 and i == len(road_point.traffic_dir) - 1:
+		elif flip_count == 0 and i == len(traffic_dir) - 1:
 			# This must be a REVERSE-only road point
-			flip_offset = len(road_point.traffic_dir) - 1
+			flip_offset = len(traffic_dir) - 1
 			return [flip_offset, RoadPoint.LaneDir.REVERSE]
-		elif flip_count == 1 and flip_offset == 0 and i == len(road_point.traffic_dir) - 1:
+		elif flip_count == 1 and flip_offset == 0 and i == len(traffic_dir) - 1:
 			# This must be a FORWARD-only road point
-			flip_offset = len(road_point.traffic_dir) - 1
+			flip_offset = len(traffic_dir) - 1
 			return [flip_offset, RoadPoint.LaneDir.FORWARD]
 	return [flip_offset, RoadPoint.LaneDir.BOTH]
