@@ -79,6 +79,7 @@ export(Vector2) var gutter_profile := Vector2(2.0, -2.0) setget _set_profile, _g
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
 export(NodePath) var prior_pt_init setget _set_prior_pt_init, _get_prior_pt_init
 export(NodePath) var next_pt_init setget _set_next_pt_init, _get_next_pt_init
+export(bool) var terminated := false
 # Handle magniture
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
