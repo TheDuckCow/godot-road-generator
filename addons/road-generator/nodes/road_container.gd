@@ -372,15 +372,59 @@ func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
 func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	var closest_rp: RoadPoint
 	var closest_dist: float
-	for pth in edge_rp_locals:
-		var rp = get_node(pth)
-		if not is_instance_valid(rp) or rp.terminated:
-			continue
+
+	for rp in get_open_edges():
 		var this_dist = g_search_pos.distance_squared_to(rp.global_translation)
 		if not closest_dist or this_dist < closest_dist:
 			closest_dist = this_dist
 			closest_rp = rp
 	return closest_rp
+
+
+# Get Edge RoadPoints that are open and available for connections
+func get_open_edges()->Array:
+	var rp_edges: Array = []
+	for idx in len(edge_rp_locals):
+		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
+		var connected: RoadPoint = get_node_or_null(edge_rp_targets[idx])
+		if connected:
+			# Edge is already connected
+			continue
+		elif edge and edge.terminated:
+			# Edge is terminated
+			continue
+		elif edge:
+			# Edge is available for connections
+			rp_edges.append(edge)
+		else:
+			# Edge is non-existent
+			continue
+	return rp_edges
+
+
+# Get Edge RoadPoints that are unavailable for connections. Returns both the
+# local Edges and the target Edges.
+func get_connected_edges()->Array:
+	var rp_edges: Array = []
+	for idx in len(edge_rp_locals):
+		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
+		var target_cont = get_node_or_null(edge_containers[idx])
+		if not target_cont:
+			continue
+		var target: RoadPoint = target_cont.get_node_or_null(edge_rp_targets[idx])
+		if target and edge:
+			# Edge is already connected
+			rp_edges.append([edge, target])
+		elif edge and edge.terminated:
+			# Edge is terminated
+			continue
+		elif edge:
+			# Edge is available for connections
+			continue
+		else:
+			# Edge is non-existent
+			continue
+	return rp_edges
 
 
 ## Update export variable lengths and counts to account for connection to

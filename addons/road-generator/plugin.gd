@@ -2,6 +2,13 @@
 tool
 extends EditorPlugin
 
+enum SnapState {
+	IDLE,
+	SNAPPING,
+	UNSNAPPING,
+	CANCELING,
+}
+
 const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
@@ -35,7 +42,7 @@ var _overlay_hovering_from := Vector2(-1, -1)
 var _overlay_hint_disconnect := false
 var _overlay_hint_connection := false
 var _overlay_hint_delete := false
-var _snapping := false
+var _snapping = SnapState.IDLE
 var _nearest_edges: Array # [Selected RP, Target RP]
 
 var _press_init_pos: Vector2
@@ -95,16 +102,49 @@ func _exit_tree():
 func forward_spatial_draw_over_viewport(overlay: Control):
 
 	var selected = _overlay_rp_selected
+	var rad_size := 10.0
+	var col:Color
 
 	# White margin background
 	var margin := 3
 	var white_col = Color(1, 1, 1, 0.9)
 
-	if tool_mode == _road_toolbar.InputMode.SELECT and not _snapping:
+	if tool_mode == _road_toolbar.InputMode.SELECT and _snapping == SnapState.IDLE:
 		return
+	elif tool_mode == _road_toolbar.InputMode.SELECT:
+		if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
+			return # Nothing to draw
+		var hovering:RoadPoint = _overlay_rp_hovering
+		if _overlay_hint_disconnect:
+			col = Color.coral
+		else:
+			col = Color.aqua
+
+		if not selected is RoadPoint:
+			return
+
+		# White margin background
+		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+		overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+		overlay.draw_line(
+			_overlay_hovering_from,
+			_overlay_hovering_pos,
+			white_col,
+			2+margin*2,
+			true)
+
+		# Now color based on operation
+		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
+		overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+		overlay.draw_line(
+			_overlay_hovering_from,
+			_overlay_hovering_pos,
+			col,
+			2,
+			true)
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
-			var col = Color.coral
+			col = Color.coral
 
 			var radius := 24.0  # Radius of the rounded ends
 			var hf := radius / 2.0
@@ -129,8 +169,6 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 		return
 
 	# Add mode
-	var rad_size := 10.0
-	var col:Color
 	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
 		return # Nothing to draw
 	var hovering:RoadPoint = _overlay_rp_hovering
@@ -225,7 +263,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	var lmb_pressed = Input.is_mouse_button_pressed(BUTTON_LEFT)
 	if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and _snapping:
 		# If user clicks RMB while snapping, then cancel snapping
-		_snapping = false
+		_snapping = SnapState.IDLE
 	elif event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
 
 		if event.pressed:
@@ -233,22 +271,31 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 			# to differentiate between drags and direct clicks.
 			_press_init_pos = event.position
 			return INPUT_PASS
-		elif _press_init_pos != event.position:
+		elif _press_init_pos != event.position and not _snapping == SnapState.IDLE:
 			# TODO: possibly add min distance before treated as a drag
 			# (does built in godot have a tolerance before counted as a drag?)
-			if _snapping:
-				# Snap selected object to RoadPoint
-				var sel_rp = _nearest_edges[0]
-				var tgt_rp = _nearest_edges[1]
+			var sel_rp: RoadPoint = _nearest_edges[0]
+			var tgt_rp: RoadPoint = _nearest_edges[1]
+			if _snapping in [SnapState.SNAPPING, SnapState.CANCELING]:
+				# Snap selected object to target RoadPoint.
 				selected.snap_to_road_point(sel_rp, tgt_rp)
+			if _snapping == SnapState.SNAPPING:
+				# Connect Edge RoadPoints.
 				_connect_rp_on_click(tgt_rp, sel_rp)
-			# Clear overlays and snapping condition
-			_snapping = false
+			elif _snapping == SnapState.UNSNAPPING:
+				# Disconnect Edge RoadPoints
+				for edge in selected.get_connected_edges():
+					_disconnect_rp_on_click(edge[1], edge[0])
+			# Clear overlays and snapping/unsnapping condition
+			_snapping = SnapState.IDLE
 			_overlay_hint_disconnect = false
 			_overlay_hint_connection = false
 			update_overlays()
 
 			return INPUT_PASS  # Is a drag event
+
+		elif _press_init_pos != event.position:
+			return INPUT_PASS  # Is a drag even
 
 		# Shoot a ray and see if it hits anything
 		var point = get_nearest_road_point(camera, event.position)
@@ -264,16 +311,36 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 			return INPUT_PASS
 
 	elif event is InputEventMouseMotion and lmb_pressed and selected is RoadContainer:
-		# Get all usable edge RoadPoints in selected container
-		var edge_rp_locals = selected.edge_rp_locals
-		var sel_rp_edges: Array
-		for rp in edge_rp_locals:
-			var edge = selected.get_node(rp)
-			if not edge.terminated:
-				sel_rp_edges.append(edge)
-		if not len(sel_rp_edges) > 0:
-			print_debug("No edges found")
+		# If container already has Edge connections then unsnap/disconnect them.
+		var sel_rp_connections: Array = selected.get_connected_edges()
+		if len(sel_rp_connections) > 0:
+			_nearest_edges = sel_rp_connections[0]
+			var edge = _nearest_edges[0]
+			var tgt_edge = _nearest_edges[1]
+			var dist = (edge.global_translation - tgt_edge.global_translation).length()
+			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
+			_overlay_rp_hovering = _nearest_edges[0]
+			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
+			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
+			if dist < ROADPOINT_SNAP_THRESHOLD:
+				_snapping = SnapState.CANCELING
+				# Use blue line color
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = true
+			else:
+				_snapping = SnapState.UNSNAPPING
+				# Use red line color
+				_overlay_hint_disconnect = true
+				_overlay_hint_connection = false
+			update_overlays()
 			return INPUT_PASS
+
+		# If container doesn't have Edge connections then snap/connect an Edge.
+		# Get all usable Edge RoadPoints in selected container
+		var sel_rp_edges: Array = selected.get_open_edges()
+		if not len(sel_rp_edges) > 0:
+			return INPUT_PASS
+
 		# Iterate remaining RoadContainers in scene and find RoadPoint
 		# closest to the RoadPoints in the selected container.
 		var containers: Array = selected.get_all_road_containers(_edi.get_edited_scene_root())
@@ -281,7 +348,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 		_nearest_edges = []
 		for cont in containers:
 			if cont == selected:
-				# Skip the selected container. We already have its edge RoadPoints
+				# Skip the selected container. We already have its Edge RoadPoints
 				continue
 			for edge in sel_rp_edges:
 				var tgt_edge = cont.get_closest_edge_road_point(edge.global_translation)
@@ -290,7 +357,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 					min_dist = dist
 					_nearest_edges = [edge, tgt_edge]
 		if _nearest_edges:
-			_snapping = true
+			_snapping = SnapState.SNAPPING
 			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
 			_overlay_rp_hovering = _nearest_edges[0]
 			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
@@ -299,7 +366,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 			_overlay_hint_connection = true
 			update_overlays()
 		else:
-			_snapping = false
+			_snapping = SnapState.IDLE
 
 		return INPUT_PASS
 	return INPUT_PASS
