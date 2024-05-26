@@ -402,19 +402,25 @@ func get_open_edges()->Array:
 	return rp_edges
 
 
-# Get Edge RoadPoints that are unavailable for connections. Returns both the
-# local Edges and the target Edges.
+# Get Edge RoadPoints that are unavailable for connections. Returns
+# local Edges, target Edges, and target containers.
 func get_connected_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
-		var target_cont = get_node_or_null(edge_containers[idx])
+		var target_cont: RoadContainer = get_node_or_null(edge_containers[idx])
+#		var is_scene =
+		# Find out if the target container is a scene
+		if target_cont and target_cont.filename:
+			print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.filename])
+#		else:
+#			print("target_cont is null")
 		if not target_cont:
 			continue
 		var target: RoadPoint = target_cont.get_node_or_null(edge_rp_targets[idx])
 		if target and edge:
 			# Edge is already connected
-			rp_edges.append([edge, target])
+			rp_edges.append([edge, target, target_cont])
 		elif edge and edge.terminated:
 			# Edge is terminated
 			continue
@@ -426,6 +432,40 @@ func get_connected_edges()->Array:
 			continue
 	return rp_edges
 
+## Returns array of connected Edges that are not in a nested scene.
+func get_moving_edges()->Array:
+	var rp_edges: Array = []
+	for rp in get_connected_edges():
+		var edge: RoadPoint = rp[0]
+		var target: RoadPoint = rp[1]
+		var target_cont: RoadContainer = rp[2]
+		# Skip Edge if target container is nested scene
+		if target_cont and target_cont.is_subscene():
+			continue
+		# Add Edge to list
+		rp_edges.append([edge, target, target_cont])
+	return rp_edges
+
+
+## Moves RoadPoints connected to this container if this is
+## a nested scene and target is not a nested scene.
+func move_connected_road_points():
+	# Bail if this is not a nested scene
+	if not is_subscene():
+		return
+	# Iterate only moving RoadPoints
+	for rp in get_moving_edges():
+		var sel_rp: RoadPoint = rp[0]
+		var tgt_rp: RoadPoint = rp[1]
+		# Move connected RoadPoint
+		tgt_rp.global_transform = sel_rp.global_transform
+
+		# Add 180 degrees to Y rotation if needed
+		var is_prior_prior: bool = sel_rp.next_pt_init and tgt_rp.next_pt_init
+		var is_next_next: bool = sel_rp.prior_pt_init and tgt_rp.prior_pt_init
+		if is_prior_prior or is_next_next:
+			var basis_y = sel_rp.global_transform.basis.y
+			sel_rp.rotate(basis_y, PI)
 
 ## Update export variable lengths and counts to account for connection to
 ## other RoadContainers

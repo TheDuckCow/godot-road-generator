@@ -6,6 +6,7 @@ enum SnapState {
 	IDLE,
 	SNAPPING,
 	UNSNAPPING,
+	MOVING,
 	CANCELING,
 }
 
@@ -44,6 +45,7 @@ var _overlay_hint_connection := false
 var _overlay_hint_delete := false
 var _snapping = SnapState.IDLE
 var _nearest_edges: Array # [Selected RP, Target RP]
+var _edge_positions: Array # [edge_from_pos, edge_to_pos]
 
 var _press_init_pos: Vector2
 
@@ -112,36 +114,66 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	if tool_mode == _road_toolbar.InputMode.SELECT and _snapping == SnapState.IDLE:
 		return
 	elif tool_mode == _road_toolbar.InputMode.SELECT:
-		if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
-			return # Nothing to draw
-		var hovering:RoadPoint = _overlay_rp_hovering
+		# Set the drawing color
 		if _overlay_hint_disconnect:
 			col = Color.coral
 		else:
 			col = Color.aqua
 
-		if not selected is RoadPoint:
-			return
+		# Treat Snapping and Unsnapping differently. When Snapping, show a line
+		# between the two closest points. When Unsnapping, show lines between
+		# all connected points that will be Unsnapped.
+		if _snapping == SnapState.SNAPPING:
+			if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
+				return # Nothing to draw
 
-		# White margin background
-		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-		overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			white_col,
-			2+margin*2,
-			true)
+			if not selected is RoadPoint:
+				return
 
-		# Now color based on operation
-		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-		overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			col,
-			2,
-			true)
+			# White margin background
+			overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+			overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+			overlay.draw_line(
+				_overlay_hovering_from,
+				_overlay_hovering_pos,
+				white_col,
+				2+margin*2,
+				true)
+
+			# Now color based on operation
+			overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
+			overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+			overlay.draw_line(
+				_overlay_hovering_from,
+				_overlay_hovering_pos,
+				col,
+				2,
+				true)
+		else: # Unsnapping
+			# Iterate _all_edges and draw line for each
+			for edge_pair in _edge_positions:
+				_overlay_hovering_from = edge_pair[0]
+				_overlay_hovering_pos = edge_pair[1]
+
+				# White margin background
+				overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+				overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+				overlay.draw_line(
+					_overlay_hovering_from,
+					_overlay_hovering_pos,
+					white_col,
+					2+margin*2,
+					true)
+
+				# Now color based on operation
+				overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
+				overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+				overlay.draw_line(
+					_overlay_hovering_from,
+					_overlay_hovering_pos,
+					col,
+					2,
+					true)
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
 			col = Color.coral
@@ -261,6 +293,8 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 #		return INPUT_PASS
 	var selected = get_selected_node()
 	var lmb_pressed = Input.is_mouse_button_pressed(BUTTON_LEFT)
+	var ctrl_pressed = Input.is_key_pressed(KEY_CONTROL)
+	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
 	if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and _snapping:
 		# If user clicks RMB while snapping, then cancel snapping
 		_snapping = SnapState.IDLE
@@ -313,15 +347,36 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	elif event is InputEventMouseMotion and lmb_pressed and selected is RoadContainer:
 		# If container already has Edge connections then unsnap/disconnect them.
 		var sel_rp_connections: Array = selected.get_connected_edges()
+#		_all_edges = selected.get_connected_edges()
+
+		# Get the closest edges
 		if len(sel_rp_connections) > 0:
-			_nearest_edges = sel_rp_connections[0]
-			var edge = _nearest_edges[0]
-			var tgt_edge = _nearest_edges[1]
-			var dist = (edge.global_translation - tgt_edge.global_translation).length()
-			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
-			_overlay_rp_hovering = _nearest_edges[0]
-			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
-			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
+#			print("%s %s connected edges" % [Time.get_ticks_msec(), len(sel_rp_connections)])
+			var dist: float = 0
+			_edge_positions = []
+			for edge_group in sel_rp_connections:
+				var edge = edge_group[0]
+				var tgt_edge = edge_group[1]
+
+				# Save edge positions for drawing in the viewport
+				var edge_from_pos = camera.unproject_position(edge.global_transform.origin)
+				var edge_to_pos = camera.unproject_position(tgt_edge.global_transform.origin)
+				_edge_positions.append([edge_from_pos, edge_to_pos])
+
+				# Save closest edges
+				var group_dist = abs((edge.global_translation - tgt_edge.global_translation).length())
+				if (not dist) or group_dist < dist:
+					dist = group_dist
+					_nearest_edges = edge_group
+
+#			_nearest_edges = _all_edges[0]
+#			var edge = _nearest_edges[0]
+#			var tgt_edge = _nearest_edges[1]
+#			dist = (edge.global_translation - tgt_edge.global_translation).length()
+#			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
+#			_overlay_rp_hovering = _nearest_edges[0]
+#			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
+#			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
 			if dist < ROADPOINT_SNAP_THRESHOLD:
 				_snapping = SnapState.CANCELING
 				# Use blue line color
@@ -332,6 +387,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				# Use red line color
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
+#			selected.move_connected_road_points()
 			update_overlays()
 			return INPUT_PASS
 
