@@ -602,6 +602,18 @@ func _rebuild():
 	# Create a low and high poly road, start with low poly.
 	_build_geo()
 
+	if container.create_edge_curves:
+		generate_edge_curves()
+	else:
+		clear_edge_curves()
+	# Check if lowpoly AND in the editor, to bypass lane drawing for performance.
+	# TODO: remove this, once road_lane visualizer drawing is far more efficient
+	var skip_update: bool = low_poly and Engine.is_editor_hint()
+	if container.generate_ai_lanes and not skip_update:
+		generate_lane_segments()
+	else:
+		clear_lane_segments()
+
 
 func _update_curve():
 	curve.clear_points()

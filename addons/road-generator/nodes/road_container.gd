@@ -219,8 +219,10 @@ func _dirty_rebuild_deferred() -> void:
 func _set_draw_lanes_editor(value: bool):
 	_draw_lanes_editor = value
 	for seg in get_segments():
-		seg.update_lane_visibility()
-
+		if not generate_ai_lanes:
+			seg.clear_lane_segments()
+		else:
+			seg.update_lane_visibility()
 
 
 func _get_draw_lanes_editor() -> bool:
@@ -680,14 +682,6 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		new_seg.material = material_resource
 		new_seg.check_rebuild()
 
-		if generate_ai_lanes:
-			new_seg.generate_lane_segments()
-
-		if create_edge_curves:
-			new_seg.generate_edge_curves()
-		else:
-			new_seg.clear_edge_curves()
-
 		return [true, new_seg]
 
 
@@ -769,11 +763,6 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
-		point.prior_seg.generate_edge_curves()
-		if not use_lowpoly:
-			point.prior_seg.generate_lane_segments()
-		else:
-			point.prior_seg.clear_lane_segments()
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
@@ -787,12 +776,6 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
-		point.next_seg.generate_edge_curves()
-		if not use_lowpoly:
-			point.next_seg.generate_lane_segments()
-		else:
-			if point.next_seg:
-				point.next_seg.clear_lane_segments()
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
