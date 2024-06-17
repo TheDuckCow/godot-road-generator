@@ -63,10 +63,9 @@ func _init(_container):
 
 
 func _ready():
-	if container.debug_scene_visible:
-		road_mesh.owner = container.owner
-
 	do_roadmesh_creation()
+	if container.debug_scene_visible and is_instance_valid(road_mesh):
+		road_mesh.owner = container.owner
 
 
 # Workaround for cyclic typing
@@ -103,6 +102,8 @@ func add_road_mesh() -> void:
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
+	if container.debug_scene_visible and is_instance_valid(road_mesh):
+		road_mesh.owner = container.owner
 
 
 func remove_road_mesh():
@@ -235,6 +236,7 @@ func generate_edge_curves():
 		edge_R.name = EDGE_R_NAME
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
+		edge_R.set_meta("_edit_lock_", true)
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
@@ -242,6 +244,7 @@ func generate_edge_curves():
 		edge_F.name = EDGE_F_NAME
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
+		edge_F.set_meta("_edit_lock_", true)
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 	# Add center curve
@@ -256,6 +259,7 @@ func generate_edge_curves():
 		edge_C.name = EDGE_C_NAME
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
+		edge_C.set_meta("_edit_lock_", true)
 	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
 
 
@@ -295,7 +299,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# We need to keep track of the number of reverse lane subtractions and
 	# forward subtractions. The left side (reverse) needs to be precalcuated,
 	# while the right (forward) can be a running sum during the loop itself.
-	var lane_shift = {"reverse": 0, "forward": 0}
+	var lane_shift := {"reverse": 0, "forward": 0}
 	var end_is_wider = len(start_point.lanes) < len(end_point.lanes)
 	for this_match in _matched_lanes:
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture)
@@ -327,6 +331,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			if container.debug_scene_visible:
 				ln_child.owner = container.owner
 			ln_child.add_to_group(container.ai_lane_group)
+			ln_child.set_meta("_edit_lock_", true)
 		var new_ln:RoadLane = ln_child
 
 		# Assign the in and out lane tags, to help with connecting to other
@@ -354,8 +359,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# in and out at the edges.
 		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point)
 
-		# Visually display.
-		new_ln.draw_in_editor = container.draw_lanes_editor
+		# Visually display if indicated, and not mid transform (low_poly)
+		if low_poly:
+			new_ln.draw_in_editor = false
+		else:
+			new_ln.draw_in_editor = container.draw_lanes_editor
 		new_ln.draw_in_game = container.draw_lanes_game
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
@@ -606,10 +614,8 @@ func _rebuild():
 		generate_edge_curves()
 	else:
 		clear_edge_curves()
-	# Check if lowpoly AND in the editor, to bypass lane drawing for performance.
-	# TODO: remove this, once road_lane visualizer drawing is far more efficient
-	var skip_update: bool = low_poly and Engine.is_editor_hint()
-	if container.generate_ai_lanes and not skip_update:
+
+	if container.generate_ai_lanes:
 		generate_lane_segments()
 	else:
 		clear_lane_segments()

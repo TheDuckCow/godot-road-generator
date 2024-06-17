@@ -660,6 +660,11 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 	else:
 		var new_seg = RoadSegment.new(self)
 
+		# Must not move from origin, else geometry offsets would occur. Also
+		# implies to user to not interact with this item if ever exposed.
+		new_seg.set_meta("_edit_lock_", true)
+		new_seg.set_meta("_edit_group_", true)
+
 		# We want to, as much as possible, deterministically add the RoadSeg
 		# as a child of a consistent RoadPoint. Even though the segment is
 		# connected to two road points, it will only be placed as a parent of
