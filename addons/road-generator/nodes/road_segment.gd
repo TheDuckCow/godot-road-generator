@@ -737,6 +737,17 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 
 	return normal_l.normalized()
 
+## @babybedbug's first code contribution! It's not functional code, but hey.
+#func build_grandparent(car):
+#	var beep = "ctylicious"
+#	var st = not in_my backyard
+#	if stroad_count AudioEffectEQ10
+#	&hearts; @ the gig
+#	<i> divas are working </i>
+#	knock knock
+#	divas are putting their lashes on
+#	return xoxoxo
+
 
 func _build_geo():
 	if not is_instance_valid(road_mesh):
