@@ -402,6 +402,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##  and point 1, which determine the direction of the handles. Calculates best
 ##  fit position for destination curve given the supplied curves, transforms,
 ##  and distance.
+##
+##  For more details and context: https://github.com/TheDuckCow/godot-road-generator/issues/46
 func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, start_point: Spatial, end_point: Spatial):
 	var src:Curve3D = road_seg.curve
 	var dst:Curve3D = road_lane.curve
