@@ -273,6 +273,40 @@ var one_way_lane_setup = [
 	],
 ]
 
+# Scenarios to test where one RP should be rotated flipped
+# Struc of: start_traffic_dir, end_traffic_dir, lanes, and expected
+# and finally: where to count the start lane as flipped or not
+var flipped_dir_setup = [
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.FAST, RoadPoint.LaneType.FAST, RoadPoint.LaneType.SLOW],
+		[
+			# reverse lane stays reverse lane.
+			[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.REVERSE, "R0", "R0"],
+			# forward lane stays forward lane.
+			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F0", "F0"],
+			# outer fowrad lane stays the same.
+			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F1", "F1"]],
+		"(RFF) > RFF >> F|FS", # () for flipped here for rot, meaning REVERSE->FORWARD
+		true
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.FAST, RoadPoint.LaneType.FAST, RoadPoint.LaneType.SLOW],
+		[
+			# reverse lane stays reverse lane.
+			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.REVERSE, "R0", "R0"],
+			# forward lane stays forward lane.
+			[RoadPoint.LaneType.FAST, RoadPoint.LaneDir.FORWARD, "F0", "F0"],
+			# outer fowrad lane stays the same.
+			[RoadPoint.LaneType.SLOW, RoadPoint.LaneDir.FORWARD, "F1", "F1"]],
+		"RFF > (RFF) >> F|FS", # () for flipped here for rot, meaning REVERSE->FORWARD
+		false
+	],
+]
+
 func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
 	var seg = autoqfree(RoadSegment.new(null))
 
@@ -299,3 +333,23 @@ func test_one_way_lanes_sequence(params=use_parameters(one_way_lane_setup)):
 	var result = seg._match_lanes()
 	assert_eq(result, target, "Match one-way %s" % params[4])
 
+## Created in honor of:
+## https://github.com/TheDuckCow/godot-road-generator/issues/136
+func test_flipped_dirs(params=use_parameters(flipped_dir_setup)):
+	var seg = autoqfree(RoadSegment.new(null))
+
+	seg.start_point = autoqfree(RoadPoint.new())
+	seg.end_point = autoqfree(RoadPoint.new())
+
+	if params[5]:
+		seg._start_flip = true
+	else:
+		seg._end_flip = true
+
+	seg.start_point.traffic_dir = params[0]
+	seg.end_point.traffic_dir = params[1]
+	seg.start_point.lanes = params[2]
+
+	var target = params[3]
+	var result = seg._match_lanes()
+	assert_eq(result, target, "Flipped lanes %s" % params[4])
