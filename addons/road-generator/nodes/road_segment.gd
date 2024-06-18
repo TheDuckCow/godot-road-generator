@@ -282,9 +282,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	var any_generated = false
 
-	# TODO: conditionally check for same-named lanes for re-use.
-	clear_lane_segments()
-
 	var start_offset = len(start_point.lanes) / 2.0 * start_point.lane_width - start_point.lane_width/2.0
 	var end_offset = len(end_point.lanes) / 2.0 * end_point.lane_width - end_point.lane_width/2.0
 
@@ -293,6 +290,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
+
+	# Cache for sparse node removal
+	var active_lanes = []
 
 	var _par = get_parent() # Add RoadLanes to the parent RoadPoint, with option to add as children directly.
 
@@ -315,9 +315,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	var max_rev_shift = lane_shift.reverse
 
+	var _tmppar = _par.get_children()
+
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
-		var ln_name = "p:%s_n:%s" % [this_match[2], this_match[3]]
+		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
@@ -325,6 +327,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
 		var ln_child = null
+		ln_child = _par.get_node_or_null(ln_name)
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
@@ -332,7 +335,10 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 				ln_child.owner = container.owner
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
+		else:
+			ln_child.curve.clear_points()
 		var new_ln:RoadLane = ln_child
+		active_lanes.append(new_ln)
 
 		# Assign the in and out lane tags, to help with connecting to other
 		# road lanes later (handled by RoadContainer).
@@ -384,6 +390,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		any_generated = true
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
+	clear_lane_segments(active_lanes)
 
 	return any_generated
 
@@ -540,14 +547,18 @@ func get_lanes() -> Array:
 
 
 ## Remove all RoadLanes attached to this RoadSegment
-func clear_lane_segments():
+func clear_lane_segments(ignore_list: Array = []) -> void:
 	var _par = get_parent()
 	for ch in _par.get_children():
+		if ch in ignore_list:
+			continue
 		if ch is RoadLane:
 			ch.queue_free()
 	# Legacy, RoadLanes used to be children of the segment class, but are now
 	# direct children of the RoadPoint with the option to be visualized in editor later.
 	for ch in get_children():
+		if ch in ignore_list:
+			continue
 		if ch is RoadLane:
 			ch.queue_free()
 
@@ -556,7 +567,7 @@ func clear_lane_segments():
 func clear_edge_curves():
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path and (ch.name == EDGE_R_NAME or ch.name == EDGE_F_NAME or ch.name == EDGE_C_NAME):
+		if ch is Path and ch.name in [EDGE_R_NAME, EDGE_F_NAME, EDGE_C_NAME]:
 			for gch in ch.get_children():
 				ch.remove_child(gch)
 				gch.queue_free()
