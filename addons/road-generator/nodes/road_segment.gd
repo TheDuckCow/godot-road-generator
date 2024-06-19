@@ -64,8 +64,8 @@ func _init(_container):
 
 func _ready():
 	do_roadmesh_creation()
-	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+	if container.has_visible_children() and is_instance_valid(road_mesh):
+		road_mesh.owner = container.get_owner()
 
 
 # Workaround for cyclic typing
@@ -102,8 +102,8 @@ func add_road_mesh() -> void:
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
-	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+	if container.has_visible_children() and is_instance_valid(road_mesh):
+		road_mesh.owner = container.get_owner()
 
 
 func remove_road_mesh():
@@ -331,8 +331,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
-			if container.debug_scene_visible:
-				ln_child.owner = container.owner
+			if container.has_visible_children():
+				ln_child.owner = container.get_owner()
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 		else:
@@ -648,7 +648,7 @@ func _update_curve():
 	_set_curve_point(curve, end_point, end_mag, _end_flip_mult)
 
 	# Show this primary curve in the scene hierarchy if the debug state set.
-	if container.debug_scene_visible:
+	if container.has_visible_children():
 		var found_path = false
 		var path_node: Path
 		for ch in self.get_children():
@@ -661,7 +661,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path.new()
 			self.add_child(path_node)
-			path_node.owner = container.owner
+			path_node.owner = container.get_owner()
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
