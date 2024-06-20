@@ -74,7 +74,7 @@ export(float) var lane_width := 4.0 setget _set_lane_width, _get_lane_width
 export(float) var shoulder_width_l := 2.0 setget _set_shoulder_width_l, _get_shoulder_width_l
 export(float) var shoulder_width_r := 2.0 setget _set_shoulder_width_r, _get_shoulder_width_r
 # Profile: x: how far out the gutter goes, y: how far down to clip.
-export(Vector2) var gutter_profile := Vector2(2.0, -2.0) setget _set_profile, _get_profile
+export(Vector2) var gutter_profile := Vector2(2.0, -0.5) setget _set_profile, _get_profile
 
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
 export(NodePath) var prior_pt_init setget _set_prior_pt_init, _get_prior_pt_init
