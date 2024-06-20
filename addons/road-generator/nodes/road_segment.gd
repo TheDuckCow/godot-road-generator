@@ -943,7 +943,7 @@ func _insert_geo_loop(
 		# Prepare attributes for add_vertex.
 		# Long edge towards origin, p1
 		#st.add_normal(Vector3(0, 1, 0))
-		quad(
+		_quad(
 			st,
 			[
 				Vector2(uv_l, uv_y_end),
@@ -1026,7 +1026,7 @@ func _insert_geo_loop(
 			uv_r = 0.0 * uv_width
 		# LEFT (between pos:_s and _m, and between uv:_l and _m)
 		# The flat part of the shoulder on both sides
-		quad(
+		_quad(
 			st,
 			[
 				Vector2(uv_m if dir == 1 else uv_l, uv_y_end),
@@ -1043,7 +1043,7 @@ func _insert_geo_loop(
 
 		# The gutter, lower part of the shoulder on both sides.
 		if dir == 1:
-			quad(
+			_quad(
 				st,
 				[
 					Vector2(uv_l, uv_y_end),
@@ -1058,7 +1058,7 @@ func _insert_geo_loop(
 					start_loop + start_basis * (pos_near_l + gutr_near.x) * dir + Vector3(0, gutr_near.y, 0),
 				])
 		else:
-			quad(
+			_quad(
 				st,
 				[
 					Vector2(uv_m, uv_y_end),
@@ -1077,7 +1077,7 @@ func _insert_geo_loop(
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+static func _quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
 	#gd4
 	#st.set_uv(uvs[0]) # here and below

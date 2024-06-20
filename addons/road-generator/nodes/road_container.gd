@@ -134,6 +134,14 @@ func is_subscene() -> bool:
 	return filename and self != get_tree().edited_scene_root
 
 
+func has_visible_children() -> bool:
+	return debug_scene_visible or visible_children
+
+
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
+
+
 #gd4
 #func _get_configuration_warnings() -> PackedStringArray:
 func _get_configuration_warning() -> String:
@@ -517,13 +525,6 @@ func validate_edges(autofix: bool = false) -> bool:
 		print("Found invalid edges on %s" % self.name)
 	return is_valid
 
-
-func has_visible_children() -> bool:
-	return debug_scene_visible or visible_children
-
-
-func get_owner() -> Node:
-	return self.owner if is_instance_valid(self.owner) else self
 
 ## A data cleanup way to clear invalid edges.
 ##
