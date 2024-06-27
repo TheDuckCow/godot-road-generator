@@ -27,7 +27,7 @@ var end_point:RoadPoint
 var curve:Curve3D
 var road_mesh:MeshInstance
 var material:Material
-var density := 2.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
+var density := 4.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
 var container # The managing container node for this road segment (grandparent).
 
 var is_dirty := true

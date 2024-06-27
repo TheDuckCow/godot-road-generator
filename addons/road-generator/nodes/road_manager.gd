@@ -11,7 +11,7 @@ extends Spatial
 # ------------------------------------------------------------------------------
 
 
-export(float) var density:float = 2.0  setget _set_density # Mesh density of generated segments.
+export(float) var density:float = 4.0  setget _set_density # Mesh density of generated segments.
 
 
 # ------------------------------------------------------------------------------
