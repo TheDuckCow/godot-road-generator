@@ -1,0 +1,114 @@
+[gd_scene load_steps=12 format=2]
+
+[ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=1]
+[ext_resource path="res://addons/road-generator/resources/road_texture.material" type="Material" id=2]
+[ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=3]
+[ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=4]
+[ext_resource path="res://demo/procedural_generator/procedural_generator.gd" type="Script" id=5]
+[ext_resource path="res://demo/procedural_generator/lane_agent.gd" type="Script" id=6]
+
+[sub_resource type="Curve3D" id=1]
+_data = {
+"points": PoolVector3Array( 1.19209e-07, -2.98023e-08, -20, 8.9407e-08, -2.98023e-08, 20, -12, 0, -1.90735e-06, 0.356025, 0.131364, -19.9964, -0.356025, -0.131364, 19.9964, -11.9981, -0.498586, 37.8393 ),
+"tilts": PoolRealArray( 0, 0 )
+}
+
+[sub_resource type="Curve3D" id=2]
+_data = {
+"points": PoolVector3Array( 1.19209e-07, -2.98023e-08, -20, 8.9407e-08, -2.98023e-08, 20, 12, 0, 0, 0.356025, 0.131364, -19.9964, -0.356025, -0.131364, 19.9964, 11.9981, -0.501393, 38.2665 ),
+"tilts": PoolRealArray( 0, 0 )
+}
+
+[sub_resource type="Curve3D" id=3]
+_data = {
+"points": PoolVector3Array( 1.19209e-07, -2.98023e-08, -20, 8.9407e-08, -2.98023e-08, 20, 0, 0, 0, 0.356025, 0.131364, -19.9964, -0.356025, -0.131364, 19.9964, -5.96046e-07, -0.499989, 38.0529 ),
+"tilts": PoolRealArray( 0, 0 )
+}
+
+[sub_resource type="DynamicFont" id=4]
+size = 30
+
+[sub_resource type="Theme" id=5]
+RichTextLabel/fonts/normal_font = SubResource( 4 )
+
+[node name="ProceduralGenerator" type="Spatial"]
+script = ExtResource( 5 )
+target_node = NodePath("LaneAgent/Camera")
+
+[node name="RoadManager" type="Spatial" parent="."]
+script = ExtResource( 3 )
+
+[node name="Road_001" type="Spatial" parent="RoadManager"]
+script = ExtResource( 1 )
+material_resource = ExtResource( 2 )
+use_lowpoly_preview = true
+create_edge_curves = true
+generate_ai_lanes = true
+edge_containers = [ "", "" ]
+edge_rp_targets = [ "", "" ]
+edge_rp_target_dirs = [ -1, -1 ]
+edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_002") ]
+edge_rp_local_dirs = [ 0, 1 ]
+
+[node name="RP_001" type="Spatial" parent="RoadManager/Road_001"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997 )
+script = ExtResource( 4 )
+traffic_dir = [ 2, 2, 1, 1 ]
+lanes = [ 2, 4, 4, 2 ]
+prior_pt_init = NodePath("../RP_002")
+prior_mag = 20.0
+next_mag = 20.0
+
+[node name="RP_002" type="Spatial" parent="RoadManager/Road_001"]
+transform = Transform( 0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496 )
+script = ExtResource( 4 )
+traffic_dir = [ 2, 2, 1, 1 ]
+lanes = [ 2, 4, 4, 2 ]
+next_pt_init = NodePath("../RP_001")
+prior_mag = 20.0
+next_mag = 20.0
+
+[node name="edge_R" type="Path" parent="RoadManager/Road_001/RP_002"]
+curve = SubResource( 1 )
+__meta__ = {
+"_edit_lock_": true
+}
+
+[node name="edge_F" type="Path" parent="RoadManager/Road_001/RP_002"]
+curve = SubResource( 2 )
+__meta__ = {
+"_edit_lock_": true
+}
+
+[node name="edge_C" type="Path" parent="RoadManager/Road_001/RP_002"]
+curve = SubResource( 3 )
+__meta__ = {
+"_edit_lock_": true
+}
+
+[node name="LaneAgent" type="Spatial" parent="."]
+script = ExtResource( 6 )
+
+[node name="Camera" type="Camera" parent="LaneAgent"]
+transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 0 )
+far = 300.0
+
+[node name="Control" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="AcceptDialog" type="AcceptDialog" parent="Control"]
+visible = true
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+margin_left = -162.0
+margin_top = -65.0
+margin_right = 162.0
+margin_bottom = 65.0
+theme = SubResource( 5 )
+window_title = "Controls"
+dialog_text = "Use up/down arrow to move
+Left/right arrow to switch lane"
+dialog_autowrap = true
