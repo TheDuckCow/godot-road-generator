@@ -90,7 +90,7 @@ __meta__ = {
 script = ExtResource( 6 )
 
 [node name="Camera" type="Camera" parent="LaneAgent"]
-transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 0 )
+transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 10.3733 )
 far = 300.0
 
 [node name="Control" type="Control" parent="."]

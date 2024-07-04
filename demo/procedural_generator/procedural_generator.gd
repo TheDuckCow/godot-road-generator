@@ -25,8 +25,8 @@ func _process(_delta: float) -> void:
 
 
 func xz_target_distance_to(_target: Spatial) -> float:
-	var pos_a := Vector3(target.global_transform.origin.x, 0, target.global_transform.origin.z)
-	var pos_b := Vector3(_target.global_transform.origin.x, 0, _target.global_transform.origin.z)
+	var pos_a := Vector2(target.global_transform.origin.x, target.global_transform.origin.z)
+	var pos_b := Vector2(_target.global_transform.origin.x, _target.global_transform.origin.z)
 	return pos_a.distance_to(pos_b)
 
 
@@ -42,7 +42,6 @@ func update_road() -> void:
 
 	# Iterate over all the RoadPoints with open connections.
 	var rp_count:int = container.get_child_count()
-	print("RP count:", rp_count)
 
 	# Cache the initial edges, to avoid referencing export vars on container
 	# that get updated as we add new RoadPoints
@@ -53,9 +52,10 @@ func update_road() -> void:
 		var edge_rp:RoadPoint = container.get_node(edge_list[_idx])
 		var dist := xz_target_distance_to(edge_rp)
 		# print("Process loop %s with RoadPoint %s with dist %s" % [_idx, edge_rp, dist])
-
 		if dist > max_rp_distance + buffer_distance * 1.5:
-			print("Removing rp %s %s m from target" % [edge_rp, dist])
+			# Manually clear prior/next points to ensure it gets fully disconnected
+			edge_rp.prior_pt_init = ""
+			edge_rp.next_pt_init = ""
 			edge_rp.queue_free()
 		elif dist < max_rp_distance and rp_count < 30:
 			var which_edge = edge_dirs[_idx]
@@ -75,7 +75,17 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 
 	# Placement of a new roadpoint with interval no larger than buffer,
 	# to avoid flicker removal/adding with the culling system
-	var offset_pos:Vector3 = new_rp.transform.basis.z * buffer_distance * mag
+
+	# Randomly rotate the offset vector slightly
+	randomize()
+	var _transform := new_rp.transform
+	var angle_range := 30 # Random angle rotation range
+	var random_angle: float = rand_range(-angle_range / 2, angle_range / 2) # Generate a random angle within the range
+	var rotation_axis := Vector3(0, 1, 0)
+	_transform = _transform.rotated(rotation_axis, deg2rad(random_angle))
+
+	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag
+
 	new_rp.transform.origin += offset_pos
 
 	# Finally, connect them together
