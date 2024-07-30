@@ -35,6 +35,10 @@ func update_road() -> void:
 
 	# Make sure the edges of the Road are all open.
 	container.update_edges()
+	# TODO: This is overkill as it refreshes all points, in the future we should
+	# have the container connection tool handle the responsibility of updating
+	# prior/next lane assignments of edge roadPoints so it happens automatically
+	container.update_lane_seg_connections()
 
 	if not container.edge_rp_locals:
 		print("No edges to add")
@@ -80,7 +84,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	randomize()
 	var _transform := new_rp.transform
 	var angle_range := 30 # Random angle rotation range
-	var random_angle: float = rand_range(-angle_range / 2, angle_range / 2) # Generate a random angle within the range
+	var random_angle: float = rand_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
 	var rotation_axis := Vector3(0, 1, 0)
 	_transform = _transform.rotated(rotation_axis, deg2rad(random_angle))
 
@@ -89,5 +93,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	new_rp.transform.origin += offset_pos
 
 	# Finally, connect them together
-	rp.connect_roadpoint(dir, new_rp, flip_dir)
+	var res = rp.connect_roadpoint(dir, new_rp, flip_dir)
+	if res != true:
+		print("Failed to connect RoadPoint")
 	# print("Added rp %s" % new_rp)
