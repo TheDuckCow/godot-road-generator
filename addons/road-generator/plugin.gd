@@ -124,6 +124,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 		# between the two closest points. When Unsnapping, show lines between
 		# all connected points that will be Unsnapped.
 		if _snapping == SnapState.SNAPPING:
+#			col = Color.cadetblue
 			if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
 				return # Nothing to draw
 
@@ -149,6 +150,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 				col,
 				2,
 				true)
+#			return
 		else: # Unsnapping
 			# Iterate _all_edges and draw line for each
 			for edge_pair in _edge_positions:
@@ -174,6 +176,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 					col,
 					2,
 					true)
+#			return
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
 			col = Color.coral
