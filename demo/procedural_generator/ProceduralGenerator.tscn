@@ -88,9 +88,10 @@ __meta__ = {
 
 [node name="LaneAgent" type="Spatial" parent="."]
 script = ExtResource( 6 )
+visualize_lane = true
 
 [node name="Camera" type="Camera" parent="LaneAgent"]
-transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 10.3733 )
+transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 16.061 )
 far = 300.0
 
 [node name="Control" type="Control" parent="."]
@@ -112,3 +113,7 @@ window_title = "Controls"
 dialog_text = "Use up/down arrow to move
 Left/right arrow to switch lane"
 dialog_autowrap = true
+
+[node name="debug" type="Label" parent="Control"]
+margin_right = 40.0
+margin_bottom = 14.0
