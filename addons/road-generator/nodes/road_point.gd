@@ -872,7 +872,7 @@ func validate_junctions():
 		_tmp_ref = get_node(prior_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
-	if not prior_pt_init.is_empty():
+	if not next_pt_init.is_empty():
 		_tmp_ref = get_node(next_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			next_point = get_node(next_pt_init)
