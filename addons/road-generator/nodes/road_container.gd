@@ -9,9 +9,11 @@ extends Spatial
 ## of updated segments of type Array. Will also trigger on segments deleted,
 ## which will contain a list of nothing.
 signal on_road_updated (updated_segments)
+signal on_transform(node)  # for internal purposes, to handle drags
 
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 
 export(Material) var material_resource:Material setget _set_material
 
@@ -90,6 +92,12 @@ var _manager:RoadManager
 # Edge-related error state
 var _edge_error: String = ""
 
+# Variables for internal handling of drag events
+# Constants used for adhoc meta tags for internal state assignments
+var _drag_init_transform # : Transform can't type as it needs to be nullable
+var _drag_source_rp: RoadPoint
+var _drag_target_rp: RoadPoint
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -99,6 +107,9 @@ var _edge_error: String = ""
 func _ready():
 	# setup_road_container won't work in _ready unless call_deferred is used
 	call_deferred("setup_road_container")
+
+	set_notify_transform(true) # TOOD: check if both of these are necessary
+	set_notify_local_transform(true)
 
 	# If we call this now, it will end up generating roads twice.
 	#rebuild_segments(true)
@@ -264,6 +275,20 @@ func _set_create_edge_curves(value: bool) -> void:
 			seg.clear_edge_curves()
 
 
+# ------------------------------------------------------------------------------
+# Editor interactions
+# ------------------------------------------------------------------------------
+
+
+func _notification(what):
+	if what == NOTIFICATION_TRANSFORM_CHANGED and Engine.is_editor_hint():
+		var lmb_down = Input.is_mouse_button_pressed(BUTTON_LEFT)
+		if lmb_down and not _drag_init_transform:
+			self._drag_init_transform = global_transform
+		elif not lmb_down:
+			emit_signal("on_transform", self)
+			_drag_init_transform = null
+
 
 # ------------------------------------------------------------------------------
 # Container methods
@@ -366,6 +391,48 @@ func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
 	spa_sel_rc.queue_free()
 	rc_par.remove_child(spa_sel_rp)
 	spa_sel_rp.queue_free()
+
+
+## Transforms sel_rp's parent road container such that sel_rp is perfectly
+## aligned (or flip-aligned) with tgt_rp
+func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
+	var res := get_transform_for_snap_rp(sel_rp, tgt_rp)
+	global_transform = res[0]
+	var sel_dir:int = res[1]
+	var tgt_dir:int = res[2]
+	sel_rp.connect_container(sel_dir, tgt_rp, tgt_dir)
+
+
+func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
+	var rp_trans:Transform = src_rp.global_transform
+	var tgt_trans:Transform = tgt_rp.global_transform
+	var cont_trans:Transform = global_transform
+
+	var start_dir: int
+	var end_dir: int
+
+	# Add 180 degrees to Y rotation if needed
+	var is_prior_prior: bool = src_rp.next_pt_init and tgt_rp.next_pt_init
+	var is_next_next: bool = src_rp.prior_pt_init and tgt_rp.prior_pt_init
+	if is_prior_prior or is_next_next:
+		tgt_trans.basis = tgt_trans.basis.rotated(Vector3(0, 1, 0), PI) # fkip around y
+	if is_next_next:
+		start_dir = RoadPoint.PointInit.NEXT
+		end_dir = RoadPoint.PointInit.NEXT
+	elif is_prior_prior:
+		start_dir = RoadPoint.PointInit.PRIOR
+		end_dir = RoadPoint.PointInit.PRIOR
+	elif not src_rp.next_pt_init:
+		start_dir = RoadPoint.PointInit.NEXT
+		end_dir = RoadPoint.PointInit.PRIOR
+	else:
+		start_dir = RoadPoint.PointInit.PRIOR
+		end_dir = RoadPoint.PointInit.NEXT
+
+	var transform_difference = tgt_trans * rp_trans.affine_inverse()
+
+	# Return structure designed to enable new placement and calling src_rp.connect_container
+	return [transform_difference * cont_trans, start_dir, end_dir]
 
 
 ## Get edge RoadPoint closest to input 3D position.

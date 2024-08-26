@@ -124,7 +124,7 @@ func _init():
 
 func _ready():
 	# Ensure the transform notificaitons work
-	set_notify_transform(true)
+	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
@@ -920,7 +920,7 @@ func validate_junctions():
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
 	#gd4
-	#if not prior_pt_init.is_empty():
+	#if not next_pt_init.is_empty():
 	if next_pt_init and not next_pt_init == "":
 		_tmp_ref = get_node(next_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):

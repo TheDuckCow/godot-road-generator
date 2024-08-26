@@ -314,11 +314,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 			var sel_rp: RoadPoint = _nearest_edges[0]
 			var tgt_rp: RoadPoint = _nearest_edges[1]
 			if _snapping in [SnapState.SNAPPING, SnapState.CANCELING]:
-				# Snap selected object to target RoadPoint.
-				selected.snap_to_road_point(sel_rp, tgt_rp)
-			if _snapping == SnapState.SNAPPING:
-				# Connect Edge RoadPoints.
-				_connect_rp_on_click(tgt_rp, sel_rp)
+				_snap_to_road_point_future(selected, sel_rp, tgt_rp, _snapping==SnapState.CANCELING)
 			elif _snapping == SnapState.UNSNAPPING:
 				# Disconnect Edge RoadPoints
 				for edge in selected.get_connected_edges():
@@ -1394,6 +1390,70 @@ func _delete_rp_on_click(selection: Node):
 	if dissolve:
 		undo_redo.add_undo_method(container, "rebuild_segments", false)
 
+	undo_redo.commit_action()
+
+
+## When the interface is running and we realize we are about to perform a snap,
+## we can't perform the action right away as then it would happen before the
+## internal move action completes (and thus, someone who does control-Z would see
+## the container move back but not realize it hasn't undone the connection step
+## yet). So, we want to wait until after transform has been fired, then
+## in the container check if these meta props are assigned, and THEN we can
+## call the function there via a signal callback back to plugin
+func _snap_to_road_point_future(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPoint, is_cancelling:bool):
+	if is_cancelling:
+		# If canceling, no undo/redo stack to worry about, so just move
+		# directly (is there a consequence for that?)
+		_snap_to_road_point(selected, sel_rp, tgt_rp, is_cancelling)
+		return
+
+	# selected._drag_init_transform # already be assigned
+	selected._drag_source_rp = sel_rp
+	selected._drag_target_rp = tgt_rp
+
+	# Signal will be called after the transform action has completed, then auto disconnect this
+	var res = selected.connect("on_transform", self, "_on_transform_complete_do_snap")
+	assert(res == OK)
+
+
+## Conditionally defined callback for RoadContainer's on_transform to complete drag-snap action
+func _on_transform_complete_do_snap(selected:RoadContainer):
+	var res = selected.disconnect("on_transform", self, "_on_transform_complete_do_snap")
+	assert(res == OK)
+	var _srcrp = selected._drag_source_rp
+	var _tgtrp = selected._drag_target_rp
+	selected._drag_source_rp = null
+	selected._drag_target_rp = null
+	_snap_to_road_point(selected, _srcrp, _tgtrp, false)
+
+
+## Action committing function to do road point snapping
+##
+## This should be called only after any translation internal event has finished
+## (ie this is called after its on_transform signal has been emitted already)
+func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPoint, is_cancelling:bool) -> void:
+	var undo_redo = get_undo_redo()
+
+	# Precalculate the snapt-to locaiton
+	var res:Array = selected.get_transform_for_snap_rp(sel_rp, tgt_rp)
+	var tgt_transform: Transform = res[0]
+	var sel_dir:int = res[1]
+	var tgt_dir:int = res[2]
+
+	# This just means we're cancelling the user's movement efforts, so put back without undo
+	if is_cancelling:
+		sel_rp.container = tgt_transform
+		return
+
+	undo_redo.create_action("Snap RoadContainer to RoadPoint")
+
+	undo_redo.add_do_property(sel_rp.container, "global_transform", tgt_transform)
+	undo_redo.add_undo_property(sel_rp.container, "global_transform", sel_rp.container.global_transform)
+
+	# TODO: move any sibling RoadPoints if appropriate?
+
+	undo_redo.add_do_method(sel_rp, "connect_container", sel_dir, tgt_rp, tgt_dir)
+	undo_redo.add_undo_method(sel_rp, "disconnect_container", sel_dir, tgt_dir)
 	undo_redo.commit_action()
 
 
