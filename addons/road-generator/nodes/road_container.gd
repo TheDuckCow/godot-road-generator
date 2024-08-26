@@ -358,41 +358,6 @@ func get_all_road_containers(root: Node)->Array:
 	return nodes
 
 
-## Snaps a RoadContainer's RoadPoint to a target RoadPoint
-## and moves the RoadContainer along with it.
-func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
-	# Add a placeholder at selected RoadPoint position
-	var rc_par = get_parent()
-	var spa_sel_rp: Position3D = Position3D.new()
-	rc_par.add_child(spa_sel_rp)
-	spa_sel_rp.global_transform = sel_rp.global_transform
-
-	# Add a placeholder at RoadContainer position and
-	# make it a child of RoadPoint placeholder
-	var spa_sel_rc: Position3D = Position3D.new()
-	spa_sel_rp.add_child(spa_sel_rc)
-	spa_sel_rc.global_transform = global_transform
-
-	# Set RoadPoint placeholder transform to Target RoadPoint transform
-	spa_sel_rp.global_transform = tgt_rp.global_transform
-
-	# Add 180 degrees to Y rotation if needed
-	var is_prior_prior: bool = sel_rp.next_pt_init and tgt_rp.next_pt_init
-	var is_next_next: bool = sel_rp.prior_pt_init and tgt_rp.prior_pt_init
-	if is_prior_prior or is_next_next:
-		var basis_y = spa_sel_rp.global_transform.basis.y
-		spa_sel_rp.rotate(basis_y, PI)
-
-	# Apply RoadContainer placeholder's new transform to actual RoadContainer
-	global_transform = spa_sel_rc.global_transform
-
-	# Cleanup
-	spa_sel_rp.remove_child(spa_sel_rc)
-	spa_sel_rc.queue_free()
-	rc_par.remove_child(spa_sel_rp)
-	spa_sel_rp.queue_free()
-
-
 ## Transforms sel_rp's parent road container such that sel_rp is perfectly
 ## aligned (or flip-aligned) with tgt_rp
 func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
