@@ -1247,6 +1247,9 @@ func _connect_rp_on_click(rp_a, rp_b):
 
 
 func _unsnap_container_future(selected:RoadContainer):
+	# TODO: this poses a problem actually, as the unsnapp now happens cleanly after the transform
+	# (UI drag) has completed. For snapping this is good, as snapping takes place at the end,
+	# but here we actually want the snapping to happen immediately
 	if not selected is RoadContainer:
 		push_warning("_unsnap_container_future should have been called with RoadContainer")
 		return
