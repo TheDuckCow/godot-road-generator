@@ -317,8 +317,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				_snap_to_road_point_future(selected, sel_rp, tgt_rp, _snapping==SnapState.CANCELING)
 			elif _snapping == SnapState.UNSNAPPING:
 				# Disconnect Edge RoadPoints
-				for edge in selected.get_connected_edges():
-					_disconnect_rp_on_click(edge[1], edge[0])
+				_unsnap_container_future(selected)
 			# Clear overlays and snapping/unsnapping condition
 			_snapping = SnapState.IDLE
 			_overlay_hint_disconnect = false
@@ -1247,6 +1246,23 @@ func _connect_rp_on_click(rp_a, rp_b):
 	undo_redo.commit_action()
 
 
+func _unsnap_container_future(selected:RoadContainer):
+	if not selected is RoadContainer:
+		push_warning("_unsnap_container_future should have been called with RoadContainer")
+		return
+	var res = selected.connect("on_transform", self, "_call_disconnect_rp_on_click")
+	assert(res == OK)
+
+
+func _call_disconnect_rp_on_click(selected:RoadContainer):
+	selected.disconnect("on_transform", self, "_call_disconnect_rp_on_click")
+	selected._drag_source_rp = null
+	selected._drag_target_rp = null
+	# For simplicity, this will disconnect all parts of the RoadContainer
+	for edge in selected.get_connected_edges():
+		_disconnect_rp_on_click(edge[1], edge[0])
+
+
 func _disconnect_rp_on_click(rp_a, rp_b):
 	var undo_redo = get_undo_redo()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
@@ -1418,8 +1434,7 @@ func _snap_to_road_point_future(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp
 
 ## Conditionally defined callback for RoadContainer's on_transform to complete drag-snap action
 func _on_transform_complete_do_snap(selected:RoadContainer):
-	var res = selected.disconnect("on_transform", self, "_on_transform_complete_do_snap")
-	assert(res == OK)
+	selected.disconnect("on_transform", self, "_on_transform_complete_do_snap")
 	var _srcrp = selected._drag_source_rp
 	var _tgtrp = selected._drag_target_rp
 	selected._drag_source_rp = null
