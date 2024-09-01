@@ -328,14 +328,11 @@ func emit_transform(low_poly=false):
 	if auto_lanes:
 		assign_lanes()
 	#gd4
-	# var _gizmo:Node3DGizmo = get_gizmos()[0]
-	# var _gizmos = get_gizmos()
-	# if not _gizmos:
-	# 	push_warning("No 3D gizmos found")
-	# 	return
-	# var _gizmo:Node3DGizmo = _gizmos[0]
-	# if is_instance_valid(_gizmo):
-	# 	_gizmo.get_plugin().refresh_gizmo(_gizmo)
+	#var _gizmos:Array[Node3DGizmo] = get_gizmos()
+	#if !_gizmos.is_empty():
+	#	var _gizmo:Node3DGizmo = _gizmos[0]
+	#	if is_instance_valid(_gizmo):
+	#		_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
