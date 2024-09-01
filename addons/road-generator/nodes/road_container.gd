@@ -9,9 +9,11 @@ extends Spatial
 ## of updated segments of type Array. Will also trigger on segments deleted,
 ## which will contain a list of nothing.
 signal on_road_updated (updated_segments)
+signal on_transform(node)  # for internal purposes, to handle drags
 
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 
 export(Material) var material_resource:Material setget _set_material
 
@@ -90,6 +92,12 @@ var _manager:RoadManager
 # Edge-related error state
 var _edge_error: String = ""
 
+# Variables for internal handling of drag events
+# Constants used for adhoc meta tags for internal state assignments
+var _drag_init_transform # : Transform can't type as it needs to be nullable
+var _drag_source_rp: RoadPoint
+var _drag_target_rp: RoadPoint
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -99,6 +107,9 @@ var _edge_error: String = ""
 func _ready():
 	# setup_road_container won't work in _ready unless call_deferred is used
 	call_deferred("setup_road_container")
+
+	set_notify_transform(true) # TOOD: check if both of these are necessary
+	set_notify_local_transform(true)
 
 	# If we call this now, it will end up generating roads twice.
 	#rebuild_segments(true)
@@ -266,6 +277,20 @@ func _set_create_edge_curves(value: bool) -> void:
 			seg.clear_edge_curves()
 
 
+# ------------------------------------------------------------------------------
+# Editor interactions
+# ------------------------------------------------------------------------------
+
+
+func _notification(what):
+	if what == NOTIFICATION_TRANSFORM_CHANGED and Engine.is_editor_hint():
+		var lmb_down = Input.is_mouse_button_pressed(BUTTON_LEFT)
+		if lmb_down and not _drag_init_transform:
+			self._drag_init_transform = global_transform
+		elif not lmb_down:
+			emit_signal("on_transform", self)
+			_drag_init_transform = null
+
 
 # ------------------------------------------------------------------------------
 # Container methods
@@ -325,6 +350,163 @@ func get_segments() -> Array:
 			segs.append(pt_ch)
 	return segs
 
+
+## Recursively gets all RoadContainers within a root node
+func get_all_road_containers(root: Node)->Array:
+	var nodes: Array = []
+	var dist: float
+
+	for n in root.get_children():
+		if n.get_child_count() > 0:
+			if n.has_method("is_road_container"):
+				nodes.append(n)
+			nodes.append_array(get_all_road_containers(n))
+		else:
+			if n.has_method("is_road_container"):
+				nodes.append(n)
+	return nodes
+
+
+## Transforms sel_rp's parent road container such that sel_rp is perfectly
+## aligned (or flip-aligned) with tgt_rp
+func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
+	var res := get_transform_for_snap_rp(sel_rp, tgt_rp)
+	global_transform = res[0]
+	var sel_dir:int = res[1]
+	var tgt_dir:int = res[2]
+	sel_rp.connect_container(sel_dir, tgt_rp, tgt_dir)
+
+
+func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
+	var rp_trans:Transform = src_rp.global_transform
+	var tgt_trans:Transform = tgt_rp.global_transform
+	var cont_trans:Transform = global_transform
+
+	var start_dir: int
+	var end_dir: int
+
+	# Add 180 degrees to Y rotation if needed
+	var is_prior_prior: bool = src_rp.next_pt_init and tgt_rp.next_pt_init
+	var is_next_next: bool = src_rp.prior_pt_init and tgt_rp.prior_pt_init
+	if is_prior_prior or is_next_next:
+		tgt_trans.basis = tgt_trans.basis.rotated(Vector3(0, 1, 0), PI) # fkip around y
+	if is_next_next:
+		start_dir = RoadPoint.PointInit.NEXT
+		end_dir = RoadPoint.PointInit.NEXT
+	elif is_prior_prior:
+		start_dir = RoadPoint.PointInit.PRIOR
+		end_dir = RoadPoint.PointInit.PRIOR
+	elif not src_rp.next_pt_init:
+		start_dir = RoadPoint.PointInit.NEXT
+		end_dir = RoadPoint.PointInit.PRIOR
+	else:
+		start_dir = RoadPoint.PointInit.PRIOR
+		end_dir = RoadPoint.PointInit.NEXT
+
+	var transform_difference = tgt_trans * rp_trans.affine_inverse()
+
+	# Return structure designed to enable new placement and calling src_rp.connect_container
+	return [transform_difference * cont_trans, start_dir, end_dir]
+
+
+## Get edge RoadPoint closest to input 3D position.
+func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
+	var closest_rp: RoadPoint
+	var closest_dist: float
+
+	for rp in get_open_edges():
+		var this_dist = g_search_pos.distance_squared_to(rp.global_translation)
+		if not closest_dist or this_dist < closest_dist:
+			closest_dist = this_dist
+			closest_rp = rp
+	return closest_rp
+
+
+# Get Edge RoadPoints that are open and available for connections
+func get_open_edges()->Array:
+	var rp_edges: Array = []
+	for idx in len(edge_rp_locals):
+		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
+		var connected: RoadPoint = get_node_or_null(edge_rp_targets[idx])
+		if connected:
+			# Edge is already connected
+			continue
+		elif edge and edge.terminated:
+			# Edge is terminated
+			continue
+		elif edge:
+			# Edge is available for connections
+			rp_edges.append(edge)
+		else:
+			# Edge is non-existent
+			continue
+	return rp_edges
+
+
+# Get Edge RoadPoints that are unavailable for connections. Returns
+# local Edges, target Edges, and target containers.
+func get_connected_edges()->Array:
+	var rp_edges: Array = []
+	for idx in len(edge_rp_locals):
+		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
+		var target_cont: RoadContainer = get_node_or_null(edge_containers[idx])
+#		var is_scene =
+		# Find out if the target container is a scene
+		if target_cont and target_cont.filename:
+			print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.filename])
+#		else:
+#			print("target_cont is null")
+		if not target_cont:
+			continue
+		var target: RoadPoint = target_cont.get_node_or_null(edge_rp_targets[idx])
+		if target and edge:
+			# Edge is already connected
+			rp_edges.append([edge, target, target_cont])
+		elif edge and edge.terminated:
+			# Edge is terminated
+			continue
+		elif edge:
+			# Edge is available for connections
+			continue
+		else:
+			# Edge is non-existent
+			continue
+	return rp_edges
+
+## Returns array of connected Edges that are not in a nested scene.
+func get_moving_edges()->Array:
+	var rp_edges: Array = []
+	for rp in get_connected_edges():
+		var edge: RoadPoint = rp[0]
+		var target: RoadPoint = rp[1]
+		var target_cont: RoadContainer = rp[2]
+		# Skip Edge if target container is nested scene
+		if target_cont and target_cont.is_subscene():
+			continue
+		# Add Edge to list
+		rp_edges.append([edge, target, target_cont])
+	return rp_edges
+
+
+## Moves RoadPoints connected to this container if this is
+## a nested scene and target is not a nested scene.
+func move_connected_road_points():
+	# Bail if this is not a nested scene
+	if not is_subscene():
+		return
+	# Iterate only moving RoadPoints
+	for rp in get_moving_edges():
+		var sel_rp: RoadPoint = rp[0]
+		var tgt_rp: RoadPoint = rp[1]
+		# Move connected RoadPoint
+		tgt_rp.global_transform = sel_rp.global_transform
+
+		# Add 180 degrees to Y rotation if needed
+		var is_prior_prior: bool = sel_rp.next_pt_init and tgt_rp.next_pt_init
+		var is_next_next: bool = sel_rp.prior_pt_init and tgt_rp.prior_pt_init
+		if is_prior_prior or is_next_next:
+			var basis_y = sel_rp.global_transform.basis.y
+			sel_rp.rotate(basis_y, PI)
 
 ## Update export variable lengths and counts to account for connection to
 ## other RoadContainers
@@ -513,6 +695,9 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	# First, try to clear the reciprocol container.
 	_edge_error = reason
 	var reason_str = "" if reason == "" else " due to %s" % reason
+	if _drag_init_transform:
+		# We are mid-drag, so don't mess with edges yet
+		return
 	push_warning("Invalid cross-container connection, %s with edge index %s%s" % [
 		self.name, _idx, reason_str
 	])
