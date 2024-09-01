@@ -375,7 +375,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 #			_overlay_rp_hovering = _nearest_edges[0]
 #			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
 #			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
-			if dist < ROADPOINT_SNAP_THRESHOLD:
+			if false: # dist < ROADPOINT_SNAP_THRESHOLD:
 				_snapping = SnapState.CANCELING
 				# Use blue line color
 				_overlay_hint_disconnect = false

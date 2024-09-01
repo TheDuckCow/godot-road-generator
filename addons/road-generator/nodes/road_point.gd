@@ -819,7 +819,10 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 	var same_basis = self.global_transform.basis.z == target_rp.global_transform.basis.z
 	var same_basis_rev = self.global_transform.basis.z*-1 == target_rp.global_transform.basis.z
 	if not same_origin or not (same_basis or same_basis_rev):
-		push_warning("Newly connected RoadPoints don't have the same position/orientation")
+		if is_instance_valid(container) and container._drag_init_transform:
+			pass
+		else:
+			push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
 	emit_transform() # Only changes that should happen: Update connections of AI lanes.
