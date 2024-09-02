@@ -806,10 +806,25 @@ func _build_geo():
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
+	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	_create_collisions()
+
+
+func _create_collisions() -> void:
 	for ch in road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
-	road_mesh.create_trimesh_collision() # Call deferred?
-	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+
+	# Could also manually create with Mesh.create_trimesh_shape(),
+	# but this is still advertised as a non-cheap solution.
+	road_mesh.create_trimesh_collision()
+	for ch in road_mesh.get_children():
+		if not ch is StaticBody:
+			continue
+		if container.collider_group_name != "":
+			ch.add_to_group(container.collider_group_name)
+		if container.collider_meta_name != "":
+			ch.set_meta(container.collider_meta_name, true)
+		ch.set_meta("_edit_lock_", true)
 
 
 func _insert_geo_loop(

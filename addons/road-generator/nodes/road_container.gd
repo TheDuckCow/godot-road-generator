@@ -29,6 +29,8 @@ export(bool) var create_edge_curves := false setget _set_create_edge_curves
 
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+export(String) var collider_group_name := "" setget _set_collider_group
+export(String) var collider_meta_name := "" setget _set_collider_meta
 
 export(bool) var debug := false
 export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
@@ -209,6 +211,16 @@ func _set_gen_ai_lanes(value: bool) -> void:
 func _set_ai_lane_group(value: String) -> void:
 	_defer_refresh_on_change()
 	ai_lane_group = value
+
+
+func _set_collider_group(value: String) -> void:
+	_defer_refresh_on_change()
+	collider_group_name = value
+
+
+func _set_collider_meta(value: String) -> void:
+	_defer_refresh_on_change()
+	collider_meta_name = value
 
 
 func _set_density(value) -> void:
