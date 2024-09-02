@@ -100,6 +100,9 @@ var _drag_init_transform # : Transform can't type as it needs to be nullable
 var _drag_source_rp: RoadPoint
 var _drag_target_rp: RoadPoint
 
+# Flag used internally during initial setup to avoid repeat generation
+var _is_ready := false
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -113,8 +116,13 @@ func _ready():
 	set_notify_transform(true) # TOOD: check if both of these are necessary
 	set_notify_local_transform(true)
 
+	get_manager()
+	update_edges()
+	validate_edges()
+
 	# If we call this now, it will end up generating roads twice.
-	#rebuild_segments(true)
+	rebuild_segments(true)
+	_is_ready = true
 	# This is due, evidently, to godot loading the scene in such a way where
 	# it actually sets the value to each property and thus also trigger its
 	# setget, and result in calling _dirty_rebuild_deferred. Class properties
@@ -122,13 +130,9 @@ func _ready():
 	# _ready function is ever called. Thus by the time _ready is happening,
 	# the _dirty flag is already set.
 
-	get_manager()
-	update_edges()
-	validate_edges()
-
 	# Potentially redundant/recalled during scene init
-	_dirty = true
-	call_deferred("_dirty_rebuild_deferred")
+	#_dirty = true
+	#call_deferred("_dirty_rebuild_deferred")
 
 
 # Workaround for cyclic typing
@@ -196,6 +200,8 @@ func _get_configuration_warning() -> String:
 func _defer_refresh_on_change() -> void:
 	if _dirty:
 		return
+	elif not _is_ready:
+		return # assume it'll be called by the main ready function once, well, ready
 	elif _auto_refresh:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
@@ -204,39 +210,41 @@ func _defer_refresh_on_change() -> void:
 
 
 func _set_gen_ai_lanes(value: bool) -> void:
-	_defer_refresh_on_change()
 	generate_ai_lanes = value
+	_defer_refresh_on_change()
 
 
 func _set_ai_lane_group(value: String) -> void:
-	_defer_refresh_on_change()
 	ai_lane_group = value
+	_defer_refresh_on_change()
 
 
 func _set_collider_group(value: String) -> void:
-	_defer_refresh_on_change()
 	collider_group_name = value
+	_defer_refresh_on_change()
 
 
 func _set_collider_meta(value: String) -> void:
-	_defer_refresh_on_change()
 	collider_meta_name = value
+	_defer_refresh_on_change()
 
 
 func _set_density(value) -> void:
-	_defer_refresh_on_change()
 	density = value
+	_defer_refresh_on_change()
 
 
 func _set_material(value) -> void:
-	_defer_refresh_on_change()
 	material_resource = value
+	_defer_refresh_on_change()
 
 
 func _dirty_rebuild_deferred() -> void:
+	if not _is_ready:
+		return
 	if _dirty:
 		_dirty = false
-		call_deferred("rebuild_segments", false)
+		call_deferred("rebuild_segments", true)
 
 
 func _set_draw_lanes_editor(value: bool):
@@ -724,7 +732,7 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 
 
 func rebuild_segments(clear_existing=false):
-	if not is_inside_tree():
+	if not is_inside_tree() or not _is_ready:
 		# This most commonly happens in the editor on project restart, where
 		# each opened scene tab is quickly loaded and then apparently unloaded,
 		# so tab one last saved as not active will defer call rebuild, and by
