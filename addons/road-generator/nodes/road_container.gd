@@ -14,22 +14,31 @@ signal on_transform(node)  # for internal purposes, to handle drags
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
-
+## Material applied to the generated meshes, expects specific trimsheet UV layout
 export(Material) var material_resource:Material setget _set_material
 
-# Mesh density of generated segments. -1 implies to use the parent RoadManager's value.
+## Mesh density of generated segments. -1 implies to use the parent RoadManager's value, higher
+## values like 10 mean higher spacing between loop cuts (ie a lower density; this terminology and
+## meaning is unintuitive, but matches the term used within the built in 3D curve property name)
 export(float) var density:float = -1.0  setget _set_density
 
-# Generate procedural road geometry
-# If off, it indicates the developer will load in their own custom mesh + collision.
+## Generate procedural road geometry
+## If off, it indicates the developer will load in their own custom mesh + collision.
 export(bool) var create_geo := true setget _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
+## Whether to create approximated curves to fit along the forward, reverse, and center of the road.
+## Visible in the editor, useful for adding procedural generation along road edges or center lane.
 export(bool) var create_edge_curves := false setget _set_create_edge_curves
 
+## Whether to auto create RoadLanes for AI agents to follow, which are extensions of the native
+## 3D Curve, added to the runtime game as a child of RoadPoints when connections exist.
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
+## Group name to assign to generated RoadLane nodes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+## Group name to assign to the staic bodies created within a RoadSegment
 export(String) var collider_group_name := "" setget _set_collider_group
+## Meta property name to assign to the static bodies created within a RoadSegment, value will always be true
 export(String) var collider_meta_name := "" setget _set_collider_meta
 
 export(bool) var debug := false
