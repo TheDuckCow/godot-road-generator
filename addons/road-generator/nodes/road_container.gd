@@ -129,19 +129,12 @@ func _ready():
 	update_edges()
 	validate_edges()
 
-	# If we call this now, it will end up generating roads twice.
-	rebuild_segments(true)
+	# Waiting to mark _is_ready = true is the way we prevent each property
+	# value change from re-triggering rebuilds during scene setup. It's because
+	# each property value functionally gets "assigned" the value loaded from
+	# the tscn file, and thus triggers its set(get) functions which perform work
 	_is_ready = true
-	# This is due, evidently, to godot loading the scene in such a way where
-	# it actually sets the value to each property and thus also trigger its
-	# setget, and result in calling _dirty_rebuild_deferred. Class properties
-	# are assigned, thus triggering functions like _set_density, before the
-	# _ready function is ever called. Thus by the time _ready is happening,
-	# the _dirty flag is already set.
-
-	# Potentially redundant/recalled during scene init
-	#_dirty = true
-	#call_deferred("_dirty_rebuild_deferred")
+	rebuild_segments(true)
 
 
 # Workaround for cyclic typing

@@ -99,7 +99,14 @@ func get_containers() -> Array:
 	return res
 
 
+## Blocking function that will wait until all roads have been generated
 func rebuild_all_containers() -> void:
+	for ch in get_containers():
+		ch.rebuild_segments(true)
+
+
+## Regenerates each container with a deferred call per container
+func rebuild_all_containers_deferred() -> void:
 	for ch in get_containers():
 		ch._dirty = true
 		ch._dirty_rebuild_deferred()

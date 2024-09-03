@@ -408,7 +408,13 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				# Skip the selected container. We already have its Edge RoadPoints
 				continue
 			for edge in sel_rp_edges:
+				if not is_instance_valid(edge):
+					#push_warning("Container has invalid edges: " + selected.name)
+					continue
 				var tgt_edge = cont.get_closest_edge_road_point(edge.global_translation)
+				if not is_instance_valid(tgt_edge):
+					#push_warning("Container has invalid edges: " + cont.name)
+					continue
 				var dist = (edge.global_translation - tgt_edge.global_translation).length()
 				if dist < ROADPOINT_SNAP_THRESHOLD and ((not min_dist) or dist < min_dist):
 					min_dist = dist
