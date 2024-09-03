@@ -8,7 +8,7 @@ extends Spatial
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array. Will also trigger on segments deleted,
 ## which will contain a list of nothing.
-signal on_road_updated (updated_segments)
+signal on_road_updated(updated_segments)
 signal on_transform(node)  # for internal purposes, to handle drags
 
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
@@ -702,8 +702,6 @@ func validate_edges(autofix: bool = false) -> bool:
 			pass
 	if is_valid:
 		_edge_error = ""
-		if debug:
-			print("All edges are valid on %s" % self.name)
 	elif debug:
 		print("Found invalid edges on %s" % self.name)
 	return is_valid
@@ -733,7 +731,7 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	edge_rp_target_dirs[_idx] = -1
 
 
-func rebuild_segments(clear_existing=false):
+func rebuild_segments(clear_existing := false):
 	if not is_inside_tree() or not _is_ready:
 		# This most commonly happens in the editor on project restart, where
 		# each opened scene tab is quickly loaded and then apparently unloaded,
@@ -799,6 +797,8 @@ func rebuild_segments(clear_existing=false):
 		print_debug("Road segs rebuilt: ", rebuilt)
 
 	# Aim to do a single signal emission across the whole container update.
+	# TODO: consider not signalling if none rebuilt,
+	# though right now returning = [] will still indicate the check was done (but not by whom)
 	emit_signal("on_road_updated", signal_rebuilt)
 
 
