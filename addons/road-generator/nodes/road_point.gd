@@ -79,6 +79,7 @@ export(Vector2) var gutter_profile := Vector2(2.0, -0.5) setget _set_profile, _g
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
 export(NodePath) var prior_pt_init setget _set_prior_pt_init, _get_prior_pt_init
 export(NodePath) var next_pt_init setget _set_next_pt_init, _get_next_pt_init
+export(bool) var terminated := false
 # Handle magniture
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
@@ -123,7 +124,7 @@ func _init():
 
 func _ready():
 	# Ensure the transform notificaitons work
-	set_notify_transform(true)
+	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
@@ -328,14 +329,11 @@ func emit_transform(low_poly=false):
 	if auto_lanes:
 		assign_lanes()
 	#gd4
-	# var _gizmo:Node3DGizmo = get_gizmos()[0]
-	# var _gizmos = get_gizmos()
-	# if not _gizmos:
-	# 	push_warning("No 3D gizmos found")
-	# 	return
-	# var _gizmo:Node3DGizmo = _gizmos[0]
-	# if is_instance_valid(_gizmo):
-	# 	_gizmo.get_plugin().refresh_gizmo(_gizmo)
+	#var _gizmos:Array[Node3DGizmo] = get_gizmos()
+	#if !_gizmos.is_empty():
+	#	var _gizmo:Node3DGizmo = _gizmos[0]
+	#	if is_instance_valid(_gizmo):
+	#		_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	if is_instance_valid(gizmo):
 		gizmo.get_plugin().refresh_gizmo(gizmo)
 	emit_signal("on_transform", self, low_poly)
@@ -881,7 +879,10 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 	var same_basis = self.global_transform.basis.z == target_rp.global_transform.basis.z
 	var same_basis_rev = self.global_transform.basis.z*-1 == target_rp.global_transform.basis.z
 	if not same_origin or not (same_basis or same_basis_rev):
-		push_warning("Newly connected RoadPoints don't have the same position/orientation")
+		if is_instance_valid(container) and container._drag_init_transform:
+			pass
+		else:
+			push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
 	emit_transform() # Only changes that should happen: Update connections of AI lanes.
@@ -982,7 +983,7 @@ func validate_junctions():
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
 	#gd4
-	#if not prior_pt_init.is_empty():
+	#if not next_pt_init.is_empty():
 	if next_pt_init and not next_pt_init == "":
 		_tmp_ref = get_node(next_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):

@@ -91,8 +91,11 @@ func test_road_container_create():
 	# Since only setup, still should not have triggered on update.
 	assert_signal_emit_count(container, "on_road_updated", 0, "Don't signal setup")
 	container.rebuild_segments()
+	assert_eq(container.get_child_count(), 0, "Should have no children")
 	# Now it's updated
 	assert_signal_emit_count(container, "on_road_updated", 1, "Signal after rebuild")
+	# No children = road update called, but nothing rebuilt
+	assert_signal_emitted_with_parameters(container, "on_road_updated", [[]])
 
 
 func test_on_road_updated_single_segment():
@@ -292,3 +295,18 @@ func test_container_disconnection():
 	assert_false(res, "Disconnection should fail since not connected in that direction")
 	res = pt1.disconnect_container(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT)
 	assert_false(res, "Disconnection should fail with invalid edge directions")
+
+func test_container_snap_unsnap():
+	pass
+
+
+func test_collider_assignmens():
+	var container = add_child_autofree(RoadContainer.new())
+	container.collider_group_name = "test_collider_group"
+	container.collider_meta_name = "test_meta_name"
+	create_oneseg_container(container)
+
+	var _members = get_tree().get_nodes_in_group(container.collider_group_name)
+	assert_true(len(_members)>0, "Should have 1+ segmetns in test group name")
+	for _collider in _members:
+		assert_true(_collider.has_meta(container.collider_meta_name), "Meta name should be assigned")
