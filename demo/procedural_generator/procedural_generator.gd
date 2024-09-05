@@ -1,5 +1,7 @@
 extends Spatial
 
+const RoadActor:PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
+
 ## How far ahead of the camera will we let a new RoadPoint be added
 export var max_rp_distance: int = 200
 ## How much buffer around this max dist to avoid adding new RPs
@@ -10,14 +12,14 @@ export var buffer_distance: int = 50
 export var target_node: NodePath
 
 onready var container: RoadContainer = get_node("RoadManager/Road_001")
-onready var lane_agent: Spatial = get_node("LaneAgent")
+onready var vehicles:Node = get_node("RoadManager/vehicles")
 onready var target: Node = get_node_or_null(target_node)
 onready var popup: AcceptDialog = get_node("Control/AcceptDialog")
 
 
 func _ready() -> void:
-	lane_agent.container = container
-	popup.popup_centered(Vector2(200, 70))
+	pass
+	# popup.popup_centered(Vector2(200, 70))
 
 
 func _process(_delta: float) -> void:
@@ -58,6 +60,7 @@ func update_road() -> void:
 		# print("Process loop %s with RoadPoint %s with dist %s" % [_idx, edge_rp, dist])
 		if dist > max_rp_distance + buffer_distance * 1.5:
 			# Manually clear prior/next points to ensure it gets fully disconnected
+			despawn_cars(edge_rp)
 			edge_rp.prior_pt_init = ""
 			edge_rp.next_pt_init = ""
 			edge_rp.queue_free()
@@ -96,4 +99,41 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var res = rp.connect_roadpoint(dir, new_rp, flip_dir)
 	if res != true:
 		print("Failed to connect RoadPoint")
-	# print("Added rp %s" % new_rp)
+		return
+
+	# Now spawn vehicles
+	var new_seg = rp.next_seg if dir == RoadPoint.PointInit.NEXT else rp.prior_seg
+	if not is_instance_valid(new_seg):
+		print("Invalid new segment")
+		return
+	var new_lanes = new_seg.get_lanes()
+	for _lane in new_lanes:
+		# TODO: get random poing along this lane and spawn,
+		# for now just placing at the start point
+		var new_instance = RoadActor.instance()
+		vehicles.add_child(new_instance)
+		var rand_pos = _lane.to_global(_lane.curve.get_point_position(0))
+		new_instance.global_transform.origin = rand_pos
+		_lane.register_vehicle(new_instance)
+
+
+## Remvoe all vehicles registered to lanes of this RoadPoint
+func despawn_cars(road_point:RoadPoint) -> void:
+	var lanes:Array = []
+	var any_valid := false
+	if is_instance_valid(road_point.prior_seg) and road_point.prior_seg.get_parent() == road_point:
+		lanes.append_array(road_point.prior_seg.get_lanes())
+		any_valid = true
+	if is_instance_valid(road_point.next_seg) and road_point.next_seg.get_parent() == road_point:
+		lanes.append_array(road_point.next_seg.get_lanes())
+		any_valid = true
+	if not any_valid:
+		print("No segments valid for car despawning")
+
+	for _lane in lanes:
+		var this_lane:RoadLane = _lane
+		var lane_vehicles = this_lane.get_vehicles()
+		for _vehicle in lane_vehicles:
+			print("Freeing vehicle ", _vehicle)
+			_vehicle.queue_free()
+

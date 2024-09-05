@@ -5,7 +5,7 @@
 [ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=3]
 [ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=4]
 [ext_resource path="res://demo/procedural_generator/procedural_generator.gd" type="Script" id=5]
-[ext_resource path="res://demo/procedural_generator/lane_agent.gd" type="Script" id=6]
+[ext_resource path="res://demo/procedural_generator/RoadActor.tscn" type="PackedScene" id=7]
 
 [sub_resource type="Curve3D" id=1]
 _data = {
@@ -33,10 +33,30 @@ RichTextLabel/fonts/normal_font = SubResource( 4 )
 
 [node name="ProceduralGenerator" type="Spatial"]
 script = ExtResource( 5 )
-target_node = NodePath("LaneAgent/Camera")
+target_node = NodePath("RoadManager/vehicles/Player/Camera")
 
 [node name="RoadManager" type="Spatial" parent="."]
 script = ExtResource( 3 )
+
+[node name="vehicles" type="Spatial" parent="RoadManager"]
+
+[node name="Player" parent="RoadManager/vehicles" instance=ExtResource( 7 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281 )
+drive_state = 2
+target_speed = 100
+visualize_lane = true
+
+[node name="Camera" type="Camera" parent="RoadManager/vehicles/Player"]
+transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773 )
+far = 300.0
+
+[node name="NPC" parent="RoadManager/vehicles" instance=ExtResource( 7 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 6.39054, 1.60779, -6.41798 )
+visualize_lane = true
+
+[node name="NPC2" parent="RoadManager/vehicles" instance=ExtResource( 7 )]
+transform = Transform( -1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, -5.98539, 1.60779, -6.41798 )
+visualize_lane = true
 
 [node name="Road_001" type="Spatial" parent="RoadManager"]
 script = ExtResource( 1 )
@@ -44,6 +64,7 @@ material_resource = ExtResource( 2 )
 use_lowpoly_preview = true
 create_edge_curves = true
 generate_ai_lanes = true
+draw_lanes_editor = true
 edge_containers = [ "", "" ]
 edge_rp_targets = [ "", "" ]
 edge_rp_target_dirs = [ -1, -1 ]
@@ -86,15 +107,8 @@ __meta__ = {
 "_edit_lock_": true
 }
 
-[node name="LaneAgent" type="Spatial" parent="."]
-script = ExtResource( 6 )
-visualize_lane = true
-
-[node name="Camera" type="Camera" parent="LaneAgent"]
-transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 0, 11.1668, 16.061 )
-far = 300.0
-
 [node name="Control" type="Control" parent="."]
+visible = false
 anchor_right = 1.0
 anchor_bottom = 1.0
 
