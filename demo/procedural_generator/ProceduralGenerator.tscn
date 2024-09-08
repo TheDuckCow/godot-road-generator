@@ -21,6 +21,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281 )
 drive_state = 2
 target_speed = 100
 visualize_lane = true
+auto_register = false
 
 [node name="Camera" type="Camera" parent="RoadManager/vehicles/Player"]
 transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773 )

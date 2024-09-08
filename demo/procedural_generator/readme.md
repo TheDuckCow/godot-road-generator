@@ -18,6 +18,7 @@ This demo has the following components:
 
 - Script is attached to the root
 - The addon-provided RoadManager node is a child, which itself has one RoadContainer child and one other child used to place all cars including the player's
+- The player instance of the RoadActor is added to the scene, state set to player, visualize_lane set to true, and auto-register set to false (to avoid any risk of automatic culling when freeing RoadLanes)
 
 **road_actor.gd/tscn** - The vehicles that appear on the road, with export vars to differentiate a player driven vs "AI" driven vehicle
 
@@ -59,6 +60,6 @@ In this demo, you could somewhat simply account for this by virtually offsetting
 
 The player and NPC cars are simply spatials who use the addon provided RoadLaneAgent node in order to track along the generated AI lanes. Given there are no physics happening here, we can exactly move along the RoadLane by the amount we want the vehicle to move on that frame, and then snap to that position. If you were to extend this demo to support simulated vehicles with physics, you would instead use this agent to create one or more tracking target points to steer towards, likely somewhere in front of your actual vehicle/actor. 
 
-The RoadLaneAgent nicely abstracts the transition between one RoadLane and the next. During any given "move along" call, a vehicle might need to jump from the RoadLane on one segment to another, and continuing the distance on the next section without any stutter.
+The RoadLaneAgent nicely abstracts the transition between one RoadLane and the next. During any given "move along" call, a vehicle might need to jump from the RoadLane on one segment to another, and continuing the distance on the next section without any stutter. The Player instance is saved with the export var visualize_lane set to true, so you can see exactly which lane it is tracking towards in the game, which can also be very useful for debugging traffic behavior on an individual agent basis.
 
 Each RoadLaneAgent also contains a reference to its current RoadLane, and has a method to auto find the next nearest RoadLane. In a real simulated scenario, you might set some limits on how far away a vehicle can get from the nearest or current lane before it switches into a "find lane" wandering state.

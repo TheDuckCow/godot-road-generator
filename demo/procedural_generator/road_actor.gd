@@ -14,6 +14,7 @@ export var acceleration := 1 # in meters per sec squared
 export var target_speed := 30  # in meters per sec
 export var visualize_lane := false
 export var seek_ahead := 5.0 # How many meters in front of agent to seek position
+export var auto_register: bool = true
 
 onready var agent = get_node("%road_lane_agent")
 
@@ -21,6 +22,7 @@ var velocity := Vector3.ZERO
 
 func _ready() -> void:
 	agent.visualize_lane = visualize_lane
+	agent.auto_register = auto_register
 	print("Agent state: %s par, %s lane, %s manager" % [
 		agent.actor, agent.current_lane, agent.road_manager
 	])
