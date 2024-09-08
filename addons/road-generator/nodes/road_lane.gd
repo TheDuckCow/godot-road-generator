@@ -234,4 +234,5 @@ func show_fins(value: bool) -> void:
 func _exit_tree() -> void:
 	if auto_free_vehicles:
 		for _vehicle in _vehicles_in_lane:
-			_vehicle.call_deferred("queue_free")
+			if is_instance_valid(_vehicle):
+				_vehicle.call_deferred("queue_free")

@@ -157,7 +157,7 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 
 ## Get the next position along the RoadLane based on moving this amount
 ## from the current position (in meters)
-func _move_along_lane(move_distance: float, update_lane: bool = true, allow_recursion: bool = true) -> Vector3:
+func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
 	var pos = actor.global_transform.origin
 	var new_point: Vector3 = pos
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
@@ -169,36 +169,35 @@ func _move_along_lane(move_distance: float, update_lane: bool = true, allow_recu
 	# Account for the lane's UI setting for direction
 	var dir:int = -1 if current_lane.reverse_direction else 1
 	var check_next_offset:float = init_offset + move_distance * dir
-	var going_to_next:bool = (dir > 0 and move_distance > 0) or (dir < 0 and move_distance < 0)
+	var going_to_next:bool = dir > 0
 	var _update_lane
-	if check_next_offset > lane_length:
+	if check_next_offset > lane_length: # Target point is past the end of this curve
 		if going_to_next:
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_next) # not lane_next?
-			print("Need to jump to next lane (overflow)", _update_lane, " with ", dir, " init_offset ", init_offset, " lane_length ", lane_length, " vs move ", move_distance)
+			#print("Need to jump to next lane (overflow)")
 		else:
-			print("Need to jump to prior lane (underflow)")
-			# Flipped case, due to reverse_direction or character in reverse
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
+			#print("Need to jump to prior lane (overflow)")
 		if not is_instance_valid(_update_lane):
 			#push_warning("No next node on path %s " % current_lane.name)
 			return new_point
+		# TODO: go the "rest of the way" onto the next RoadLane to get final position
 		if update_lane:
 			assign_lane(_update_lane)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-	elif check_next_offset < 0:
+	elif check_next_offset < 0: # Target point is before start of this curve
 		if going_to_next:
-			print("Need to jump to prior lane (overflow)")
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
+			#print("Need to jump to prior lane (underflow)")
 		else:
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-			print("Need to jump to next lane (underflow)", _update_lane, " with ", dir, " init_offset ", init_offset, " lane_length ", lane_length, " vs move ", move_distance)
+			#print("Need to jump to next lane (underflow)")
 		if not is_instance_valid(_update_lane):
 			#push_warning("No next node on path %s " % current_lane.name)
 			return new_point
+		# TODO: go the "rest of the way" onto the next RoadLane to get final position
 		if update_lane:
 			assign_lane(_update_lane)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-	else:
+	else: # Target point lies within the length of this curve
 		var ref_local = current_lane.curve.interpolate_baked(check_next_offset)
 		new_point = current_lane.to_global(ref_local)
 
