@@ -4,6 +4,8 @@ This demo shows off how to use the Godot Road Generator where the roads are made
 
 This demo is aimed to be as basic as possible so it is easy to follow, thus the behavior of the path-following cars is reduced to simply going forward along the road lines without any consideration for collisions. We also do not introduce any branching or prefab scene placement.
 
+![live gif demo](demo.gif)
+
 See [demo videos here](https://github.com/TheDuckCow/godot-road-generator/issues/170). This demo exists thanks to the support of @brickyt via our [Roadside Support Patreon tier](https://www.patreon.com/WheelStealGame).
 
 ## High level structure
@@ -12,14 +14,14 @@ This demo has the following components:
 
 **procedural_generator.gd/tscn** - the main demo scene. This controls the placement of both new roads and cars ("actors"). 
 
-![alt](ProceduralGenerator_setup.png)
+![procgen setup in editor](ProceduralGenerator_setup.png)
 
 - Script is attached to the root
 - The addon-provided RoadManager node is a child, which itself has one RoadContainer child and one other child used to place all cars including the player's
 
 **road_actor.gd/tscn** - The vehicles that appear on the road, with export vars to differentiate a player driven vs "AI" driven vehicle
 
-![alt](RoadActor_setup.png)
+![road actor setup in editor](RoadActor_setup.png)
 
 - Extends from a spatial, so there are no actual physics happening
 - Has a child RoadLaneAgent which is provided by the road generator, a utility function to keep tracking along the road

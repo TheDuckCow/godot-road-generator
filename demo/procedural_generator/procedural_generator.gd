@@ -133,8 +133,9 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		new_instance.agent.current_lane = _lane
 		print("new_instance %s " % new_instance)
 
-		var rand_pos = _lane.to_global(_lane.curve.get_point_position(0))
-		new_instance.global_transform.origin = rand_pos
+		var rand_offset = randf() * _lane.curve.get_baked_length()
+		var rand_pos = _lane.curve.interpolate_baked(rand_offset)
+		new_instance.global_transform.origin = _lane.to_global(rand_pos)
 		_lane.register_vehicle(new_instance)
 
 
