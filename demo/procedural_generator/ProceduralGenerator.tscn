@@ -1,0 +1,83 @@
+[gd_scene load_steps=7 format=2]
+
+[ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=1]
+[ext_resource path="res://addons/road-generator/resources/road_texture.material" type="Material" id=2]
+[ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=3]
+[ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=4]
+[ext_resource path="res://demo/procedural_generator/procedural_generator.gd" type="Script" id=5]
+[ext_resource path="res://demo/procedural_generator/RoadActor.tscn" type="PackedScene" id=7]
+
+[node name="ProceduralGenerator" type="Spatial"]
+script = ExtResource( 5 )
+target_node = NodePath("RoadManager/vehicles/Player/Camera")
+
+[node name="RoadManager" type="Spatial" parent="."]
+script = ExtResource( 3 )
+
+[node name="vehicles" type="Spatial" parent="RoadManager"]
+
+[node name="Player" parent="RoadManager/vehicles" instance=ExtResource( 7 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281 )
+drive_state = 2
+target_speed = 100
+visualize_lane = true
+auto_register = false
+
+[node name="Camera" type="Camera" parent="RoadManager/vehicles/Player"]
+transform = Transform( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773 )
+far = 300.0
+
+[node name="Road_001" type="Spatial" parent="RoadManager"]
+script = ExtResource( 1 )
+material_resource = ExtResource( 2 )
+use_lowpoly_preview = true
+generate_ai_lanes = true
+draw_lanes_editor = true
+edge_containers = [ "", "" ]
+edge_rp_targets = [ "", "" ]
+edge_rp_target_dirs = [ -1, -1 ]
+edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_002") ]
+edge_rp_local_dirs = [ 0, 1 ]
+
+[node name="RP_001" type="Spatial" parent="RoadManager/Road_001"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997 )
+script = ExtResource( 4 )
+traffic_dir = [ 2, 2, 1, 1 ]
+lanes = [ 2, 4, 4, 2 ]
+prior_pt_init = NodePath("../RP_002")
+prior_mag = 20.0
+next_mag = 20.0
+
+[node name="RP_002" type="Spatial" parent="RoadManager/Road_001"]
+transform = Transform( 0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496 )
+script = ExtResource( 4 )
+traffic_dir = [ 2, 2, 1, 1 ]
+lanes = [ 2, 4, 4, 2 ]
+next_pt_init = NodePath("../RP_001")
+prior_mag = 20.0
+next_mag = 20.0
+
+[node name="UI" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 10.0
+margin_top = 10.0
+margin_right = -10.0
+margin_bottom = -10.0
+
+[node name="car_count" type="Label" parent="UI"]
+unique_name_in_owner = true
+margin_right = 40.0
+margin_bottom = 14.0
+custom_colors/font_color = Color( 0, 0, 0, 1 )
+text = "Cars: ##"
+
+[node name="instructions" type="Label" parent="UI"]
+anchor_left = 1.0
+anchor_right = 1.0
+margin_left = -152.0
+margin_bottom = 31.0
+custom_colors/font_color = Color( 0, 0, 0, 1 )
+text = "up/down arrow to move
+left/right to change lane"
+align = 2

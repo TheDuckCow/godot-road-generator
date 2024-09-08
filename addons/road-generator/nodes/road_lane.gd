@@ -41,6 +41,8 @@ export var draw_in_editor = false setget _set_draw_in_editor, _get_draw_in_edito
 export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 
+## Auto queue-free any vehicles registered to this lane with the road lane exits
+export var auto_free_vehicles: bool = true
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
@@ -228,3 +230,9 @@ func show_fins(value: bool) -> void:
 	_draw_override = value
 	rebuild_geom()
 
+
+func _exit_tree() -> void:
+	if auto_free_vehicles:
+		for _vehicle in _vehicles_in_lane:
+			if is_instance_valid(_vehicle):
+				_vehicle.call_deferred("queue_free")
