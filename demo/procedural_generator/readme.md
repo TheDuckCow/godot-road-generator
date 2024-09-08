@@ -10,12 +10,19 @@ See [demo videos here](https://github.com/TheDuckCow/godot-road-generator/issues
 
 This demo has the following components:
 
-- procedural_generator.gd/tscn - the main demo scene. This controls the placement of both new roads and cars ("actors"). 
-  - Script is attached to the root
-  - The addon-provided RoadManager node is a child, which itself has one RoadContainer child and one other child used to place all cars including the player's
-- road_actor.gd/tscn - The vehicles that appear on the road, with export vars to differentiate a player driven vs "AI" driven vehicle
-  - Extends from a spatial, so there are no actual physics happening
-  - Has a child RoadLaneAgent which is provided by the road generator, a utility function to keep tracking along the road
+**procedural_generator.gd/tscn** - the main demo scene. This controls the placement of both new roads and cars ("actors"). 
+
+![alt](ProceduralGenerator setup.png)
+
+- Script is attached to the root
+- The addon-provided RoadManager node is a child, which itself has one RoadContainer child and one other child used to place all cars including the player's
+
+**road_actor.gd/tscn** - The vehicles that appear on the road, with export vars to differentiate a player driven vs "AI" driven vehicle
+
+![alt](RoadActor setup.png)
+
+- Extends from a spatial, so there are no actual physics happening
+- Has a child RoadLaneAgent which is provided by the road generator, a utility function to keep tracking along the road
 
 
 ## Generating and culling roads
@@ -32,7 +39,7 @@ The distance between the close and far buffer must be wide enough, or else you m
 
 Once we determine we need to add another RoadPoint to extend one edge of the road, we have to decide *where* to place this new RoadPoint. We take the current edge's position, take it's z-basis direction, rotate it slightly by some number of degrees, and then extend the roadpoint out in that direction.
 
-This is a very simplicity method to place roads, but will not look that organic. This is because each RoadPoint placement is entirely independent to the prior one placed. To create more interesting curves and road designs, you'd need to perform more logic to define a "plan" for how to place several RoadPoints in sequence. Additionally, 
+This is a very simplicity method to place roads, but will not look that organic. This is because each RoadPoint placement is entirely independent to the prior one placed. To create more interesting curves and road designs, you'd need to perform more logic to define a "plan" for how to place several RoadPoints in sequence.
 
 
 ### Deleting a RoadPoint / RoadSegment
