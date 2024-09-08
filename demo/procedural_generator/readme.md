@@ -12,14 +12,14 @@ This demo has the following components:
 
 **procedural_generator.gd/tscn** - the main demo scene. This controls the placement of both new roads and cars ("actors"). 
 
-![alt](/demo/procedural_generator/ProceduralGenerator setup.png)
+![alt](ProceduralGenerator_setup.png)
 
 - Script is attached to the root
 - The addon-provided RoadManager node is a child, which itself has one RoadContainer child and one other child used to place all cars including the player's
 
 **road_actor.gd/tscn** - The vehicles that appear on the road, with export vars to differentiate a player driven vs "AI" driven vehicle
 
-![alt](/demo/procedural_generator/RoadActor setup.png)
+![alt](RoadActor_setup.png)
 
 - Extends from a spatial, so there are no actual physics happening
 - Has a child RoadLaneAgent which is provided by the road generator, a utility function to keep tracking along the road
