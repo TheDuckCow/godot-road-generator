@@ -20,6 +20,7 @@ onready var agent = get_node("%road_lane_agent")
 var velocity := Vector3.ZERO
 
 func _ready() -> void:
+	agent.visualize_lane = visualize_lane
 	print("Agent state: %s par, %s lane, %s manager" % [
 		agent.actor, agent.current_lane, agent.road_manager
 	])

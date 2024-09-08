@@ -335,6 +335,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 				ln_child.owner = container.owner
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
+			ln_child.auto_free_vehicles = container.auto_free_vehicles
 		else:
 			ln_child.curve.clear_points()
 		var new_ln:RoadLane = ln_child

@@ -36,6 +36,10 @@ export(bool) var create_edge_curves := false setget _set_create_edge_curves
 export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
 ## Group name to assign to generated RoadLane nodes
 export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+## Pass through to each RoadLane on whether to auto free all registered vehicles on _exit_tree.
+## Useful to let the raod generator handle any vehicles on a road segment to be cleaned up but
+## is not a direct child (which would require re-parenting as vehicles travel between segments)
+export(bool) var auto_free_vehicles := true setget _set_auto_free_vehicles
 ## Group name to assign to the staic bodies created within a RoadSegment
 export(String) var collider_group_name := "" setget _set_collider_group
 ## Meta property name to assign to the static bodies created within a RoadSegment, value will always be true
@@ -219,6 +223,13 @@ func _set_gen_ai_lanes(value: bool) -> void:
 func _set_ai_lane_group(value: String) -> void:
 	ai_lane_group = value
 	_defer_refresh_on_change()
+
+
+func _set_auto_free_vehicles(value: bool) -> void:
+	auto_free_vehicles = value
+	for seg in get_segments():
+		for _lane in seg.get_lanes():
+			_lane.auto_free_vehicles = value
 
 
 func _set_collider_group(value: String) -> void:

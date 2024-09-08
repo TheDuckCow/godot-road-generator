@@ -17,6 +17,13 @@ signal on_lane_changed(old_lane)
 ## Directly assign the path to the RoadManager instance, otherwise will assume it
 ## is in the parent hierarchy. Should refer to RoadManager nodes only.
 export(NodePath) var road_manager_path: NodePath
+## Automatically register and unregiter this vehicle to RoadLanes as we travel.
+## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
+## being removed, but likely should turn off for player agents to avoid freeing
+export(bool) var auto_register: bool = true
+## Debug tool to make the current lane visible in the game. Can be slow, best
+## to turn it off for production use.
+export(bool) var visualize_lane: bool = false
 
 ## Reference spatial to assume where this agent's position is assumed to be at
 var actor: Spatial
@@ -25,6 +32,9 @@ var actor: Spatial
 var road_manager: RoadManager
 ## The current RoadLane, used as the linking reference to all adjacent lanes
 var current_lane: RoadLane
+
+## Cache just to check whether the prior lane was made visible by visualize_lane
+var _did_make_lane_visible := false
 
 
 func _ready() -> void:
@@ -41,9 +51,17 @@ func assign_lane(new_lane:RoadLane):
 		return
 	# In race conditions, better to have a vehcile registered in two lanes at
 	# once to avoid getting lost in the void if something freed in between
-	new_lane.register_vehicle(actor)
+	if auto_register:
+		new_lane.register_vehicle(actor)
 	if is_instance_valid(current_lane) and current_lane is RoadLane:
+		# Even if auto_register is off, no harm in attempt to unregister, in
+		# case the setting had recently changed
 		current_lane.unregister_vehicle(actor)
+		if current_lane.draw_in_game and _did_make_lane_visible:
+			current_lane.draw_in_game = false
+	if not new_lane.draw_in_game and visualize_lane:
+		new_lane.draw_in_game = true
+		_did_make_lane_visible = true
 	var _initial_lane = current_lane
 	current_lane = new_lane
 	emit_signal("on_lane_changed", _initial_lane)
