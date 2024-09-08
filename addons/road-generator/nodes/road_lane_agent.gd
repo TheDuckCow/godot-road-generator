@@ -36,9 +36,14 @@ func _ready() -> void:
 
 
 func assign_lane(new_lane:RoadLane):
+	if not is_instance_valid(new_lane):
+		push_warning("Attempted moving to invalid lane via %s" % self)
+		return
+	# In race conditions, better to have a vehcile registered in two lanes at
+	# once to avoid getting lost in the void if something freed in between
+	new_lane.register_vehicle(actor)
 	if is_instance_valid(current_lane) and current_lane is RoadLane:
 		current_lane.unregister_vehicle(actor)
-	new_lane.register_vehicle(actor)
 	var _initial_lane = current_lane
 	current_lane = new_lane
 	emit_signal("on_lane_changed", _initial_lane)
@@ -138,9 +143,21 @@ func find_nearest_lane() -> RoadLane:
 	return closest_lane
 
 
+## Finds the poistion this many many units forward (or backwards, if negative)
+## along the current lane, assigning a new lane if the next one is reached
+func move_along_lane(move_distance: float) -> Vector3:
+	return _move_along_lane(move_distance, true)
+
+
+## Finds the poistion this many many units forward (or backwards, if negative)
+## along the current lane, without assigning a new lane
+func test_move_along_lane(move_distance: float) -> Vector3:
+	return _move_along_lane(move_distance, false)
+
+
 ## Get the next position along the RoadLane based on moving this amount
 ## from the current position (in meters)
-func move_along_lane(move_distance: float) -> Vector3:
+func _move_along_lane(move_distance: float, update_lane: bool = true, allow_recursion: bool = true) -> Vector3:
 	var pos = actor.global_transform.origin
 	var new_point: Vector3 = pos
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
@@ -156,28 +173,30 @@ func move_along_lane(move_distance: float) -> Vector3:
 	var _update_lane
 	if check_next_offset > lane_length:
 		if going_to_next:
-			print("Need to jump to next lane (overflow)")
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
+			_update_lane = current_lane.get_node_or_null(current_lane.lane_next) # not lane_next?
+			print("Need to jump to next lane (overflow)", _update_lane, " with ", dir, " init_offset ", init_offset, " lane_length ", lane_length, " vs move ", move_distance)
 		else:
 			print("Need to jump to prior lane (underflow)")
 			# Flipped case, due to reverse_direction or character in reverse
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-		if not _update_lane:
-			push_warning("No next node on path %s " % current_lane.name)
+		if not is_instance_valid(_update_lane):
+			#push_warning("No next node on path %s " % current_lane.name)
 			return new_point
-		assign_lane(_update_lane)
+		if update_lane:
+			assign_lane(_update_lane)
 		# TODO: go the "rest of the way" onto the next RoadLane to get final position
 	elif check_next_offset < 0:
 		if going_to_next:
 			print("Need to jump to prior lane (overflow)")
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
 		else:
-			print("Need to jump to next lane (underflow)")
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-		if not _update_lane:
-			push_warning("No next node on path %s " % current_lane.name)
+			print("Need to jump to next lane (underflow)", _update_lane, " with ", dir, " init_offset ", init_offset, " lane_length ", lane_length, " vs move ", move_distance)
+		if not is_instance_valid(_update_lane):
+			#push_warning("No next node on path %s " % current_lane.name)
 			return new_point
-		assign_lane(_update_lane)
+		if update_lane:
+			assign_lane(_update_lane)
 		# TODO: go the "rest of the way" onto the next RoadLane to get final position
 	else:
 		var ref_local = current_lane.curve.interpolate_baked(check_next_offset)
