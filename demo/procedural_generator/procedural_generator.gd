@@ -14,16 +14,16 @@ export var target_node: NodePath
 onready var container: RoadContainer = get_node("RoadManager/Road_001")
 onready var vehicles:Node = get_node("RoadManager/vehicles")
 onready var target: Node = get_node_or_null(target_node)
-onready var popup: AcceptDialog = get_node("Control/AcceptDialog")
+onready var car_label: Label = get_node("%car_count")
 
 
 func _ready() -> void:
 	pass
-	# popup.popup_centered(Vector2(200, 70))
 
 
-func _process(_delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	update_road()
+	update_car_count()
 
 
 func xz_target_distance_to(_target: Spatial) -> float:
@@ -59,14 +59,24 @@ func update_road() -> void:
 		var dist := xz_target_distance_to(edge_rp)
 		# print("Process loop %s with RoadPoint %s with dist %s" % [_idx, edge_rp, dist])
 		if dist > max_rp_distance + buffer_distance * 1.5:
-			# Manually clear prior/next points to ensure it gets fully disconnected
-			despawn_cars(edge_rp)
-			edge_rp.prior_pt_init = ""
-			edge_rp.next_pt_init = ""
-			edge_rp.queue_free()
-		elif dist < max_rp_distance and rp_count < 30:
+			# buffer * factor is to ensure buffer range is wider than the distance between rps,
+			# to avoid flicker spawning
+			remove_rp(edge_rp)
+		elif dist < max_rp_distance:
 			var which_edge = edge_dirs[_idx]
 			add_next_rp(edge_rp, which_edge)
+		elif rp_count > 20:
+			pass
+
+
+## Manually clear prior/next points to ensure it gets fully disconnected
+func remove_rp(edge_rp: RoadPoint) -> void:
+	# No need to manually remove cars, as we use the default: RoadLane.auto_free_vehicles=true
+	#despawn_cars(edge_rp)
+	edge_rp.prior_pt_init = ""
+	edge_rp.next_pt_init = ""
+	# Defer to allow time to free cars first, if using despawn_cars above
+	edge_rp.call_deferred("queue_free")
 
 
 ## Add a new roadpoint in a given direction
@@ -100,7 +110,10 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	if res != true:
 		print("Failed to connect RoadPoint")
 		return
+	spawn_vehicles_on_lane(rp, dir)
 
+
+func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	# Now spawn vehicles
 	var new_seg = rp.next_seg if dir == RoadPoint.PointInit.NEXT else rp.prior_seg
 	if not is_instance_valid(new_seg):
@@ -112,28 +125,63 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 		# for now just placing at the start point
 		var new_instance = RoadActor.instance()
 		vehicles.add_child(new_instance)
+
+		# We could let the agent auto-find the nearest road lane, but to save
+		# on some performance we can directly assign BEFORE entering the tree
+		# so that it skips the recusive find funciton.
+		# Must run after its ready function, but before its physics_process call
+		new_instance.agent.current_lane = _lane
+		print("new_instance %s " % new_instance)
+
 		var rand_pos = _lane.to_global(_lane.curve.get_point_position(0))
 		new_instance.global_transform.origin = rand_pos
 		_lane.register_vehicle(new_instance)
 
 
-## Remvoe all vehicles registered to lanes of this RoadPoint
+## Manual way to emvoe all vehicles registered to lanes of this RoadPoint,
+## if we didn't use RoadLane.auto_free_vehicles = true
 func despawn_cars(road_point:RoadPoint) -> void:
 	var lanes:Array = []
 	var any_valid := false
-	if is_instance_valid(road_point.prior_seg) and road_point.prior_seg.get_parent() == road_point:
-		lanes.append_array(road_point.prior_seg.get_lanes())
-		any_valid = true
-	if is_instance_valid(road_point.next_seg) and road_point.next_seg.get_parent() == road_point:
-		lanes.append_array(road_point.next_seg.get_lanes())
+	for seg in [road_point.prior_seg, road_point.next_seg]:
+		if not is_instance_valid(seg):
+			continue
+		# Any connected segment is about to be destroyed since this RP is going
+		# away, so all adjacent vehicles should all be removed
+		lanes.append_array(seg.get_lanes())
 		any_valid = true
 	if not any_valid:
 		print("No segments valid for car despawning")
+		return
 
 	for _lane in lanes:
 		var this_lane:RoadLane = _lane
-		var lane_vehicles = this_lane.get_vehicles()
+		var lane_vehicles = this_lane._vehicles_in_lane #this_lane.get_vehicles()
 		for _vehicle in lane_vehicles:
 			print("Freeing vehicle ", _vehicle)
 			_vehicle.queue_free()
+
+
+func update_car_count() -> void:
+	# For debugging purpses, brute force count the number of cars registered
+	# across all RoadLanes; number should match overall car count.
+	var _ln_cars = 0
+	for _rp in container.get_roadpoints():
+		var rp:RoadPoint = _rp
+		for seg in [rp.prior_seg, rp.next_seg]:
+			if not is_instance_valid(seg):
+				continue
+			if not seg in rp.get_children():
+				continue # avoid double counting
+			for lane in seg.get_lanes():
+				_ln_cars += len(lane._vehicles_in_lane)
+
+	var car_count: int = len(get_tree().get_nodes_in_group("cars"))
+	var rp_count: int = len(container.get_roadpoints())
+	car_label.text = "Roadpoints:%s\nCars: %s (lane-registered %s)\nfps: %s" % [
+		rp_count,
+		car_count,
+		_ln_cars,
+		Engine.get_frames_per_second()]
+
 
