@@ -465,7 +465,7 @@ func get_open_edges()->Array:
 			# Edge is already connected
 			continue
 		elif edge and edge.terminated:
-			# Edge is terminated
+			# Edge is terminated (TODO: remove this branch, should not longer be in edge list now)
 			continue
 		elif edge:
 			# Edge is available for connections
@@ -561,6 +561,9 @@ func update_edges():
 
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
+		if pt.terminated:
+			# Terminated points should not be counted as external edges
+			continue
 
 		for this_dir in [RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR]:
 			var is_edge := false
