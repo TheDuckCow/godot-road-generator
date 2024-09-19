@@ -79,7 +79,7 @@ export(Vector2) var gutter_profile := Vector2(2.0, -0.5) setget _set_profile, _g
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
 export(NodePath) var prior_pt_init setget _set_prior_pt_init, _get_prior_pt_init
 export(NodePath) var next_pt_init setget _set_next_pt_init, _get_next_pt_init
-export(bool) var terminated := false
+export(bool) var terminated := false setget _set_terminated
 # Handle magniture
 export(float) var prior_mag := 5.0 setget _set_prior_mag, _get_prior_mag
 export(float) var next_mag := 5.0 setget _set_next_mag, _get_next_mag
@@ -276,6 +276,11 @@ func _set_next_pt_init(value:NodePath):
 	emit_transform()
 
 
+func _set_terminated(value: bool) -> void:
+	terminated = value
+	if is_instance_valid(container):
+		container.update_edges()
+
 func _get_next_pt_init():
 	return next_pt_init
 
@@ -379,7 +384,8 @@ func is_prior_connected() -> bool:
 		#gd4
 		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list")
 	return false
 
 
@@ -396,7 +402,8 @@ func is_next_connected() -> bool:
 		#gd4
 		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list")
 	return false
 
 
@@ -414,7 +421,8 @@ func get_prior_rp():
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list")
 	return null
 
 
@@ -432,7 +440,8 @@ func get_next_rp():
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list")
 	return null
 
 

@@ -173,17 +173,14 @@ func test_update_edges():
 
 	# Second case: 2 edges over 2 points
 	create_oneseg_container(container)
-	container.rebuild_segments()
 	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges")
 	validate_edges_equal_size(container)
 
 	# Third case: 2 edges over 3 points
 	var p2 = container.get_roadpoints()[1]
 	var p3 = autoqfree(RoadPoint.new())
-	container.add_child(p3)
 	p2.next_pt_init = p2.get_path_to(p3)
 	p3.prior_pt_init = p3.get_path_to(p2)
-	container.rebuild_segments()
 	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges still")
 	validate_edges_equal_size(container)
 
@@ -191,14 +188,18 @@ func test_update_edges():
 	# In this case, the disconencted point should count as 2 open edges.
 	var p4 = autoqfree(RoadPoint.new())
 	container.add_child(p4)  # unconnected
-	container.rebuild_segments()
-	assert_eq(len(container.edge_rp_locals), 4, "Should have 3 edges now")
+	assert_eq(len(container.edge_rp_locals), 4, "Should have 2+2 edges now")
 	validate_edges_equal_size(container)
 
 	# Fifth case: 3 edges over 4 points, one edge conencted to Container itself.
 	p3.next_pt_init = p3.get_path_to(container)
-	container.rebuild_segments()
-	assert_eq(len(container.edge_rp_locals), 4, "Should still have 3 edges now")
+	assert_eq(len(container.edge_rp_locals), 4, "Should still have 2+2 edges now")
+	validate_edges_equal_size(container)
+
+	# Sixth case: One edge marked as terminated, no longer an "edge" and thus
+	# both directions no longer counted
+	p4.terminated = true
+	assert_eq(len(container.edge_rp_locals), 2, "Back down to 2")
 	validate_edges_equal_size(container)
 
 
@@ -295,6 +296,7 @@ func test_container_disconnection():
 	assert_false(res, "Disconnection should fail since not connected in that direction")
 	res = pt1.disconnect_container(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT)
 	assert_false(res, "Disconnection should fail with invalid edge directions")
+
 
 func test_container_snap_unsnap():
 	pass
