@@ -385,7 +385,7 @@ func is_prior_connected() -> bool:
 		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list")
+		push_warning("RP should have been present in container edge list (is_prior_connected)")
 	return false
 
 
@@ -403,7 +403,7 @@ func is_next_connected() -> bool:
 		#return container.edge_containers[_idx] != ^""
 		return container.edge_containers[_idx] != ""
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list")
+		push_warning("RP should have been present in container edge list (is_next_connected)")
 	return false
 
 
@@ -422,7 +422,7 @@ func get_prior_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list")
+		push_warning("RP should have been present in container edge list (get_prior_rp)")
 	return null
 
 
@@ -441,7 +441,7 @@ func get_next_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list")
+		push_warning("RP should have been present in container edge list (get_next_rp)")
 	return null
 
 

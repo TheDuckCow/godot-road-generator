@@ -1348,52 +1348,64 @@ func _delete_rp_on_click(selection: Node):
 		else:
 			push_warning("Should be prior connected %s" % next_rp.name)
 			pass # not actually mutually connected?
-	if prior_rp != null and next_rp != null:
+	if is_instance_valid(prior_rp) and is_instance_valid(next_rp):
+		# only if fully connected will it combine both sides back together
 		dissolve = true
 
-	# "Do" steps
+	print("Dissolve: %s, prior %s samedir %s , next %s smaedir %s" % [
+		dissolve, prior_rp, prior_samedir, next_rp, next_samedir
+	])
 
-	undo_redo.create_action("Dissolve RoadPoint")
+	# Define the action
+	if dissolve:
+		undo_redo.create_action("Dissolve RoadPoint")
+	else:
+		undo_redo.create_action("Delete RoadPoint")
+
+	# Disconnect the existing RoadPoints and set updated selection
+	var prior_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
+	var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
+	if is_instance_valid(prior_rp):
+		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, prior_dir)
+	if is_instance_valid(next_rp):
+		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, next_dir)
+
+	# Remove the node
+	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)  # Queuefree borqs with undoredo
+	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp) # TODO, improve positioning
+	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
+	#undo_redo.add_undo_property(rp, "prior_pt_init", rp.prior_pt_init)
+	#undo_redo.add_undo_property(rp, "next_pt_init", rp.next_pt_init)
+
+	# Have to do reconnection undo steps after re-adding
+	if is_instance_valid(prior_rp):
+		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.PRIOR, prior_rp, prior_dir)
+	if is_instance_valid(next_rp):
+		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, next_rp, next_dir)
+
+	# Update do/undo selections
+	if is_instance_valid(next_rp):
+		undo_redo.add_do_method(self, "set_selection", next_rp)
+		undo_redo.add_undo_method(self, "set_selection", selection)
+	elif is_instance_valid(prior_rp):
+		undo_redo.add_do_method(self, "set_selection", prior_rp)
+		undo_redo.add_undo_method(self, "set_selection", selection)
+	else:
+		undo_redo.add_do_method(self, "set_selection", rp.container)
+		undo_redo.add_undo_method(self, "set_selection", selection)
+
+	# If necessary, reconnect the two edges back
 	if dissolve:
 		print("Setting up for dissolve")
-		var this_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
-		var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
-		print("assigning: this ", this_dir, " vs next", next_dir)
+		print("assigning: this ", prior_dir, " vs next", next_dir)
 		undo_redo.add_do_method(
 			prior_rp,
 			"connect_roadpoint",
-			this_dir,
+			prior_dir,
 			next_rp,
 			next_dir
 		)
 
-	if prior_rp:
-		undo_redo.add_do_method(self, "set_selection", prior_rp)
-	elif next_rp:
-		undo_redo.add_do_method(self, "set_selection", next_rp)
-	else:
-		undo_redo.add_do_method(self, "set_selection", rp.container)
-	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)  # Queuefree borqs with undoredo
-	# might need to do:
-	# container.remove_segment(seg)
-	if dissolve:
-		#undo_redo.add_do_method(prior_rp, "on_transform")
-		#undo_redo.add_do_method(next_rp, "on_transform") # Technicall only one should be needed
-		# TODO: Directly triggering on_transform wasn't enough, having to do rebuild_segments instead
-		undo_redo.add_do_method(container, "rebuild_segments", false)
-
-	# ""Undo" steps
-
-	undo_redo.add_undo_reference(rp)
-	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp, true) # TODO, improve positioning
-	# undo_redo.add_undo_method(rp.get_parent(), "move_child", rp, orig_pos), or use add_child_below_node instead
-	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
-	undo_redo.add_undo_property(rp, "prior_pt_init", rp.prior_pt_init)
-	undo_redo.add_undo_property(rp, "next_pt_init", rp.next_pt_init)
-	if dissolve:
-		# Adding back two connections
-		var prior_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
-		var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
 
 		undo_redo.add_undo_method(
 			rp,
@@ -1409,15 +1421,17 @@ func _delete_rp_on_click(selection: Node):
 			next_rp,
 			next_dir
 		)
-	undo_redo.add_undo_method(self, "set_selection", rp)
-	undo_redo.add_undo_method(rp, "on_transform")
+		#undo_redo.add_do_method(container, "rebuild_segments", false)
+	#undo_redo.add_undo_method(self, "set_selection", rp)
+	#undo_redo.add_undo_method(rp, "on_transform")
 	# Trigger on prior and next to clean up extra geo needed
 	# TODO: Directly triggering on_transform wasn't enough, having to do rebuild_segments instead
 	# TODO: to increase performance, should be able to more directly clean up
 	# the one road seg that's leftover here somehow.
-	if dissolve:
-		undo_redo.add_undo_method(container, "rebuild_segments", false)
+	#if dissolve:
+	undo_redo.add_undo_method(container, "rebuild_segments", false)
 
+	undo_redo.add_undo_reference(rp)
 	undo_redo.commit_action()
 
 
