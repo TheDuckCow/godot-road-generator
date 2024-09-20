@@ -1093,17 +1093,20 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		next_rp.auto_lanes = true
 
 	# Make the road visible halfway above the ground by the gutter height amount.
-	var half_gutter: float = -0.5 * next_rp.gutter_profile.y
-	next_rp.global_transform.origin = pos + nrm * half_gutter
+	if nrm == Vector3.ZERO:
+		pass
+	else:
+		var half_gutter: float = -0.5 * next_rp.gutter_profile.y
+		next_rp.global_transform.origin = pos + nrm * half_gutter
 
-	# Rotate this rp towards the initial selected node
-	if selection is RoadPoint:
-		var look_pos = selection.global_transform.origin
-		if not adding_to_next:
-			# Essentially flip the look 180 so it's not twisted around.
-			#print("Flipping dir")
-			look_pos += 2 * dirvec
-		next_rp.look_at(look_pos, nrm)
+		# Rotate this rp towards the initial selected node
+		if selection is RoadPoint:
+			var look_pos = selection.global_transform.origin
+			if not adding_to_next:
+				# Essentially flip the look 180 so it's not twisted around.
+				#print("Flipping dir")
+				look_pos += 2 * dirvec
+			next_rp.look_at(look_pos, nrm)
 
 	set_selection(next_rp)
 
