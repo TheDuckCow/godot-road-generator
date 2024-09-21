@@ -9,7 +9,7 @@
 ## is specified. If it is a (grand)child of a RoadManager, then
 ## road_manager_path does not need to be specified. This node does not need to
 ## be a child of an actual RoadLane, but there is no harm in doing so.
-class_name RoadLaneAgent, "res://addons/road-generator/resources/road_lane.png"
+class_name RoadLaneAgent, "res://addons/road-generator/resources/road_lane_agent.png"
 extends Node
 
 signal on_lane_changed(old_lane)

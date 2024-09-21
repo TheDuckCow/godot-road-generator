@@ -890,6 +890,8 @@ func _show_road_toolbar() -> void:
 			"create_roadpoint", self, "_create_roadpoint_pressed")
 		_road_toolbar.create_menu.connect(
 			"create_lane", self, "_create_lane_pressed")
+		_road_toolbar.create_menu.connect(
+			"create_lane_agent", self, "_create_lane_agent_pressed")
 
 		# Specials / prefabs
 		#gd4
@@ -922,6 +924,8 @@ func _hide_road_toolbar() -> void:
 			"create_roadpoint", self, "_create_roadpoint_pressed")
 		_road_toolbar.create_menu.disconnect(
 			"create_lane", self, "_create_lane_pressed")
+		_road_toolbar.create_menu.disconnect(
+			"create_lane_agent", self, "_create_lane_agent_pressed")
 
 		# Specials / prefabs
 		#gd4
@@ -1698,3 +1702,26 @@ func _create_lane_undo(parent: Node) -> void:
 
 	if initial_children[-1] is RoadLane:
 		initial_children[-1].queue_free()
+
+
+## Adds a single RoadLane to the scene.
+func _create_lane_agent_pressed() -> void:
+	var undo_redo = get_undo_redo()
+	var target_parent = get_selected_node()
+
+	if not is_instance_valid(target_parent):
+		push_error("No valid parent node selected to add RoadLane to")
+		return
+
+	var agent := RoadLaneAgent.new()
+	agent.name = "RoadLaneAgent"
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+
+	undo_redo.create_action("Add RoadLaneAgent")
+	undo_redo.add_do_reference(agent)
+	undo_redo.add_do_method(target_parent, "add_child", agent, true)
+	undo_redo.add_do_method(agent, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_method(self, "set_selection", agent)
+	undo_redo.add_undo_method(target_parent, "remove_child", agent)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
