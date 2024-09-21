@@ -1011,6 +1011,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	var _sel: Node
 	var add_container = false
 	var t_manager: Node = null
+	var handle_mag:float = 0
 	if selection is RoadPoint:
 		parent = selection.get_parent()
 		if selection.next_pt_init and selection.prior_pt_init:
@@ -1020,6 +1021,10 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 			_sel = parent
 		else:
 			_sel = selection
+
+			var road_width = _sel.lane_width * len(_sel.lanes)
+			var dist:float = pos.distance_to(_sel.global_transform.origin) / 2.0
+			handle_mag = max(road_width, dist)
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
@@ -1030,13 +1035,24 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 		push_error("Invalid selection context, need RoadContainer parent")
 		return
 
-
 	if add_container:
 		undo_redo.create_action("Add RoadContainer")
 		undo_redo.add_do_method(self, "_create_road_container_do", t_manager, selection)
 	else:
 		undo_redo.create_action("Add next RoadPoint")
-		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent)
+		if handle_mag > 0:
+			if not selection.next_pt_init:
+				undo_redo.add_do_property(_sel, "next_mag", handle_mag)
+				undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
+			elif not selection.prior_pt_init:
+				undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
+				undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
+		if selection is RoadPoint and not selection.next_pt_init and not selection.prior_pt_init:
+			# Special case: the starting point is not connected to anything, then the user is
+			# probably wanting it to be rotated towards the new point being placed anyways
+			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
+			undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
+		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
 
 	if not add_container:
 		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
@@ -1045,7 +1061,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	undo_redo.commit_action()
 
 
-func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node) -> void:
+func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float) -> void:
 
 	var next_rp = RoadPoint.new()
 	var adding_to_next = true
@@ -1079,6 +1095,10 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 				adding_to_next = false
 			selection.add_road_point(next_rp, do_dir)
 
+		if handle_mag > 0:
+			next_rp.prior_mag = handle_mag
+			next_rp.next_mag = handle_mag
+
 		# Update rotation along the initially picked axis.
 	elif selection is RoadContainer:
 		parent.add_child(next_rp)
@@ -1093,17 +1113,26 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		next_rp.auto_lanes = true
 
 	# Make the road visible halfway above the ground by the gutter height amount.
-	var half_gutter: float = -0.5 * next_rp.gutter_profile.y
-	next_rp.global_transform.origin = pos + nrm * half_gutter
+	if nrm == Vector3.ZERO:
+		pass
+	else:
+		var half_gutter: float = -0.5 * next_rp.gutter_profile.y
+		next_rp.global_transform.origin = pos + nrm * half_gutter
 
-	# Rotate this rp towards the initial selected node
-	if selection is RoadPoint:
-		var look_pos = selection.global_transform.origin
-		if not adding_to_next:
-			# Essentially flip the look 180 so it's not twisted around.
-			#print("Flipping dir")
-			look_pos += 2 * dirvec
-		next_rp.look_at(look_pos, nrm)
+		# Rotate this rp towards the initial selected node
+		if selection is RoadPoint:
+			var look_pos = selection.global_transform.origin
+			if not adding_to_next:
+				# Essentially flip the look 180 so it's not twisted around.
+				look_pos += 2 * dirvec
+			# Increase the angle a bit more based on the selected's magnitude,
+			# to result in a more natural rotation to ensure the curve doesn't
+			# look like it doubles back.
+			if adding_to_next:
+				look_pos += selection.global_transform.basis.z * selection.next_mag
+			else:
+				look_pos += selection.global_transform.basis.z * selection.prior_mag
+			next_rp.look_at(look_pos, nrm)
 
 	set_selection(next_rp)
 
