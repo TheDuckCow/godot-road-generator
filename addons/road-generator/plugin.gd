@@ -1048,6 +1048,8 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 				undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
 				undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
 		if selection is RoadPoint and not selection.next_pt_init and not selection.prior_pt_init:
+			# Special case: the starting point is not connected to anything, then the user is
+			# probably wanting it to be rotated towards the new point being placed anyways
 			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
 			undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
 		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
@@ -1122,8 +1124,14 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 			var look_pos = selection.global_transform.origin
 			if not adding_to_next:
 				# Essentially flip the look 180 so it's not twisted around.
-				#print("Flipping dir")
 				look_pos += 2 * dirvec
+			# Increase the angle a bit more based on the selected's magnitude,
+			# to result in a more natural rotation to ensure the curve doesn't
+			# look like it doubles back.
+			if adding_to_next:
+				look_pos += selection.global_transform.basis.z * selection.next_mag
+			else:
+				look_pos += selection.global_transform.basis.z * selection.prior_mag
 			next_rp.look_at(look_pos, nrm)
 
 	set_selection(next_rp)
