@@ -12,8 +12,6 @@ var copy_ref:RoadPoint  # For use in panel to copy settings
 func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
-#gd4
-#func can_handle(object):
 func can_handle(object):
 	# Only road points are supported.
 	# TODO: Add RoadContainer and RoadManager in future for bulk ops.
@@ -21,25 +19,17 @@ func can_handle(object):
 
 
 # Add controls to the beginning of the Inspector property list
-#gd4
-#func _parse_begin(object):
-func parse_begin(object):
-	#gd4
-	#panel_instance = RoadPointPanel.instantiate()
-	panel_instance = RoadPointPanel.instance()
+func _parse_begin(object):
+	panel_instance = RoadPointPanel.instantiate()
 	panel_instance.call("set_edi", _edi)
 	panel_instance.call_deferred("update_selected_road_point", object)
 	add_custom_control(panel_instance)
-	#gd4
-	#panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
-	#panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
-	panel_instance.connect("on_lane_change_pressed", Callable(self, "_handle_on_lane_change_pressed"))
-	panel_instance.connect("on_add_connected_rp", Callable(self, "_handle_add_connected_rp"))
-	panel_instance.connect("assign_copy_target", Callable(self, "_assign_copy_target"))
-	panel_instance.connect("apply_settings_target", Callable(self, "_apply_settings_target"))
+	panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
+	panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
+	panel_instance.on_assign_copy_target.connect(_assign_copy_target)
+	panel_instance.on_apply_settings_target.connect(_apply_settings_target)
 
 	panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
-
 
 
 func set_edi(value):

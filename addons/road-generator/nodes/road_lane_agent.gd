@@ -1,3 +1,4 @@
+@icon("res://addons/road-generator/resources/road_lane_agent.png")
 ## An agent helper for navigation on RoadLanes, inspired but not inheriting
 ## from NavigationAgent, as we are not using navigation meshes
 ##
@@ -9,7 +10,7 @@
 ## is specified. If it is a (grand)child of a RoadManager, then
 ## road_manager_path does not need to be specified. This node does not need to
 ## be a child of an actual RoadLane, but there is no harm in doing so.
-class_name RoadLaneAgent, "res://addons/road-generator/resources/road_lane_agent.png"
+class_name RoadLaneAgent
 extends Node
 
 signal on_lane_changed(old_lane)
@@ -95,9 +96,7 @@ func assign_manager() -> int:
 	while true:
 		if _last_par == null:
 			break
-		#gd4
-		# if _last_par.get_path() == ^"/root":
-		if _last_par.get_path() == "/root":
+		if _last_par.get_path() == ^"/root":
 			break
 		if _last_par.has_method("is_road_manager"):
 			_target_manager = _last_par

@@ -1,8 +1,7 @@
 @tool
-#gd4
-#@icon("res://addons/road-generator/resources/road_container.png")
+@icon("res://addons/road-generator/resources/road_container.png")
 ## Manager used to generate the actual road segments when needed.
-class_name RoadContainer, "../resources/road_container.png"
+class_name RoadContainer
 extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -59,26 +58,16 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 # https://github.com/godotengine/godot/pull/82122
 
 # Paths to other containers, relative to this container (self)
-#gd4
-#@export var edge_containers: Array[NodePath]
-@export var edge_containers # (Array, NodePath)
+@export var edge_containers: Array[NodePath]
 # Node paths within other containers, relative to the *target* container (not self here)
-#gd4
-#@export var edge_rp_targets: Array[NodePath]
-@export var edge_rp_targets # (Array, NodePath)
+@export var edge_rp_targets: Array[NodePath]
 # Direction of which RP we are connecting to, used to make unique key along with
 # the edge_rp_targets path above. Enum value of RoadPoint.PointInit
-#gd4
-#@export var edge_rp_target_dirs: Array[int]
-@export var edge_rp_target_dirs # (Array, int)
+@export var edge_rp_target_dirs: Array[int]
 # Node paths within this container, relative to this container
-#gd4
-#@export var edge_rp_locals: Array[NodePath]
-@export var edge_rp_locals # (Array, NodePath)
+@export var edge_rp_locals: Array[NodePath]
 # Local RP directions, enum value of RoadPoint.PointInit
-#gd4
-#@export var edge_rp_local_dirs: Array[int]
-@export var edge_rp_local_dirs # (Array, int)
+@export var edge_rp_local_dirs: Array[int]
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -147,23 +136,17 @@ func is_road_container() -> bool:
 
 
 func is_subscene() -> bool:
-	#gd4
-	#return scene_file_path and self != get_tree().edited_scene_root
-	return filename and self != get_tree().edited_scene_root
+	return scene_file_path and self != get_tree().edited_scene_root
 
 
-#gd4
-#func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warnings() -> String:
+func _get_configuration_warnings() -> PackedStringArray:
 	var warnstr
 
 	if get_tree().get_edited_scene_root() != self:
 		var any_manager := false
 		var _last_par = get_parent()
 		while true:
-			#gd4
-			#if _last_par.get_path() == ^"/root":
-			if _last_par.get_path() == "/root":
+			if _last_par.get_path() == ^"/root":
 				break
 			if _last_par.has_method("is_road_manager"):
 				any_manager = true
@@ -172,9 +155,7 @@ func _get_configuration_warnings() -> String:
 			_last_par = _last_par.get_parent()
 		if any_manager == false:
 			warnstr = "A RoadContainer should either be the scene root, or have a RoadManager somewhere in its parent hierarchy"
-			#gd4
-			#return [warnstr]
-			return warnstr
+			return [warnstr]
 
 	var has_rp_child = false
 	for ch in get_children():
@@ -183,24 +164,16 @@ func _get_configuration_warnings() -> String:
 			break
 	if not has_rp_child:
 		warnstr = "Add RoadPoint nodes as children to form a road, or use the Roads menu in the 3D view header"
-		#gd4
-		#return [warnstr]
-		return warnstr
+		return [warnstr]
 
 	if _needs_refresh:
 		warnstr = "Refresh outdated geometry by selecting this node and going to 3D view > Roads menu > Refresh Roads"
-		#gd4
-		#return [warnstr]
-		return warnstr
+		return [warnstr]
 
 	if _edge_error != "":
 		warnstr = "Refresh roads to clear invalid connections:\n%s" % _edge_error
-		#gd4
-		#return [warnstr]
-		return warnstr
-	#gd4
-	#return []
-	return ""
+		return [warnstr]
+	return []
 
 
 func _defer_refresh_on_change() -> void:
@@ -339,9 +312,7 @@ func get_manager(): # -> Optional[RoadManager]
 	while true:
 		if _last_par == null:
 			break
-		#gd4
-		# if _last_par.get_path() == ^"/root":
-		if _last_par.get_path() == "/root":
+		if _last_par.get_path() == ^"/root":
 			break
 		if _last_par.has_method("is_road_manager"):
 			_this_manager = _last_par
@@ -547,17 +518,11 @@ func update_edges():
 	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
 	#print("Debug: Updating container edges %s" % self.name)
 
-	#gd4
-	#var _tmp_containers:Array[NodePath] = []
-	#var _tmp_rp_targets:Array[NodePath] = []
-	#var _tmp_rp_target_dirs:Array[int] = []
-	#var _tmp_rp_locals:Array[NodePath] = []
-	#var _tmp_rp_local_dirs:Array[int] = []
-	var _tmp_containers:Array = []
-	var _tmp_rp_targets:Array = []
-	var _tmp_rp_target_dirs:Array = []
-	var _tmp_rp_locals:Array = []
-	var _tmp_rp_local_dirs:Array = []
+	var _tmp_containers:Array[NodePath] = []
+	var _tmp_rp_targets:Array[NodePath] = []
+	var _tmp_rp_target_dirs:Array[int] = []
+	var _tmp_rp_locals:Array[NodePath] = []
+	var _tmp_rp_local_dirs:Array[int] = []
 
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
@@ -573,9 +538,7 @@ func update_edges():
 			else:
 				dir_pt_init = pt.next_pt_init
 
-			#gd4
-			#if dir_pt_init == ^"":
-			if dir_pt_init == "":
+			if dir_pt_init == ^"":
 				# Set this rp to indicate its next point is the container,
 				# making it aware it is an "edge".
 				is_edge = true
@@ -607,11 +570,8 @@ func update_edges():
 				_tmp_rp_targets.append(edge_rp_targets[idx])
 				_tmp_rp_target_dirs.append(edge_rp_target_dirs[idx])
 			else:
-				#gd4
-				#_tmp_containers.append(^"")
-				#_tmp_rp_targets.append(^"")
-				_tmp_containers.append("")
-				_tmp_rp_targets.append("")
+				_tmp_containers.append(^"")
+				_tmp_rp_targets.append(^"")
 				_tmp_rp_target_dirs.append(-1) # -1 to mean an unconnected index, since valid enums are 0+
 
 	# Finally, do a near-synchronous update of the export var references
@@ -644,9 +604,7 @@ func validate_edges(autofix: bool = false) -> bool:
 		var target = null  # the presumed connected RP.
 
 		if this_dir == this_pt.PointInit.NEXT:
-			#gd4
-			#if this_pt.next_pt_init != ^"":
-			if this_pt.next_pt_init != "":
+			if this_pt.next_pt_init != ^"":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "next_pt_init should be empty for this edge's next pt")
@@ -654,8 +612,6 @@ func validate_edges(autofix: bool = false) -> bool:
 			else:
 				target = this_pt.get_next_rp()
 		elif this_dir == this_pt.PointInit.PRIOR:
-			#gd4
-			#if this_pt.prior_pt_init != "":
 			if this_pt.prior_pt_init != "":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
@@ -674,9 +630,7 @@ func validate_edges(autofix: bool = false) -> bool:
 			_invalidate_edge(_idx, autofix, "edge_rp_local_dirs value invalid")
 			continue
 
-		#gd4
-		#if edge_containers[_idx] != ^"":
-		if edge_containers[_idx] != "":
+		if edge_containers[_idx] != ^"":
 			# Connection should be there, verify values.
 			var cont = get_node(edge_containers[_idx])
 			if not is_instance_valid(cont):
@@ -737,11 +691,8 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	])
 	if not autofix:
 		return
-	#gd4
-	#edge_containers[_idx] = ^""
-	#edge_rp_targets[_idx] = ^""
-	edge_containers[_idx] = ""
-	edge_rp_targets[_idx] = ""
+	edge_containers[_idx] = ^""
+	edge_rp_targets[_idx] = ^""
 	edge_rp_target_dirs[_idx] = -1
 
 

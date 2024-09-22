@@ -718,10 +718,8 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
 
-	#gd4
-	# interpolate_baked -> sample_baked
-	var pt1:Vector3 = curve.interpolate_baked(start_offset * curve.get_baked_length())
-	var pt2:Vector3 = curve.interpolate_baked(end_offset * curve.get_baked_length())
+	var pt1:Vector3 = curve.sample_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.sample_baked(end_offset * curve.get_baked_length())
 	var tangent_l:Vector3 = pt2 - pt1
 
 	# Using local transforms. Both are transforms relative to the parent RoadContainer,
@@ -851,13 +849,9 @@ func _insert_geo_loop(
 	var start_basis:Vector3
 	var end_loop:Vector3
 	var end_basis:Vector3
-	#gd4
-	#start_loop = curve.sample_baked(offset_s * clength)
-	start_loop = curve.interpolate_baked(offset_s * clength)
+	start_loop = curve.sample_baked(offset_s * clength)
 	start_basis = _normal_for_offset(curve, offset_s)
-	#gd4
-	#end_loop = curve.sample_baked(offset_e * clength)
-	end_loop = curve.interpolate_baked(offset_e * clength)
+	end_loop = curve.sample_baked(offset_e * clength)
 	end_basis = _normal_for_offset(curve, offset_e)
 
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
@@ -1095,21 +1089,19 @@ func _insert_geo_loop(
 # will go from bottom left to top right.
 static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
-	#gd4
-	#st.set_uv(uvs[0]) # here and below
-	st.add_uv(uvs[0])
+	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
-	st.add_uv(uvs[1])
+	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
-	st.add_uv(uvs[2])
+	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
-	st.add_uv(uvs[3])
+	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
 
@@ -1122,7 +1114,7 @@ func _flip_traffic_dir(lanes: Array) -> Array:
 		elif itm == RoadPoint.LaneDir.REVERSE:
 			val = RoadPoint.LaneDir.FORWARD
 		_spdir.append(val)
-	_spdir.invert()
+	_spdir.reverse()
 	return _spdir
 
 

@@ -1,8 +1,7 @@
 @tool
-#gd4
-#@icon("res://addons/road-generator/resources/road_manager.png")
+@icon("res://addons/road-generator/resources/road_manager.png")
 ## Manager for all children RoadContainers
-class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
+class_name RoadManager
 extends Node3D
 
 
@@ -44,13 +43,9 @@ func _ready():
 	_ui_refresh_set(auto_refresh)
 
 
-#gd4
-#func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warnings() -> String:
+func _get_configuration_warnings() -> PackedStringArray:
 	if _skip_warn_found_rc_child:
-		#gd4
-		#return []
-		return ""
+		return []
 	var any_containers := false
 	for ch in get_children():
 		if ch.has_method("is_road_container"):
@@ -58,13 +53,9 @@ func _get_configuration_warnings() -> String:
 			break
 
 	if any_containers:
-		#gd4
-		#return []
-		return ""
+		return []
 	else:
-		#gd4
-		#return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
-		return "No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"
+		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
 
 
 # Workaround for cyclic typing

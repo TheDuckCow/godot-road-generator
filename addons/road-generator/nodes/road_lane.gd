@@ -1,10 +1,9 @@
 @tool
-#gd4
-#@icon("res://addons/road-generator/resources/road_lane.png")
+@icon("res://addons/road-generator/resources/road_lane.png")
 ## Class for defining a directional or bidirectional lane.
 ##
 ## Could, but does not have to be, parented to a RoadSegment class object.
-class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
+class_name RoadLane
 extends Path3D
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
@@ -47,6 +46,7 @@ signal on_transform
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
+var geom_node: MeshInstance3D
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
@@ -61,9 +61,7 @@ var _display_fins: bool = false
 
 
 func _init():
-	#gd4
-	#curve = Curve3D.new()
-	pass
+	curve = Curve3D.new()
 
 
 func _ready():
@@ -131,9 +129,7 @@ func _instantiate_geom() -> void:
 
 	if not _display_fins:
 		if geom:
-			#gd4
-			#geom.clear_surfaces()
-			geom.clear()
+			geom.clear_surfaces()
 		return
 	if refresh_geom == false:
 		return
@@ -141,15 +137,14 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
-		#gd4
-		#var geom_mesh = ImmediateMesh.new()
-		#geom_mesh.set_name("geom")
-		#geom = MeshInstance3D.new()
-		#geom.mesh = geom_mesh
-		#add_child(geom)
 		geom = ImmediateMesh.new()
 		geom.set_name("geom")
-		add_child(geom)
+		if not is_instance_valid(geom_node):
+			geom_node = MeshInstance3D.new()
+			geom_node.mesh = geom
+			add_child(geom_node)
+		else:
+			geom_node.mesh = geom
 
 		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
@@ -172,23 +167,17 @@ func _draw_shark_fins() -> void:
 	var tri_count = floor(curve_length / draw_dist)
 
 	var rev = -1 if reverse_direction else 1
-	#gd4
-	#geom.clear_surfaces()
-	geom.clear()
+	geom.clear_surfaces()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
 		var xf = Transform3D()
 
-		#gd4
-		# interpolate_baked -> sample_baked
-		xf.origin = curve.interpolate_baked(f)
+		xf.origin = curve.sample_baked(f)
 		var lookat = (
-			curve.interpolate_baked(f + 0.1*rev) - xf.origin
+			curve.sample_baked(f + 0.1*rev) - xf.origin
 		).normalized()
 
-		#gd4
-		# Basically prefix all geom.x() with geom.surface_x() below
-		geom.begin(Mesh.PRIMITIVE_TRIANGLES)
+		geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
 			geom.set_color(COLOR_START)
 		else:
