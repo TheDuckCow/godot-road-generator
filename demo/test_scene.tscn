@@ -6,17 +6,17 @@
 [ext_resource path="res://demo/test_scene.gd" type="Script" id=4]
 [ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=5]
 
-[sub_resource type="BoxShape" id=2]
+[sub_resource type="BoxShape3D" id=2]
 
-[sub_resource type="CubeMesh" id=3]
+[sub_resource type="BoxMesh" id=3]
 
-[node name="Spatial" type="Spatial"]
+[node name="Node3D" type="Node3D"]
 script = ExtResource( 4 )
 
-[node name="RoadManager" type="Spatial" parent="."]
+[node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource( 5 )
 
-[node name="RoadContainer" type="Spatial" parent="RoadManager"]
+[node name="RoadContainer" type="Node3D" parent="RoadManager"]
 script = ExtResource( 2 )
 material_resource = ExtResource( 3 )
 use_lowpoly_preview = true
@@ -26,8 +26,8 @@ edge_rp_target_dirs = [ -1, -1, -1, -1, -1, -1 ]
 edge_rp_locals = [ NodePath("disc_1"), NodePath("disc_2"), NodePath("disc_3"), NodePath("disc_4"), NodePath("disc_5"), NodePath("disc_6") ]
 edge_rp_local_dirs = [ 1, 0, 1, 0, 1, 0 ]
 
-[node name="neg1_point" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( 0.869185, 0, 0.494488, 0, 1, 0, -0.494488, 0, 0.869185, 1.00302, 1.05143, -44.2649 )
+[node name="neg1_point" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( 0.869185, 0, 0.494488, 0, 1, 0, -0.494488, 0, 0.869185, 1.00302, 1.05143, -44.2649 )
 visible = false
 script = ExtResource( 1 )
 traffic_dir = [ 2, 1, 1 ]
@@ -36,8 +36,8 @@ lane_width = 8.0
 gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../zero_point")
 
-[node name="zero_point" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.24632, -0.662588, -26.304 )
+[node name="zero_point" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( 0.99946, 0, -0.0328762, 0, 1, 0, 0.0328762, 0, 0.99946, 1.24632, -0.662588, -26.304 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 1, 1 ]
 lanes = [ 5, 4, 2 ]
@@ -46,8 +46,8 @@ gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../neg1_point")
 next_pt_init = NodePath("../first_point")
 
-[node name="first_point" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 1.91547, -11.95 )
+[node name="first_point" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( 0.986726, 0, 0.162396, 0, 1, 0, -0.162396, 0, 0.986726, 1.598, 1.91547, -11.95 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
@@ -58,8 +58,8 @@ next_pt_init = NodePath("../second_point")
 prior_mag = 8.65464
 next_mag = 20.1777
 
-[node name="second_point" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.750719, 18.9381 )
+[node name="second_point" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( 0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.750719, 18.9381 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
@@ -70,8 +70,8 @@ next_pt_init = NodePath("../third_point")
 prior_mag = 11.0325
 next_mag = 12.8194
 
-[node name="third_point" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( 0.797647, 0, 0.603125, 0, 1, 0, -0.603125, 0, 0.797647, 19.2113, -2.51023, 41.4234 )
+[node name="third_point" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( 0.797647, 0, 0.603125, 0, 1, 0, -0.603125, 0, 0.797647, 19.2113, -2.51023, 41.4234 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
@@ -81,8 +81,8 @@ prior_pt_init = NodePath("../second_point")
 next_pt_init = NodePath("../fourth_rev")
 prior_mag = 10.0
 
-[node name="fourth_rev" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.423789, 0, -0.905761, 0, 1, 0, 0.905761, 0, -0.423789, 50.1599, 0.730894, 39.8696 )
+[node name="fourth_rev" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.423789, 0, -0.905761, 0, 1, 0, 0.905761, 0, -0.423789, 50.1599, 0.730894, 39.8696 )
 visible = false
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1 ]
@@ -91,24 +91,24 @@ lane_width = 3.0
 gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../third_point")
 
-[node name="disc_1" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 36.0962, 1.05143, -36.5026 )
+[node name="disc_1" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.944141, 0, -0.329542, 0, 1, 0, 0.329542, 0, -0.944141, 36.0962, 1.05143, -36.5026 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 1, 0 ]
 lanes = [ 7, 0, 7 ]
 gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_2")
 
-[node name="disc_2" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.957722, 0, 0.287695, 0, 1, 0, -0.287695, 0, -0.957722, 32.8482, 1.05143, -51.404 )
+[node name="disc_2" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.957722, 0, 0.287695, 0, 1, 0, -0.287695, 0, -0.957722, 32.8482, 1.05143, -51.404 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 1, 0 ]
 lanes = [ 7, 0, 7 ]
 gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_1")
 
-[node name="disc_3" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 62.9694, -0.150141, -34.5682 )
+[node name="disc_3" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 62.9694, -0.150141, -34.5682 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1, 0 ]
 auto_lanes = false
@@ -116,41 +116,41 @@ lanes = [ 2, 4, 4, 2 ]
 gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_4")
 
-[node name="disc_4" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 0.80562, -52.8625 )
+[node name="disc_4" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 58.3664, 0.80562, -52.8625 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1, 1 ]
 lanes = [ 2, 4, 4, 3, 2 ]
 gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_3")
 
-[node name="disc_5" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 54.782, -0.542746, 14.9732 )
+[node name="disc_5" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.963482, 0, -0.267776, 0, 1, 0, 0.267776, 0, -0.963482, 54.782, -0.542746, 14.9732 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1, 1 ]
 lanes = [ 2, 4, 4, 3, 2 ]
 gutter_profile = Vector2( 0.5, -1 )
 next_pt_init = NodePath("../disc_6")
 
-[node name="disc_6" type="Spatial" parent="RoadManager/RoadContainer"]
-transform = Transform( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 50.8614, 0.0695984, -3.32112 )
+[node name="disc_6" type="Node3D" parent="RoadManager/RoadContainer"]
+transform = Transform3D( -0.989111, 0, -0.14717, 0, 1, 0, 0.14717, 0, -0.989111, 50.8614, 0.0695984, -3.32112 )
 script = ExtResource( 1 )
 traffic_dir = [ 2, 2, 1, 1, 1 ]
 lanes = [ 2, 4, 4, 3, 2 ]
 gutter_profile = Vector2( 0.5, -1 )
 prior_pt_init = NodePath("../disc_5")
 
-[node name="Camera" type="Camera" parent="."]
-transform = Transform( -4.37114e-08, 0.355401, -0.934714, 0, 0.934714, 0.355401, 1, 1.55351e-08, -4.08576e-08, -31.0353, 19.5009, -0.18366 )
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D( -4.37114e-08, 0.355401, -0.934714, 0, 0.934714, 0.355401, 1, 1.55351e-08, -4.08576e-08, -31.0353, 19.5009, -0.18366 )
 
-[node name="RigidBody" type="RigidBody" parent="."]
-transform = Transform( 0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, 5.43023, 5.1977, -8.82278 )
+[node name="RigidBody3D" type="RigidBody3D" parent="."]
+transform = Transform3D( 0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, 5.43023, 5.1977, -8.82278 )
 
-[node name="CollisionShape" type="CollisionShape" parent="RigidBody"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
 shape = SubResource( 2 )
 
-[node name="MeshInstance" type="MeshInstance" parent="RigidBody"]
-transform = Transform( 1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0 )
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
+transform = Transform3D( 1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0 )
 mesh = SubResource( 3 )
 
 [node name="Tween" type="Tween" parent="."]

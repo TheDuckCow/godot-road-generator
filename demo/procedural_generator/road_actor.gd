@@ -1,4 +1,4 @@
-extends Spatial
+extends Node3D
 
 
 enum DriveState {
@@ -7,16 +7,16 @@ enum DriveState {
 	PLAYER
 }
 
-export(DriveState) var drive_state = DriveState.AUTO
+@export var drive_state: DriveState = DriveState.AUTO
 
 # Target speed in meters per second
-export var acceleration := 1 # in meters per sec squared
-export var target_speed := 30  # in meters per sec
-export var visualize_lane := false
-export var seek_ahead := 5.0 # How many meters in front of agent to seek position
-export var auto_register: bool = true
+@export var acceleration := 1 # in meters per sec squared
+@export var target_speed := 30  # in meters per sec
+@export var visualize_lane := false
+@export var seek_ahead := 5.0 # How many meters in front of agent to seek position
+@export var auto_register: bool = true
 
-onready var agent = get_node("%road_lane_agent")
+@onready var agent = get_node("%road_lane_agent")
 
 var velocity := Vector3.ZERO
 
@@ -29,7 +29,7 @@ func _ready() -> void:
 
 
 ## Generic function to calc speed
-func get_speed() -> float:
+func get_velocity() -> float:
 	return velocity.z
 
 

@@ -16,17 +16,17 @@ signal on_lane_changed(old_lane)
 
 ## Directly assign the path to the RoadManager instance, otherwise will assume it
 ## is in the parent hierarchy. Should refer to RoadManager nodes only.
-export(NodePath) var road_manager_path: NodePath
+@export var road_manager_path: NodePath
 ## Automatically register and unregiter this vehicle to RoadLanes as we travel.
 ## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
 ## being removed, but likely should turn off for player agents to avoid freeing
-export(bool) var auto_register: bool = true
+@export var auto_register: bool = true
 ## Debug tool to make the current lane visible in the game. Can be slow, best
 ## to turn it off for production use.
-export(bool) var visualize_lane: bool = false
+@export var visualize_lane: bool = false
 
 ## Reference spatial to assume where this agent's position is assumed to be at
-var actor: Spatial
+var actor: Node3D
 ## The RoadManager instance that is containing all RoadContainers to consider,
 ## primarily needed to fetch the initial nearest RoadLane
 var road_manager: RoadManager
@@ -69,7 +69,7 @@ func assign_lane(new_lane:RoadLane):
 
 func assign_actor() -> int:
 	var par = get_parent()
-	if not par is Spatial:
+	if not par is Node3D:
 		push_error("RoadLaneAgent should be a child of a spatial")
 		return FAILED
 	actor = par
@@ -112,7 +112,7 @@ func assign_manager() -> int:
 
 
 ## Get closest global position on the follow path given a global position
-func get_closest_path_point(path: Path, pos:Vector3) -> Vector3:
+func get_closest_path_point(path: Path3D, pos:Vector3) -> Vector3:
 	var interp_point = path.curve.get_closest_point(path.to_local(pos))
 	return path.to_global(interp_point)
 

@@ -1,7 +1,7 @@
 # Road Point Gizmo.
 ## Created largely while following:
 ## https://docs.godotengine.org/en/stable/tutorials/plugins/editor/spatial_gizmos.html
-extends EditorSpatialGizmoPlugin
+extends EditorNode3DGizmoPlugin
 
 enum HandleType {
 	PRIOR_MAG,
@@ -19,19 +19,19 @@ var _editor_selection  # Of type: EditorSelection, but can't type due to exports
 # Either value, or null if not mid action (magnitude handle mid action).
 var init_handle
 var init_handle_mirror
-var collider := CubeMesh.new()
+var collider := BoxMesh.new()
 var collider_tri_mesh: TriangleMesh
-var lane_widget := Spatial.new()
-var lane_widget_mat := SpatialMaterial.new()
-var arrow_left := MeshInstance.new()
-var arrow_right := MeshInstance.new()
-var lane_divider := MeshInstance.new()
-var lane_dividers := Spatial.new()
-var road_width_line := MeshInstance.new()
+var lane_widget := Node3D.new()
+var lane_widget_mat := StandardMaterial3D.new()
+var arrow_left := MeshInstance3D.new()
+var arrow_right := MeshInstance3D.new()
+var lane_divider := MeshInstance3D.new()
+var lane_dividers := Node3D.new()
+var road_width_line := MeshInstance3D.new()
 var arrow_left_mesh:= PrismMesh.new()
 var arrow_right_mesh := PrismMesh.new()
-var lane_divider_mesh := CubeMesh.new()
-var road_width_line_mesh := CubeMesh.new()
+var lane_divider_mesh := BoxMesh.new()
+var road_width_line_mesh := BoxMesh.new()
 
 var prior_lane_width: float = -1
 
@@ -68,7 +68,7 @@ func setup_lane_widgets():
 	arrow_left_mesh.size = Vector3(2, 0.8, 0.4)
 	arrow_left.mesh	= arrow_left_mesh
 	arrow_left.rotation_degrees = Vector3(90, 0, 90)
-	arrow_left.translation = Vector3(-5, 0, 0)
+	arrow_left.position = Vector3(-5, 0, 0)
 	arrow_left.material_override = lane_widget_mat
 	lane_widget.add_child(arrow_left)
 
@@ -76,7 +76,7 @@ func setup_lane_widgets():
 	arrow_right_mesh.size = Vector3(2, 0.8, 0.4)
 	arrow_right.mesh = arrow_right_mesh
 	arrow_right.rotation_degrees = Vector3(90, 0, -90)
-	arrow_right.translation = Vector3(5, 0, 0)
+	arrow_right.position = Vector3(5, 0, 0)
 	arrow_right.material_override = lane_widget_mat
 	lane_widget.add_child(arrow_right)
 #	lane_widget.translation = Vector3(0, 0.5, 5)
@@ -90,7 +90,7 @@ func setup_lane_widgets():
 	# Setup lane divider template and node container
 	lane_divider_mesh.size = Vector3(0.2, 0.2, 2)
 	lane_divider.mesh = lane_divider_mesh
-	lane_divider.translation = Vector3(0, 0, 0)
+	lane_divider.position = Vector3(0, 0, 0)
 	lane_divider.material_override = lane_widget_mat
 	lane_widget.add_child(lane_dividers)
 
@@ -108,7 +108,7 @@ func has_gizmo(spatial) -> bool:
 #func _redraw(gizmo) -> void:
 func redraw(gizmo) -> void:
 	gizmo.clear()
-	var point = gizmo.get_spatial_node() as RoadPoint
+	var point = gizmo.get_node_3d() as RoadPoint
 	var need_size_update = prior_lane_width < 0 or prior_lane_width != point.lane_width
 	prior_lane_width = point.lane_width
 
@@ -128,7 +128,7 @@ func redraw(gizmo) -> void:
 	if need_size_update:
 		collider.size = BaseColliderSize * width_scale
 
-	var lines = PoolVector3Array()
+	var lines = PackedVector3Array()
 	lines.push_back(Vector3(0, 1, 0))
 	lines.push_back(Vector3(0, 1, 0))
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
@@ -141,7 +141,7 @@ func redraw(gizmo) -> void:
 		return
 
 	# Add mag handles
-	var handles = PoolVector3Array()
+	var handles = PackedVector3Array()
 	handles.push_back(Vector3(0, 0, -point.prior_mag))
 	handles.push_back(Vector3(0, 0, point.next_mag))
 	#gd4
@@ -149,12 +149,12 @@ func redraw(gizmo) -> void:
 	gizmo.add_handles(handles, get_material("handles", gizmo))
 
 	# Add width handles
-	var width_handles = PoolVector3Array()
+	var width_handles = PackedVector3Array()
 	#gd4
 	#var rev_width_idle = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	#var fwd_width_idle = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	var rev_width_idle = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
-	var fwd_width_idle = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
+	var rev_width_idle = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
+	var fwd_width_idle = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
 	if need_size_update:
 		point.rev_width_mag = rev_width_idle
 		point.fwd_width_mag = fwd_width_idle
@@ -169,14 +169,14 @@ func redraw(gizmo) -> void:
 	# Add lane widget
 	lane_widget.visible = true
 	lane_widget.transform = point.global_transform
-	arrow_left.translation = Vector3(rev_width_mag, 0, 0)
+	arrow_left.position = Vector3(rev_width_mag, 0, 0)
 	arrow_left.scale = width_scale_v
-	arrow_right.translation = Vector3(fwd_width_mag, 0, 0)
+	arrow_right.position = Vector3(fwd_width_mag, 0, 0)
 	arrow_right.scale = width_scale_v
 	var line_width = fwd_width_mag - rev_width_mag
 	var line_pos = (rev_width_mag + fwd_width_mag) / 2
 	road_width_line_mesh.size = Vector3(line_width, 0.2 * width_scale, 0.2 * width_scale)
-	road_width_line.translation = Vector3(line_pos, 0, 0)
+	road_width_line.position = Vector3(line_pos, 0, 0)
 
 	if rev_width_mag != rev_width_idle:
 		div_start_pos = fwd_width_idle - lane_width_offset
@@ -188,7 +188,7 @@ func redraw(gizmo) -> void:
 
 	var x_pos = div_start_pos
 	var div_count = lane_dividers.get_child_count()
-	var div: Spatial
+	var div: Node3D
 	for i in range(max(lane_count, div_count)):
 		if div_count == 0 or i >= div_count:
 			div = lane_divider.duplicate()
@@ -198,7 +198,7 @@ func redraw(gizmo) -> void:
 
 		if i < lane_count:
 			div.visible = true
-			div.translation = Vector3(x_pos, 0, 0)
+			div.position = Vector3(x_pos, 0, 0)
 			div.scale = Vector3(width_scale, width_scale, width_scale)
 			x_pos += lane_width
 		else:
@@ -207,8 +207,8 @@ func redraw(gizmo) -> void:
 
 #gd4
 #func _get_handle_name(gizmo: EditorNode3DGizmo, index: int, secondary: bool) -> String:
-func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
-	var point = gizmo.get_spatial_node() as RoadPoint
+func _get_handle_name(gizmo: EditorNode3DGizmo, index: int) -> String:
+	var point = gizmo.get_node_3d() as RoadPoint
 	match index:
 		HandleType.PRIOR_MAG:
 			return "RoadPoint %s backwards handle" % point.name
@@ -224,9 +224,9 @@ func get_handle_name(gizmo: EditorSpatialGizmo, index: int) -> String:
 
 #gd4
 #func _get_handle_value(gizmo: EditorNode3DGizmo, index: int, secondary: bool) -> Variant:
-func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
+func _get_handle_value(gizmo: EditorNode3DGizmo, index: int) -> float:
 	# Should return float.
-	var point = gizmo.get_spatial_node() as RoadPoint
+	var point = gizmo.get_node_3d() as RoadPoint
 	var lane_width = point.lane_width
 	var lane_count = len(point.traffic_dir)
 	var width_mag: float = lane_count * lane_width / 2
@@ -254,9 +254,9 @@ func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 #		camera: Camera3D,
 #		screen_pos: Vector2) -> void:
 func set_handle(
-		gizmo: EditorSpatialGizmo,
+		gizmo: EditorNode3DGizmo,
 		index: int,
-		camera: Camera,
+		camera: Camera3D,
 		point: Vector2) -> void:
 	match index:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
@@ -267,11 +267,11 @@ func set_handle(
 			#old_set_width_handle(gizmo, index, camera, point)
 
 
-func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
+func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, point: Vector2) -> void:
 	# Calculate intersection between screen point clicked and a plane aligned to
 	# the handle's vector. Then, calculate new handle magnitude.
-	var roadpoint = gizmo.get_spatial_node() as RoadPoint
-	var src = camera.project_ray_origin(point) # Camera initial position.
+	var roadpoint = gizmo.get_node_3d() as RoadPoint
+	var src = camera.project_ray_origin(point) # Camera3D initial position.
 	var nrm = camera.project_ray_normal(point) # Normal camera is facing
 	var old_mag_vector # Handle's old local position.
 
@@ -320,20 +320,20 @@ func set_mag_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point
 
 
 ## Function called when user drags the roadpoint left/right lane handle.
-func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, point: Vector2) -> void:
+func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, point: Vector2) -> void:
 	# Calculate intersection between screen point clicked and a plane aligned to
 	# the handle's vector. Then, calculate new handle magnitude.
-	var roadpoint = gizmo.get_spatial_node() as RoadPoint
+	var roadpoint = gizmo.get_node_3d() as RoadPoint
 	if roadpoint.is_road_point_selected(_editor_selection):
 		var old_mag_vector # Handle's old local position.
 		if index == HandleType.REV_WIDTH_MAG:
 			#gd4
 			#old_mag_vector = Vector3(_get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false), 0, 0)
-			old_mag_vector = Vector3(get_handle_value(gizmo, HandleType.REV_WIDTH_MAG), 0, 0)
+			old_mag_vector = Vector3(_get_handle_value(gizmo, HandleType.REV_WIDTH_MAG), 0, 0)
 		else: # HandleType.FWD_WIDTH_MAG
 			#gd4
 			#old_mag_vector = Vector3(_get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false), 0, 0)
-			old_mag_vector = Vector3(get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG), 0, 0)
+			old_mag_vector = Vector3(_get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG), 0, 0)
 		var intersect = _intersect_2D_point_with_3D_plane(roadpoint, old_mag_vector, camera, point)
 
 		# Then isolate to just the magnitude of the x component.
@@ -368,7 +368,7 @@ func set_width_handle(gizmo: EditorSpatialGizmo, index: int, camera: Camera, poi
 #					index: int, secondary: bool,
 #					restore: Variant,
 #					cancel: bool = false) -> void:
-func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
+func _commit_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
 
 	match index:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
@@ -379,11 +379,11 @@ func commit_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool 
 			push_warning("Unknown gizmo handle %s, %s" % [index, gizmo])
 
 
-func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
-	var point = gizmo.get_spatial_node() as RoadPoint
+func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
+	var point = gizmo.get_node_3d() as RoadPoint
 	#gd4
 	#var current_value = _get_handle_value(gizmo, index, false)
-	var current_value = get_handle_value(gizmo, index)
+	var current_value = _get_handle_value(gizmo, index)
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
@@ -418,16 +418,16 @@ func commit_mag_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: b
 		undo_redo.add_undo_method(point.container, "on_point_update", point, false)
 
 		undo_redo.commit_action()
-		point._notification(Spatial.NOTIFICATION_TRANSFORM_CHANGED)
+		point._notification(Node3D.NOTIFICATION_TRANSFORM_CHANGED)
 		init_handle = null
 		init_handle_mirror = null
 
 
-func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel: bool = false) -> void:
-	var point = gizmo.get_spatial_node() as RoadPoint
+func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
+	var point = gizmo.get_node_3d() as RoadPoint
 	#gd4
 	#var current_value = _get_handle_value(gizmo, index, false)
-	var current_value = get_handle_value(gizmo, index)
+	var current_value = _get_handle_value(gizmo, index)
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
@@ -453,8 +453,8 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 		#gd4
 		#var rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 		#var fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-		var rev_width_mag = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
-		var fwd_width_mag = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
+		var rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
+		var fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
 		var old_mag_sum = fwd_width_mag + rev_width_mag
 		var new_mag_sum = new_fwd_mag + new_rev_mag
 		var mag_change = new_mag_sum - old_mag_sum
@@ -510,7 +510,7 @@ func commit_width_handle(gizmo: EditorSpatialGizmo, index: int, restore, cancel:
 ## Calculate intersection between screen point clicked and a camera-aligned
 ## plane at a target position.
 func _intersect_2D_point_with_3D_plane(spatial, target, camera, screen_point) -> Vector3:
-	var src = camera.project_ray_origin(screen_point) # Camera initial position.
+	var src = camera.project_ray_origin(screen_point) # Camera3D initial position.
 	var nrm = camera.project_ray_normal(screen_point) # Normal camera is facing
 	var plane_pos : Vector3 = spatial.to_global(target)
 	var camera_basis: Basis = camera.get_transform().basis
@@ -519,13 +519,13 @@ func _intersect_2D_point_with_3D_plane(spatial, target, camera, screen_point) ->
 	return intersect
 
 ## Sets width handles to outside lane edges, hides lane widget, and redraws.
-func refresh_gizmo(gizmo: EditorSpatialGizmo):
-	var point = gizmo.get_spatial_node()
+func refresh_gizmo(gizmo: EditorNode3DGizmo):
+	var point = gizmo.get_node_3d()
 	#gd4
 	#point.rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	#point.fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	point.rev_width_mag = get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
-	point.fwd_width_mag = get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
+	point.rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG)
+	point.fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG)
 	lane_widget.visible = false
 	#gd4
 	#_redraw(gizmo)

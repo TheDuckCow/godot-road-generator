@@ -6,75 +6,23 @@
 ;   [section] ; section goes between []
 ;   param=value ; assign values to parameters
 
-config_version=4
-
-_global_script_classes=[ {
-"base": "Reference",
-"class": "GutHookScript",
-"language": "GDScript",
-"path": "res://addons/gut/hook_script.gd"
-}, {
-"base": "Node",
-"class": "GutTest",
-"language": "GDScript",
-"path": "res://addons/gut/test.gd"
-}, {
-"base": "Spatial",
-"class": "RoadContainer",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_container.gd"
-}, {
-"base": "Spatial",
-"class": "RoadIntersection",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_intersection.gd"
-}, {
-"base": "Path",
-"class": "RoadLane",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_lane.gd"
-}, {
-"base": "Node",
-"class": "RoadLaneAgent",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_lane_agent.gd"
-}, {
-"base": "Spatial",
-"class": "RoadManager",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_manager.gd"
-}, {
-"base": "Spatial",
-"class": "RoadPoint",
-"language": "GDScript",
-"path": "res://addons/road-generator/nodes/road_point.gd"
-} ]
-_global_script_class_icons={
-"GutHookScript": "",
-"GutTest": "",
-"RoadContainer": "res://addons/road-generator/resources/road_container.png",
-"RoadIntersection": "res://addons/road-generator/resources/road_intersection.png",
-"RoadLane": "res://addons/road-generator/resources/road_lane.png",
-"RoadLaneAgent": "res://addons/road-generator/resources/road_lane_agent.png",
-"RoadManager": "res://addons/road-generator/resources/road_manager.png",
-"RoadPoint": "res://addons/road-generator/resources/road_point.png"
-}
+config_version=5
 
 [application]
 
 config/name="Godot Road Generator"
 config/description="An addon for Godot 3.x, which allows you to create roads and highways. Designed originally for a highway roaming game called \"Wheel Steal\", this open source repository is meant to enable the development of complex road networks for 3D games."
+config/features=PackedStringArray("4.3")
 config/icon="res://icon.png"
 
 [display]
 
-window/size/width=1920
-window/size/height=1080
-window/dpi/allow_hidpi=true
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 
 [editor_plugins]
 
-enabled=PoolStringArray( "res://addons/gut/plugin.cfg", "res://addons/road-generator/plugin.cfg" )
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/road-generator/plugin.cfg")
 
 [physics]
 
@@ -82,4 +30,4 @@ common/enable_pause_aware_picking=true
 
 [rendering]
 
-environment/default_environment="res://default_env.tres"
+environment/defaults/default_environment="res://default_env.tres"

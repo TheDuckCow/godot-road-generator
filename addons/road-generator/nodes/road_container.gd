@@ -1,9 +1,9 @@
-tool
+@tool
 #gd4
 #@icon("res://addons/road-generator/resources/road_container.png")
 ## Manager used to generate the actual road segments when needed.
 class_name RoadContainer, "../resources/road_container.png"
-extends Spatial
+extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array. Will also trigger on segments deleted,
@@ -15,39 +15,39 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 ## Material applied to the generated meshes, expects specific trimsheet UV layout
-export(Material) var material_resource:Material setget _set_material
+@export var material_resource: Material: set = _set_material
 
 ## Mesh density of generated segments. -1 implies to use the parent RoadManager's value, higher
 ## values like 10 mean higher spacing between loop cuts (ie a lower density; this terminology and
 ## meaning is unintuitive, but matches the term used within the built in 3D curve property name)
-export(float) var density:float = -1.0  setget _set_density
+@export var density: float = -1.0: set = _set_density
 
 ## Generate procedural road geometry
 ## If off, it indicates the developer will load in their own custom mesh + collision.
-export(bool) var create_geo := true setget _set_create_geo
+@export var create_geo := true: set = _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
-export(bool) var use_lowpoly_preview:bool = false
+@export var use_lowpoly_preview: bool = false
 ## Whether to create approximated curves to fit along the forward, reverse, and center of the road.
 ## Visible in the editor, useful for adding procedural generation along road edges or center lane.
-export(bool) var create_edge_curves := false setget _set_create_edge_curves
+@export var create_edge_curves := false: set = _set_create_edge_curves
 
 ## Whether to auto create RoadLanes for AI agents to follow, which are extensions of the native
 ## 3D Curve, added to the runtime game as a child of RoadPoints when connections exist.
-export(bool) var generate_ai_lanes := false setget _set_gen_ai_lanes
+@export var generate_ai_lanes := false: set = _set_gen_ai_lanes
 ## Group name to assign to generated RoadLane nodes
-export(String) var ai_lane_group := "road_lanes" setget _set_ai_lane_group
+@export var ai_lane_group := "road_lanes": set = _set_ai_lane_group
 ## Pass through to each RoadLane on whether to auto free all registered vehicles on _exit_tree.
 ## Useful to let the raod generator handle any vehicles on a road segment to be cleaned up but
 ## is not a direct child (which would require re-parenting as vehicles travel between segments)
-export(bool) var auto_free_vehicles := true setget _set_auto_free_vehicles
+@export var auto_free_vehicles := true: set = _set_auto_free_vehicles
 ## Group name to assign to the staic bodies created within a RoadSegment
-export(String) var collider_group_name := "" setget _set_collider_group
+@export var collider_group_name := "": set = _set_collider_group
 ## Meta property name to assign to the static bodies created within a RoadSegment, value will always be true
-export(String) var collider_meta_name := "" setget _set_collider_meta
+@export var collider_meta_name := "": set = _set_collider_meta
 
-export(bool) var debug := false
-export(bool) var draw_lanes_editor := false setget _set_draw_lanes_editor, _get_draw_lanes_editor
-export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw_lanes_game
+@export var debug := false
+@export var draw_lanes_editor := false: get = _get_draw_lanes_editor, set = _set_draw_lanes_editor
+@export var draw_lanes_game := false: get = _get_draw_lanes_game, set = _set_draw_lanes_game
 
 ## Auto generated exposed variables used to connect this RoadContainer to
 ## another RoadContainer.
@@ -61,24 +61,24 @@ export(bool) var draw_lanes_game := false setget _set_draw_lanes_game, _get_draw
 # Paths to other containers, relative to this container (self)
 #gd4
 #@export var edge_containers: Array[NodePath]
-export(Array, NodePath) var edge_containers
+@export var edge_containers # (Array, NodePath)
 # Node paths within other containers, relative to the *target* container (not self here)
 #gd4
 #@export var edge_rp_targets: Array[NodePath]
-export(Array, NodePath) var edge_rp_targets
+@export var edge_rp_targets # (Array, NodePath)
 # Direction of which RP we are connecting to, used to make unique key along with
 # the edge_rp_targets path above. Enum value of RoadPoint.PointInit
 #gd4
 #@export var edge_rp_target_dirs: Array[int]
-export(Array, int) var edge_rp_target_dirs
+@export var edge_rp_target_dirs # (Array, int)
 # Node paths within this container, relative to this container
 #gd4
 #@export var edge_rp_locals: Array[NodePath]
-export(Array, NodePath) var edge_rp_locals
+@export var edge_rp_locals # (Array, NodePath)
 # Local RP directions, enum value of RoadPoint.PointInit
 #gd4
 #@export var edge_rp_local_dirs: Array[int]
-export(Array, int) var edge_rp_local_dirs
+@export var edge_rp_local_dirs # (Array, int)
 
 # Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
@@ -109,7 +109,7 @@ var _edge_error: String = ""
 
 # Variables for internal handling of drag events
 # Constants used for adhoc meta tags for internal state assignments
-var _drag_init_transform # : Transform can't type as it needs to be nullable
+var _drag_init_transform # : Transform3D can't type as it needs to be nullable
 var _drag_source_rp: RoadPoint
 var _drag_target_rp: RoadPoint
 
@@ -154,7 +154,7 @@ func is_subscene() -> bool:
 
 #gd4
 #func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warning() -> String:
+func _get_configuration_warnings() -> String:
 	var warnstr
 
 	if get_tree().get_edited_scene_root() != self:
@@ -317,7 +317,7 @@ func _set_create_edge_curves(value: bool) -> void:
 
 func _notification(what):
 	if what == NOTIFICATION_TRANSFORM_CHANGED and Engine.is_editor_hint():
-		var lmb_down = Input.is_mouse_button_pressed(BUTTON_LEFT)
+		var lmb_down = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		if lmb_down and not _drag_init_transform:
 			self._drag_init_transform = global_transform
 		elif not lmb_down:
@@ -411,9 +411,9 @@ func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
 
 
 func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
-	var rp_trans:Transform = src_rp.global_transform
-	var tgt_trans:Transform = tgt_rp.global_transform
-	var cont_trans:Transform = global_transform
+	var rp_trans:Transform3D = src_rp.global_transform
+	var tgt_trans:Transform3D = tgt_rp.global_transform
+	var cont_trans:Transform3D = global_transform
 
 	var start_dir: int
 	var end_dir: int
@@ -448,7 +448,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	var closest_dist: float
 
 	for rp in get_open_edges():
-		var this_dist = g_search_pos.distance_squared_to(rp.global_translation)
+		var this_dist = g_search_pos.distance_squared_to(rp.global_position)
 		if not closest_dist or this_dist < closest_dist:
 			closest_dist = this_dist
 			closest_rp = rp

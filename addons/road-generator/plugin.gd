@@ -1,5 +1,5 @@
+@tool
 ## Road and Highway generator addon.
-tool
 extends EditorPlugin
 
 enum SnapState {
@@ -58,13 +58,13 @@ var copy_attributes:Dictionary = {}
 
 
 func _enter_tree():
-	add_spatial_gizmo_plugin(road_point_gizmo)
+	add_node_3d_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
 	road_point_editor.call("set_edi", _edi)
-	_eds.connect("selection_changed", self, "_on_selection_changed")
-	_eds.connect("selection_changed", road_point_gizmo, "on_selection_changed")
-	connect("scene_changed", self, "_on_scene_changed")
-	connect("scene_closed", self, "_on_scene_closed")
+	_eds.connect("selection_changed", Callable(self, "_on_selection_changed"))
+	_eds.connect("selection_changed", Callable(road_point_gizmo, "on_selection_changed"))
+	connect("scene_changed", Callable(self, "_on_scene_changed"))
+	connect("scene_closed", Callable(self, "_on_scene_closed"))
 
 	# Don't add the following, as they would result in repeast in the UI.
 	#add_custom_type("RoadPoint", "Spatial", preload("road_point.gd"), preload("road_point.png"))
@@ -72,24 +72,24 @@ func _enter_tree():
 	#add_custom_type("RoadLane", "Curve3d", preload("lane_segment.gd"), preload("road_segment.png"))
 
 	var gui = get_editor_interface().get_base_control()
-	_road_toolbar = RoadToolbar.instance()
+	_road_toolbar = RoadToolbar.instantiate()
 	_road_toolbar.gui = gui
 	_road_toolbar.update_icons()
 
 	# Update toolbar connections
-	_road_toolbar.connect("mode_changed", self, "_on_mode_change")
+	_road_toolbar.connect("mode_changed", Callable(self, "_on_mode_change"))
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT
 
 
 func _exit_tree():
-	_eds.disconnect("selection_changed", self, "_on_selection_changed")
-	_eds.disconnect("selection_changed", road_point_gizmo, "on_selection_changed")
-	disconnect("scene_changed", self, "_on_scene_changed")
-	disconnect("scene_closed", self, "_on_scene_closed")
+	_eds.disconnect("selection_changed", Callable(self, "_on_selection_changed"))
+	_eds.disconnect("selection_changed", Callable(road_point_gizmo, "on_selection_changed"))
+	disconnect("scene_changed", Callable(self, "_on_scene_changed"))
+	disconnect("scene_closed", Callable(self, "_on_scene_closed"))
 	_road_toolbar.queue_free()
-	remove_spatial_gizmo_plugin(road_point_gizmo)
+	remove_node_3d_gizmo_plugin(road_point_gizmo)
 	remove_inspector_plugin(road_point_editor)
 
 	# Don't add the following, as they would result in repeast in the UI.
@@ -104,7 +104,7 @@ func _exit_tree():
 
 
 ## Called by the engine when the 3D editor's viewport is updated.
-func forward_spatial_draw_over_viewport(overlay: Control):
+func _forward_3d_draw_over_viewport(overlay: Control):
 
 	var selected = _overlay_rp_selected
 	var rad_size := 10.0
@@ -119,9 +119,9 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	elif tool_mode == _road_toolbar.InputMode.SELECT:
 		# Set the drawing color
 		if _overlay_hint_disconnect:
-			col = Color.coral
+			col = Color.CORAL
 		else:
-			col = Color.aqua
+			col = Color.AQUA
 
 		# Treat Snapping and Unsnapping differently. When Snapping, show a line
 		# between the two closest points. When Unsnapping, show lines between
@@ -182,7 +182,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 #			return
 	elif tool_mode == _road_toolbar.InputMode.DELETE:
 		if _overlay_hint_delete:
-			col = Color.coral
+			col = Color.CORAL
 
 			var radius := 24.0  # Radius of the rounded ends
 			var hf := radius / 2.0
@@ -212,7 +212,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 	var hovering:RoadPoint = _overlay_rp_hovering
 	if _overlay_hint_disconnect:
 		# Hovering node is directly connected to this node already, offer to disconnect
-		col = Color.coral
+		col = Color.CORAL
 	elif hovering.is_next_connected() and hovering.is_prior_connected():
 		# Where we're coming from is already fully connected.
 		# Eventually though, this could be an intersection.
@@ -221,10 +221,10 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 		# Fully connected, though eventually this could be an intersection.
 		return
 	elif selected.container != hovering.container:
-		col = Color.cadetblue
+		col = Color.CADET_BLUE
 	else:
 		# Connection mode intra RoadContainer
-		col = Color.aqua
+		col = Color.AQUA
 	# TODO: make color slight transparent, but requires merging draw positions
 	# as one call instead of multiple shapes.
 
@@ -256,7 +256,7 @@ func forward_spatial_draw_over_viewport(overlay: Control):
 ## If return true, consumes the event, otherwise forwards event
 #gd4
 #func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
-func forward_spatial_gui_input(camera: Camera, event: InputEvent) -> bool:
+func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> bool:
 	#gd4
 	#var ret := 0
 	var ret := false
@@ -292,19 +292,19 @@ func is_road_node(node: Node) -> bool:
 
 #gd4
 #func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> int:
-func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
+func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> bool:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
 #	if (not event is InputEventMouseButton) and (not event is InputEventMouseMotion):
 #		return INPUT_PASS
 	var selected = get_selected_node()
-	var lmb_pressed = Input.is_mouse_button_pressed(BUTTON_LEFT)
-	var ctrl_pressed = Input.is_key_pressed(KEY_CONTROL)
+	var lmb_pressed = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
-	if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and _snapping:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and _snapping:
 		# If user clicks RMB while snapping, then cancel snapping
 		_snapping = SnapState.IDLE
-	elif event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 
 		if event.pressed:
 			# Nothing done until click up, but detect initial position
@@ -365,7 +365,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				_edge_positions.append([edge_from_pos, edge_to_pos])
 
 				# Save closest edges
-				var group_dist = abs((edge.global_translation - tgt_edge.global_translation).length())
+				var group_dist = abs((edge.global_position - tgt_edge.global_position).length())
 				if (not dist) or group_dist < dist:
 					dist = group_dist
 					_nearest_edges = edge_group
@@ -411,11 +411,11 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 				if not is_instance_valid(edge):
 					#push_warning("Container has invalid edges: " + selected.name)
 					continue
-				var tgt_edge = cont.get_closest_edge_road_point(edge.global_translation)
+				var tgt_edge = cont.get_closest_edge_road_point(edge.global_position)
 				if not is_instance_valid(tgt_edge):
 					#push_warning("Container has invalid edges: " + cont.name)
 					continue
-				var dist = (edge.global_translation - tgt_edge.global_translation).length()
+				var dist = (edge.global_position - tgt_edge.global_position).length()
 				if dist < ROADPOINT_SNAP_THRESHOLD and ((not min_dist) or dist < min_dist):
 					min_dist = dist
 					_nearest_edges = [edge, tgt_edge]
@@ -438,7 +438,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 #gd4
 #func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> int:
-func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
+func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
 
@@ -517,7 +517,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 
 	if not event is InputEventMouseButton:
 		return INPUT_PASS
-	if not event.button_index == BUTTON_LEFT:
+	if not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
 	if not event.pressed:
 		return INPUT_STOP
@@ -544,7 +544,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 
 #gd4
 #func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> int:
-func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
+func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		var point = get_nearest_road_point(camera, event.position)
 		var selection = get_selected_node()
@@ -572,7 +572,7 @@ func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 		return INPUT_PASS
 	if not event is InputEventMouseButton:
 		return INPUT_PASS
-	if not event.button_index == BUTTON_LEFT:
+	if not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
 	if event.pressed and _overlay_rp_hovering != null:
 		# Always match what the UI is showing
@@ -644,7 +644,7 @@ func get_selected_node() -> Node:
 	# TODO: Update this algorithm to figure out which node is really the
 	# primary selection rather than always assuming index 0 is the selection.
 	var selected_nodes = _eds.get_selected_nodes()
-	if not selected_nodes.empty():
+	if not selected_nodes.is_empty():
 		return selected_nodes[0]
 	else:
 		return null
@@ -715,7 +715,7 @@ func set_selection_list(nodes: Array) -> void:
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
+func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
@@ -727,7 +727,7 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 	var space_state =  get_viewport().world.direct_space_state
 	var intersect = space_state.intersect_ray(src, src + nrm * dist, [], 1)
 
-	if intersect.empty():
+	if intersect.is_empty():
 		return null
 	else:
 		var collider = intersect["collider"]
@@ -740,8 +740,8 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 			var start_point: RoadPoint = road_segment.start_point
 			var end_point: RoadPoint = road_segment.end_point
 			var nearest_point: RoadPoint
-			var dist_to_start = start_point.global_translation.distance_to(position)
-			var dist_to_end = end_point.global_translation.distance_to(position)
+			var dist_to_start = start_point.global_position.distance_to(position)
+			var dist_to_end = end_point.global_position.distance_to(position)
 			if dist_to_start > dist_to_end:
 				nearest_point = end_point
 			else:
@@ -751,7 +751,7 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 
 
 ## Get the nearest edge RoadPoint for the given container
-func get_nearest_edge_road_point(container: RoadContainer, camera: Camera, mouse_pos: Vector2):
+func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mouse_pos: Vector2):
 	if _edi_debug:
 		print_debug("get_nearest_edge_road_point")
 
@@ -782,7 +782,7 @@ func get_nearest_edge_road_point(container: RoadContainer, camera: Camera, mouse
 ## raycast onto the xz  or screen xy local plane of the object clicked on.
 ##
 ## Returns: [Position, Normal]
-func get_click_point_with_context(camera: Camera, mouse_pos: Vector2, selection: Node) -> Array:
+func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selection: Node) -> Array:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
@@ -801,7 +801,7 @@ func get_click_point_with_context(camera: Camera, mouse_pos: Vector2, selection:
 	var intersect = space_state.intersect_ray(
 		src, src + nrm * dist, [], 1, true, false)
 
-	if not intersect.empty():
+	if not intersect.is_empty():
 		return [intersect["position"], intersect["normal"]]
 
 	# if we couldn't directly intersect with something, then place the next
@@ -1301,12 +1301,12 @@ func _unsnap_container_future(selected:RoadContainer):
 	if not selected is RoadContainer:
 		push_warning("_unsnap_container_future should have been called with RoadContainer")
 		return
-	var res = selected.connect("on_transform", self, "_call_disconnect_rp_on_click")
+	var res = selected.connect("on_transform", Callable(self, "_call_disconnect_rp_on_click"))
 	assert(res == OK)
 
 
 func _call_disconnect_rp_on_click(selected:RoadContainer):
-	selected.disconnect("on_transform", self, "_call_disconnect_rp_on_click")
+	selected.disconnect("on_transform", Callable(self, "_call_disconnect_rp_on_click"))
 	selected._drag_source_rp = null
 	selected._drag_target_rp = null
 	# For simplicity, this will disconnect all parts of the RoadContainer
@@ -1473,13 +1473,13 @@ func _snap_to_road_point_future(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp
 	selected._drag_target_rp = tgt_rp
 
 	# Signal will be called after the transform action has completed, then auto disconnect this
-	var res = selected.connect("on_transform", self, "_on_transform_complete_do_snap")
+	var res = selected.connect("on_transform", Callable(self, "_on_transform_complete_do_snap"))
 	assert(res == OK)
 
 
 ## Conditionally defined callback for RoadContainer's on_transform to complete drag-snap action
 func _on_transform_complete_do_snap(selected:RoadContainer):
-	selected.disconnect("on_transform", self, "_on_transform_complete_do_snap")
+	selected.disconnect("on_transform", Callable(self, "_on_transform_complete_do_snap"))
 	var _srcrp = selected._drag_source_rp
 	var _tgtrp = selected._drag_target_rp
 	selected._drag_source_rp = null
@@ -1496,7 +1496,7 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 
 	# Precalculate the snapt-to locaiton
 	var res:Array = selected.get_transform_for_snap_rp(sel_rp, tgt_rp)
-	var tgt_transform: Transform = res[0]
+	var tgt_transform: Transform3D = res[0]
 	var sel_dir:int = res[1]
 	var tgt_dir:int = res[2]
 

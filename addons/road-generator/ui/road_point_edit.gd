@@ -5,7 +5,7 @@ var panel_instance
 var _editor_plugin: EditorPlugin
 # EditorInterface, don't use as type:
 # https://github.com/godotengine/godot/issues/85079
-var _edi setget set_edi
+var _edi : set = set_edi
 var copy_ref:RoadPoint  # For use in panel to copy settings
 
 
@@ -33,10 +33,10 @@ func parse_begin(object):
 	#gd4
 	#panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
 	#panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
-	panel_instance.connect("on_lane_change_pressed", self, "_handle_on_lane_change_pressed")
-	panel_instance.connect("on_add_connected_rp", self, "_handle_add_connected_rp")
-	panel_instance.connect("assign_copy_target", self, "_assign_copy_target")
-	panel_instance.connect("apply_settings_target", self, "_apply_settings_target")
+	panel_instance.connect("on_lane_change_pressed", Callable(self, "_handle_on_lane_change_pressed"))
+	panel_instance.connect("on_add_connected_rp", Callable(self, "_handle_add_connected_rp"))
+	panel_instance.connect("assign_copy_target", Callable(self, "_assign_copy_target"))
+	panel_instance.connect("apply_settings_target", Callable(self, "_apply_settings_target"))
 
 	panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
 

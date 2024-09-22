@@ -1,5 +1,5 @@
+@tool
 # Panel which is added to UI and used to trigger callbacks to update road points
-tool
 extends VBoxContainer
 
 signal on_lane_change_pressed(selection, direction, change_type)
@@ -9,40 +9,40 @@ signal apply_settings_target(selection, all)
 
 # EditorInterface, don't use as type:
 # https://github.com/godotengine/godot/issues/85079
-var _edi setget set_edi
+var _edi : set = set_edi
 var sel_road_point: RoadPoint
 var has_copy_ref: bool
-onready var top_label = $SectionLabel
-onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
-onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
-onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
-onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
-onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
-onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
-onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
-onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
-onready var hbox_add_rp_next = $HBoxAddNextRP
-onready var hbox_add_rp_prior = $HBoxAddPriorRP
-onready var hbox_sel_rp_next = $HBoxSelNextRP
-onready var hbox_sel_rp_prior = $HBoxSelPriorRP
-onready var cp_settings: Button = $HBoxContainer/cp_settings
-onready var apply_setting: Button = $HBoxContainer/apply_setting
-onready var cp_to_all: Button = $HBoxContainer/cp_to_all
+@onready var top_label = $SectionLabel
+@onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
+@onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
+@onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
+@onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
+@onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
+@onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
+@onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
+@onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
+@onready var hbox_add_rp_next = $HBoxAddNextRP
+@onready var hbox_add_rp_prior = $HBoxAddPriorRP
+@onready var hbox_sel_rp_next = $HBoxSelNextRP
+@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
+@onready var cp_settings: Button = $HBoxContainer/cp_settings
+@onready var apply_setting: Button = $HBoxContainer/apply_setting
+@onready var cp_to_all: Button = $HBoxContainer/cp_to_all
 
 
 func _ready():
-	btn_add_lane_fwd.connect("pressed", self, "add_lane_fwd_pressed")
-	btn_add_lane_rev.connect("pressed", self, "add_lane_rev_pressed")
-	btn_rem_lane_fwd.connect("pressed", self, "rem_lane_fwd_pressed")
-	btn_rem_lane_rev.connect("pressed", self, "rem_lane_rev_pressed")
-	btn_sel_rp_next.connect("pressed", self, "sel_rp_next_pressed")
-	btn_sel_rp_prior.connect("pressed", self, "sel_rp_prior_pressed")
-	btn_add_rp_next.connect("pressed", self, "add_rp_next_pressed")
-	btn_add_rp_prior.connect("pressed", self, "add_rp_prior_pressed")
+	btn_add_lane_fwd.connect("pressed", Callable(self, "add_lane_fwd_pressed"))
+	btn_add_lane_rev.connect("pressed", Callable(self, "add_lane_rev_pressed"))
+	btn_rem_lane_fwd.connect("pressed", Callable(self, "rem_lane_fwd_pressed"))
+	btn_rem_lane_rev.connect("pressed", Callable(self, "rem_lane_rev_pressed"))
+	btn_sel_rp_next.connect("pressed", Callable(self, "sel_rp_next_pressed"))
+	btn_sel_rp_prior.connect("pressed", Callable(self, "sel_rp_prior_pressed"))
+	btn_add_rp_next.connect("pressed", Callable(self, "add_rp_next_pressed"))
+	btn_add_rp_prior.connect("pressed", Callable(self, "add_rp_prior_pressed"))
 	update_labels(Input.is_key_pressed(KEY_SHIFT))
 
-func _unhandled_key_input(event: InputEventKey) -> void:
-	if not event.scancode == KEY_SHIFT:
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event.keycode == KEY_SHIFT:
 		return
 	update_labels(event.pressed)
 
@@ -93,7 +93,7 @@ func update_road_point_panel():
 		hbox_add_rp_prior.visible = true
 		hbox_sel_rp_prior.visible = false
 
-	property_list_changed_notify()
+	notify_property_list_changed()
 
 
 func add_lane_fwd_pressed():
@@ -162,7 +162,7 @@ func add_rp_prior_pressed():
 ## Adds a numeric sequence to the end of a RoadPoint name
 func increment_name(old_name) -> String:
 	var new_name = old_name
-	if not old_name[-1].is_valid_integer():
+	if not old_name[-1].is_valid_int():
 		new_name += "001"
 	return new_name
 

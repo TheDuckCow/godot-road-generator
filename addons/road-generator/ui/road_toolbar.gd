@@ -1,4 +1,4 @@
-tool
+@tool
 extends HBoxContainer
 
 #gd4
@@ -29,11 +29,11 @@ func _enter_tree():
 	update_refs()
 	match mode:
 		InputMode.SELECT:
-			select_mode.pressed = true
+			select_mode.button_pressed = true
 		InputMode.ADD:
-			add_mode.pressed = true
+			add_mode.button_pressed = true
 		InputMode.DELETE:
-			delete_mode.pressed = true
+			delete_mode.button_pressed = true
 
 
 func update_refs():
@@ -68,24 +68,24 @@ func update_icons():
 
 
 func _on_select_mode_pressed():
-	select_mode.pressed = true
-	add_mode.pressed = false
-	delete_mode.pressed = false
+	select_mode.button_pressed = true
+	add_mode.button_pressed = false
+	delete_mode.button_pressed = false
 	mode = InputMode.SELECT
 	emit_signal("mode_changed", mode)
 
 
 func _on_add_mode_pressed():
-	select_mode.pressed = false
-	add_mode.pressed = true
-	delete_mode.pressed = false
+	select_mode.button_pressed = false
+	add_mode.button_pressed = true
+	delete_mode.button_pressed = false
 	mode = InputMode.ADD
 	emit_signal("mode_changed", mode)
 
 
 func _on_delete_mode_pressed():
-	select_mode.pressed = false
-	add_mode.pressed = false
-	delete_mode.pressed = true
+	select_mode.button_pressed = false
+	add_mode.button_pressed = false
+	delete_mode.button_pressed = true
 	mode = InputMode.DELETE
 	emit_signal("mode_changed", mode)

@@ -2,7 +2,7 @@ extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
-onready var road_util := RoadUtils.new()
+@onready var road_util := RoadUtils.new()
 
 
 func before_each():
@@ -150,7 +150,7 @@ func test_get_manager_parent():
 func test_get_manager_grandparent():
 	# Direct manager
 	var manager = add_child_autofree(RoadManager.new())
-	var spatial = autoqfree(Spatial.new())
+	var spatial = autoqfree(Node3D.new())
 	var container = autoqfree(RoadContainer.new())
 	manager.add_child(spatial)
 	spatial.add_child(container)

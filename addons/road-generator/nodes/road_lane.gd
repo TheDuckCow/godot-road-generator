@@ -1,26 +1,26 @@
-tool
+@tool
 #gd4
 #@icon("res://addons/road-generator/resources/road_lane.png")
 ## Class for defining a directional or bidirectional lane.
 ##
 ## Could, but does not have to be, parented to a RoadSegment class object.
 class_name RoadLane, "res://addons/road-generator/resources/road_lane.png"
-extends Path
+extends Path3D
 
 const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
 const COLOR_START = Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-export var reverse_direction:bool = false setget _set_direction, _get_direction
-export var lane_left:NodePath # Used to indicate allowed lane changes
-export var lane_right:NodePath # Used to indicate allowed lane changes
-export var lane_next:NodePath # RoadLane or intersection
-export var lane_prior:NodePath # RoadLane or intersection
+@export var reverse_direction:bool = false: get = _get_direction, set = _set_direction
+@export var lane_left:NodePath # Used to indicate allowed lane changes
+@export var lane_right:NodePath # Used to indicate allowed lane changes
+@export var lane_next:NodePath # RoadLane or intersection
+@export var lane_prior:NodePath # RoadLane or intersection
 
 # Can override to draw if outside the editor
-export var draw_in_game = false setget _set_draw_in_game, _get_draw_in_game
-export var draw_in_editor = false setget _set_draw_in_editor, _get_draw_in_editor
+@export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
+@export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
 
 
 # Tags are used help populate the lane_next and lane_prior NodePaths above.
@@ -38,15 +38,15 @@ export var draw_in_editor = false setget _set_draw_in_editor, _get_draw_in_edito
 # removed on the right (forward) will be recognized as needing to have it's
 # lane_next_tag set to F1, representing cars merging from this removed lane into
 # the next interior lane.
-export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
-export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+@export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
+@export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 
 ## Auto queue-free any vehicles registered to this lane with the road lane exits
-export var auto_free_vehicles: bool = true
+@export var auto_free_vehicles: bool = true
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
-var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
+var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
@@ -69,7 +69,7 @@ func _init():
 func _ready():
 	set_notify_transform(true)
 	set_notify_local_transform(true)
-	connect("curve_changed", self, "curve_changed")
+	connect("curve_changed", Callable(self, "curve_changed"))
 	rebuild_geom()
 	#_instantiate_geom()
 
@@ -147,14 +147,14 @@ func _instantiate_geom() -> void:
 		#geom = MeshInstance3D.new()
 		#geom.mesh = geom_mesh
 		#add_child(geom)
-		geom = ImmediateGeometry.new()
+		geom = ImmediateMesh.new()
 		geom.set_name("geom")
 		add_child(geom)
 
-		var mat = SpatialMaterial.new()
+		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
 		mat.flags_disable_ambient_light = true
-		mat.params_depth_draw_mode = SpatialMaterial.DEPTH_DRAW_DISABLED
+		mat.params_depth_draw_mode = StandardMaterial3D.DEPTH_DRAW_DISABLED
 		mat.flags_do_not_receive_shadows = true
 		mat.flags_no_depth_test = true
 		mat.flags_do_not_receive_shadows = true
@@ -177,7 +177,7 @@ func _draw_shark_fins() -> void:
 	geom.clear()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
-		var xf = Transform()
+		var xf = Transform3D()
 
 		#gd4
 		# interpolate_baked -> sample_baked

@@ -1,20 +1,20 @@
-extends Spatial
+extends Node3D
 
 const RoadActor:PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
 
 ## How far ahead of the camera will we let a new RoadPoint be added
-export var max_rp_distance: int = 200
+@export var max_rp_distance: int = 200
 ## How much buffer around this max dist to avoid adding new RPs
 ## (this will also define spacing between RoadPoints)
-export var buffer_distance: int = 50
+@export var buffer_distance: int = 50
 
 ## Node used to calcualte distances
-export var target_node: NodePath
+@export var target_node: NodePath
 
-onready var container: RoadContainer = get_node("RoadManager/Road_001")
-onready var vehicles:Node = get_node("RoadManager/vehicles")
-onready var target: Node = get_node_or_null(target_node)
-onready var car_label: Label = get_node("%car_count")
+@onready var container: RoadContainer = get_node("RoadManager/Road_001")
+@onready var vehicles:Node = get_node("RoadManager/vehicles")
+@onready var target: Node = get_node_or_null(target_node)
+@onready var car_label: Label = get_node("%car_count")
 
 
 func _ready() -> void:
@@ -26,7 +26,7 @@ func _physics_process(_delta: float) -> void:
 	update_car_count()
 
 
-func xz_target_distance_to(_target: Spatial) -> float:
+func xz_target_distance_to(_target: Node3D) -> float:
 	var pos_a := Vector2(target.global_transform.origin.x, target.global_transform.origin.z)
 	var pos_b := Vector2(_target.global_transform.origin.x, _target.global_transform.origin.z)
 	return pos_a.distance_to(pos_b)
@@ -97,9 +97,9 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	randomize()
 	var _transform := new_rp.transform
 	var angle_range := 30 # Random angle rotation range
-	var random_angle: float = rand_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
+	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
 	var rotation_axis := Vector3(0, 1, 0)
-	_transform = _transform.rotated(rotation_axis, deg2rad(random_angle))
+	_transform = _transform.rotated(rotation_axis, deg_to_rad(random_angle))
 
 	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag
 

@@ -2,7 +2,7 @@
 ##
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
-extends Spatial
+extends Node3D
 
 # Disabled, since we don't want users to manually via the UI to add this class.
 #class_name RoadSegment, "road_segment.png"
@@ -18,14 +18,14 @@ const EDGE_C_NAME = "edge_C" # Name of road center (direction divider) edge curv
 
 signal seg_ready(road_segment)
 
-export(NodePath) var start_init setget _init_start_set, _init_start_get
-export(NodePath) var end_init setget _init_end_set, _init_end_get
+@export var start_init: NodePath: get = _init_start_get, set = _init_start_set
+@export var end_init: NodePath: get = _init_end_get, set = _init_end_set
 
 var start_point:RoadPoint
 var end_point:RoadPoint
 
 var curve:Curve3D
-var road_mesh:MeshInstance
+var road_mesh:MeshInstance3D
 var material:Material
 var density := 4.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
 var container # The managing container node for this road segment (grandparent).
@@ -99,7 +99,7 @@ func do_roadmesh_creation():
 func add_road_mesh() -> void:
 	if is_instance_valid(road_mesh):
 		return
-	road_mesh = MeshInstance.new()
+	road_mesh = MeshInstance3D.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
@@ -219,8 +219,8 @@ func generate_edge_curves():
 	var end_half_width: float = len(end_point.lanes) * end_point.lane_width * 0.5
 
 	# Add edge curves
-	var edge_R: Path = _par.get_node_or_null(EDGE_R_NAME)
-	var edge_F: Path = _par.get_node_or_null(EDGE_F_NAME)
+	var edge_R: Path3D = _par.get_node_or_null(EDGE_R_NAME)
+	var edge_F: Path3D = _par.get_node_or_null(EDGE_F_NAME)
 	var start_offset_R := start_half_width
 	var start_offset_F := start_half_width
 	var end_offset_R := end_half_width
@@ -232,7 +232,7 @@ func generate_edge_curves():
 	end_offset_F += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
 
 	if edge_R == null or not is_instance_valid(edge_R):
-		edge_R = Path.new()
+		edge_R = Path3D.new()
 		edge_R.name = EDGE_R_NAME
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
@@ -240,7 +240,7 @@ func generate_edge_curves():
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
-		edge_F = Path.new()
+		edge_F = Path3D.new()
 		edge_F.name = EDGE_F_NAME
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
@@ -248,14 +248,14 @@ func generate_edge_curves():
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 	# Add center curve
-	var edge_C: Path = _par.get_node_or_null(EDGE_C_NAME)
+	var edge_C: Path3D = _par.get_node_or_null(EDGE_C_NAME)
 	var start_width_R: float = start_point.get_rev_lane_count() * start_point.lane_width
 	var end_width_R: float = end_point.get_rev_lane_count() * end_point.lane_width
 	var start_offset_C: float = start_width_R - start_half_width
 	var end_offset_C: float = end_width_R - end_half_width
 
 	if edge_C == null or not is_instance_valid(edge_C):
-		edge_C = Path.new()
+		edge_C = Path3D.new()
 		edge_C.name = EDGE_C_NAME
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
@@ -405,7 +405,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##  and distance.
 ##
 ##  For more details and context: https://github.com/TheDuckCow/godot-road-generator/issues/46
-func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, start_point: Spatial, end_point: Spatial):
+func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D):
 	var src:Curve3D = road_seg.curve
 	var dst:Curve3D = road_lane.curve
 	var a_gbasis := start_point.global_transform.basis
@@ -570,7 +570,7 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 func clear_edge_curves():
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path and ch.name in [EDGE_R_NAME, EDGE_F_NAME, EDGE_C_NAME]:
+		if ch is Path3D and ch.name in [EDGE_R_NAME, EDGE_F_NAME, EDGE_C_NAME]:
 			for gch in ch.get_children():
 				ch.remove_child(gch)
 				gch.queue_free()
@@ -582,7 +582,7 @@ func clear_edge_curves():
 func hide_edge_curves(hide_edge: bool = false):
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path and (ch.name == "edge_R" or ch.name == "edge_F"):
+		if ch is Path3D and (ch.name == "edge_R" or ch.name == "edge_F"):
 			ch.visible = not hide_edge
 
 
@@ -651,16 +651,16 @@ func _update_curve():
 	# Show this primary curve in the scene hierarchy if the debug state set.
 	if container.debug_scene_visible:
 		var found_path = false
-		var path_node: Path
+		var path_node: Path3D
 		for ch in self.get_children():
-			if not ch is Path:
+			if not ch is Path3D:
 				continue
 			found_path = true
 			path_node = ch
 			break
 
 		if not found_path:
-			path_node = Path.new()
+			path_node = Path3D.new()
 			self.add_child(path_node)
 			path_node.owner = container.owner
 			path_node.name = "RoadSeg primary curve"
@@ -693,7 +693,7 @@ func _normal_for_offset(curve: Curve3D, sample_position: float) -> Vector3:
 
 ## Alternate method which doesn't guarentee consistent lane width.
 func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector3:
-	var loop_point: Transform
+	var loop_point: Transform3D
 	var _smooth_amount := -1.5
 	var interp_amount: float = ease(sample_position, _smooth_amount)
 
@@ -807,7 +807,7 @@ func _build_geo():
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
-	road_mesh.cast_shadow = GeometryInstance.SHADOW_CASTING_SETTING_OFF
+	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_create_collisions()
 
 
@@ -819,7 +819,7 @@ func _create_collisions() -> void:
 	# but this is still advertised as a non-cheap solution.
 	road_mesh.create_trimesh_collision()
 	for ch in road_mesh.get_children():
-		if not ch is StaticBody:
+		if not ch is StaticBody3D:
 			continue
 		if container.collider_group_name != "":
 			ch.add_to_group(container.collider_group_name)

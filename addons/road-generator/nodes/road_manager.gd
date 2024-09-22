@@ -1,9 +1,9 @@
-tool
+@tool
 #gd4
 #@icon("res://addons/road-generator/resources/road_manager.png")
 ## Manager for all children RoadContainers
 class_name RoadManager, "res://addons/road-generator/resources/road_manager.png"
-extends Spatial
+extends Node3D
 
 
 # ------------------------------------------------------------------------------
@@ -11,7 +11,7 @@ extends Spatial
 # ------------------------------------------------------------------------------
 
 
-export(float) var density:float = 4.0  setget _set_density # Mesh density of generated segments.
+@export var density: float = 4.0: set = _set_density
 
 
 # ------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ export(float) var density:float = 4.0  setget _set_density # Mesh density of gen
 # Auto refresh on transforms or other actions on roads. Good to disable if
 # you modify roads during runtime and want to manually trigger refreshes on
 # specific RoadContainers/RoadPoints at a time.
-export(bool) var auto_refresh = true setget _ui_refresh_set
+@export var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 # ------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ func _ready():
 
 #gd4
 #func _get_configuration_warnings() -> PackedStringArray:
-func _get_configuration_warning() -> String:
+func _get_configuration_warnings() -> String:
 	if _skip_warn_found_rc_child:
 		#gd4
 		#return []
