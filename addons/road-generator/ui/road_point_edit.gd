@@ -12,7 +12,7 @@ var copy_ref:RoadPoint  # For use in panel to copy settings
 func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
-func can_handle(object):
+func _can_handle(object):
 	# Only road points are supported.
 	# TODO: Add RoadContainer and RoadManager in future for bulk ops.
 	return object is RoadPoint
@@ -26,8 +26,8 @@ func _parse_begin(object):
 	add_custom_control(panel_instance)
 	panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
 	panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
-	panel_instance.on_assign_copy_target.connect(_assign_copy_target)
-	panel_instance.on_apply_settings_target.connect(_apply_settings_target)
+	panel_instance.assign_copy_target.connect(_assign_copy_target)
+	panel_instance.apply_settings_target.connect(_apply_settings_target)
 
 	panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
 

@@ -155,7 +155,7 @@ func _instantiate_geom() -> void:
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
-		geom.material_override = mat
+		geom_node.material_override = mat
 
 	_draw_shark_fins()
 
@@ -179,13 +179,13 @@ func _draw_shark_fins() -> void:
 
 		geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
-			geom.set_color(COLOR_START)
+			geom.surface_set_color(COLOR_START)
 		else:
-			geom.set_color(COLOR_PRIMARY)
-		geom.add_vertex(xf.origin)
-		geom.add_vertex(xf.origin + Vector3(0, 0.5, 0) - lookat*0.2)
-		geom.add_vertex(xf.origin + lookat * 1)
-		geom.end()
+			geom.surface_set_color(COLOR_PRIMARY)
+		geom.surface_add_vertex(xf.origin)
+		geom.surface_add_vertex(xf.origin + Vector3(0, 0.5, 0) - lookat*0.2)
+		geom.surface_add_vertex(xf.origin + lookat * 1)
+		geom.surface_end()
 
 
 func rebuild_geom() -> void:

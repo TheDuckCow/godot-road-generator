@@ -1,63 +1,69 @@
-[gd_scene load_steps=7 format=2]
+[gd_scene load_steps=8 format=3 uid="uid://c57yq8evxe3w3"]
 
-[ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=1]
-[ext_resource path="res://addons/road-generator/resources/road_texture.material" type="Material" id=2]
-[ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=3]
-[ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=4]
-[ext_resource path="res://demo/procedural_generator/procedural_generator.gd" type="Script" id=5]
-[ext_resource path="res://demo/procedural_generator/RoadActor.tscn" type="PackedScene" id=7]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="2"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
+[ext_resource type="Script" path="res://demo/procedural_generator/procedural_generator.gd" id="5"]
+[ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="7"]
+
+[sub_resource type="Environment" id="Environment_v4pga"]
+background_mode = 1
+background_color = Color(0.609661, 0.733591, 0.806032, 1)
 
 [node name="ProceduralGenerator" type="Node3D"]
-script = ExtResource( 5 )
+script = ExtResource("5")
 target_node = NodePath("RoadManager/vehicles/Player/Camera3D")
 
 [node name="RoadManager" type="Node3D" parent="."]
-script = ExtResource( 3 )
+script = ExtResource("3")
 
 [node name="vehicles" type="Node3D" parent="RoadManager"]
 
-[node name="Player" parent="RoadManager/vehicles" instance=ExtResource( 7 )]
-transform = Transform3D( 1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281 )
+[node name="Player" parent="RoadManager/vehicles" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281)
 drive_state = 2
 target_speed = 100
 visualize_lane = true
 auto_register = false
 
 [node name="Camera3D" type="Camera3D" parent="RoadManager/vehicles/Player"]
-transform = Transform3D( 1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773 )
+transform = Transform3D(1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773)
 far = 300.0
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]
-script = ExtResource( 1 )
-material_resource = ExtResource( 2 )
+script = ExtResource("1")
+material_resource = ExtResource("2")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
-edge_containers = [ "", "" ]
-edge_rp_targets = [ "", "" ]
-edge_rp_target_dirs = [ -1, -1 ]
-edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_002") ]
-edge_rp_local_dirs = [ 0, 1 ]
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_002")])
+edge_rp_local_dirs = Array[int]([0, 1])
 
 [node name="RP_001" type="Node3D" parent="RoadManager/Road_001"]
-transform = Transform3D( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997 )
-script = ExtResource( 4 )
-traffic_dir = [ 2, 2, 1, 1 ]
-lanes = [ 2, 4, 4, 2 ]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997)
+script = ExtResource("4")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
 prior_pt_init = NodePath("../RP_002")
 prior_mag = 20.0
 next_mag = 20.0
 
 [node name="RP_002" type="Node3D" parent="RoadManager/Road_001"]
-transform = Transform3D( 0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496 )
-script = ExtResource( 4 )
-traffic_dir = [ 2, 2, 1, 1 ]
-lanes = [ 2, 4, 4, 2 ]
+transform = Transform3D(0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496)
+script = ExtResource("4")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
 next_pt_init = NodePath("../RP_001")
 prior_mag = 20.0
 next_mag = 20.0
 
 [node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 10.0
@@ -67,17 +73,25 @@ offset_bottom = -10.0
 
 [node name="car_count" type="Label" parent="UI"]
 unique_name_in_owner = true
+layout_mode = 0
 offset_right = 40.0
 offset_bottom = 14.0
-theme_override_colors/font_color = Color( 0, 0, 0, 1 )
+theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "Cars: ##"
 
 [node name="instructions" type="Label" parent="UI"]
+layout_mode = 0
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -152.0
 offset_bottom = 31.0
-theme_override_colors/font_color = Color( 0, 0, 0, 1 )
+theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "up/down arrow to move
 left/right to change lane"
-align = 2
+horizontal_alignment = 2
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 0, 3.50568, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_v4pga")

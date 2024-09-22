@@ -73,7 +73,7 @@ func _enter_tree():
 	_road_toolbar.update_icons()
 
 	# Update toolbar connections
-	_road_toolbar.connect("mode_changed", Callable(self, "_on_mode_change"))
+	_road_toolbar.mode_changed.connect(_on_mode_change)
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT

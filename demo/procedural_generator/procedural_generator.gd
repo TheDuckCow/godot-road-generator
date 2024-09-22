@@ -123,7 +123,7 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	for _lane in new_lanes:
 		# TODO: get random poing along this lane and spawn,
 		# for now just placing at the start point
-		var new_instance = RoadActor.instance()
+		var new_instance = RoadActor.instantiate()
 		vehicles.add_child(new_instance)
 
 		# We could let the agent auto-find the nearest road lane, but to save
@@ -134,7 +134,7 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		print("new_instance %s " % new_instance)
 
 		var rand_offset = randf() * _lane.curve.get_baked_length()
-		var rand_pos = _lane.curve.interpolate_baked(rand_offset)
+		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		new_instance.global_transform.origin = _lane.to_global(rand_pos)
 		_lane.register_vehicle(new_instance)
 
@@ -184,5 +184,3 @@ func update_car_count() -> void:
 		car_count,
 		_ln_cars,
 		Engine.get_frames_per_second()]
-
-

@@ -10,12 +10,12 @@ func _ready() -> void:
 	var seg_counts := 0
 	for _node in containers:
 		var _cont: RoadContainer = _node
-		var res = _cont.connect("on_road_updated", Callable(self, "_roads_updated"))
+		var res = _cont.on_road_updated.connect(_roads_updated)
 		assert(res == OK)
 		seg_counts += len(_cont.get_segments())
 
 	var _time_start := Time.get_ticks_msec()
-	manager.rebuild_all_containers()
+	manager.rebuild_all_containers(true)
 	var _time_postgen = Time.get_ticks_msec()
 	print("Time to generate containers: %s ms" % (_time_postgen - _time_start))
 	print("%sx segment rebuilds compared to %s actual segments" % [rebuild_count, seg_counts])
