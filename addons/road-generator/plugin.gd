@@ -1470,10 +1470,25 @@ func _create_roadpoint_pressed() -> void:
 	if not is_instance_valid(t_container):
 		push_error("Invalid selection context")
 		return
+	
+	var selected_node = get_selected_node()
 
 	undo_redo.create_action("Add RoadPoint")
-	undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
-	undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
+	if selected_node is RoadContainer:
+		var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+		var rp := RoadPoint.new()
+		rp.name = "RP_001"
+		undo_redo.add_do_reference(rp)
+		undo_redo.add_do_method(selected_node, "add_child", rp, true)
+		undo_redo.add_do_method(rp, "set_owner", get_tree().get_edited_scene_root())
+		undo_redo.add_do_method(self, "set_selection", rp)
+		undo_redo.add_undo_method(selected_node, "remove_child", rp)
+		undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+		undo_redo.add_do_method(selected_node, "update_edges")
+		undo_redo.add_undo_method(selected_node, "update_edges")
+	else:
+		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
+		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
 	undo_redo.commit_action()
 
 
