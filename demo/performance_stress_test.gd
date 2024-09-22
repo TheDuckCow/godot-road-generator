@@ -1,6 +1,5 @@
 extends Spatial
 
-
 onready var manager:RoadManager = $RoadManager
 
 var rebuild_count := 0
@@ -15,7 +14,7 @@ func _ready() -> void:
 		seg_counts += len(_cont.get_segments())
 
 	var _time_start := OS.get_ticks_msec()
-	manager.rebuild_all_containers()
+	manager.rebuild_all_containers(true)
 	var _time_postgen = OS.get_ticks_msec()
 	print("Time to generate containers: %s ms" % (_time_postgen - _time_start))
 	print("%sx segment rebuilds compared to %s actual segments" % [rebuild_count, seg_counts])

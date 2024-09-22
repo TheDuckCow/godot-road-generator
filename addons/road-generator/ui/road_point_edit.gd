@@ -13,7 +13,7 @@ func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
 #gd4
-#func can_handle(object):
+#func _can_handle(object):
 func can_handle(object):
 	# Only road points are supported.
 	# TODO: Add RoadContainer and RoadManager in future for bulk ops.
@@ -33,6 +33,8 @@ func parse_begin(object):
 	#gd4
 	#panel_instance.on_lane_change_pressed.connect(_handle_on_lane_change_pressed)
 	#panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
+	#panel_instance.assign_copy_target.connect(_assign_copy_target)
+	#panel_instance.apply_settings_target.connect(_apply_settings_target)
 	panel_instance.connect("on_lane_change_pressed", self, "_handle_on_lane_change_pressed")
 	panel_instance.connect("on_add_connected_rp", self, "_handle_add_connected_rp")
 	panel_instance.connect("assign_copy_target", self, "_assign_copy_target")

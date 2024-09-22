@@ -805,3 +805,6 @@ far = 500.0
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -95.4111, -9.95611, -65.84 )
 mesh = SubResource( 1 )
 material/0 = SubResource( 2 )
+
+[node name="DirectionalLight" type="DirectionalLight" parent="."]
+transform = Transform( 1, 0, 0, 0, 0.295991, 0.955191, 0, -0.955191, 0.295991, 0, 172.613, 0 )

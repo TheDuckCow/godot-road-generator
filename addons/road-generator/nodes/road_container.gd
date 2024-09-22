@@ -655,7 +655,7 @@ func validate_edges(autofix: bool = false) -> bool:
 				target = this_pt.get_next_rp()
 		elif this_dir == this_pt.PointInit.PRIOR:
 			#gd4
-			#if this_pt.prior_pt_init != "":
+			#if this_pt.prior_pt_init != ^"":
 			if this_pt.prior_pt_init != "":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false

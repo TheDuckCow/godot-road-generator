@@ -97,7 +97,7 @@ func update_road_point_panel():
 
 
 func add_lane_fwd_pressed():
-	#gd4
+	#gd4, nice to have
 	# Here and below, change to:
 	#on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
@@ -124,7 +124,7 @@ func rem_lane_rev_pressed():
 
 
 func sel_rp_next_pressed():
-	#gd4
+	#gd4, no longer relevnat?
 	# not is empty
 	if not sel_road_point.next_pt_init:
 		return
@@ -138,7 +138,7 @@ func sel_rp_next_pressed():
 
 
 func sel_rp_prior_pressed():
-	#gd4
+	#gd4, no longer relevnat?
 	# not is empty
 	if not sel_road_point.prior_pt_init:
 		return

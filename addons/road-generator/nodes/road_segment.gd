@@ -1122,6 +1122,8 @@ func _flip_traffic_dir(lanes: Array) -> Array:
 		elif itm == RoadPoint.LaneDir.REVERSE:
 			val = RoadPoint.LaneDir.FORWARD
 		_spdir.append(val)
+	#gd4
+	#_spdir.reverse()
 	_spdir.invert()
 	return _spdir
 

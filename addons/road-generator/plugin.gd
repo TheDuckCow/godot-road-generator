@@ -77,6 +77,8 @@ func _enter_tree():
 	_road_toolbar.update_icons()
 
 	# Update toolbar connections
+	#gd4
+	#_road_toolbar.mode_changed.connect(_on_mode_change)
 	_road_toolbar.connect("mode_changed", self, "_on_mode_change")
 
 	# Initial mode
@@ -291,7 +293,7 @@ func is_road_node(node: Node) -> bool:
 
 
 #gd4
-#func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
@@ -437,7 +439,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 #gd4
-#func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
@@ -543,7 +545,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 
 
 #gd4
-#func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		var point = get_nearest_road_point(camera, event.position)
@@ -884,6 +886,7 @@ func _show_road_toolbar() -> void:
 		#_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
 		#_road_toolbar.create_menu.create_roadpoint.connect(_create_roadpoint_pressed)
 		#_road_toolbar.create_menu.create_lane.connect(_create_lane_pressed)
+		#_road_toolbar.create_menu.create_lane_agent.connect(_create_lane_agent_pressed)
 		_road_toolbar.create_menu.connect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.connect(
@@ -918,6 +921,7 @@ func _hide_road_toolbar() -> void:
 		#_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
 		#_road_toolbar.create_menu.create_roadpoint.disconnect(_create_roadpoint_pressed)
 		#_road_toolbar.create_menu.create_lane.disconnect(_create_lane_pressed)
+		#_road_toolbar.create_menu.create_lane_agent.disconnect(_create_lane_agent_pressed)
 		_road_toolbar.create_menu.disconnect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.disconnect(
