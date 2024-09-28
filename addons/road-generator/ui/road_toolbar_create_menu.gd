@@ -4,12 +4,15 @@ extends MenuButton
 const ICN_CT = preload("../resources/road_container.png")
 const ICN_RP = preload("../resources/road_point.png")
 const ICN_LN = preload("../resources/road_lane.png")
+const ICN_AG = preload("../resources/road_lane_agent.png")
+
 
 signal regenerate_pressed
 signal select_container_pressed
 signal create_container
 signal create_roadpoint
 signal create_lane
+signal create_lane_agent
 signal create_2x2_road
 
 
@@ -19,6 +22,7 @@ enum CreateMenu {
 	CONTAINER,
 	POINT,
 	LANE,
+	LANEAGENT,
 	TWO_X_TWO,
 }
 
@@ -68,6 +72,9 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	pup.add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
 	pup.set_item_tooltip(idx, "Adds a RoadLane which can be used for AI paths")
 	idx += 1
+	pup.add_icon_item(ICN_AG, "RoadLaneAgent (AI)", CreateMenu.LANEAGENT)
+	pup.set_item_tooltip(idx, "Adds a RoadLaneAgent to follow RoadLane paths")
+	idx += 1
 	pup.add_separator()
 	idx += 1
 	pup.add_item("2x2 road", CreateMenu.TWO_X_TWO)
@@ -91,5 +98,7 @@ func _create_menu_item_clicked(id: int) -> void:
 			emit_signal("create_roadpoint")
 		CreateMenu.LANE:
 			emit_signal("create_lane")
+		CreateMenu.LANEAGENT:
+			emit_signal("create_lane_agent")
 		CreateMenu.TWO_X_TWO:
 			emit_signal("create_2x2_road")

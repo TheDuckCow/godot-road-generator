@@ -40,6 +40,8 @@ signal on_transform
 @export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 @export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
 
+## Auto queue-free any vehicles registered to this lane with the road lane exits
+@export var auto_free_vehicles: bool = true
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
@@ -56,6 +58,7 @@ var _display_fins: bool = false
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
 # ------------------------------------------------------------------------------
+
 
 func _init():
 	curve = Curve3D.new()
@@ -111,10 +114,7 @@ func unregister_vehicle(vehicle: Node) -> void:
 ## Return all vehicles registered to this lane, performing cleanup as needed.
 func get_vehicles() -> Array:
 	for vehicle in _vehicles_in_lane:
-		if not is_instance_valid(vehicle):
-			_vehicles_in_lane.erase(vehicle)
-			continue
-		if not vehicle or not vehicle._ai or vehicle._ai.follow_path != self:
+		if (not is_instance_valid(vehicle)) or vehicle.is_queued_for_deletion():
 			_vehicles_in_lane.erase(vehicle)
 			continue
 	return _vehicles_in_lane
@@ -137,7 +137,6 @@ func _instantiate_geom() -> void:
 
 	# Setup immediate geo node if not already.
 	if geom == null:
-		# Branch check if geom_node is valid
 		geom = ImmediateMesh.new()
 		geom.set_name("geom")
 		if not is_instance_valid(geom_node):
@@ -149,10 +148,10 @@ func _instantiate_geom() -> void:
 
 		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
-		mat.disable_ambient_light = true
-		mat.disable_receive_shadows = true
-		mat.no_depth_test = true
-		mat.disable_fog
+		mat.flags_disable_ambient_light = true
+		mat.params_depth_draw_mode = StandardMaterial3D.DEPTH_DRAW_DISABLED
+		mat.flags_do_not_receive_shadows = true
+		mat.flags_no_depth_test = true
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
@@ -220,3 +219,9 @@ func show_fins(value: bool) -> void:
 	_draw_override = value
 	rebuild_geom()
 
+
+func _exit_tree() -> void:
+	if auto_free_vehicles:
+		for _vehicle in _vehicles_in_lane:
+			if is_instance_valid(_vehicle):
+				_vehicle.call_deferred("queue_free")

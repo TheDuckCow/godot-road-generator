@@ -29,4 +29,4 @@ func _on_timeout():
 
 func _on_tween_complete(_object, _key):
 	print("Tween finished, new y: ", a_point.global_transform.origin.y)
-	a_point.on_transform()
+	a_point.emit_transform()

@@ -10,7 +10,7 @@ extends Node3D
 # ------------------------------------------------------------------------------
 
 
-@export var density: float = 2.0: set = _set_density
+@export var density: float = 4.0: set = _set_density
 
 
 # ------------------------------------------------------------------------------
@@ -90,7 +90,14 @@ func get_containers() -> Array:
 	return res
 
 
-func rebuild_all_containers() -> void:
+## Blocking function that will wait until all roads have been generated
+func rebuild_all_containers(clear_existing := false) -> void:
+	for ch in get_containers():
+		ch.rebuild_segments(clear_existing)
+
+
+## Regenerates each container with a deferred call per container
+func rebuild_all_containers_deferred() -> void:
 	for ch in get_containers():
 		ch._dirty = true
 		ch._dirty_rebuild_deferred()

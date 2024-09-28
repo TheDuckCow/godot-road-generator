@@ -46,8 +46,19 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign the direction of traffic order. This i
-@export var traffic_dir:Array: get = _get_dir, set = _set_dir # (Array, LaneDir)
+# Assign the direction of traffic order.
+# TODO: decide whether to do this
+#gd4, not needed?
+#var _traffic_dir: Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]
+#@export var traffic_dir:Array[LaneDir] = [
+#		LaneDir.REVERSE, LaneDir.REVERSE, LaneDir.FORWARD, LaneDir.FORWARD]:
+#	get:
+#		return _traffic_dir
+#	set(value):
+#		_traffic_dir = value
+#		_notify_network_on_set(value)
+@export var traffic_dir:Array[LaneDir]: get = _get_dir, set = _set_dir
 
 # Enables auto assignment of the lanes array below, based on traffic_dir setup.
 @export var auto_lanes := true: get = _get_auto_lanes, set = _set_auto_lanes
@@ -55,17 +66,18 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 # Assign the textures to use for each lane.
 # Order is left to right when oriented such that the RoadPoint is facing towards
 # the top of the screen in a top down orientation.
-@export var lanes:Array: get = _get_lanes, set = _set_lanes # (Array, LaneType)
+@export var lanes:Array[LaneType]: get = _get_lanes, set = _set_lanes
 
 @export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
 @export var shoulder_width_l := 2.0: get = _get_shoulder_width_l, set = _set_shoulder_width_l
 @export var shoulder_width_r := 2.0: get = _get_shoulder_width_r, set = _set_shoulder_width_r
 # Profile: x: how far out the gutter goes, y: how far down to clip.
-@export var gutter_profile := Vector2(2.0, -2.0): get = _get_profile, set = _set_profile
+@export var gutter_profile := Vector2(2.0, -0.5): get = _get_profile, set = _set_profile
 
 # Path to next/prior RoadPoint, relative to this RoadPoint itself.
 @export var prior_pt_init: NodePath: get = _get_prior_pt_init, set = _set_prior_pt_init
 @export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
+@export var terminated := false: set = _set_terminated
 # Handle magniture
 @export var prior_mag := 5.0: get = _get_prior_mag, set = _set_prior_mag
 @export var next_mag := 5.0: get = _get_next_mag, set = _set_next_mag
@@ -110,7 +122,7 @@ func _init():
 
 func _ready():
 	# Ensure the transform notificaitons work
-	set_notify_transform(true)
+	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 
@@ -143,7 +155,6 @@ func _to_string():
 func _get_configuration_warnings() -> PackedStringArray:
 	var par = get_parent()
 	# Can't type check, circular dependency -____-
-	# Can we do this now??? in #gd4
 	#if not par is RoadContainer:
 	if not par.has_method("is_road_container"):
 		return ["Must be a child of a RoadContainer"]
@@ -257,6 +268,11 @@ func _set_next_pt_init(value:NodePath):
 	emit_transform()
 
 
+func _set_terminated(value: bool) -> void:
+	terminated = value
+	if is_instance_valid(container):
+		container.update_edges()
+
 func _get_next_pt_init():
 	return next_pt_init
 
@@ -328,6 +344,22 @@ func is_on_edge() -> bool:
 	return true
 
 
+## Returns true if either the forward or reverse RP connection exists to another container
+##
+## Useful for filtering out edges which should not be modified (given it
+## would no longer match the mirrored RoadPoint on the other container).
+func cross_container_connected() -> bool:
+	if not is_on_edge():
+		return false
+	var _pr = get_prior_rp()
+	if is_instance_valid(_pr) and _pr.container != self.container:
+		return true
+	var _nt = get_next_rp()
+	if is_instance_valid(_nt) and _nt.container != self.container:
+		return true
+	return false
+
+
 ## Indicates whether this direction is connected, accounting for container connections
 func is_prior_connected() -> bool:
 	if self.prior_pt_init:
@@ -339,7 +371,8 @@ func is_prior_connected() -> bool:
 		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
 			continue
 		return container.edge_containers[_idx] != ^""
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list (is_prior_connected)")
 	return false
 
 
@@ -354,7 +387,8 @@ func is_next_connected() -> bool:
 		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
 			continue
 		return container.edge_containers[_idx] != ^""
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list (is_next_connected)")
 	return false
 
 
@@ -372,7 +406,8 @@ func get_prior_rp():
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list (get_prior_rp)")
 	return null
 
 
@@ -390,8 +425,52 @@ func get_next_rp():
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
-	push_warning("RP should have been present in container edge list")
+	if not self.terminated:
+		push_warning("RP should have been present in container edge list (get_next_rp)")
 	return null
+
+
+## Get the last RoadPoint in this direction, allowing for intermediate flipped directions
+func get_last_rp(direction: int):
+	var _next_itr_point = null
+	var _prev_itr_point = null
+	var first_loop := true
+	while _next_itr_point != self:  # Exit cond for a full circle around
+		if first_loop:
+			first_loop = false
+			# First iteration, should be deterministic which way to go
+			if direction == PointInit.NEXT:
+				if not self.next_pt_init:
+					return self
+				_next_itr_point = self.get_node_or_null(self.next_pt_init)
+			else:
+				if not self.prior_pt_init:
+					return self
+				_next_itr_point = self.get_node_or_null(self.prior_pt_init)
+			if not is_instance_valid(_next_itr_point) or not _next_itr_point.has_method("is_road_point"):
+				return self
+			_prev_itr_point = self
+			continue
+
+		# Thereafter, just make sure the next selection != the last
+		var this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.next_pt_init)
+		if this_tmp == null or not this_tmp.has_method("is_road_point"):
+			# means it was the end of the line (as the other dir would be the prior iter)
+			return _next_itr_point
+		if this_tmp == _prev_itr_point:
+			# Doubled back maybe due to flipped dir; Just try the other direction
+			this_tmp = _next_itr_point.get_node_or_null(_next_itr_point.prior_pt_init)
+		if this_tmp == null or not this_tmp.has_method("is_road_point"):
+			# means it was the end of the line!
+			return _next_itr_point
+		if this_tmp == _prev_itr_point:
+			# Infinite loop issue, shouldn't happen. Just return.
+			return this_tmp
+		_prev_itr_point = _next_itr_point
+		_next_itr_point = this_tmp
+
+	# failed to return early, must be a loop
+	return self
 
 
 # Goal is to assign the appropriate sequence of textures for this lane.
@@ -528,20 +607,24 @@ func update_traffic_dir(traffic_update):
 
 
 ## Takes an existing RoadPoint and returns a new copy
-func copy_settings_from(ref_road_point: RoadPoint) -> void:
+func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) -> void:
+	var tmp_auto_lane = ref_road_point.auto_lanes
 	auto_lanes = false
 	lanes = ref_road_point.lanes.duplicate(true)
 	traffic_dir = ref_road_point.traffic_dir.duplicate(true)
-	auto_lanes = ref_road_point.auto_lanes
+	auto_lanes = tmp_auto_lane
 	lane_width = ref_road_point.lane_width
 	shoulder_width_l = ref_road_point.shoulder_width_l
 	shoulder_width_r = ref_road_point.shoulder_width_r
 	gutter_profile.x = ref_road_point.gutter_profile.x
 	gutter_profile.y = ref_road_point.gutter_profile.y
-	prior_mag = ref_road_point.prior_mag
-	next_mag = ref_road_point.next_mag
-	global_transform = ref_road_point.global_transform
+	create_geo = ref_road_point.create_geo
 	_last_update_ms = ref_road_point._last_update_ms
+
+	if copy_transform:
+		prior_mag = ref_road_point.prior_mag
+		next_mag = ref_road_point.next_mag
+		global_transform = ref_road_point.global_transform
 
 
 ## Returns true if RoadPoint is primary selection in Scene panel
@@ -782,7 +865,10 @@ func connect_container(this_direction: int, target_rp: Node, target_direction: i
 	var same_basis = self.global_transform.basis.z == target_rp.global_transform.basis.z
 	var same_basis_rev = self.global_transform.basis.z*-1 == target_rp.global_transform.basis.z
 	if not same_origin or not (same_basis or same_basis_rev):
-		push_warning("Newly connected RoadPoints don't have the same position/orientation")
+		if is_instance_valid(container) and container._drag_init_transform:
+			pass
+		else:
+			push_warning("Newly connected RoadPoints don't have the same position/orientation")
 
 	# container.update_edges()
 	emit_transform() # Only changes that should happen: Update connections of AI lanes.
