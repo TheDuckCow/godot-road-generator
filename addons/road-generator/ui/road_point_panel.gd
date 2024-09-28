@@ -2,6 +2,11 @@
 tool
 extends VBoxContainer
 
+#gd4
+# Go into the theme editor ont he root node of the road_point_panel, select
+# Button class, and go to the panel background and delete the "Normal" style.
+# Will look white in the editor scene, but correct in actual plugin usage.
+
 signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 signal assign_copy_target(selection)

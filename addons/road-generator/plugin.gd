@@ -706,14 +706,16 @@ func select_road_point(point) -> void:
 ## Utility for easily selecting a node in the editor.
 func set_selection(node: Node) -> void:
 	_edi.get_selection().clear()
-	# _edi.edit_node(node) # Necessary?
 	_edi.get_selection().add_node(node)
+	#gd4 this line is necessary for the selection to actually take effect, apparently.
+	_edi.edit_node(node)
 
 
 func set_selection_list(nodes: Array) -> void:
 	_edi.get_selection().clear()
 	for _nd in nodes:
 		_edi.get_selection().add_node(_nd)
+		_edi.edit_node(_nd)
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
@@ -1529,9 +1531,23 @@ func _create_roadpoint_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 
+	var selected_node = get_selected_node()
+
 	undo_redo.create_action("Add RoadPoint")
-	undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
-	undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
+	if selected_node is RoadContainer:
+		var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+		var rp := RoadPoint.new()
+		undo_redo.add_do_reference(rp)
+		undo_redo.add_do_method(selected_node, "add_child", rp, true)
+		undo_redo.add_do_method(rp, "set_owner", get_tree().get_edited_scene_root())
+		undo_redo.add_do_method(self, "set_selection", rp)
+		undo_redo.add_undo_method(selected_node, "remove_child", rp)
+		undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+		undo_redo.add_do_method(selected_node, "update_edges")
+		undo_redo.add_undo_method(selected_node, "update_edges")
+	else:
+		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
+		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
 	undo_redo.commit_action()
 
 
@@ -1574,6 +1590,7 @@ func _create_roadpoint_undo(t_container: RoadContainer):
 		if initial_children[i] is RoadPoint:
 			initial_children[i].queue_free()
 			break
+	t_container.update_edges()
 
 
 ## Adds a 2x2 RoadSegment to the Scene

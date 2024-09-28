@@ -678,13 +678,13 @@ func validate_edges(autofix: bool = false) -> bool:
 		#if edge_containers[_idx] != ^"":
 		if edge_containers[_idx] != "":
 			# Connection should be there, verify values.
-			var cont = get_node(edge_containers[_idx])
+			var cont = get_node_or_null(edge_containers[_idx])
 			if not is_instance_valid(cont):
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "edge_container reference not valid")
 				continue
 
-			var tg_node = cont.get_node(target_pt)
+			var tg_node = cont.get_node_or_null(target_pt)
 			if not is_instance_valid(tg_node):
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "edge_rp_target reference not valid")
