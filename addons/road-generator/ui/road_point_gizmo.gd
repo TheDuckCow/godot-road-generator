@@ -239,7 +239,7 @@ func _set_handle(
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 			set_mag_handle(gizmo, handle_id, camera, screen_pos)
 		HandleType.REV_WIDTH_MAG, HandleType.FWD_WIDTH_MAG:
-			set_mag_handle(gizmo, handle_id, camera, screen_pos)
+			set_width_handle(gizmo, handle_id, camera, screen_pos)
 
 
 func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, point: Vector2) -> void:
