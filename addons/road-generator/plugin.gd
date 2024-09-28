@@ -1048,6 +1048,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	if add_container:
 		undo_redo.create_action("Add RoadContainer")
 		undo_redo.add_do_method(self, "_create_road_container_do", t_manager, selection)
+		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
 	else:
 		undo_redo.create_action("Add next RoadPoint")
 		if handle_mag > 0:
@@ -1063,11 +1064,10 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
 			undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
 		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
-
-	if not add_container:
 		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
-	else:
-		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
+		if parent is RoadContainer:
+			undo_redo.add_do_method(parent, "update_edges")
+			undo_redo.add_undo_method(parent, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1114,12 +1114,15 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		parent.add_child(next_rp)
 		next_rp.set_owner(get_tree().get_edited_scene_root())
 		next_rp.name = "RP_001"  # TODO: define this in some central area.
-		next_rp.traffic_dir = [
+		#gd4
+		#var _lanes:Array[RoadPoint.LaneDir] = [
+		var _lanes:Array = [
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.FORWARD,
 			RoadPoint.LaneDir.FORWARD
 		]
+		next_rp.traffic_dir = _lanes
 		next_rp.auto_lanes = true
 
 	# Make the road visible halfway above the ground by the gutter height amount.
@@ -1543,8 +1546,8 @@ func _create_roadpoint_pressed() -> void:
 		undo_redo.add_do_method(self, "set_selection", rp)
 		undo_redo.add_undo_method(selected_node, "remove_child", rp)
 		undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
-		undo_redo.add_do_method(selected_node, "update_edges")
-		undo_redo.add_undo_method(selected_node, "update_edges")
+		undo_redo.add_do_method(t_container, "update_edges")
+		undo_redo.add_undo_method(t_container, "update_edges")
 	else:
 		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
 		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
