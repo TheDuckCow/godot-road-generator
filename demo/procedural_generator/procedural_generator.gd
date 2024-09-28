@@ -100,8 +100,9 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
 	var rotation_axis := Vector3(0, 1, 0)
 	_transform = _transform.rotated(rotation_axis, deg_to_rad(random_angle))
-
-	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag
+	
+	var rand_y_offset:float = (randf() - 0.5) * 15
+	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag + Vector3.UP * rand_y_offset
 
 	new_rp.transform.origin += offset_pos
 
@@ -179,8 +180,13 @@ func update_car_count() -> void:
 
 	var car_count: int = len(get_tree().get_nodes_in_group("cars"))
 	var rp_count: int = len(container.get_roadpoints())
-	car_label.text = "Roadpoints:%s\nCars: %s (lane-registered %s)\nfps: %s" % [
+	var _origin = target.global_transform.origin
+	var player_pos: String = "(%s, %s, %s)" % [
+		round(_origin.x), round(_origin.y), round(_origin.z)
+	]
+	car_label.text = "Roadpoints:%s\nCars: %s (lane-registered %s)\nfps: %s\nPlayer at: %s" % [
 		rp_count,
 		car_count,
 		_ln_cars,
-		Engine.get_frames_per_second()]
+		Engine.get_frames_per_second(),
+		player_pos]

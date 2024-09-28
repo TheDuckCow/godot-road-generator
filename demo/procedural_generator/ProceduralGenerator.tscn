@@ -82,15 +82,17 @@ theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "Cars: ##"
 
 [node name="instructions" type="Label" parent="UI"]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -152.0
-offset_bottom = 31.0
+offset_left = -187.0
+offset_bottom = 49.0
+grow_horizontal = 0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "up/down arrow to move
 left/right to change lane"
-horizontal_alignment = 2
+horizontal_alignment = 1
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 0, 3.50568, 0)
