@@ -257,7 +257,7 @@ func get_handle_value(gizmo: EditorSpatialGizmo, index: int) -> float:
 #		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 #			set_mag_handle(gizmo, handle_id, camera, screen_pos)
 #		HandleType.REV_WIDTH_MAG, HandleType.FWD_WIDTH_MAG:
-#			set_mag_handle(gizmo, handle_id, camera, screen_pos)
+#			set_width_handle(gizmo, handle_id, camera, screen_pos)
 func set_handle(
 		gizmo: EditorSpatialGizmo,
 		index: int,
