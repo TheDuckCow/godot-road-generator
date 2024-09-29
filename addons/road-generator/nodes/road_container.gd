@@ -968,8 +968,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		return
 	# Update warnings for this or connected containers
 	if point.is_on_edge():
-		var prior = point.get_prior_rp()
-		var next = point.get_next_rp()
+		#var prior = point.get_prior_rp()
+		#var next = point.get_next_rp()
 		# TODO: Need to trigger transform updates on these nodes,
 		# without triggering emit_transform etc, these turn into infinite loops or godot crashes
 		#if is_instance_valid(prior) and prior.container != self:
