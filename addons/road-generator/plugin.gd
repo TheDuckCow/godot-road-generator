@@ -455,7 +455,7 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 			point = null
 			target = null
 
-		if point and target:
+		if is_instance_valid(point) and is_instance_valid(target):
 			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
@@ -1053,8 +1053,6 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Update rotation along the initially picked axis.
 	elif selection is RoadContainer:
-		parent.add_child(next_rp)
-		next_rp.set_owner(get_tree().get_edited_scene_root())
 		next_rp.name = "RP_001"  # TODO: define this in some central area.
 		var _lanes:Array[RoadPoint.LaneDir] = [
 			RoadPoint.LaneDir.REVERSE,
@@ -1064,6 +1062,8 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		]
 		next_rp.traffic_dir = _lanes
 		next_rp.auto_lanes = true
+		parent.add_child(next_rp)
+		next_rp.set_owner(get_tree().get_edited_scene_root())
 
 	# Make the road visible halfway above the ground by the gutter height amount.
 	if nrm == Vector3.ZERO:
@@ -1492,6 +1492,8 @@ func _create_roadpoint_pressed() -> void:
 	else:
 		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
 		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
+		undo_redo.add_do_method(t_container, "update_edges")
+		undo_redo.add_undo_method(t_container, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1518,8 +1520,6 @@ func _create_roadpoint_do(t_container: RoadContainer):
 	second_road_point.name = second_road_point.increment_name(default_name)
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
 	set_selection(second_road_point)
-
-	t_container.update_edges() # Since we updated a roadpoint name after adding.
 
 
 func _create_roadpoint_undo(t_container: RoadContainer):
@@ -1551,6 +1551,8 @@ func _create_2x2_road_pressed() -> void:
 	undo_redo.create_action("Add 2x2 road segment")
 	undo_redo.add_do_method(self, "_create_2x2_road_do", t_container, false)
 	undo_redo.add_undo_method(self, "_create_2x2_road_undo", t_container, false)
+	undo_redo.add_do_method(t_container, "update_edges")
+	undo_redo.add_undo_method(t_container, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1583,8 +1585,6 @@ func _create_2x2_road_do(t_container: RoadContainer, single_point: bool):
 		set_selection(second_road_point)
 	else:
 		set_selection(first_road_point)
-
-	t_container.update_edges() # Since we updated a roadpoint name after adding.
 
 
 func _create_2x2_road_undo(selected_node: RoadContainer, single_point: bool) -> void:
