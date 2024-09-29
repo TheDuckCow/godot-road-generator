@@ -77,6 +77,8 @@ func _enter_tree():
 	_road_toolbar.update_icons()
 
 	# Update toolbar connections
+	#gd4
+	#_road_toolbar.mode_changed.connect(_on_mode_change)
 	_road_toolbar.connect("mode_changed", self, "_on_mode_change")
 
 	# Initial mode
@@ -291,7 +293,7 @@ func is_road_node(node: Node) -> bool:
 
 
 #gd4
-#func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
@@ -437,7 +439,7 @@ func _handle_gui_select_mode(camera: Camera, event: InputEvent) -> bool:
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 #gd4
-#func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
@@ -467,7 +469,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 			point = null
 			target = null
 
-		if point and target:
+		if is_instance_valid(point) and is_instance_valid(target):
 			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
@@ -543,7 +545,7 @@ func _handle_gui_add_mode(camera: Camera, event: InputEvent) -> bool:
 
 
 #gd4
-#func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> int:
+#func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> int:
 func _handle_gui_delete_mode(camera: Camera, event: InputEvent) -> bool:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
 		var point = get_nearest_road_point(camera, event.position)
@@ -704,14 +706,16 @@ func select_road_point(point) -> void:
 ## Utility for easily selecting a node in the editor.
 func set_selection(node: Node) -> void:
 	_edi.get_selection().clear()
-	# _edi.edit_node(node) # Necessary?
 	_edi.get_selection().add_node(node)
+	#gd4 this line is necessary for the selection to actually take effect, apparently.
+	_edi.edit_node(node)
 
 
 func set_selection_list(nodes: Array) -> void:
 	_edi.get_selection().clear()
 	for _nd in nodes:
 		_edi.get_selection().add_node(_nd)
+		_edi.edit_node(_nd)
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
@@ -884,6 +888,7 @@ func _show_road_toolbar() -> void:
 		#_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
 		#_road_toolbar.create_menu.create_roadpoint.connect(_create_roadpoint_pressed)
 		#_road_toolbar.create_menu.create_lane.connect(_create_lane_pressed)
+		#_road_toolbar.create_menu.create_lane_agent.connect(_create_lane_agent_pressed)
 		_road_toolbar.create_menu.connect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.connect(
@@ -918,6 +923,7 @@ func _hide_road_toolbar() -> void:
 		#_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
 		#_road_toolbar.create_menu.create_roadpoint.disconnect(_create_roadpoint_pressed)
 		#_road_toolbar.create_menu.create_lane.disconnect(_create_lane_pressed)
+		#_road_toolbar.create_menu.create_lane_agent.disconnect(_create_lane_agent_pressed)
 		_road_toolbar.create_menu.disconnect(
 			"create_container", self, "_create_container_pressed")
 		_road_toolbar.create_menu.disconnect(
@@ -1042,6 +1048,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	if add_container:
 		undo_redo.create_action("Add RoadContainer")
 		undo_redo.add_do_method(self, "_create_road_container_do", t_manager, selection)
+		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
 	else:
 		undo_redo.create_action("Add next RoadPoint")
 		if handle_mag > 0:
@@ -1057,11 +1064,10 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
 			undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
 		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
-
-	if not add_container:
 		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
-	else:
-		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
+		if parent is RoadContainer:
+			undo_redo.add_do_method(parent, "update_edges")
+			undo_redo.add_undo_method(parent, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1105,16 +1111,19 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Update rotation along the initially picked axis.
 	elif selection is RoadContainer:
-		parent.add_child(next_rp)
-		next_rp.set_owner(get_tree().get_edited_scene_root())
 		next_rp.name = "RP_001"  # TODO: define this in some central area.
-		next_rp.traffic_dir = [
+		#gd4
+		#var _lanes:Array[RoadPoint.LaneDir] = [
+		var _lanes:Array = [
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.FORWARD,
 			RoadPoint.LaneDir.FORWARD
 		]
+		next_rp.traffic_dir = _lanes
 		next_rp.auto_lanes = true
+		parent.add_child(next_rp)
+		next_rp.set_owner(get_tree().get_edited_scene_root())
 
 	# Make the road visible halfway above the ground by the gutter height amount.
 	if nrm == Vector3.ZERO:
@@ -1525,9 +1534,25 @@ func _create_roadpoint_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 
+	var selected_node = get_selected_node()
+
 	undo_redo.create_action("Add RoadPoint")
-	undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
-	undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
+	if selected_node is RoadContainer:
+		var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+		var rp := RoadPoint.new()
+		undo_redo.add_do_reference(rp)
+		undo_redo.add_do_method(selected_node, "add_child", rp, true)
+		undo_redo.add_do_method(rp, "set_owner", get_tree().get_edited_scene_root())
+		undo_redo.add_do_method(self, "set_selection", rp)
+		undo_redo.add_undo_method(selected_node, "remove_child", rp)
+		undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+		undo_redo.add_do_method(t_container, "update_edges")
+		undo_redo.add_undo_method(t_container, "update_edges")
+	else:
+		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
+		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
+		undo_redo.add_do_method(t_container, "update_edges")
+		undo_redo.add_undo_method(t_container, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1554,8 +1579,6 @@ func _create_roadpoint_do(t_container: RoadContainer):
 	second_road_point.name = second_road_point.increment_name(default_name)
 	first_road_point.add_road_point(second_road_point, RoadPoint.PointInit.NEXT)
 	set_selection(second_road_point)
-
-	t_container.update_edges() # Since we updated a roadpoint name after adding.
 
 
 func _create_roadpoint_undo(t_container: RoadContainer):
@@ -1587,6 +1610,8 @@ func _create_2x2_road_pressed() -> void:
 	undo_redo.create_action("Add 2x2 road segment")
 	undo_redo.add_do_method(self, "_create_2x2_road_do", t_container, false)
 	undo_redo.add_undo_method(self, "_create_2x2_road_undo", t_container, false)
+	undo_redo.add_do_method(t_container, "update_edges")
+	undo_redo.add_undo_method(t_container, "update_edges")
 	undo_redo.commit_action()
 
 
@@ -1621,8 +1646,6 @@ func _create_2x2_road_do(t_container: RoadContainer, single_point: bool):
 		set_selection(second_road_point)
 	else:
 		set_selection(first_road_point)
-
-	t_container.update_edges() # Since we updated a roadpoint name after adding.
 
 
 func _create_2x2_road_undo(selected_node: RoadContainer, single_point: bool) -> void:

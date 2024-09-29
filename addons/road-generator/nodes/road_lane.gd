@@ -47,6 +47,8 @@ export var auto_free_vehicles: bool = true
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom:ImmediateGeometry # For tool usage, drawing lane directions and end points
+#gd4
+#var geom_node: MeshInstance3D
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false
@@ -142,11 +144,14 @@ func _instantiate_geom() -> void:
 	# Setup immediate geo node if not already.
 	if geom == null:
 		#gd4
-		#var geom_mesh = ImmediateMesh.new()
-		#geom_mesh.set_name("geom")
-		#geom = MeshInstance3D.new()
-		#geom.mesh = geom_mesh
-		#add_child(geom)
+		#geom = ImmediateMesh.new()
+		#geom.set_name("geom")
+		#if not is_instance_valid(geom_node):
+		#	geom_node = MeshInstance3D.new()
+		#	geom_node.mesh = geom
+		#	add_child(geom_node)
+		#else:
+		#	geom_node.mesh = geom
 		geom = ImmediateGeometry.new()
 		geom.set_name("geom")
 		add_child(geom)
@@ -160,6 +165,8 @@ func _instantiate_geom() -> void:
 		mat.flags_do_not_receive_shadows = true
 		mat.params_cull_mode = mat.CULL_DISABLED
 		mat.vertex_color_use_as_albedo = true
+		#gd4
+		#geom_node.material_override = mat
 		geom.material_override = mat
 
 	_draw_shark_fins()
@@ -187,7 +194,15 @@ func _draw_shark_fins() -> void:
 		).normalized()
 
 		#gd4
-		# Basically prefix all geom.x() with geom.surface_x() below
+		#geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+		#if i == 0:
+		#	geom.surface_set_color(COLOR_START)
+		#else:
+		#	geom.surface_set_color(COLOR_PRIMARY)
+		#geom.surface_add_vertex(xf.origin)
+		#geom.surface_add_vertex(xf.origin + Vector3(0, 0.5, 0) - lookat*0.2)
+		#geom.surface_add_vertex(xf.origin + lookat * 1)
+		#geom.surface_end()
 		geom.begin(Mesh.PRIMITIVE_TRIANGLES)
 		if i == 0:
 			geom.set_color(COLOR_START)

@@ -81,3 +81,6 @@ custom_colors/font_color = Color( 0, 0, 0, 1 )
 text = "up/down arrow to move
 left/right to change lane"
 align = 2
+
+[node name="DirectionalLight" type="DirectionalLight" parent="."]
+transform = Transform( 1, 0, 0, 0, 0.295991, 0.955191, 0, -0.955191, 0.295991, 0, 172.613, 0 )
