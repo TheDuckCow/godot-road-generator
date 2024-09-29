@@ -12,8 +12,8 @@ Current status:
 
 | [Dev](https://github.com/TheDuckCow/godot-road-generator/tree/dev) | [Main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | [godot4](https://github.com/TheDuckCow/godot-road-generator/tree/godot4) |
 | --- | ---- | ------ |
-| For godot 3.x | For godot 3.x | For godot 4.x |
-| Latest updates, including not-yet released code | Latest release (v0.5.0) | Prior release (v0.4.0) _working towards v0.5.0 parity_ |
+| For godot 3.x | For godot 3.5 | For godot 4.3 |
+| Latest updates, including not-yet released code | Latest release (v0.5.1) | Latest release (v0.5.1) |
 
 
 Currently, all new development begins in the Godot 3.x dev branch.
