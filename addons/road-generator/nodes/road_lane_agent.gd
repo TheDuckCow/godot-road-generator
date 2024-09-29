@@ -1,3 +1,5 @@
+#gd4
+#@icon("res://addons/road-generator/resources/road_lane_agent.png")
 ## An agent helper for navigation on RoadLanes, inspired but not inheriting
 ## from NavigationAgent, as we are not using navigation meshes
 ##
@@ -216,6 +218,8 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 		if update_lane:
 			assign_lane(_update_lane)
 	else: # Target point lies within the length of this curve
+		#gd4
+		#var ref_local = current_lane.curve.sample_baked(check_next_offset)
 		var ref_local = current_lane.curve.interpolate_baked(check_next_offset)
 		new_point = current_lane.to_global(ref_local)
 

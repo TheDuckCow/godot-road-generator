@@ -655,7 +655,7 @@ func validate_edges(autofix: bool = false) -> bool:
 				target = this_pt.get_next_rp()
 		elif this_dir == this_pt.PointInit.PRIOR:
 			#gd4
-			#if this_pt.prior_pt_init != "":
+			#if this_pt.prior_pt_init != ^"":
 			if this_pt.prior_pt_init != "":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
 				is_valid = false
@@ -678,13 +678,13 @@ func validate_edges(autofix: bool = false) -> bool:
 		#if edge_containers[_idx] != ^"":
 		if edge_containers[_idx] != "":
 			# Connection should be there, verify values.
-			var cont = get_node(edge_containers[_idx])
+			var cont = get_node_or_null(edge_containers[_idx])
 			if not is_instance_valid(cont):
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "edge_container reference not valid")
 				continue
 
-			var tg_node = cont.get_node(target_pt)
+			var tg_node = cont.get_node_or_null(target_pt)
 			if not is_instance_valid(tg_node):
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "edge_rp_target reference not valid")
@@ -968,8 +968,8 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		return
 	# Update warnings for this or connected containers
 	if point.is_on_edge():
-		var prior = point.get_prior_rp()
-		var next = point.get_next_rp()
+		#var prior = point.get_prior_rp()
+		#var next = point.get_next_rp()
 		# TODO: Need to trigger transform updates on these nodes,
 		# without triggering emit_transform etc, these turn into infinite loops or godot crashes
 		#if is_instance_valid(prior) and prior.container != self:
