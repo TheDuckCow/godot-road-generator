@@ -12,7 +12,7 @@ Current status:
 
 | [Dev](https://github.com/TheDuckCow/godot-road-generator/tree/dev) | [Main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | [godot4](https://github.com/TheDuckCow/godot-road-generator/tree/godot4) |
 | --- | ---- | ------ |
-| For godot 3.x | For godot 3.5 ([Asset Library](https://godotengine.org/asset-library/asset/1934)) | For godot 4.3 ([Asset Library pending](https://godotengine.org/asset-library/asset/14069)) |
+| For godot 3.x | For godot 3.5 ([Asset Library](https://godotengine.org/asset-library/asset/1934)) | For godot 4.3 ([Asset Library](https://godotengine.org/asset-library/asset/3379)) |
 | Latest updates, may be unstable | Latest release (v0.5.1) | Latest release (v0.5.1) | 
 
 
