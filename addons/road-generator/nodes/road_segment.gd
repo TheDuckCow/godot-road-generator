@@ -64,8 +64,8 @@ func _init(_container):
 
 func _ready():
 	do_roadmesh_creation()
-	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+	if container.has_visible_children() and is_instance_valid(road_mesh):
+		road_mesh.owner = container.get_owner()
 
 
 # Workaround for cyclic typing
@@ -102,8 +102,8 @@ func add_road_mesh() -> void:
 	road_mesh = MeshInstance.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
-	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+	if container.has_visible_children() and is_instance_valid(road_mesh):
+		road_mesh.owner = container.get_owner()
 
 
 func remove_road_mesh():
@@ -331,8 +331,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
-			if container.debug_scene_visible:
-				ln_child.owner = container.owner
+			if container.has_visible_children():
+				ln_child.owner = container.get_owner()
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
@@ -649,7 +649,7 @@ func _update_curve():
 	_set_curve_point(curve, end_point, end_mag, _end_flip_mult)
 
 	# Show this primary curve in the scene hierarchy if the debug state set.
-	if container.debug_scene_visible:
+	if container.has_visible_children():
 		var found_path = false
 		var path_node: Path
 		for ch in self.get_children():
@@ -662,7 +662,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path.new()
 			self.add_child(path_node)
-			path_node.owner = container.owner
+			path_node.owner = container.get_owner()
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
@@ -959,7 +959,7 @@ func _insert_geo_loop(
 		# Prepare attributes for add_vertex.
 		# Long edge towards origin, p1
 		#st.add_normal(Vector3(0, 1, 0))
-		quad(
+		_quad(
 			st,
 			[
 				Vector2(uv_l, uv_y_end),
@@ -1042,7 +1042,7 @@ func _insert_geo_loop(
 			uv_r = 0.0 * uv_width
 		# LEFT (between pos:_s and _m, and between uv:_l and _m)
 		# The flat part of the shoulder on both sides
-		quad(
+		_quad(
 			st,
 			[
 				Vector2(uv_m if dir == 1 else uv_l, uv_y_end),
@@ -1059,7 +1059,7 @@ func _insert_geo_loop(
 
 		# The gutter, lower part of the shoulder on both sides.
 		if dir == 1:
-			quad(
+			_quad(
 				st,
 				[
 					Vector2(uv_l, uv_y_end),
@@ -1074,7 +1074,7 @@ func _insert_geo_loop(
 					start_loop + start_basis * (pos_near_l + gutr_near.x) * dir + Vector3(0, gutr_near.y, 0),
 				])
 		else:
-			quad(
+			_quad(
 				st,
 				[
 					Vector2(uv_m, uv_y_end),
@@ -1093,7 +1093,7 @@ func _insert_geo_loop(
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+static func _quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	# Triangle 1.
 	#gd4
 	#st.set_uv(uvs[0]) # here and below
