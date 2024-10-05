@@ -13,9 +13,11 @@ script = ExtResource( 1 )
 [node name="select_mode" type="ToolButton" parent="."]
 margin_right = 28.0
 margin_bottom = 24.0
-hint_tooltip = "Select RoadPoints
-Click on road mesh to select
-nearest RoadPoint"
+hint_tooltip = "Select RoadPoint
+
+Click on a road mesh to select
+nearest RoadPoint, directly click
+a RoadPoint blue square control"
 toggle_mode = true
 icon = ExtResource( 6 )
 
@@ -23,11 +25,12 @@ icon = ExtResource( 6 )
 margin_left = 32.0
 margin_right = 60.0
 margin_bottom = 24.0
-hint_tooltip = "Add & connect RoadPoints
-Click in empty space to add roadpoint,
+hint_tooltip = "Add & Connect RoadPoints
+
+Click in empty space to add a RoadPoint,
 snapped to a collider if any. Hover over
 and connect RoadPoints with open ends,
-or disconnect a connected RoadPoint"
+or disconnect a connected RoadPoint."
 toggle_mode = true
 icon = ExtResource( 6 )
 
@@ -35,7 +38,12 @@ icon = ExtResource( 6 )
 margin_left = 64.0
 margin_right = 92.0
 margin_bottom = 24.0
-hint_tooltip = "Delete RoadPoint"
+hint_tooltip = "Delete & Dissolve RoadPoint
+
+Will operate in a \"dissolve\" mode if
+RoadPoints are attached on both sides
+without breaking the connection in
+the road."
 toggle_mode = true
 icon = ExtResource( 6 )
 

@@ -34,6 +34,11 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://addons/road-generator/nodes/road_lane.gd"
 }, {
+"base": "Node",
+"class": "RoadLaneAgent",
+"language": "GDScript",
+"path": "res://addons/road-generator/nodes/road_lane_agent.gd"
+}, {
 "base": "Spatial",
 "class": "RoadManager",
 "language": "GDScript",
@@ -50,6 +55,7 @@ _global_script_class_icons={
 "RoadContainer": "res://addons/road-generator/resources/road_container.png",
 "RoadIntersection": "res://addons/road-generator/resources/road_intersection.png",
 "RoadLane": "res://addons/road-generator/resources/road_lane.png",
+"RoadLaneAgent": "res://addons/road-generator/resources/road_lane_agent.png",
 "RoadManager": "res://addons/road-generator/resources/road_manager.png",
 "RoadPoint": "res://addons/road-generator/resources/road_point.png"
 }

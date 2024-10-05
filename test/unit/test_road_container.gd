@@ -91,8 +91,11 @@ func test_road_container_create():
 	# Since only setup, still should not have triggered on update.
 	assert_signal_emit_count(container, "on_road_updated", 0, "Don't signal setup")
 	container.rebuild_segments()
+	assert_eq(container.get_child_count(), 0, "Should have no children")
 	# Now it's updated
 	assert_signal_emit_count(container, "on_road_updated", 1, "Signal after rebuild")
+	# No children = road update called, but nothing rebuilt
+	assert_signal_emitted_with_parameters(container, "on_road_updated", [[]])
 
 
 func test_on_road_updated_single_segment():
@@ -170,17 +173,14 @@ func test_update_edges():
 
 	# Second case: 2 edges over 2 points
 	create_oneseg_container(container)
-	container.rebuild_segments()
 	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges")
 	validate_edges_equal_size(container)
 
 	# Third case: 2 edges over 3 points
 	var p2 = container.get_roadpoints()[1]
 	var p3 = autoqfree(RoadPoint.new())
-	container.add_child(p3)
 	p2.next_pt_init = p2.get_path_to(p3)
 	p3.prior_pt_init = p3.get_path_to(p2)
-	container.rebuild_segments()
 	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges still")
 	validate_edges_equal_size(container)
 
@@ -188,14 +188,18 @@ func test_update_edges():
 	# In this case, the disconencted point should count as 2 open edges.
 	var p4 = autoqfree(RoadPoint.new())
 	container.add_child(p4)  # unconnected
-	container.rebuild_segments()
-	assert_eq(len(container.edge_rp_locals), 4, "Should have 3 edges now")
+	assert_eq(len(container.edge_rp_locals), 4, "Should have 2+2 edges now")
 	validate_edges_equal_size(container)
 
 	# Fifth case: 3 edges over 4 points, one edge conencted to Container itself.
 	p3.next_pt_init = p3.get_path_to(container)
-	container.rebuild_segments()
-	assert_eq(len(container.edge_rp_locals), 4, "Should still have 3 edges now")
+	assert_eq(len(container.edge_rp_locals), 4, "Should still have 2+2 edges now")
+	validate_edges_equal_size(container)
+
+	# Sixth case: One edge marked as terminated, no longer an "edge" and thus
+	# both directions no longer counted
+	p4.terminated = true
+	assert_eq(len(container.edge_rp_locals), 2, "Back down to 2")
 	validate_edges_equal_size(container)
 
 
@@ -292,3 +296,19 @@ func test_container_disconnection():
 	assert_false(res, "Disconnection should fail since not connected in that direction")
 	res = pt1.disconnect_container(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT)
 	assert_false(res, "Disconnection should fail with invalid edge directions")
+
+
+func test_container_snap_unsnap():
+	pass
+
+
+func test_collider_assignmens():
+	var container = add_child_autofree(RoadContainer.new())
+	container.collider_group_name = "test_collider_group"
+	container.collider_meta_name = "test_meta_name"
+	create_oneseg_container(container)
+
+	var _members = get_tree().get_nodes_in_group(container.collider_group_name)
+	assert_true(len(_members)>0, "Should have 1+ segmetns in test group name")
+	for _collider in _members:
+		assert_true(_collider.has_meta(container.collider_meta_name), "Meta name should be assigned")
