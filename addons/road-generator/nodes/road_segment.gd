@@ -237,8 +237,7 @@ func generate_edge_curves():
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
-	if not edge_R.curve:
-		edge_R.curve = Curve3D.new()
+	edge_R.curve = Curve3D.new()
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
@@ -247,8 +246,7 @@ func generate_edge_curves():
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
-	if not edge_F.curve:
-		edge_F.curve = Curve3D.new()
+	edge_F.curve = Curve3D.new()
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 	# Add center curve
@@ -264,8 +262,7 @@ func generate_edge_curves():
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
 		edge_C.set_meta("_edit_lock_", true)
-	if not edge_C.curve:
-		edge_C.curve = Curve3D.new()
+	edge_C.curve = Curve3D.new()
 	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
 
 
