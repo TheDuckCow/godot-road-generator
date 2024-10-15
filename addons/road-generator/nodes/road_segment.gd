@@ -65,7 +65,7 @@ func _init(_container):
 func _ready():
 	do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 # Workaround for cyclic typing
@@ -103,7 +103,7 @@ func add_road_mesh() -> void:
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 func remove_road_mesh():
@@ -338,7 +338,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
-				ln_child.owner = container.owner
+				ln_child.owner = container.get_owner()
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
@@ -668,7 +668,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path3D.new()
 			self.add_child(path_node)
-			path_node.owner = container.owner
+			path_node.owner = container.get_owner()
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 

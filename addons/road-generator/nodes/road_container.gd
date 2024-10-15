@@ -135,6 +135,11 @@ func is_road_container() -> bool:
 	return true
 
 
+## Temp added
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
+
+
 func is_subscene() -> bool:
 	return scene_file_path and self != get_tree().edited_scene_root
 
@@ -843,7 +848,7 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		# one of them
 		pt1.add_child(new_seg)
 		if debug_scene_visible:
-			new_seg.owner = self.owner
+			new_seg.owner = self.get_owner()
 		new_seg.low_poly = low_poly
 		new_seg.start_point = pt1
 		new_seg.end_point = pt2
@@ -1007,7 +1012,7 @@ func _check_migrate_points():
 		if ch is RoadPoint:
 			pts.remove_child(ch)
 			self.add_child(ch)
-			ch.owner = self.owner
+			ch.owner = self.get_owner()
 			moved_pts += 1
 
 	if moved_pts == 0:
