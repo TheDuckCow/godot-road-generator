@@ -65,7 +65,7 @@ func _init(_container):
 func _ready():
 	do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 # Workaround for cyclic typing
@@ -103,7 +103,7 @@ func add_road_mesh() -> void:
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 func remove_road_mesh():
@@ -237,6 +237,8 @@ func generate_edge_curves():
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
+	#gd4
+	#edge_R.curve = Curve3D.new()
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
@@ -245,6 +247,8 @@ func generate_edge_curves():
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
+	#gd4
+	#edge_F.curve = Curve3D.new()
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 	# Add center curve
@@ -260,6 +264,8 @@ func generate_edge_curves():
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
 		edge_C.set_meta("_edit_lock_", true)
+	#gd4
+	#edge_C.curve = Curve3D.new()
 	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
 
 
@@ -332,7 +338,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
-				ln_child.owner = container.owner
+				ln_child.owner = container.get_owner()
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
@@ -662,7 +668,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path.new()
 			self.add_child(path_node)
-			path_node.owner = container.owner
+			path_node.owner = container.get_owner()
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
