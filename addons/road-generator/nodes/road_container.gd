@@ -25,6 +25,11 @@ export(float) var density:float = -1.0  setget _set_density
 ## Generate procedural road geometry
 ## If off, it indicates the developer will load in their own custom mesh + collision.
 export(bool) var create_geo := true setget _set_create_geo
+# If true, then all children are added in the editor to avoid re-building.
+# TODO: or maybe name this "persist_children"? to help clarify it means they'll be saved in the scene
+# Then, need extra logic to ensure regneerate is SKIPPED if this is true and it's a saved scene instnace
+# but NOT skip generation steps if it's in a live scene.
+export(bool) var visible_children := false setget _set_visible_children
 # If create_geo is true, then whether to reduce geo mid transform.
 export(bool) var use_lowpoly_preview:bool = false
 ## Whether to create approximated curves to fit along the forward, reverse, and center of the road.
@@ -150,6 +155,14 @@ func is_subscene() -> bool:
 	#gd4
 	#return scene_file_path and self != get_tree().edited_scene_root
 	return filename and self != get_tree().edited_scene_root
+
+
+func has_visible_children() -> bool:
+	return debug_scene_visible or visible_children
+
+
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
 
 
 #gd4
@@ -298,6 +311,14 @@ func _set_create_geo(value: bool) -> void:
 	if value == true:
 		_dirty = true
 		call_deferred("_dirty_rebuild_deferred")
+
+
+func _set_visible_children(value: bool) -> void:
+	if value == visible_children:
+		return
+	visible_children = value
+	_dirty = true
+	call_deferred("_dirty_rebuild_deferred")
 
 
 func _set_create_edge_curves(value: bool) -> void:
@@ -891,8 +912,8 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		# connected to two road points, it will only be placed as a parent of
 		# one of them
 		pt1.add_child(new_seg)
-		if debug_scene_visible:
-			new_seg.owner = self.owner
+		if has_visible_children():
+			new_seg.owner = self.get_owner()
 		new_seg.low_poly = low_poly
 		new_seg.start_point = pt1
 		new_seg.end_point = pt2
