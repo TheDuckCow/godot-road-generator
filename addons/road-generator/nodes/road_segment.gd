@@ -65,7 +65,7 @@ func _init(_container):
 func _ready():
 	do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 # Workaround for cyclic typing
@@ -103,7 +103,7 @@ func add_road_mesh() -> void:
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
-		road_mesh.owner = container.owner
+		road_mesh.owner = container.get_owner()
 
 
 func remove_road_mesh():
@@ -237,6 +237,7 @@ func generate_edge_curves():
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
+	edge_R.curve = Curve3D.new()
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
 
 	if edge_F == null or not is_instance_valid(edge_F):
@@ -245,6 +246,7 @@ func generate_edge_curves():
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
+	edge_F.curve = Curve3D.new()
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
 
 	# Add center curve
@@ -260,6 +262,7 @@ func generate_edge_curves():
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
 		edge_C.set_meta("_edit_lock_", true)
+	edge_C.curve = Curve3D.new()
 	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
 
 
@@ -332,7 +335,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child = RoadLane.new()
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
-				ln_child.owner = container.owner
+				ln_child.owner = container.get_owner()
 			ln_child.add_to_group(container.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
@@ -406,69 +409,71 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##
 ##  For more details and context: https://github.com/TheDuckCow/godot-road-generator/issues/46
 func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offset: float, start_point: Spatial, end_point: Spatial):
-	var src:Curve3D = road_seg.curve
-	var dst:Curve3D = road_lane.curve
-	var a_gbasis := start_point.global_transform.basis
-	var d_gbasis := end_point.global_transform.basis
-	var in_pos := start_point.global_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
-	var out_pos := end_point.global_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
+	var src: Curve3D = road_seg.curve
+	var dst: Curve3D = road_lane.curve
 
-	# Get initial point locations
-	var pt_a := to_global(src.get_point_position(0))
-	var pt_b := to_global(src.get_point_position(0) + src.get_point_out(0))
-	var pt_c := to_global(src.get_point_position(1) + src.get_point_in(1))
-	var pt_d := to_global(src.get_point_position(1))
+	# Transformations in local space relative to the road_lane
+	var a_transform := road_lane.global_transform.affine_inverse() * start_point.global_transform
+	var d_transform := road_lane.global_transform.affine_inverse() * end_point.global_transform
 
-	# TTD: Project point(s) onto plane(s)
+	var a_gbasis := a_transform.basis
+	var d_gbasis := d_transform.basis
 
-	# Project primary curve points to secondary curve points
-	var pt_e := pt_a + (a_gbasis.x * in_offset)
+	var in_pos := a_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
+	var out_pos := d_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
+
+	# Get initial point locations in local space
+	var pt_a := src.get_point_position(0)
+	var pt_b := src.get_point_position(0) + src.get_point_out(0)
+	var pt_c := src.get_point_position(1) + src.get_point_in(1)
+	var pt_d := src.get_point_position(1)
+
+	# Project the primary curve points onto the road_lane
+	var pt_e := a_transform.origin + (a_gbasis.x * in_offset)
 	var pt_i := pt_b + (a_gbasis.x * in_offset)
-	var pt_h := pt_d + (d_gbasis.x * out_offset)
+	var pt_h := d_transform.origin + (d_gbasis.x * out_offset)
 	var pt_j := pt_c + (d_gbasis.x * out_offset)
 
-	# Get vectors from points
+	# Calculate vectors and angles
 	var vec_ab := pt_b - pt_a
 	var vec_bc := pt_c - pt_b
 	var vec_cd := pt_d - pt_c
 
-	# Calculate secondary curve handles and setup curves
 	var angle_q := -vec_ab.signed_angle_to(vec_bc, a_gbasis.y) * 0.5
 	var angle_s := vec_cd.signed_angle_to(vec_bc, d_gbasis.y) * 0.5
+
 	var offset_q := tan(angle_q) * in_offset
 	var offset_s := tan(angle_s) * out_offset
+
+	# Calculate adjusted handles using local coordinates
 	var pt_f := a_gbasis.z * (vec_ab.length() + offset_q)
 	var pt_g := -d_gbasis.z * (vec_cd.length() + offset_s)
 
-	var margin := 0.1745329 # Margin to check above/below 90. 0.174 is roughly 10 degrees
+	var margin := 0.1745329  # roughly 10 degrees
 
-	# Calculate final values
-	var in_pt_in := road_lane.to_local(to_global(curve.get_point_in(0)))
+	# Calculate final in/out points and positions in local space
+	var in_pt_in := pt_a
 	var in_pt_out: Vector3
 	var out_pt_in: Vector3
-	var out_pt_out := road_lane.to_local(to_global(src.get_point_out(1)))
+	var out_pt_out := pt_d
 
-	in_pos = road_lane.to_local(pt_e)
-	out_pos = road_lane.to_local(pt_h)
-	# Compensate for harsh angles on curve's "in" point
+	in_pos = pt_e
+	out_pos = pt_h
+
+	# Adjust for harsh angles at the "in" point
 	if abs(angle_q) > RAD_NINETY_DEG - margin and abs(angle_q) < RAD_NINETY_DEG + margin:
-		# Angle is close to 90deg. Use default values.
-		in_pt_out = road_lane.to_local(to_global(curve.get_point_out(0)))
+		in_pt_out = pt_b
 	else:
-		# Use calculated values
-		in_pt_out = road_lane.to_local(to_global(pt_f))
+		in_pt_out = pt_f
 
-	# Compensate for harsh angles on curve's "out" point
+	# Adjust for harsh angles at the "out" point
 	if abs(angle_s) > RAD_NINETY_DEG - margin and abs(angle_s) < RAD_NINETY_DEG + margin:
-		# Angle is close to 90deg. Use default values.
-		out_pt_in = road_lane.to_local(to_global(curve.get_point_in(1)))
+		out_pt_in = pt_c
 	else:
-		# Use calculated values
-		out_pt_in = road_lane.to_local(to_global(pt_g))
+		out_pt_in = pt_g
 
-	# If curve have existing points, then update them. Otherwise, add new points.
+	# Update or add points in the destination curve
 	if dst.get_point_count() > 1:
-		# Update existing points
 		dst.set_point_position(0, in_pos)
 		dst.set_point_in(0, in_pt_in)
 		dst.set_point_out(0, in_pt_out)
@@ -477,7 +482,6 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 		dst.set_point_in(1, out_pt_in)
 		dst.set_point_out(1, out_pt_out)
 	else:
-		# Add new points
 		dst.add_point(in_pos, in_pt_in, in_pt_out)
 		dst.add_point(out_pos, out_pt_in, out_pt_out)
 
@@ -662,7 +666,7 @@ func _update_curve():
 		if not found_path:
 			path_node = Path.new()
 			self.add_child(path_node)
-			path_node.owner = container.owner
+			path_node.owner = container.get_owner()
 			path_node.name = "RoadSeg primary curve"
 		path_node.curve = curve
 
