@@ -40,8 +40,10 @@ func parse_begin(object):
 	panel_instance.connect("assign_copy_target", self, "_assign_copy_target")
 	panel_instance.connect("apply_settings_target", self, "_apply_settings_target")
 
-	panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
-
+	if is_instance_valid(_editor_plugin):
+		panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes  # hack to bool-ify
+	else:
+		panel_instance.has_copy_ref = false
 
 
 func set_edi(value):
