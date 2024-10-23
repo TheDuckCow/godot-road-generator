@@ -31,6 +31,8 @@ func _parse_begin(object):
 
 	if is_instance_valid(_editor_plugin): 
 		panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes 
+	else:
+		panel_instance.has_copy_ref = false
 
 
 func set_edi(value):
