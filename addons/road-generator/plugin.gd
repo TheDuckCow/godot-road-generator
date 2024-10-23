@@ -833,7 +833,7 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 
 func _handles(object: Object):
 	# Must return "true" in order to use "forward_spatial_gui_input".
-	return true
+	return object is Node3D
 
 
 # ------------------------------------------------------------------------------
