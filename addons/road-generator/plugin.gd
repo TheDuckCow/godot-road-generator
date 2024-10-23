@@ -860,6 +860,9 @@ func get_click_point_with_context(camera: Camera, mouse_pos: Vector2, selection:
 func handles(object: Object):
 	# Must return "true" in order to use "forward_spatial_gui_input".
 	return true
+	#gd4
+	#return object is Node3D
+
 
 
 # ------------------------------------------------------------------------------
@@ -1041,6 +1044,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 	elif selection is RoadManager:
 		add_container = true
 		t_manager = selection
+		_sel = selection
 	else: # RoadManager or RoadLane.
 		push_error("Invalid selection context, need RoadContainer parent")
 		return
@@ -1066,9 +1070,14 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
 		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
 		if parent is RoadContainer:
-			undo_redo.add_do_method(parent, "update_edges")
-			undo_redo.add_undo_method(parent, "update_edges")
+			undo_redo.add_do_method(self, "_call_update_edges", parent)
+			undo_redo.add_undo_method(self, "_call_update_edges", parent)
 	undo_redo.commit_action()
+
+
+## Helper for more reliable gd4 undo redo stack
+func _call_update_edges(container: RoadContainer) -> void:
+	container.update_edges()
 
 
 func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float) -> void:
@@ -1540,19 +1549,18 @@ func _create_roadpoint_pressed() -> void:
 	if selected_node is RoadContainer:
 		var editor_selected:Array = _edi.get_selection().get_selected_nodes()
 		var rp := RoadPoint.new()
-		undo_redo.add_do_reference(rp)
 		undo_redo.add_do_method(selected_node, "add_child", rp, true)
 		undo_redo.add_do_method(rp, "set_owner", get_tree().get_edited_scene_root())
 		undo_redo.add_do_method(self, "set_selection", rp)
 		undo_redo.add_undo_method(selected_node, "remove_child", rp)
+		undo_redo.add_undo_method(rp, "set_owner", null)
 		undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
-		undo_redo.add_do_method(t_container, "update_edges")
-		undo_redo.add_undo_method(t_container, "update_edges")
+		undo_redo.add_do_reference(rp)
 	else:
 		undo_redo.add_do_method(self, "_create_roadpoint_do", t_container)
 		undo_redo.add_undo_method(self, "_create_roadpoint_undo", t_container)
-		undo_redo.add_do_method(t_container, "update_edges")
-		undo_redo.add_undo_method(t_container, "update_edges")
+	undo_redo.add_do_method(self, "_call_update_edges", t_container)
+	undo_redo.add_undo_method(self, "_call_update_edges", t_container)
 	undo_redo.commit_action()
 
 
