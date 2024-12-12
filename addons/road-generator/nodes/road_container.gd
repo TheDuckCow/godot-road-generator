@@ -461,8 +461,8 @@ func get_connected_edges()->Array:
 		var target_cont: RoadContainer = get_node_or_null(edge_containers[idx])
 #		var is_scene =
 		# Find out if the target container is a scene
-		if target_cont and target_cont.filename:
-			print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.filename])
+		if target_cont and target_cont.scene_file_path:
+			print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.scene_file_path])
 #		else:
 #			print("target_cont is null")
 		if not target_cont:
