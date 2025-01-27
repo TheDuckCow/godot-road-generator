@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=2]
+[gd_scene load_steps=12 format=2]
 
 [ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/custom_containers/4way_2x2.tscn" type="PackedScene" id=2]
@@ -8,6 +8,7 @@
 [ext_resource path="res://addons/road-generator/custom_containers/4way_1x1.tscn" type="PackedScene" id=6]
 [ext_resource path="res://addons/road-generator/custom_containers/3way_2x2.tscn" type="PackedScene" id=7]
 [ext_resource path="res://addons/road-generator/custom_containers/highway_onramp.tscn" type="PackedScene" id=8]
+[ext_resource path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" type="PackedScene" id=9]
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 500, 500 )
@@ -43,6 +44,9 @@ edge_rp_target_dirs = [ -1, -1, 0, -1 ]
 [node name="3way_2x2" parent="RoadManager" instance=ExtResource( 7 )]
 transform = Transform( 1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 214.099, -3.05176e-05, -10.5339 )
 use_lowpoly_preview = true
+edge_containers = [ "", "", NodePath("../splitter_2x2") ]
+edge_rp_targets = [ "", "", NodePath("cap") ]
+edge_rp_target_dirs = [ -1, -1, 0 ]
 
 [node name="highway_onramp" parent="RoadManager" instance=ExtResource( 8 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 110.01, 7.62939e-06, -60.835 )
@@ -64,3 +68,10 @@ use_lowpoly_preview = true
 script = ExtResource( 1 )
 material_resource = ExtResource( 4 )
 use_lowpoly_preview = true
+
+[node name="splitter_2x2" parent="RoadManager" instance=ExtResource( 9 )]
+transform = Transform( -2.18557e-07, 0, 1, 0, 1, 0, -1, 0, -2.18557e-07, 182.099, -3.05176e-05, -10.5339 )
+use_lowpoly_preview = true
+edge_containers = [ "", "", NodePath("../3way_2x2") ]
+edge_rp_targets = [ "", "", NodePath("RP_003") ]
+edge_rp_target_dirs = [ -1, -1, 1 ]
