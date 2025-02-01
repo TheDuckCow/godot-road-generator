@@ -361,6 +361,8 @@ func get_roadpoints(skip_edge_connected=false) -> Array:
 			continue
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
+		if obj.is_queued_for_deletion():
+			continue # To be cleaned up anyways
 		var pt:RoadPoint = obj
 		rps.append(pt)
 
