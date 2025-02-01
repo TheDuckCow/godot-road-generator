@@ -733,25 +733,44 @@ func get_nearest_road_point(camera: Camera, mouse_pos: Vector2) -> RoadPoint:
 
 	if intersect.empty():
 		return null
-	else:
-		var collider = intersect["collider"]
-		var position = intersect["position"]
-		if not collider.name.begins_with("road_mesh_col"):
-			return null
-		else:
-			# Return the closest RoadPoint
-			var road_segment: RoadSegment = collider.get_parent().get_parent()
-			var start_point: RoadPoint = road_segment.start_point
-			var end_point: RoadPoint = road_segment.end_point
-			var nearest_point: RoadPoint
-			var dist_to_start = start_point.global_translation.distance_to(position)
-			var dist_to_end = end_point.global_translation.distance_to(position)
-			if dist_to_start > dist_to_end:
-				nearest_point = end_point
-			else:
-				nearest_point = start_point
 
-			return nearest_point
+	var collider = intersect["collider"]
+	var position = intersect["position"]
+	if not collider.name.begins_with("road_mesh_col"):
+		# Might be a custom RoadContainer.
+		# static body collider could be child or grandchild
+		var check_par = collider.get_parent()
+		if not check_par is RoadContainer:
+			check_par = check_par.get_parent()
+			if not check_par is RoadContainer:
+				return null
+		var par_rc:RoadContainer = check_par
+		par_rc.update_edges()
+		var nearest_point: RoadPoint
+		var nearest_dist: float
+		for idx in len(par_rc.edge_rp_locals):
+			var edge: RoadPoint = par_rc.get_node_or_null(par_rc.edge_rp_locals[idx])
+			var edge_dist = edge.global_translation.distance_to(position)
+			if not is_instance_valid(nearest_point) or edge_dist < nearest_dist:
+				nearest_point = edge
+				nearest_dist = edge_dist
+		if not is_instance_valid(nearest_point):
+			return null
+		return nearest_point
+	else:
+		# Native RoadSegment - so there's just two RP's to choose between
+		# Return the closest RoadPoint
+		var road_segment: RoadSegment = collider.get_parent().get_parent()
+		var start_point: RoadPoint = road_segment.start_point
+		var end_point: RoadPoint = road_segment.end_point
+		var nearest_point: RoadPoint
+		var dist_to_start = start_point.global_translation.distance_to(position)
+		var dist_to_end = end_point.global_translation.distance_to(position)
+		if dist_to_start > dist_to_end:
+			nearest_point = end_point
+		else:
+			nearest_point = start_point
+		return nearest_point
 
 
 ## Get the nearest edge RoadPoint for the given container
@@ -862,7 +881,6 @@ func handles(object: Object):
 	return true
 	#gd4
 	#return object is Node3D
-
 
 
 # ------------------------------------------------------------------------------
