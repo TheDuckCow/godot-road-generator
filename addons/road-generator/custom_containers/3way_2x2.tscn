@@ -102,6 +102,7 @@ mesh = SubResource( 3 )
 material/0 = ExtResource( 1 )
 
 [node name="StaticBody" type="StaticBody" parent="3way_2x2"]
+visible = false
 
 [node name="CollisionShape" type="CollisionShape" parent="3way_2x2/StaticBody"]
 shape = SubResource( 4 )

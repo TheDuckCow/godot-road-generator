@@ -890,10 +890,10 @@ func handles(object: Object):
 
 func _show_road_toolbar() -> void:
 	_road_toolbar.mode = tool_mode
+	_road_toolbar.on_show(_eds.get_selected_nodes())
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
 		#gd4
@@ -901,6 +901,8 @@ func _show_road_toolbar() -> void:
 		#_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
 		_road_toolbar.create_menu.connect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
+		_road_toolbar.create_menu.connect(
+			"pressed_add_custom_roadcontainer", self, "_on_pressed_add_custom_roadcontainer")
 		_road_toolbar.create_menu.connect(
 			"select_container_pressed", self, "_on_select_container_pressed")
 
@@ -937,6 +939,8 @@ func _hide_road_toolbar() -> void:
 		_road_toolbar.create_menu.disconnect(
 			"regenerate_pressed", self, "_on_regenerate_pressed")
 		_road_toolbar.create_menu.disconnect(
+			"pressed_add_custom_roadcontainer", self, "_on_pressed_add_custom_roadcontainer")
+		_road_toolbar.create_menu.disconnect(
 			"select_container_pressed", self, "_on_select_container_pressed")
 
 		# Native nodes
@@ -970,6 +974,41 @@ func _on_regenerate_pressed() -> void:
 	if t_container:
 		t_container.rebuild_segments(true)
 		return
+
+
+func _on_pressed_add_custom_roadcontainer(path: String) -> void:
+	var undo_redo = get_undo_redo()
+	var init_sel = get_selected_node()
+
+	# Determine where to place it, for now - origin of the RoadManager
+	var t_manager = get_manager_from_selection()
+	if not is_instance_valid(t_manager):
+		push_error("Invalid selection context, could not find RoadManager")
+		# TODO: could allow it to be placed at center of the scene instead,
+		# as child of scene root
+		return
+	var parent:Spatial = t_manager
+
+	var scene:PackedScene = load(path)
+	if not is_instance_valid(scene):
+		push_error("Invalid scene path, could not load %s" % path)
+		return
+
+	var new_rc = scene.instance()
+	var scene_name:String = path.get_file().get_basename()
+	new_rc.name = scene_name
+
+	undo_redo.create_action("Add RoadScene (%s)" % scene_name)
+
+	undo_redo.add_do_reference(new_rc)
+	undo_redo.add_do_method(parent, "add_child", new_rc, true)
+	undo_redo.add_do_method(new_rc, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_method(self, "set_selection", new_rc)
+
+	undo_redo.add_undo_method(parent, "remove_child", new_rc)
+	undo_redo.add_undo_method(self, "set_selection", init_sel)
+
+	undo_redo.commit_action()
 
 
 func _on_select_container_pressed():

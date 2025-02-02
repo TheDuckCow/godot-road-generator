@@ -71,6 +71,7 @@ mesh = SubResource( 1 )
 material/0 = ExtResource( 3 )
 
 [node name="StaticBody" type="StaticBody" parent="highway_onramp"]
+visible = false
 
 [node name="CollisionShape" type="CollisionShape" parent="highway_onramp/StaticBody"]
 shape = SubResource( 2 )

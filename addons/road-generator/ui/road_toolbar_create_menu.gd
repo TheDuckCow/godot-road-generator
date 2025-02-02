@@ -5,6 +5,7 @@ const ICN_CT = preload("../resources/road_container.png")
 const ICN_RP = preload("../resources/road_point.png")
 const ICN_LN = preload("../resources/road_lane.png")
 const ICN_AG = preload("../resources/road_lane_agent.png")
+const RcSubMenu = preload("./rc_submenu.gd")
 
 
 signal regenerate_pressed
@@ -14,6 +15,9 @@ signal create_roadpoint
 signal create_lane
 signal create_lane_agent
 signal create_2x2_road
+
+# ripple up from children
+signal pressed_add_custom_roadcontainer(path)
 
 
 enum CreateMenu {
@@ -33,11 +37,16 @@ enum MenuMode {
 }
 
 var menu_mode = MenuMode.STANDARD
+var rc_submenu: PopupMenu
 
 
 func _enter_tree() -> void:
 	var pup:Popup = get_popup()
 	pup.connect("id_pressed", self, "_create_menu_item_clicked")
+
+	rc_submenu = RcSubMenu.new()
+	var res = rc_submenu.connect("pressed_add_custom_roadcontainer", self, "_on_pressed_add_custom_roadcontainer")
+	assert(res == OK)
 
 
 func on_toolbar_show(primary_sel: Node) -> void:
@@ -46,7 +55,7 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	else:
 		menu_mode = MenuMode.STANDARD
 
-	var pup:Popup = get_popup()
+	var pup:PopupMenu = get_popup()
 	var idx = 0
 	pup.clear()
 
@@ -80,6 +89,14 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	pup.add_item("2x2 road", CreateMenu.TWO_X_TWO)
 	pup.set_item_tooltip(idx, "Adds a segment of road with 2 lanes each way")
 	idx += 1
+	# rc_items must be name of the child of this menu
+	if not is_instance_valid(rc_submenu):
+		push_error("Invalid road containers submenu")
+		return
+	rc_submenu.name = "rc_items"
+	pup.add_child(rc_submenu)
+	pup.add_submenu_item("RoadContainer prefabs", "rc_items", idx)
+	idx += 1
 
 
 func _exit_tree() -> void:
@@ -102,3 +119,7 @@ func _create_menu_item_clicked(id: int) -> void:
 			emit_signal("create_lane_agent")
 		CreateMenu.TWO_X_TWO:
 			emit_signal("create_2x2_road")
+
+
+func _on_pressed_add_custom_roadcontainer(path:String) -> void:
+	emit_signal("pressed_add_custom_roadcontainer", path)
