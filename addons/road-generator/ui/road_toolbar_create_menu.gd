@@ -43,10 +43,16 @@ var rc_submenu: PopupMenu
 func _enter_tree() -> void:
 	var pup:Popup = get_popup()
 	pup.connect("id_pressed", self, "_create_menu_item_clicked")
+	if not is_instance_valid(rc_submenu):
+		load_submenu()
 
+
+func load_submenu() -> void:
+	var pup:Popup = get_popup()
 	rc_submenu = RcSubMenu.new()
 	var res = rc_submenu.connect("pressed_add_custom_roadcontainer", self, "_on_pressed_add_custom_roadcontainer")
 	assert(res == OK)
+	pup.add_child(rc_submenu)
 
 
 func on_toolbar_show(primary_sel: Node) -> void:
@@ -91,11 +97,9 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	idx += 1
 	# rc_items must be name of the child of this menu
 	if not is_instance_valid(rc_submenu):
-		push_error("Invalid road containers submenu")
-		return
+		load_submenu()
 	rc_submenu.name = "rc_items"
-	pup.add_child(rc_submenu)
-	pup.add_submenu_item("RoadContainer prefabs", "rc_items", idx)
+	pup.add_submenu_item("RoadContainer presets", "rc_items", idx)
 	idx += 1
 
 
