@@ -27,6 +27,10 @@ func _ready() -> void:
 		agent.actor, agent.current_lane, agent.road_manager
 	])
 
+	if not visible:
+		set_process(false)
+		set_physics_process(false)
+
 
 ## Generic function to calc speed
 func get_speed() -> float:

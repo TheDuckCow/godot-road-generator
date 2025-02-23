@@ -33,7 +33,7 @@ script = ExtResource( 5 )
 [node name="vehicles" type="Spatial" parent="RoadManager"]
 
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource( 11 )]
-transform = Transform( 0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 105.981, 4.19617e-05, 51.7164 )
+transform = Transform( 0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 217.617, 4.00543e-05, -9.31158 )
 drive_state = 2
 visualize_lane = true
 
@@ -61,12 +61,14 @@ edge_rp_target_dirs = [ 0, 1, 0 ]
 
 [node name="highway_onramp" parent="RoadManager" instance=ExtResource( 8 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 110.01, 7.62939e-06, -60.835 )
+use_lowpoly_preview = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial18"), NodePath("Spatial6"), NodePath("Spatial9") ]
 edge_rp_target_dirs = [ 0, 1, 1 ]
 
 [node name="highway_offramp1" parent="RoadManager" instance=ExtResource( 3 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 109.931, 7.62939e-06, 42.1098 )
+use_lowpoly_preview = true
 draw_lanes_editor = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial5"), NodePath("Spatial14"), NodePath("Spatial7") ]
@@ -74,38 +76,35 @@ edge_rp_target_dirs = [ 0, 1, 0 ]
 
 [node name="highway_onramp1" parent="RoadManager" instance=ExtResource( 8 )]
 transform = Transform( -0.999976, 0, -0.00692902, 0, 1, 0, 0.00692902, 0, -0.999976, 89.7852, 7.62939e-06, 42.6752 )
+use_lowpoly_preview = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial12"), NodePath("Spatial"), NodePath("Spatial3") ]
 edge_rp_target_dirs = [ 0, 1, 1 ]
 
 [node name="highway_offramp2" parent="RoadManager" instance=ExtResource( 3 )]
 transform = Transform( -0.999976, 0, -0.00692902, 0, 1, 0, 0.00692902, 0, -0.999976, 89.1512, 7.62939e-06, -60.2677 )
+use_lowpoly_preview = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial2"), NodePath("Spatial20"), NodePath("Spatial4") ]
 edge_rp_target_dirs = [ 0, 1, 0 ]
 
 [node name="splitter_2x2" parent="RoadManager" instance=ExtResource( 9 )]
 transform = Transform( -2.18557e-07, 0, 1, 0, 1, 0, -1, 0, -2.18557e-07, 182.099, -3.05176e-05, -10.5339 )
-use_lowpoly_preview = false
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../3way_2x2") ]
 edge_rp_targets = [ NodePath("Spatial10"), NodePath("Spatial8"), NodePath("RP_003") ]
 edge_rp_target_dirs = [ 0, 0, 1 ]
 
-[node name="splitter_2x3" type="Spatial" parent="RoadManager" instance=ExtResource( 9 )]
+[node name="splitter_2x3" parent="RoadManager" instance=ExtResource( 9 )]
 transform = Transform( -0.999994, 0, -0.00338593, 0, 1, 0, 0.00338593, 0, -0.999994, 99.362, 0, -136.072 )
-script = ExtResource( 1 )
-material_resource = ExtResource( 4 )
-create_geo = false
-generate_ai_lanes = true
+draw_lanes_editor = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial21"), NodePath("Spatial19"), NodePath("Spatial22") ]
 edge_rp_target_dirs = [ 0, 0, 1 ]
-edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_003"), NodePath("cap") ]
-edge_rp_local_dirs = [ 1, 1, 0 ]
 
 [node name="LocalRoads" type="Spatial" parent="RoadManager"]
 script = ExtResource( 1 )
 material_resource = ExtResource( 4 )
+use_lowpoly_preview = true
 generate_ai_lanes = true
 edge_containers = [ NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_offramp1"), NodePath("../highway_onramp"), NodePath("../highway_offramp1"), NodePath("../splitter_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x2"), NodePath("../splitter_2x4"), NodePath("../highway_onramp1"), NodePath("../splitter_2x4"), NodePath("../highway_offramp1"), NodePath("../splitter_2x4"), NodePath("../3way_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x3"), NodePath("../highway_offramp2"), NodePath("../splitter_2x3"), NodePath("../splitter_2x3"), NodePath("../4way_2x2"), NodePath("../4way_2x2"), NodePath("../3way_2x2"), NodePath("../4way_2x2"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_2x2") ]
 edge_rp_targets = [ NodePath("HW_02"), NodePath("HW_01"), NodePath("RAMP_01"), NodePath("RAMP_02"), NodePath("HW_01"), NodePath("HW_02"), NodePath("RAMP_02"), NodePath("RP_003"), NodePath("RAMP_01"), NodePath("RP_001"), NodePath("RP_003"), NodePath("HW_01"), NodePath("RP_001"), NodePath("HW_02"), NodePath("cap"), NodePath("RP_002"), NodePath("HW_01"), NodePath("RP_003"), NodePath("HW_02"), NodePath("RP_001"), NodePath("cap"), NodePath("RP_002"), NodePath("RP_004"), NodePath("RP_001"), NodePath("RP_003"), NodePath("RP_002"), NodePath("RP_004"), NodePath("RP_003"), NodePath("RP_001"), NodePath("RP_001") ]
@@ -281,8 +280,8 @@ script = ExtResource( 10 )
 traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
 next_pt_init = NodePath("../Spatial23")
-prior_mag = 1.70326
-next_mag = 16.0
+prior_mag = 3.90903
+next_mag = 3.90903
 
 [node name="Spatial23" type="Spatial" parent="RoadManager/LocalRoads"]
 transform = Transform( 1, 0, 0, 0, 0.999999, 0, 0, 0, 0.999999, 101.62, 1.52588e-05, -166.767 )
@@ -290,8 +289,8 @@ script = ExtResource( 10 )
 traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
 next_pt_init = NodePath("../Spatial22")
-prior_mag = 16.0
-next_mag = 16.0
+prior_mag = 3.65088
+next_mag = 3.65088
 
 [node name="Spatial24" type="Spatial" parent="RoadManager/LocalRoads"]
 transform = Transform( -4.37114e-08, 0, 1, 0, 0.999999, 0, -0.999999, 0, -4.37114e-08, 117.62, 1.52588e-05, -182.767 )
@@ -360,7 +359,7 @@ script = ExtResource( 10 )
 traffic_dir = [ 2, 1 ]
 lanes = [ 5, 5 ]
 prior_pt_init = NodePath("../Spatial31")
-prior_mag = 31.8801
+prior_mag = 29.721
 
 [node name="Spatial29" type="Spatial" parent="RoadManager/LocalRoads"]
 transform = Transform( 0.527401, -0.0114611, 0.849539, 0, 0.999909, 0.0134897, -0.849617, -0.00711448, 0.527353, 92.3317, 0.250019, -228.29 )
@@ -379,16 +378,9 @@ traffic_dir = [ 2, 2, 1, 1 ]
 lanes = [ 2, 4, 4, 2 ]
 prior_pt_init = NodePath("../Spatial29")
 
-[node name="splitter_2x4" type="Spatial" parent="RoadManager" instance=ExtResource( 9 )]
+[node name="splitter_2x4" parent="RoadManager" instance=ExtResource( 9 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 98.1187, 0, 102.944 )
-script = ExtResource( 1 )
-material_resource = ExtResource( 4 )
-create_geo = false
-use_lowpoly_preview = true
-generate_ai_lanes = true
 draw_lanes_editor = true
 edge_containers = [ NodePath("../LocalRoads"), NodePath("../LocalRoads"), NodePath("../LocalRoads") ]
 edge_rp_targets = [ NodePath("Spatial13"), NodePath("Spatial11"), NodePath("Spatial15") ]
 edge_rp_target_dirs = [ 0, 0, 1 ]
-edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_003"), NodePath("cap") ]
-edge_rp_local_dirs = [ 1, 1, 0 ]
