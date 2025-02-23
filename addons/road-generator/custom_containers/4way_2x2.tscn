@@ -77,40 +77,40 @@ prior_pt_init = NodePath("../RP_003")
 prior_mag = 16.0
 next_mag = 16.0
 
-[node name="W0N0" type="Path" parent="."]
+[node name="W0N0" type="Path" parent="." groups=["road_lanes"]]
 curve = SubResource( 1 )
 script = ExtResource( 5 )
 
-[node name="W1S1" type="Path" parent="."]
+[node name="W1S1" type="Path" parent="." groups=["road_lanes"]]
 curve = SubResource( 2 )
 script = ExtResource( 5 )
 
-[node name="S0W0" type="Path" parent="."]
+[node name="S0W0" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( -4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, 0 )
 curve = SubResource( 1 )
 script = ExtResource( 5 )
 
-[node name="S1E1" type="Path" parent="."]
+[node name="S1E1" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( -4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, 0 )
 curve = SubResource( 2 )
 script = ExtResource( 5 )
 
-[node name="E0S0" type="Path" parent="."]
+[node name="E0S0" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( -1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0 )
 curve = SubResource( 1 )
 script = ExtResource( 5 )
 
-[node name="E1N1" type="Path" parent="."]
+[node name="E1N1" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( -1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0 )
 curve = SubResource( 2 )
 script = ExtResource( 5 )
 
-[node name="N0E0" type="Path" parent="."]
+[node name="N0E0" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( 1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 0, 0, 0 )
 curve = SubResource( 1 )
 script = ExtResource( 5 )
 
-[node name="N1W1" type="Path" parent="."]
+[node name="N1W1" type="Path" parent="." groups=["road_lanes"]]
 transform = Transform( 1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 0, 0, 0 )
 curve = SubResource( 2 )
 script = ExtResource( 5 )
