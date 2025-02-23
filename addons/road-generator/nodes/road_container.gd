@@ -361,6 +361,8 @@ func get_roadpoints(skip_edge_connected=false) -> Array:
 			continue
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
+		if obj.is_queued_for_deletion():
+			continue # To be cleaned up anyways
 		var pt:RoadPoint = obj
 		rps.append(pt)
 
@@ -489,7 +491,11 @@ func get_connected_edges()->Array:
 		var target_cont: RoadContainer = get_node_or_null(edge_containers[idx])
 #		var is_scene =
 		# Find out if the target container is a scene
+		#gd4
+		#if target_cont and target_cont.scene_file_path:
 		if target_cont and target_cont.filename:
+			#gd4
+			#print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.scene_file_path])
 			print("%s %s is a scene %s" % [Time.get_ticks_msec(), target_cont.name, target_cont.filename])
 #		else:
 #			print("target_cont is null")

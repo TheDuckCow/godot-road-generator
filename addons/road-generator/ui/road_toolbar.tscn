@@ -55,6 +55,11 @@ text = "Roads"
 items = [ "Refresh roads", null, 0, false, false, 0, 0, null, "", false, "Select container", null, 0, false, false, 1, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "RoadContainer", ExtResource( 3 ), 0, false, false, 2, 0, null, "", false, "RoadPoint", ExtResource( 4 ), 0, false, false, 3, 0, null, "", false, "RoadLane (AI path)", ExtResource( 5 ), 0, false, false, 4, 0, null, "", false, "", null, 0, false, false, -1, 0, null, "", true, "2x2 road", null, 0, false, false, 5, 0, null, "", false ]
 script = ExtResource( 2 )
 
+[node name="rc_items" type="PopupMenu" parent="."]
+margin_right = 80.0
+margin_bottom = 56.0
+items = [ "4way-2x2", null, 0, false, false, 0, 0, null, "", false, "2way-1x1", null, 0, false, false, 1, 0, null, "", false ]
+
 [connection signal="pressed" from="select_mode" to="." method="_on_select_mode_pressed"]
 [connection signal="pressed" from="add_mode" to="." method="_on_add_mode_pressed"]
 [connection signal="pressed" from="delete_mode" to="." method="_on_delete_mode_pressed"]

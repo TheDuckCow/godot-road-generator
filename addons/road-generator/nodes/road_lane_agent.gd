@@ -130,10 +130,12 @@ func assign_nearest_lane() -> int:
 
 
 ## Brute force find the nearest lane out of all RoadLanes across the RoadManager
-func find_nearest_lane() -> RoadLane:
+## Optional input pos for a reference position, otherwise use the agent's center
+func find_nearest_lane(pos = null) -> RoadLane:
 	if not is_instance_valid(actor) or not is_instance_valid(road_manager):
 		return null
-	var pos = actor.global_transform.origin
+	if pos == null:
+		pos = actor.global_transform.origin
 	var closest_lane = null
 	var closest_dist = null
 
@@ -191,32 +193,32 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var check_next_offset:float = init_offset + move_distance * dir
 	var going_to_next:bool = dir > 0
 	var _update_lane
+	var _search_new_lane:bool = false
 	if check_next_offset > lane_length: # Target point is past the end of this curve
 		if going_to_next:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next) # not lane_next?
-			#print("Need to jump to next lane (overflow)")
+			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
 		else:
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-			#print("Need to jump to prior lane (overflow)")
-		if not is_instance_valid(_update_lane):
-			#push_warning("No next node on path %s " % current_lane.name)
-			return new_point
 		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		if update_lane:
-			assign_lane(_update_lane)
+		# The below is just a quick hack solution, but also make the system not work
+		# when going in reverse and is non deterministic.
+		if not update_lane:
+			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
+			_update_lane = find_nearest_lane(seek_pos)
+		assign_lane(_update_lane)
 	elif check_next_offset < 0: # Target point is before start of this curve
 		if going_to_next:
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-			#print("Need to jump to prior lane (underflow)")
 		else:
 			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-			#print("Need to jump to next lane (underflow)")
-		if not is_instance_valid(_update_lane):
-			#push_warning("No next node on path %s " % current_lane.name)
-			return new_point
 		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		if update_lane:
-			assign_lane(_update_lane)
+		# The below is just a quick hack solution, but also make the system not work
+		# when going in reverse and is non deterministic.
+		if not update_lane:
+			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
+			_update_lane = find_nearest_lane(seek_pos)
+		assign_lane(_update_lane)
+
 	else: # Target point lies within the length of this curve
 		#gd4
 		#var ref_local = current_lane.curve.sample_baked(check_next_offset)
