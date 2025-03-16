@@ -299,24 +299,10 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	var _par = get_parent() # Add RoadLanes to the parent RoadPoint, with option to add as children directly.
 
-	# We need to keep track of the number of reverse lane subtractions and
-	# forward subtractions. The left side (reverse) needs to be precalcuated,
-	# while the right (forward) can be a running sum during the loop itself.
+	# We need to keep track of the number of reverse and forward lane
+	# additions and substractions to calculate which lanes are going to get merged.
+	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
-	var end_is_wider = len(start_point.lanes) < len(end_point.lanes)
-	for this_match in _matched_lanes:
-		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType (texture)
-		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir (what we need)
-
-		if ln_dir != RoadPoint.LaneDir.REVERSE:
-			break # Already done
-
-		if ln_type == RoadPoint.LaneType.TRANSITION_REM:
-			lane_shift.reverse += 1
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
-			lane_shift.reverse += 1
-
-	var max_rev_shift = lane_shift.reverse
 
 	var _tmppar = _par.get_children()
 
@@ -351,7 +337,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.name = ln_name
 
 		var tmp = get_transition_offset(
-			ln_type, ln_dir, lane_shift, end_is_wider, max_rev_shift)
+			ln_type, ln_dir, lane_shift)
 		var start_shift:float = tmp[0]
 		var end_shift:float = tmp[1]
 
@@ -495,46 +481,38 @@ func offset_curve(road_seg: Spatial, road_lane: Path, in_offset: float, out_offs
 func get_transition_offset(
 		ln_type: int,
 		ln_dir: int,
-		lane_shift: Dictionary,
-		end_is_wider: bool,
-		max_rev_shift: float) -> Array:
+		lane_shift: Dictionary) -> Array:
 
 	var start_shift: float = 0
 	var end_shift: float = 0
 
+	start_shift = min(lane_shift.reverse, 0)
+	end_shift = -max(lane_shift.reverse, 0)
 	# Forward cases
-	if ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.FORWARD:
-		lane_shift.forward += 1
-		if end_is_wider:
-			start_shift = lane_shift.forward * start_point.lane_width * -1
-		else:
-			end_shift = lane_shift.forward * end_point.lane_width * -1
-	elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.FORWARD:
-		lane_shift.forward += 1
-		if end_is_wider:
-			start_shift = lane_shift.forward * start_point.lane_width * -1
-		else:
-			end_shift = lane_shift.forward * end_point.lane_width * -1
-	# Reverse cases
-	elif ln_type == RoadPoint.LaneType.TRANSITION_ADD and ln_dir == RoadPoint.LaneDir.REVERSE:
-		if end_is_wider:
-			start_shift = lane_shift.reverse * start_point.lane_width
-		else:
-			end_shift = lane_shift.reverse * end_point.lane_width
-		lane_shift.reverse -= 1
-	elif ln_type == RoadPoint.LaneType.TRANSITION_REM and ln_dir == RoadPoint.LaneDir.REVERSE:
-		if end_is_wider:
-			start_shift = lane_shift.reverse * start_point.lane_width
-		else:
-			end_shift = lane_shift.reverse * end_point.lane_width
-		lane_shift.reverse -= 1
+	if ln_dir == RoadPoint.LaneDir.FORWARD:
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			assert(lane_shift.forward <= 0)
+			lane_shift.forward -= 1
+			start_shift += lane_shift.forward
+		if ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			assert(lane_shift.forward >= 0)
+			lane_shift.forward += 1
+			end_shift -= lane_shift.forward
+	## Reverse cases
+	elif ln_dir == RoadPoint.LaneDir.REVERSE:
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			assert(lane_shift.reverse <= 0)
+			start_shift = lane_shift.reverse
+			lane_shift.reverse -= 1
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			assert(lane_shift.reverse >= 0)
+			end_shift = -lane_shift.reverse
+			lane_shift.reverse += 1
 	#else:
 	# General non transition case, but should be reverse=0 by now.
 
-	if end_is_wider:
-		start_shift -= max_rev_shift * start_point.lane_width
-	else:
-		end_shift -= max_rev_shift * end_point.lane_width
+	start_shift *= start_point.lane_width
+	end_shift *= end_point.lane_width
 
 	return [start_shift, end_shift]
 
