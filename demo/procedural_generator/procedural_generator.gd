@@ -90,11 +90,27 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	# Copy initial things like lane counts and orientation
 	new_rp.copy_settings_from(rp, true)
 
+	new_rp.traffic_dir=[]
+	new_rp.lanes=[]
+
+	randomize()
+	for i in range(randi()%4 + 1):
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
+		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
+	for i in range(randi()%3):
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
+		new_rp.lanes.append(RoadPoint.LaneType.FAST)
+	for i in range(randi()%3):
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
+		new_rp.lanes.append(RoadPoint.LaneType.FAST)
+	for i in range(randi()%4 + 1):
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
+		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
+
 	# Placement of a new roadpoint with interval no larger than buffer,
 	# to avoid flicker removal/adding with the culling system
 
 	# Randomly rotate the offset vector slightly
-	randomize()
 	var _transform := new_rp.transform
 	var angle_range := 30 # Random angle rotation range
 	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
