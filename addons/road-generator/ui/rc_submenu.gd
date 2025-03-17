@@ -14,23 +14,24 @@ func _ready() -> void:
 	directory = DEFAULT_DIR
 	reload_items()
 
+
+func _enter_tree() -> void:
+	connect("id_pressed", Callable(self, "_create_menu_item_clicked"))
 	dir_selector = FileDialog.new()
 	dir_selector.current_dir = directory
-	dir_selector.use_native_dialog = true # Does work on OSX if true but too broad access
+	dir_selector.use_native_dialog = false # Does work on OSX if true but too broad access
 	dir_selector.file_mode = FileDialog.FILE_MODE_OPEN_DIR
 	dir_selector.mode_overrides_title = true
 	dir_selector.title = "Select folder with RoadContainer TSCN files"
 	dir_selector.add_filter("*.tscn ; TSCN files")
 	dir_selector.dir_selected.connect(_on_folder_selected)
-	add_child(dir_selector)
-
-
-func _enter_tree() -> void:
-	connect("id_pressed", Callable(self, "_create_menu_item_clicked"))
+	EditorInterface.get_base_control().add_child(dir_selector)
 
 
 func _exit_tree() -> void:
 	disconnect("id_pressed", Callable(self, "_create_menu_item_clicked"))
+	if is_instance_valid(dir_selector):
+		dir_selector.queue_free()
 
 
 func reload_items() -> void:
