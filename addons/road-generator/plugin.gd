@@ -444,7 +444,6 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		# Handle visualizing which connections are free to make
 		# trigger overlay updates to draw/update indicators
 		var point = get_nearest_road_point(camera, event.position)
-		print("Closest point: ", point)
 		var hover_point = point # logical workaround to duplicate
 		var selection = get_selected_node()
 		var src_is_contianer := false
@@ -470,7 +469,6 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		if is_instance_valid(hover_point) and not is_instance_valid(target):
 			var hover_cnct:bool = hover_point.is_prior_connected() and hover_point.is_next_connected()
 			if not hover_cnct and src_is_contianer and not selection.is_subscene():
-				print("PH1")
 				# If the current selection is a same-scene container, and the user
 				# hovers over another container with open connections, offer to
 				# create a new RoadPoint in the *selected* container that attaches
@@ -482,7 +480,6 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 			else:
-				print("PH2")
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hovering_pos = event.position
@@ -497,32 +494,27 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 			var hover_cnct:bool = point.is_prior_connected() and point.is_next_connected()
 
 			if target == point:
-				print("X v01")
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			elif src_is_contianer and point and point.container == selection:
-				print("X v02")
 				# If a container is selected, don't (dis)connect internal rp's to itself.
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			elif target.get_prior_rp() == point:
-				print("X v03")
 				# If this pt is directly connected to the target, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
 			elif target.get_next_rp() == point:
-				print("X v04")
 				# If this pt is directly connected to the selection, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
 			elif not hover_cnct and src_is_contianer and not selection.is_subscene():
-				print("X v05")
 				# If the current selection is a same-scene container, and the user
 				# hovers over another container with open connections, offer to
 				# create a new RoadPoint in the *selected* container that attaches
@@ -533,7 +525,6 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 			elif target_prior_cnct and target_next_cnct:
-				print("X v06")
 				# Fully connected roadpoint, nothing to do.
 				# In the future, this could be a mode to convert into an intersection
 				_overlay_rp_selected = null
@@ -541,14 +532,12 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			else:
-				print("X v07")
 				# Open connection scenario
 				
 				_overlay_rp_selected = target # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 		else:
-			print("X v08 ", point, " - ", target)
 			_overlay_rp_selected = null
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = event.position
@@ -1088,7 +1077,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	if selection is RoadPoint:
 		parent = selection.get_parent()
 		if selection.next_pt_init and selection.prior_pt_init:
-			print("Fully connected already")
+			push_warning("Fully connected already")
 			# already fully connected, so for now add as just a standalone pt
 			# TODO: In the future, this should create an intersection.
 			_sel = parent
@@ -1299,7 +1288,7 @@ func _connect_rp_on_click(rp_a, rp_b):
 	var target_dir
 	# Starting point is current selection.
 	if rp_a.prior_pt_init and rp_a.next_pt_init:
-		print("Cannot connect, fully connected")
+		push_warning("Cannot connect, fully connected")
 		return true
 	elif rp_a.prior_pt_init:
 		from_dir = RoadPoint.PointInit.NEXT # only next open
@@ -1313,7 +1302,7 @@ func _connect_rp_on_click(rp_a, rp_b):
 			from_dir = RoadPoint.PointInit.PRIOR
 
 	if rp_b.prior_pt_init and rp_b.next_pt_init:
-		print("Cannot connect, fully connected")
+		push_warning("Cannot connect, fully connected")
 		return true
 	elif rp_b.prior_pt_init:
 		target_dir = RoadPoint.PointInit.NEXT # only next open
