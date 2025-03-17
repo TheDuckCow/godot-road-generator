@@ -81,8 +81,6 @@ func remove_rp(edge_rp: RoadPoint) -> void:
 	# Defer to allow time to free cars first, if using despawn_cars above
 	edge_rp.call_deferred("queue_free")
 
-const LaneDir = preload("res://../../addons/road-generator/nodes/road_point.gd").LaneDir
-const LaneType = preload("res://../../addons/road-generator/nodes/road_point.gd").LaneType
 
 ## Add a new roadpoint in a given direction
 func add_next_rp(rp: RoadPoint, dir: int) -> void:
