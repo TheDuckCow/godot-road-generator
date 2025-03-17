@@ -47,6 +47,8 @@ layout_mode = 2
 text = "Roads"
 script = ExtResource("2")
 
+[node name="rc items (?)" type="PopupMenu" parent="."]
+
 [connection signal="pressed" from="select_mode" to="." method="_on_select_mode_pressed"]
 [connection signal="pressed" from="add_mode" to="." method="_on_add_mode_pressed"]
 [connection signal="pressed" from="delete_mode" to="." method="_on_delete_mode_pressed"]

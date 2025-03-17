@@ -61,7 +61,8 @@ var _display_fins: bool = false
 
 
 func _init():
-	curve = Curve3D.new()
+	if not is_instance_valid(curve):
+		curve = Curve3D.new()
 
 
 func _ready():

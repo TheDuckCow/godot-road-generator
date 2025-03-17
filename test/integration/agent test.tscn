@@ -1,0 +1,141 @@
+[gd_scene load_steps=8 format=3 uid="uid://cgakalkwsj6oy"]
+
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="3"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="4"]
+[ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="6"]
+
+[sub_resource type="Environment" id="Environment_uksjl"]
+background_mode = 1
+background_color = Color(0.609661, 0.733591, 0.806032, 1)
+
+[node name="Node3D" type="Node3D"]
+
+[node name="RoadManager" type="Node3D" parent="."]
+script = ExtResource("4")
+
+[node name="vehicles" type="Node" parent="RoadManager"]
+
+[node name="RoadActor" parent="RoadManager/vehicles" instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.95619, 3.8147e-06, 24.7984)
+
+[node name="RoadActor2" parent="RoadManager/vehicles" instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.12656, 0, -19.3747)
+
+[node name="RoadActor3" parent="RoadManager/vehicles" instance=ExtResource("6")]
+transform = Transform3D(-0.998405, 0, -0.0564662, 0, 1, 0, 0.0564662, 0, -0.998405, -11.2174, 0, -52.6436)
+
+[node name="RoadActor4" parent="RoadManager/vehicles" instance=ExtResource("6")]
+transform = Transform3D(-0.998405, 0, -0.0564662, 0, 1, 0, 0.0564662, 0, -0.998405, -1.74689, 0, -22.2232)
+
+[node name="splitter_2x2" parent="RoadManager" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.866745, 0, -28.0335)
+draw_lanes_editor = true
+edge_containers = Array[NodePath]([NodePath("../Road_003"), NodePath("../Road_002"), NodePath("../Road_001")])
+edge_rp_targets = Array[NodePath]([NodePath("Node3D"), NodePath("Node3D"), NodePath("Node3D")])
+edge_rp_target_dirs = Array[int]([0, 0, 1])
+
+[node name="Road_001" type="Node3D" parent="RoadManager"]
+script = ExtResource("2")
+material_resource = ExtResource("3")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+draw_lanes_editor = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("Node3D"), NodePath("Spatial001")])
+edge_rp_local_dirs = Array[int]([1, 0])
+
+[node name="Node3D" type="Node3D" parent="RoadManager/Road_001"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.866745, 0, -12.0335)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_pt_init = NodePath("../Spatial001")
+prior_mag = 1.70326
+next_mag = 27.1036
+
+[node name="Spatial001" type="Node3D" parent="RoadManager/Road_001"]
+transform = Transform3D(0.99996, 8.21352e-05, -0.00890481, 0, 0.999957, 0.0092233, 0.00890519, -0.00922293, 0.999918, 0.625378, 0.25, 42.1731)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_pt_init = NodePath("../Node3D")
+prior_mag = 27.1036
+next_mag = 27.1036
+
+[node name="Road_002" type="Node3D" parent="RoadManager"]
+script = ExtResource("2")
+material_resource = ExtResource("3")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+draw_lanes_editor = true
+edge_containers = Array[NodePath]([NodePath("../splitter_2x2"), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_003"), NodePath("")])
+edge_rp_target_dirs = Array[int]([1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("Node3D"), NodePath("Spatial001")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="Node3D" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.13326, 0, -44.0335)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2])
+lanes = Array[int]([2, 0])
+prior_pt_init = NodePath("../Spatial001")
+prior_mag = 2.70821
+next_mag = 21.5948
+
+[node name="Spatial001" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(0.939253, -0.00223105, 0.343217, 0, 0.999979, 0.00650025, -0.343225, -0.00610538, 0.939234, -20.3334, 0.25, -85.1565)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2])
+lanes = Array[int]([2, 0])
+next_pt_init = NodePath("../Node3D")
+prior_mag = 21.5948
+next_mag = 21.5948
+
+[node name="Road_003" type="Node3D" parent="RoadManager"]
+script = ExtResource("2")
+material_resource = ExtResource("3")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+draw_lanes_editor = true
+edge_containers = Array[NodePath]([NodePath("../splitter_2x2"), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_001"), NodePath("")])
+edge_rp_target_dirs = Array[int]([1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("Node3D"), NodePath("Spatial001")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="Node3D" type="Node3D" parent="RoadManager/Road_003"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.86674, 0, -44.0335)
+script = ExtResource("1")
+traffic_dir = Array[int]([1, 1])
+lanes = Array[int]([0, 2])
+prior_pt_init = NodePath("../Spatial001")
+prior_mag = 1.96209
+next_mag = 7.86703
+
+[node name="Spatial001" type="Node3D" parent="RoadManager/Road_003"]
+transform = Transform3D(0.917976, 0.00260346, -0.396627, 0, 0.999978, 0.00656385, 0.396636, -0.00602546, 0.917956, 23.9732, 0.25, -83.9961)
+script = ExtResource("1")
+traffic_dir = Array[int]([1, 1])
+lanes = Array[int]([0, 2])
+next_pt_init = NodePath("../Node3D")
+prior_mag = 21.3613
+next_mag = 21.3613
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.632802, -0.576627, 0.516781, 0, 0.667405, 0.744695, -0.774314, -0.471244, 0.422335, 31.7794, 45.7948, 25.9714)
+far = 200.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.0423813, 0.999102, 0, -0.999102, 0.0423813, 0, 6.51042, 0)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="DirectionalLight3D"]
+transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 0, 3.50568, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="DirectionalLight3D"]
+environment = SubResource("Environment_uksjl")

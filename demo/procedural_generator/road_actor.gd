@@ -26,6 +26,10 @@ func _ready() -> void:
 	print("Agent state: %s par, %s lane, %s manager" % [
 		agent.actor, agent.current_lane, agent.road_manager
 	])
+	
+	if not visible:
+		set_process(false)
+		set_physics_process(false)
 
 
 ## Generic function to calc speed
