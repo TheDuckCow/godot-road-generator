@@ -100,17 +100,17 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 
 	randomize()
 	for i in range(randi()%4 + 1):
-		new_rp.traffic_dir.append(LaneDir.REVERSE)
-		new_rp.lanes.append(LaneType.SLOW)
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
+		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
 	for i in range(randi()%3):
-		new_rp.traffic_dir.append(LaneDir.REVERSE)
-		new_rp.lanes.append(LaneType.FAST)
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
+		new_rp.lanes.append(RoadPoint.LaneType.FAST)
 	for i in range(randi()%3):
-		new_rp.traffic_dir.append(LaneDir.FORWARD)
-		new_rp.lanes.append(LaneType.FAST)
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
+		new_rp.lanes.append(RoadPoint.LaneType.FAST)
 	for i in range(randi()%4 + 1):
-		new_rp.traffic_dir.append(LaneDir.FORWARD)
-		new_rp.lanes.append(LaneType.SLOW)
+		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
+		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
 
 	# Placement of a new roadpoint with interval no larger than buffer,
 	# to avoid flicker removal/adding with the culling system
