@@ -111,7 +111,6 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	# to avoid flicker removal/adding with the culling system
 
 	# Randomly rotate the offset vector slightly
-	randomize()
 	var _transform := new_rp.transform
 	var angle_range := 30 # Random angle rotation range
 	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
