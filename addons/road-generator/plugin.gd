@@ -213,6 +213,15 @@ func _forward_3d_draw_over_viewport(overlay: Control):
 		# Where we're coming from is already fully connected.
 		# Eventually though, this could be an intersection.
 		return
+	elif selected == null:
+		# Should mean the source is a RoadContainer, meaning we want to create
+		# a RoadPoint at the edge of an existing RoadContainer.
+		col = Color.CHARTREUSE
+		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
+		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
+		# TODO: Consider drawing a horizontal line along the edge itself, to
+		# clarify this is connection-affecting.
+		return
 	elif selected.is_next_connected() and selected.is_prior_connected():
 		# Fully connected, though eventually this could be an intersection.
 		return
@@ -427,7 +436,7 @@ func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
-	if event is InputEventMouseMotion or event is InputEventPanGesture:
+	if event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
 
 		## TODO: if pressed state, then use this to update the in/out mag handles
@@ -435,6 +444,8 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		# Handle visualizing which connections are free to make
 		# trigger overlay updates to draw/update indicators
 		var point = get_nearest_road_point(camera, event.position)
+		print("Closest point: ", point)
+		var hover_point = point # logical workaround to duplicate
 		var selection = get_selected_node()
 		var src_is_contianer := false
 		var target:RoadPoint
@@ -445,6 +456,7 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 			if closest_rp:
 				target = closest_rp
 			else:
+				hover_point = point
 				point = null # nothing to point from, so skip below on what we're pointing to
 		elif selection is RoadManager:
 			point = null
@@ -454,34 +466,74 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		else:
 			point = null
 			target = null
-
-		if is_instance_valid(point) and is_instance_valid(target):
+		
+		if is_instance_valid(hover_point) and not is_instance_valid(target):
+			var hover_cnct:bool = hover_point.is_prior_connected() and hover_point.is_next_connected()
+			if not hover_cnct and src_is_contianer and not selection.is_subscene():
+				print("PH1")
+				# If the current selection is a same-scene container, and the user
+				# hovers over another container with open connections, offer to
+				# create a new RoadPoint in the *selected* container that attaches
+				# to the *hovering* container. Confusing, but intuitive in practice
+				# as it allows you to create roads easily *between* prefab scenes.
+				_overlay_rp_hovering = hover_point # the selected non saved-scene container.
+				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
+				_overlay_hovering_pos = camera.unproject_position(hover_point.global_transform.origin)
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = true
+			else:
+				print("PH2")
+				_overlay_rp_selected = null
+				_overlay_rp_hovering = null
+				_overlay_hovering_pos = event.position
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = false
+		elif is_instance_valid(point) and is_instance_valid(target):
 			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
 			_overlay_rp_hovering = point
 			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
+			var target_prior_cnct:bool = target.is_prior_connected()
+			var target_next_cnct:bool = target.is_next_connected()
+			var hover_cnct:bool = point.is_prior_connected() and point.is_next_connected()
 
 			if target == point:
+				print("X v01")
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			elif src_is_contianer and point and point.container == selection:
+				print("X v02")
 				# If a container is selected, don't (dis)connect internal rp's to itself.
 				_overlay_rp_selected = null
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			elif target.get_prior_rp() == point:
+				print("X v03")
 				# If this pt is directly connected to the target, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
 			elif target.get_next_rp() == point:
+				print("X v04")
 				# If this pt is directly connected to the selection, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif target.is_prior_connected() and target.is_next_connected():
+			elif not hover_cnct and src_is_contianer and not selection.is_subscene():
+				print("X v05")
+				# If the current selection is a same-scene container, and the user
+				# hovers over another container with open connections, offer to
+				# create a new RoadPoint in the *selected* container that attaches
+				# to the *hovering* container. Confusing, but intuitive in practice
+				# as it allows you to create roads easily *between* prefab scenes.
+				_overlay_rp_hovering = point # the closest hovering non subscene container RP.
+				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
+				_overlay_hint_disconnect = false
+				_overlay_hint_connection = true
+			elif target_prior_cnct and target_next_cnct:
+				print("X v06")
 				# Fully connected roadpoint, nothing to do.
 				# In the future, this could be a mode to convert into an intersection
 				_overlay_rp_selected = null
@@ -489,11 +541,14 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
 			else:
+				print("X v07")
 				# Open connection scenario
+				
 				_overlay_rp_selected = target # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
 		else:
+			print("X v08 ", point, " - ", target)
 			_overlay_rp_selected = null
 			_overlay_rp_hovering = null
 			_overlay_hovering_pos = event.position
@@ -515,6 +570,10 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 
 	if _overlay_hint_disconnect:
 		_disconnect_rp_on_click(selection, _overlay_rp_hovering)
+	elif _overlay_hint_connection and selection is RoadContainer:
+		# Case of hovering over another container, so we want to add a new RoadPoint
+		# and connect it
+		_add_and_connect_rp(selection, _overlay_rp_hovering)
 	elif _overlay_hint_connection:
 		#print("Connect: %s to %s" % [selection.name, _overlay_rp_hovering.name])
 		_connect_rp_on_click(_overlay_rp_selected, _overlay_rp_hovering)
@@ -525,6 +584,8 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 
 		if selection is RoadContainer and selection.is_subscene():
 			_add_next_rp_on_click(pos, nrm, selection.get_manager())
+		elif selection is RoadPoint and selection.is_next_connected() and  selection.is_prior_connected():
+			_add_next_rp_on_click(pos, nrm, selection.container)
 		else:
 			_add_next_rp_on_click(pos, nrm, selection)
 	return INPUT_STOP
@@ -713,25 +774,48 @@ func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
 
 	if intersect.is_empty():
 		return null
-	else:
-		var collider = intersect["collider"]
-		var position = intersect["position"]
-		if not collider.name.begins_with("road_mesh_col"):
-			return null
-		else:
-			# Return the closest RoadPoint
-			var road_segment: RoadSegment = collider.get_parent().get_parent()
-			var start_point: RoadPoint = road_segment.start_point
-			var end_point: RoadPoint = road_segment.end_point
-			var nearest_point: RoadPoint
-			var dist_to_start = start_point.global_position.distance_to(position)
-			var dist_to_end = end_point.global_position.distance_to(position)
-			if dist_to_start > dist_to_end:
-				nearest_point = end_point
-			else:
-				nearest_point = start_point
 
-			return nearest_point
+	var collider = intersect["collider"]
+	var position = intersect["position"]
+	if not collider.name.begins_with("road_mesh_col"):
+		# Might be a custom RoadContainer.
+		# static body collider could be child or grandchild
+		var check_par = collider.get_parent()
+		if not check_par is RoadContainer:
+			check_par = check_par.get_parent()
+			if not check_par is RoadContainer:
+				check_par = check_par.get_parent()
+				if not check_par is RoadContainer:
+					return null
+		var par_rc:RoadContainer = check_par
+		par_rc.update_edges()
+		var nearest_point: RoadPoint
+		var nearest_dist: float
+		for idx in len(par_rc.edge_rp_locals):
+			var edge: RoadPoint = par_rc.get_node_or_null(par_rc.edge_rp_locals[idx])
+			if not is_instance_valid(edge):
+				continue
+			var edge_dist: float = edge.global_position.distance_to(position)
+			if not is_instance_valid(nearest_point) or edge_dist < nearest_dist:
+				nearest_point = edge
+				nearest_dist = edge_dist
+		if not is_instance_valid(nearest_point):
+			return null
+		return nearest_point
+	else:
+		# Native RoadSegment - so there's just two RP's to choose between
+		# Return the closest RoadPoint
+		var road_segment: RoadSegment = collider.get_parent().get_parent()
+		var start_point: RoadPoint = road_segment.start_point
+		var end_point: RoadPoint = road_segment.end_point
+		var nearest_point: RoadPoint
+		var dist_to_start = start_point.global_position.distance_to(position)
+		var dist_to_end = end_point.global_position.distance_to(position)
+		if dist_to_start > dist_to_end:
+			nearest_point = end_point
+		else:
+			nearest_point = start_point
+		return nearest_point
 
 
 ## Get the nearest edge RoadPoint for the given container
@@ -843,14 +927,15 @@ func _handles(object: Object):
 
 func _show_road_toolbar() -> void:
 	_road_toolbar.mode = tool_mode
+	_road_toolbar.on_show(_eds.get_selected_nodes())
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
-		_road_toolbar.on_show(_eds.get_selected_nodes())
 
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.connect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.connect(_instance_custom_roadcontainer)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
@@ -869,6 +954,7 @@ func _hide_road_toolbar() -> void:
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.disconnect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.disconnect(_on_select_container_pressed)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.disconnect(_instance_custom_roadcontainer)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
@@ -890,6 +976,42 @@ func _on_regenerate_pressed() -> void:
 	if t_container:
 		t_container.rebuild_segments(true)
 		return
+
+
+func _instance_custom_roadcontainer(path: String) -> void:
+	var undo_redo = get_undo_redo()
+	var init_sel = get_selected_node()
+
+	# Determine where to place it, for now - origin of the RoadManager
+	var t_manager = get_manager_from_selection()
+	if not is_instance_valid(t_manager):
+		push_error("Invalid selection context, could not find RoadManager")
+		# TODO: could allow it to be placed at center of the scene instead,
+		# as child of scene root
+		return
+	var parent:Node3D = t_manager
+
+	var scene:PackedScene = load(path)
+	if not is_instance_valid(scene):
+		push_error("Invalid scene path, could not load %s" % path)
+		return
+
+	var new_rc = scene.instantiate()
+	var scene_name:String = path.get_file().get_basename()
+	new_rc.name = scene_name
+
+	undo_redo.create_action("Add RoadScene (%s)" % scene_name)
+
+	undo_redo.add_do_reference(new_rc)
+	undo_redo.add_do_method(parent, "add_child", new_rc, true)
+	undo_redo.add_do_method(new_rc, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_method(self, "set_selection", new_rc)
+	undo_redo.add_do_method(self, "_call_update_edges", new_rc)
+
+	undo_redo.add_undo_method(parent, "remove_child", new_rc)
+	undo_redo.add_undo_method(self, "set_selection", init_sel)
+
+	undo_redo.commit_action()
 
 
 func _on_select_container_pressed():
@@ -951,7 +1073,7 @@ func _create_road_container_undo(selected_node: Node, init_sel: Node) -> void:
 		initial_children[-1].queue_free()
 
 
-func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
+func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_connect_rp=null) -> void:
 	var undo_redo = get_undo_redo()
 
 	if not is_instance_valid(selection):
@@ -1000,7 +1122,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 			elif not selection.prior_pt_init:
 				undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
 				undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
-		if selection is RoadPoint and not selection.next_pt_init and not selection.prior_pt_init:
+		if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
 			# Special case: the starting point is not connected to anything, then the user is
 			# probably wanting it to be rotated towards the new point being placed anyways
 			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
@@ -1010,6 +1132,47 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node) -> void:
 			undo_redo.add_do_method(self, "_call_update_edges", parent)
 			undo_redo.add_undo_method(self, "_call_update_edges", parent)
 		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
+
+	undo_redo.commit_action()
+
+
+# Adds a new RP as a child of rp_rc which should be a "dynamic" container,
+# aligned to the position of and connected to the connect_rp of another RP
+func _add_and_connect_rp(rp_rc: RoadContainer, connect_rp: RoadPoint) -> void:
+	if connect_rp.container == rp_rc:
+		push_error("Containers should be different to connect")
+		return
+
+	var target_dir: int
+	if not connect_rp.is_next_connected():
+		target_dir = RoadPoint.PointInit.NEXT
+	elif not connect_rp.is_prior_connected():
+		target_dir = RoadPoint.PointInit.PRIOR
+	else:
+		push_error("Connection rp is already connected")
+		return
+	var this_dir: int = RoadPoint.PointInit.PRIOR if target_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
+
+	var undo_redo = get_undo_redo()
+	var init_sel = get_selected_node()
+
+	var pos: Vector3 = connect_rp.global_transform.origin
+	var nrm: Vector3 = connect_rp.global_rotation
+	var new_rp := RoadPoint.new()
+
+	undo_redo.create_action("Add and connect RoadPoint")
+
+	undo_redo.add_do_reference(new_rp)
+	undo_redo.add_do_method(rp_rc, "add_child", new_rp, true)
+	undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_method(new_rp, "copy_settings_from", connect_rp)
+	undo_redo.add_do_property(new_rp, "global_transform", connect_rp.global_transform)
+	undo_redo.add_do_method(new_rp, "connect_container", this_dir, connect_rp, target_dir)
+	undo_redo.add_do_method(self, "set_selection", new_rp)
+
+	#undo_redo.add_undo_method(new_rp, "disconnect_container", this_dir, target_dir)
+	undo_redo.add_undo_method(rp_rc, "remove_child", new_rp)
+	undo_redo.add_undo_method(self, "set_selection", init_sel)
 
 	undo_redo.commit_action()
 
