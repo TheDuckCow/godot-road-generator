@@ -88,7 +88,6 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 
 	var new_rp := RoadPoint.new()
-	container.add_child(new_rp)
 
 	# Copy initial things like lane counts and orientation
 	new_rp.copy_settings_from(rp, true)
@@ -124,11 +123,13 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag + Vector3.UP * rand_y_offset
 
 	new_rp.transform.origin += offset_pos
+	container.add_child(new_rp)
 
 	# Finally, connect them together
 	var res = rp.connect_roadpoint(dir, new_rp, flip_dir)
 	if res != true:
 		print("Failed to connect RoadPoint")
+		container.remove_child(new_rp)
 		return
 	spawn_vehicles_on_lane(rp, dir)
 

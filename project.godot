@@ -64,6 +64,7 @@ _global_script_class_icons={
 
 config/name="Godot Road Generator"
 config/description="An addon for Godot 3.x, which allows you to create roads and highways. Designed originally for a highway roaming game called \"Wheel Steal\", this open source repository is meant to enable the development of complex road networks for 3D games."
+run/main_scene="res://demo/procedural_generator/ProceduralGenerator.tscn"
 config/icon="res://icon.png"
 
 [display]

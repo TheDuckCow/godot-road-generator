@@ -33,11 +33,6 @@ material_resource = ExtResource( 2 )
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
-edge_containers = [ "", "" ]
-edge_rp_targets = [ "", "" ]
-edge_rp_target_dirs = [ -1, -1 ]
-edge_rp_locals = [ NodePath("RP_001"), NodePath("RP_002") ]
-edge_rp_local_dirs = [ 0, 1 ]
 
 [node name="RP_001" type="Spatial" parent="RoadManager/Road_001"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997 )
