@@ -551,6 +551,96 @@ func move_connected_road_points():
 			var basis_y = sel_rp.global_transform.basis.y
 			sel_rp.rotate(basis_y, PI)
 
+func get_connection_name(next:bool)->String:
+	var n:String
+	if next:
+		n = ".next_pt_init"
+	else:
+		n = ".prior_pt_init"
+	return n
+	
+func get_connection(pt:RoadPoint, next:bool)->RoadPoint:
+	var ptx:RoadPoint = null
+	if next && pt.next_pt_init:
+		ptx = pt.get_node_or_null(pt.next_pt_init)
+	elif pt.prior_pt_init:
+		ptx = pt.get_node_or_null(pt.prior_pt_init)
+	return ptx
+
+func set_connection(ptx:RoadPoint, pt_path:NodePath, next:bool):
+	if next:
+		ptx.next_pt_init = pt_path
+	else:
+		ptx.prior_pt_init = pt_path
+
+func check_fix_connection(pt:RoadPoint, ptx:RoadPoint, next:bool, fix:bool)->bool:
+	assert(pt != null && ptx != null)
+	
+	var ptxx = get_connection(ptx, next)
+	var ptxy = get_connection(ptx, !next)
+
+	if ptxy == pt:
+		return true #connection is good
+
+	print (ptx, get_connection_name(!next), " (", ptxy, ") != ", pt)
+
+	if ptxx == pt:
+		print (ptx, get_connection_name(next), " is equal to ", pt, " - flip to fix")
+		if fix:
+			ptx.flip()
+	else:
+		if ptxy == null:
+			print (ptx, get_connection_name(!next), " was empty - to fix assign ", pt)
+			if fix:
+				set_connection(ptx, ptx.get_path_to(pt), !next)
+		elif ptxx == null:
+			print (ptx, get_connection_name(next), " was empty - to fix flip and assign ", pt)
+			if fix:
+				ptx.flip()
+				set_connection(ptx, ptx.get_path_to(pt), !next)
+		else:
+			print (ptx, ".next_pt_init and .prior_pt_init are used and can't be easily reassigned to ", pt)
+	return false
+
+func is_normal(fix: bool)->bool:
+	var ptmap_full = {}
+	var allpt = get_roadpoints()
+	var ret = true
+	for ch in allpt:
+		var pt:RoadPoint = ch
+		if ! ptmap_full.has(pt):
+			var ptlist = []
+			var ptmap = {}
+			var ptmap_full_link = ptmap_full.empty()
+			ptlist.append(pt)
+			while !ptlist.empty():
+				pt = ptlist.pop_front()
+				if ptmap.has(pt):
+					continue
+				if ptmap_full.has(pt):
+					print ("absent link from ", pt)
+					ptmap_full_link = true
+					ret = false
+					continue
+				ptmap[pt] = true
+				var ptn :RoadPoint = pt.get_node_or_null(pt.next_pt_init)
+				if ptn:
+					ptlist.append(ptn)
+					ret = check_fix_connection(pt, ptn, true, fix) && ret
+				var ptp :RoadPoint = pt.get_node_or_null(pt.prior_pt_init)
+				if ptp:
+					ptlist.append(ptp)
+					ret = check_fix_connection(pt, ptp, false, fix) && ret
+			if ! ptmap_full_link:
+				if len(ptmap_full) + len(ptmap) == len(allpt):
+					print ("disconnected RPs. all segments processed ", len(ptmap_full), " + ", len(ptmap))
+					ret = false
+				else:
+					print ("disconnected RPs or partial connection ", len(ptmap_full), " + ", len(ptmap), "/",  len(allpt), " processed") # it is possible that 2 disconnected segments are incorrectly connected through the third segment that is not processed yet
+					ret = false
+			ptmap_full.merge(ptmap)
+	return ret
+
 ## Update export variable lengths and counts to account for connection to
 ## other RoadContainers
 func update_edges():
@@ -569,6 +659,8 @@ func update_edges():
 	var _tmp_rp_locals:Array = []
 	var _tmp_rp_local_dirs:Array = []
 
+	is_normal(false) #debug only?
+		
 	for ch in get_roadpoints():
 		var pt:RoadPoint = ch
 		if pt.terminated:

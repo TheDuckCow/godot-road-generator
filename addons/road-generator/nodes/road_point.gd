@@ -178,7 +178,6 @@ func is_road_point() -> bool:
 # Editor visualizing
 # ------------------------------------------------------------------------------
 
-
 func _set_lanes(values):
 	lanes = values
 	if not is_instance_valid(container):
@@ -1143,3 +1142,23 @@ func _autofix_noncyclic_references(
 
 	# In the event of change in edges, update all references.
 	container.update_edges()
+
+func flip():
+	for i in len(traffic_dir):
+		if traffic_dir[i] == LaneDir.REVERSE:
+			traffic_dir[i] = LaneDir.FORWARD
+		elif traffic_dir[i] == LaneDir.FORWARD:
+			traffic_dir[i] = LaneDir.REVERSE
+	var tmp_init = prior_pt_init
+	prior_pt_init = next_pt_init
+	next_pt_init = tmp_init
+	var tmp_mag = prior_mag
+	prior_mag = next_mag
+	next_mag = tmp_mag
+	#terminated?
+	var tmp_wid = rev_width_mag
+	rev_width_mag = fwd_width_mag
+	fwd_width_mag = tmp_wid
+	var tmp_seg = prior_seg
+	prior_seg = next_seg
+	next_seg = tmp_seg
