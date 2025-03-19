@@ -12,15 +12,13 @@ Current status:
 
 | [Dev](https://github.com/TheDuckCow/godot-road-generator/tree/dev) | [Main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | [godot4](https://github.com/TheDuckCow/godot-road-generator/tree/godot4) |
 | --- | ---- | ------ |
-| For godot 3.x | For godot 3.5 ([Asset Library](https://godotengine.org/asset-library/asset/1934)) | For godot 4.3 ([Asset Library](https://godotengine.org/asset-library/asset/3379)) |
-| Latest updates, may be unstable | Latest release (v0.5.1) | Latest release (v0.5.1) | 
+| For godot 3.x | For godot 3.x | For godot 4.x |
+| Latest updates, including not-yet released code | Latest release | Latest release |
 
 
-Currently, all new development begins in the Godot 3.x dev branch.
+Previously, all new development would begin in the Godot 3.x dev branch. As of v0.6.0, no more development on Godot 3 will take place. At the moment, the branches and their purposes are being updated to reflect godot 4 primarily.
 
-When a release is ready, the dev branch is merged into main (which is why main may look inactive). After such releases, manual time is spent to migrate the godot 3.x release into the godot4 branch, which may take several days. 
-
-Once the project reaches initial alpha feature completion (public 1.0), future releases will only target Godot 4.0+. The Godot 3.5 builds shared before v1.0 will be provided as-is and without further maintenance after the 1.0 launch.
+When a release is ready, the dev branch is merged into main (which is why main may look inactive).
 
 
 ## What problems this addon solves

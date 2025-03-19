@@ -413,14 +413,14 @@ func get_prior_rp():
 		return get_node(prior_pt_init)
 	# If no sibling point, could still have a cross-container connection
 	for _idx in range(len(container.edge_rp_locals)):
-		if container.get_node(container.edge_rp_locals[_idx]) != self:
+		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.PRIOR:
 			continue
 		if not container.edge_containers[_idx]:
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
-		return target_container.get_node(container.edge_rp_targets[_idx])
+		return target_container.get_node_or_null(container.edge_rp_targets[_idx])
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (get_prior_rp)")
 	return null
@@ -432,14 +432,14 @@ func get_next_rp():
 		return get_node(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
 	for _idx in range(len(container.edge_rp_locals)):
-		if container.get_node(container.edge_rp_locals[_idx]) != self:
+		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
 			continue
 		if container.edge_rp_local_dirs[_idx] != PointInit.NEXT:
 			continue
 		if not container.edge_containers[_idx]:
 			return null
 		var target_container = container.get_node(container.edge_containers[_idx])
-		return target_container.get_node(container.edge_rp_targets[_idx])
+		return target_container.get_node_or_null(container.edge_rp_targets[_idx])
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (get_next_rp)")
 	return null

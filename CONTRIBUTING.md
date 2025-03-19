@@ -1,5 +1,9 @@
 # How to contribute to this repository
 
+> [!WARNING]  
+> This guide is in the process of being updated to reflect Godot 4 development after the 0.6.0 release.
+
+
 ## How to contribute
 
 In all cases, it's best to communicate with the repository owners! If you are hoping to make a small change, directly creating a pull request is a good option (but feel free to communicate via an issue ahead of time). For bigger changes that add whole new features or change functionality, it's better to discuss in an issue first to ensure there is alignment. 
