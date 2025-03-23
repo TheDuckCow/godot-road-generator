@@ -34,6 +34,13 @@ var road_manager: RoadManager
 ## The current RoadLane, used as the linking reference to all adjacent lanes
 var current_lane: RoadLane
 
+@export var find_nearest_lane_max_distance : float = 50.0
+
+@export var current_navigation_path: Array[RoadPath]
+@export var navigation_starting_position: Vector3
+@export var navigation_ending_position: Vector3
+
+
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
 
@@ -136,12 +143,12 @@ func find_nearest_lane(pos = null) -> RoadLane:
 	var closest_dist = null
 
 	var all_lanes:Array = []
-	var groups_checked:Array = [] # Technically, each container could have its own group name
+	#var groups_checked:Array = [] # Technically, each container could have its own group name
 	var containers = road_manager.get_containers()
 	for _cont in containers:
-		if _cont.ai_lane_group in groups_checked:
-			continue
-		var new_lanes = get_tree().get_nodes_in_group(_cont.ai_lane_group)
+		#if _cont.ai_lane_group in groups_checked:
+		#	continue
+		var new_lanes = _get_container_lanes(_cont)
 		all_lanes.append_array(new_lanes)
 
 	for lane in all_lanes:
@@ -150,7 +157,7 @@ func find_nearest_lane(pos = null) -> RoadLane:
 			continue
 		var this_lane_closest = get_closest_path_point(lane, pos)
 		var this_lane_dist = pos.distance_to(this_lane_closest)
-		if this_lane_dist > 50:
+		if this_lane_dist > find_nearest_lane_max_distance:
 			continue
 		elif closest_lane == null:
 			closest_lane = lane
@@ -160,6 +167,9 @@ func find_nearest_lane(pos = null) -> RoadLane:
 			closest_dist = this_lane_dist
 	return closest_lane
 
+func _get_container_lanes(cont: RoadContainer) -> Array[Node]:
+	return get_tree().get_nodes_in_group(cont.ai_lane_group)
+	
 
 ## Finds the poistion this many many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
@@ -187,39 +197,102 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	# Account for the lane's UI setting for direction
 	var dir:int = -1 if current_lane.reverse_direction else 1
 	var check_next_offset:float = init_offset + move_distance * dir
-	var going_to_next:bool = dir > 0
 	var _update_lane
-	if check_next_offset > lane_length: # Target point is past the end of this curve
-		if going_to_next:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-		else:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		# The below is just a quick hack solution, but also make the system not work
-		# when going in reverse and is non deterministic.
-		if not update_lane:
-			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
-			_update_lane = find_nearest_lane(seek_pos)
-		assign_lane(_update_lane)
-	elif check_next_offset < 0: # Target point is before start of this curve
-		if going_to_next:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-		else:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		# The below is just a quick hack solution, but also make the system not work
-		# when going in reverse and is non deterministic.
-		if not update_lane:
-			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
-			_update_lane = find_nearest_lane(seek_pos)
-		assign_lane(_update_lane)
-
-	else: # Target point lies within the length of this curve
+	var exceeded_lane_offset = check_next_offset - lane_length
+	var lookdirection : int = -1 if check_next_offset < 0 else 1
+	
+	#point is within our current lane
+	if check_next_offset >=0 and exceeded_lane_offset <=0:
 		var ref_local = current_lane.curve.sample_baked(check_next_offset)
 		new_point = current_lane.to_global(ref_local)
-
+		return new_point			
+	
+	#point is outside our current lane
+	var ret = get_new_lane_and_point(check_next_offset, dir)
+	_update_lane = ret[0]
+	
+	#point couldn't be traversed to, return current actor position
+	if not is_instance_valid(_update_lane):
+		return pos
+		
+	new_point = ret[1]					
+		
+	#update our lane if wanted
+	if update_lane:
+		assign_lane(_update_lane)
+		
 	return new_point
 
+func get_next_lane(current_lane: RoadLane, dir: int) -> RoadLane:
+	var next_lane
+	if dir > 0:
+		next_lane = current_lane.get_node_or_null(current_lane.lane_next)
+	else:
+		next_lane = current_lane.get_node_or_null(current_lane.lane_prior)
+		
+	#check to see if we should move to a new road path
+	#TODO: switch onto the RoadBranch lane before continuing on the next RoadPath lane
+	if next_lane == null:
+		
+		var current_road_point = current_lane.get_parent()
+		#TODO: hack? best way to get RoadPath from a lane?
+		var current_path = current_lane.get_parent()
+		while (current_path is not RoadPath):
+			current_path = current_path.get_parent()
+
+		# get our current lane branch tag
+		var branch_tag = current_lane.get_lane_branch_tag(dir)
+
+			
+		var path_index = current_navigation_path.find(current_path)
+		var container = current_path.get_container()
+		var lanes = _get_container_lanes(container)
+		if dir > 0:
+			#TODO: add handling for stopping in the middle of the last path (at navigation_ending_position) 
+			if path_index + 1 == len(current_navigation_path):
+				#reached the end of the nav paths
+				return null
+			else:
+				var upcoming_branch = current_path.exit_branch
+				
+				var next_path = current_navigation_path[path_index + 1]
+				var next_lane_tag = upcoming_branch.get_matching_lane(branch_tag, next_path)
+				next_lane = next_path.get_lane_of_tag_on_branch(next_lane_tag, upcoming_branch)
+		
+		else:
+			if path_index == 0:
+				#reached the end of the nav paths
+				return null
+			else:								
+				var previous_branch = current_path.entry_branch
+
+				var next_path = current_navigation_path[path_index - 1]
+				var next_lane_tag = previous_branch.get_matching_lane(branch_tag, next_path)
+				next_lane = next_path.get_lane_of_tag_on_branch(next_lane_tag, previous_branch)
+				return null
+							
+		
+	return next_lane
+		
+	
+func get_new_lane_and_point(check_next_offset : float, dir : int) -> Array:
+	var current_lane_offset = check_next_offset			
+	var next_lane = current_lane
+	var next_lane_length
+	var offset_sign = -1 if check_next_offset < 0 else 1
+	
+	while current_lane_offset * offset_sign > 0:
+		if (next_lane == null):
+			return [null, null]
+			
+		next_lane_length = next_lane.curve.get_baked_length()
+		current_lane_offset -= next_lane_length	
+		next_lane = get_next_lane(next_lane, dir * offset_sign)			
+						
+	var ref_local = next_lane.curve.sample_baked(current_lane_offset)
+	var new_point = next_lane.to_global(ref_local)
+	return [next_lane, new_point]
+	 
 
 ## Input of -1 or 1 to assign left or right lane accordingly
 func change_lane(direction: int) -> int:

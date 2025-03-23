@@ -84,9 +84,16 @@ func _ui_refresh_set(value: bool) -> void:
 
 func get_containers() -> Array:
 	var res := []
+	var container_method = "is_road_container"
+	var path_method = "is_road_path"
+	
 	for ch in get_children():
-		if ch.has_method("is_road_container"):
+		if ch.has_method(container_method):
 			res.append(ch)
+		if ch.has_method(path_method):
+			for path_child in ch.get_children():
+				if path_child.has_method(container_method):
+					res.append(path_child)
 	return res
 
 
