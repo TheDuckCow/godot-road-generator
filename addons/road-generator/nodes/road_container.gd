@@ -879,8 +879,6 @@ func update_lane_seg_connections():
 			continue
 		if not obj.visible:
 			continue # Assume local chunk has dealt with the geo visibility.
-		if obj.is_queued_for_deletion():
-			continue # To be cleaned up anyways
 		var pt:RoadPoint = obj
 
 		# update prior lanes to match next lanes first.

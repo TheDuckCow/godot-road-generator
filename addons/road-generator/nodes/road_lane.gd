@@ -226,3 +226,20 @@ func _exit_tree() -> void:
 		for _vehicle in _vehicles_in_lane:
 			if is_instance_valid(_vehicle):
 				_vehicle.call_deferred("queue_free")
+
+
+
+# Returns E/X + index to designate if the lane is 
+# exiting into the branch (X) 
+# or you can enter it from the branch (E)
+# this is used to match to another road path in the branch
+# an X1 would match to an E1 if going straight or turning left
+# an X branch would match the corresponding E index on a right turn, counting backwards from their respective lane max
+# e.g. an X2 on a 6-lane road would match an E1 if turning right onto a 4-lane road.
+func get_lane_branch_tag(dir: int) -> String:
+	#todo implement for real
+	# get the path of this lane first
+	if dir == 1:
+		return lane_next_tag.replace("F", "E").replace("R", "E")
+	else:
+		return lane_prior_tag.replace("F", "X").replace("R", "X")
