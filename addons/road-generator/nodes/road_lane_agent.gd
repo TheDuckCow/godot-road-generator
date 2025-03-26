@@ -179,45 +179,34 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var pos = actor.global_transform.origin
 	var new_point: Vector3 = pos
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
-
 	# Find how much space is left along the RoadLane in this direction
 	var init_offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
-	var lane_length = current_lane.curve.get_baked_length()
-
 	# Account for the lane's UI setting for direction
 	var dir:int = -1 if current_lane.reverse_direction else 1
 	var check_next_offset:float = init_offset + move_distance * dir
-	var going_to_next:bool = dir > 0
-	var _update_lane
-	if check_next_offset > lane_length: # Target point is past the end of this curve
-		if going_to_next:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-		else:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		# The below is just a quick hack solution, but also make the system not work
-		# when going in reverse and is non deterministic.
-		if not update_lane:
-			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
-			_update_lane = find_nearest_lane(seek_pos)
+	var _update_lane = current_lane
+	var lane_length = current_lane.curve.get_baked_length()
+	while check_next_offset > lane_length: # Target point is past the end of this curve
+		var lane_dir = _update_lane.lane_next if dir > 0 else _update_lane.lane_prior
+		var check_lane = _update_lane.get_node_or_null( lane_dir )
+		if ! is_instance_valid(check_lane):
+			check_next_offset = lane_length
+			break
+		check_next_offset -= lane_length
+		_update_lane = check_lane
+		lane_length = _update_lane.curve.get_baked_length()
+	while check_next_offset < 0:
+		var lane_dir = _update_lane.lane_next if dir < 0 else _update_lane.lane_prior
+		var check_lane = _update_lane.get_node_or_null( lane_dir )
+		if ! is_instance_valid(check_lane):
+			check_next_offset = 0
+			break
+		_update_lane = check_lane
+		check_next_offset += _update_lane.curve.get_baked_length()
+	if update_lane && _update_lane != current_lane:
 		assign_lane(_update_lane)
-	elif check_next_offset < 0: # Target point is before start of this curve
-		if going_to_next:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_prior)
-		else:
-			_update_lane = current_lane.get_node_or_null(current_lane.lane_next)
-		# TODO: go the "rest of the way" onto the next RoadLane to get final position
-		# The below is just a quick hack solution, but also make the system not work
-		# when going in reverse and is non deterministic.
-		if not update_lane:
-			var seek_pos:Vector3 = actor.global_transform.origin - actor.global_transform.basis.z * 1.0
-			_update_lane = find_nearest_lane(seek_pos)
-		assign_lane(_update_lane)
-
-	else: # Target point lies within the length of this curve
-		var ref_local = current_lane.curve.sample_baked(check_next_offset)
-		new_point = current_lane.to_global(ref_local)
-
+	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
+	new_point = _update_lane.to_global(ref_local)
 	return new_point
 
 

@@ -62,7 +62,7 @@ func _get_player_inptu() -> Vector3:
 
 	if Input.is_action_just_pressed("ui_left"):
 		lane_move -= 1
-	if Input.is_action_pressed("ui_right"):
+	if Input.is_action_just_pressed("ui_right"):
 		lane_move += 1
 	return Vector3(lane_move, 0, -dir) # neg z is "forward"
 
@@ -90,13 +90,16 @@ func _physics_process(delta: float) -> void:
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
 	var move_dist = -velocity.z * delta
+
 	var next_pos:Vector3 = agent.move_along_lane(move_dist)
-	# Get another point a little further in front for orientation seeking,
-	# without actually moving the vehicle (ie don't update the assign lane
-	# if this margin puts us into the next lane in front)
-	var orientation:Vector3 = agent.test_move_along_lane(move_dist + 0.05)
 
 	# Position and orient the vehicle
 	global_transform.origin = next_pos
-	if next_pos != orientation:
+
+	# Get another point a little further in front for orientation seeking,
+	# without actually moving the vehicle (ie don't update the assign lane
+	# if this margin puts us into the next lane in front)
+	var orientation:Vector3 = agent.test_move_along_lane(0.05)
+
+	if ! global_transform.origin.is_equal_approx(orientation):
 		look_at(orientation, Vector3.UP)
