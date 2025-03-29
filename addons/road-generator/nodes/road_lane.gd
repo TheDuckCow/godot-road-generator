@@ -74,33 +74,30 @@ func _ready():
 	rebuild_geom()
 	#_instantiate_geom()
 
-
-func _set_direction(value):
+func _set_direction(value: bool) -> void:
+	if value == reverse_direction:
+		return
+	var reversed_curve = Curve3D.new()
+	for i in range(self.curve.point_count - 1, -1, -1):
+		var pos = self.curve.get_point_position(i)
+		var in_tangent = self.curve.get_point_in(i)
+		var out_tangent = self.curve.get_point_out(i)
+		reversed_curve.add_point(pos, out_tangent, in_tangent)
+	self.curve = reversed_curve
 	reverse_direction = value
 	refresh_geom = true
 	rebuild_geom()
 
-
-func _get_direction():
+func _get_direction() -> bool:
 	return reverse_direction
 
 
 func get_lane_start() -> Vector3:
-	var pos
-	if reverse_direction:
-		pos = curve.get_point_position(curve.get_point_count()-1)
-	else:
-		pos = curve.get_point_position(0)
-	return to_global(pos)
+	return to_global(curve.get_point_position(0))
 
 
 func get_lane_end() -> Vector3:
-	var pos
-	if reverse_direction:
-		pos = curve.get_point_position(0)
-	else:
-		pos = curve.get_point_position(curve.get_point_count()-1)
-	return to_global(pos)
+	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
 ## Register a car to be connected to (on, following) this lane.
@@ -169,7 +166,6 @@ func _draw_shark_fins() -> void:
 	var draw_dist = 3 # draw a new triangle at this interval in m
 	var tri_count = floor(curve_length / draw_dist)
 
-	var rev = -1 if reverse_direction else 1
 	geom.clear_surfaces()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
@@ -177,7 +173,7 @@ func _draw_shark_fins() -> void:
 
 		xf.origin = curve.sample_baked(f)
 		var lookat = (
-			curve.sample_baked(f + 0.1*rev) - xf.origin
+			curve.sample_baked(f + 0.1) - xf.origin
 		).normalized()
 
 		geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
