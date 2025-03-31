@@ -47,6 +47,7 @@ var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 var geom_node: MeshInstance3D
+var transition: bool = false
 
 var _vehicles_in_lane = [] # Registration
 var _draw_in_game: bool = false

@@ -42,17 +42,36 @@ func get_input() -> Vector3:
 		DriveState.AUTO:
 			return _get_auto_input()
 		DriveState.PLAYER:
-			return _get_player_inptu()
+			return _get_player_input()
 		_:
 			return Vector3.ZERO
 
 
 func _get_auto_input() -> Vector3:
-	# Using controversial take to make "forward" be positive z
-	return Vector3.FORWARD
+	if ! is_instance_valid(agent.current_lane):
+		return Vector3.ZERO
+
+	var lane_move:int = 0
+	if agent.current_lane.transition && agent.close_to_lane_end(-velocity.z):
+		# transition line ended, try to automatically switch to the lane that has lane ahead linked
+		lane_move = agent.find_continued_lane(-1, -velocity.z)
+	else:#
+		var cur_cars:int   = agent.cars_in_lane(0)
+		if (cur_cars > 1):
+			var cur_cars_l:int = agent.cars_in_lane(-1)
+			var cur_cars_r:int = agent.cars_in_lane(1)
+			if (cur_cars_l >= 0) && (cur_cars - cur_cars_l > 3):
+				lane_move -= 1
+			elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > 3):
+				lane_move += 1
+			#lane_move = 0
+	return Vector3(lane_move, 0, -1) # neg z is "forward"
 
 
-func _get_player_inptu() -> Vector3:
+func _get_player_input() -> Vector3:
+	if ! is_instance_valid(agent.current_lane):
+		return Vector3.ZERO
+
 	var dir:float = 0
 	var lane_move:int = 0
 	if Input.is_action_pressed("ui_up"):
@@ -60,10 +79,14 @@ func _get_player_inptu() -> Vector3:
 	if Input.is_action_pressed("ui_down"):
 		dir -= 1
 
-	if Input.is_action_just_pressed("ui_left"):
-		lane_move -= 1
-	if Input.is_action_just_pressed("ui_right"):
-		lane_move += 1
+	if agent.current_lane.transition && agent.close_to_lane_end(-velocity.z):
+		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
+		lane_move = agent.find_continued_lane(-1, -velocity.z)
+	else:
+		if Input.is_action_just_pressed("ui_left"):
+			lane_move -= 1
+		if Input.is_action_just_pressed("ui_right"):
+			lane_move += 1
 	return Vector3(lane_move, 0, -dir) # neg z is "forward"
 
 
@@ -73,10 +96,7 @@ func _physics_process(delta: float) -> void:
 	var target_velz = lerp(velocity.z, target_dir.z * target_speed, delta * acceleration)
 	velocity.z = target_velz
 
-	if target_dir.x > 0:
-		agent.change_lane(1)
-	elif target_dir.x < 0:
-		agent.change_lane(-1)
+	agent.change_lane(target_dir.x)
 
 	if not is_instance_valid(agent.current_lane):
 		var res = agent.assign_nearest_lane()
@@ -89,11 +109,9 @@ func _physics_process(delta: float) -> void:
 	# we flip the direction along the Z axis so that positive move direction
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
-	var move_dist = -velocity.z * delta
+	var move_dist:float = -velocity.z * delta
 
-	var next_pos:Vector3 = agent.move_along_lane(move_dist)
-
-	# Position and orient the vehicle
+	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos
 
 	# Get another point a little further in front for orientation seeking,
