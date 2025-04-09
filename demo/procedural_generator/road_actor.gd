@@ -55,8 +55,8 @@ func _get_auto_input() -> Vector3:
 	if agent.current_lane.transition && agent.close_to_lane_end(-velocity.z):
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(-1, -velocity.z)
-	else:#
-		var cur_cars:int   = agent.cars_in_lane(0)
+	else:
+		var cur_cars:int = agent.cars_in_lane(0)
 		if (cur_cars > 1):
 			var cur_cars_l:int = agent.cars_in_lane(-1)
 			var cur_cars_r:int = agent.cars_in_lane(1)
