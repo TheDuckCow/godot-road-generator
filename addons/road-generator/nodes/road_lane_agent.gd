@@ -270,7 +270,6 @@ func find_continued_lane(direction: int, velocity: float) -> int:
 	return 0
 
 
-
 func cars_in_lane(lane_dir: int) -> int:
 	if ! is_instance_valid(current_lane):
 		return -1
