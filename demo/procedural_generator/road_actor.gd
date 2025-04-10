@@ -20,6 +20,8 @@ enum DriveState {
 
 var velocity := Vector3.ZERO
 
+const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
+
 func _ready() -> void:
 	agent.visualize_lane = visualize_lane
 	agent.auto_register = auto_register
@@ -34,7 +36,7 @@ func _ready() -> void:
 
 ## Generic function to calc speed
 func get_velocity() -> float:
-	return velocity.z
+	return -velocity.z
 
 
 func get_input() -> Vector3:
@@ -52,19 +54,18 @@ func _get_auto_input() -> Vector3:
 		return Vector3.ZERO
 
 	var lane_move:int = 0
-	if agent.current_lane.transition && agent.close_to_lane_end(-velocity.z):
+	if agent.current_lane.transition && agent.close_to_lane_end(abs(get_velocity() * transition_time_close), sign(get_velocity())):
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
-		lane_move = agent.find_continued_lane(-1, -velocity.z)
+		lane_move = agent.find_continued_lane(agent.LaneDir.LEFT, sign(get_velocity()))
 	else:
 		var cur_cars:int = agent.cars_in_lane(0)
 		if (cur_cars > 1):
-			var cur_cars_l:int = agent.cars_in_lane(-1)
-			var cur_cars_r:int = agent.cars_in_lane(1)
+			var cur_cars_l:int = agent.cars_in_lane(agent.LaneDir.LEFT)
+			var cur_cars_r:int = agent.cars_in_lane(agent.LaneDir.RIGHT)
 			if (cur_cars_l >= 0) && (cur_cars - cur_cars_l > 3):
 				lane_move -= 1
 			elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > 3):
 				lane_move += 1
-			#lane_move = 0
 	return Vector3(lane_move, 0, -1) # neg z is "forward"
 
 
@@ -79,9 +80,9 @@ func _get_player_input() -> Vector3:
 	if Input.is_action_pressed("ui_down"):
 		dir -= 1
 
-	if agent.current_lane.transition && agent.close_to_lane_end(-velocity.z):
+	if agent.current_lane.transition && agent.close_to_lane_end(abs(get_velocity() * transition_time_close), sign(get_velocity())):
 		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
-		lane_move = agent.find_continued_lane(-1, -velocity.z)
+		lane_move = agent.find_continued_lane(agent.LaneDir.LEFT, sign(get_velocity()))
 	else:
 		if Input.is_action_just_pressed("ui_left"):
 			lane_move -= 1
@@ -109,7 +110,7 @@ func _physics_process(delta: float) -> void:
 	# we flip the direction along the Z axis so that positive move direction
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
-	var move_dist:float = -velocity.z * delta
+	var move_dist:float = get_velocity() * delta
 
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos

@@ -37,6 +37,19 @@ var current_lane: RoadLane
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
 
+enum MoveDir
+{
+	FORWARD = 1,
+	STOP = 0,
+	BACKWARD = -1
+}
+enum LaneDir
+{
+	RIGHT = 1,
+	CURRENT = 0,
+	LEFT = -1
+}
+
 
 func _ready() -> void:
 	var res = assign_actor()
@@ -133,7 +146,7 @@ func find_nearest_lane(pos = null) -> RoadLane:
 	if pos == null:
 		pos = actor.global_transform.origin
 	var closest_lane = null
-	var closest_dist = null
+	var closest_dist = 50 # Ignore all lanes further than that
 
 	var all_lanes:Array = []
 	var groups_checked:Array = [] # Technically, each container could have its own group name
@@ -143,19 +156,17 @@ func find_nearest_lane(pos = null) -> RoadLane:
 			continue
 		var new_lanes = get_tree().get_nodes_in_group(_cont.ai_lane_group)
 		all_lanes.append_array(new_lanes)
+		groups_checked.append(_cont.ai_lane_group)
 
 	for lane in all_lanes:
 		if not lane is RoadLane:
 			push_warning("Non RoadLane in lanes list (%s)" % lane)
 			continue
+		if lane == current_lane:
+			continue
 		var this_lane_closest = get_closest_path_point(lane, pos)
 		var this_lane_dist = pos.distance_to(this_lane_closest)
-		if this_lane_dist > 50:
-			continue
-		elif closest_lane == null:
-			closest_lane = lane
-			closest_dist = this_lane_dist
-		elif this_lane_dist < closest_dist:
+		if this_lane_dist < closest_dist:
 			closest_lane = lane
 			closest_dist = this_lane_dist
 	return closest_lane
@@ -186,33 +197,35 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var _update_lane = current_lane
 	var lane_length = current_lane.curve.get_baked_length()
 	var distance_left = 0
-	while check_next_offset > lane_length: # Target point is past the end of this curve
-		var lane_dir = _update_lane.lane_next if dir > 0 else _update_lane.lane_prior
-		var check_lane = _update_lane.get_node_or_null( lane_dir )
-		if ! is_instance_valid(check_lane):
-			distance_left = (check_next_offset - lane_length) * dir
-			check_next_offset = lane_length
-			break
-		check_next_offset -= lane_length
-		_update_lane = check_lane
-		lane_length = _update_lane.curve.get_baked_length()
-	while check_next_offset < 0:
-		var lane_dir = _update_lane.lane_next if dir < 0 else _update_lane.lane_prior
-		var check_lane = _update_lane.get_node_or_null( lane_dir )
-		if ! is_instance_valid(check_lane):
-			distance_left = check_next_offset * dir - init_offset
-			check_next_offset = 0
-			break
-		init_offset = 0
-		_update_lane = check_lane
-		check_next_offset += _update_lane.curve.get_baked_length()
+	if check_next_offset > lane_length:
+		while check_next_offset > lane_length: # Target point is past the end of this curve
+			var lane_dir = _update_lane.lane_next if dir > 0 else _update_lane.lane_prior
+			var check_lane = _update_lane.get_node_or_null( lane_dir )
+			if ! is_instance_valid(check_lane):
+				distance_left = (check_next_offset - lane_length) * dir
+				check_next_offset = lane_length
+				break
+			check_next_offset -= lane_length
+			_update_lane = check_lane
+			lane_length = _update_lane.curve.get_baked_length()
+	else:
+		while check_next_offset < 0:
+			var lane_dir = _update_lane.lane_next if dir < 0 else _update_lane.lane_prior
+			var check_lane = _update_lane.get_node_or_null( lane_dir )
+			if ! is_instance_valid(check_lane):
+				distance_left = check_next_offset * dir - init_offset
+				check_next_offset = 0
+				break
+			init_offset = 0
+			_update_lane = check_lane
+			check_next_offset += _update_lane.curve.get_baked_length()
 	if update_lane && _update_lane != current_lane:
 		assign_lane(_update_lane)
 	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
 	var new_point: Vector3 = _update_lane.to_global(ref_local)
-	if distance_left != 0: #workaround for missing connections
-		_update_lane = find_nearest_lane(pos - actor.global_transform.basis.z * dir)
-		if _update_lane != current_lane:
+	if update_lane && distance_left != 0: #workaround for missing connections
+		_update_lane = find_nearest_lane(pos + actor.global_transform.basis.z * dir * sign(move_distance))
+		if is_instance_valid(_update_lane) && _update_lane != current_lane:
 			assign_lane(_update_lane)
 	return new_point
 
@@ -239,11 +252,15 @@ func change_lane(direction: int) -> int:
 	assign_lane(_new_lane)
 	return OK
 
-var close_time = 0.05
-func close_to_lane_end(velocity: float) -> bool:
-	if ! is_instance_valid(current_lane) || velocity == 0:
+
+## Returns true if the current lane is going to end soon
+## proximity is a distance until the end of the lane in forward (move_dir == 1)
+## or backward (move_dir == -1) direction
+## Used for decision to change lanes from transition lanes (as there are no direct connection)
+func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
+	if ! is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
 		return false
-	var link_test = current_lane.lane_next if (velocity > 0) == current_lane.reverse_direction else current_lane.lane_prior
+	var link_test = current_lane.lane_next if move_dir > 0 else current_lane.lane_prior
 	if link_test:
 		return false
 	var pos = actor.global_transform.origin
@@ -251,26 +268,43 @@ func close_to_lane_end(velocity: float) -> bool:
 	# Find how much space is left along the RoadLane in this direction
 	var offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
 	var lane_len = current_lane.curve.get_baked_length()
-	var dist = offset if (velocity > 0) else current_lane.curve.get_baked_length() - offset
-	return dist/abs(velocity) < close_time
+	var dist:float
+	if current_lane.reverse_direction:
+		if move_dir > 0:
+			dist = offset
+		else:
+			dist = current_lane.curve.get_baked_length() - offset
+	else:
+		if move_dir > 0:
+			dist = current_lane.curve.get_baked_length() - offset
+		else:
+			dist = offset
+	return dist < proximity
 
-func find_continued_lane(direction: int, velocity: float) -> int:
-	assert (velocity != 0 && (direction == -1 || direction == 1) )
+
+## Returns how many lanes left (lane_dir == -1) or right (lane_dir == 1)
+## the road continues forward (move_dir == 1) or backward (move_dir == -1)
+## Used for decision to change lanes from transition lanes (as there are no direct connection)
+func find_continued_lane(lane_dir: LaneDir, move_dir: MoveDir) -> int:
+	assert ( move_dir != MoveDir.STOP && (lane_dir == LaneDir.LEFT || lane_dir == LaneDir.RIGHT) )
 	var _new_lane = current_lane
 	var count:int = 0
 	while true:
-		var _new_lane_path = _new_lane.lane_right if direction == 1 else _new_lane.lane_left
+		var _new_lane_path = _new_lane.lane_right if lane_dir == 1 else _new_lane.lane_left
 		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
 		if ! _new_lane:
 			return 0
-		count += direction
-		var link_test = _new_lane.lane_next if (velocity > 0) == current_lane.reverse_direction else _new_lane.lane_prior
+		count += lane_dir
+		var link_test = _new_lane.lane_next if (move_dir > 0) else _new_lane.lane_prior
 		if link_test:
 			return count
 	return 0
 
 
-func cars_in_lane(lane_dir: int) -> int:
+## Returns how many cars are in the current lane (lane_dir == 0)
+## left lane (lane_dir == -1) or right lane (lane_dir = 1)
+## Used for simple heuristic decision making of traffic balancing
+func cars_in_lane(lane_dir: LaneDir) -> int:
 	if ! is_instance_valid(current_lane):
 		return -1
 	if lane_dir == 0:
@@ -280,6 +314,7 @@ func cars_in_lane(lane_dir: int) -> int:
 	if ! _lane:
 		return -1;
 	return len(_lane.get_vehicles())
+
 
 ## Returns the expect target position based on the closest target pos
 #func get_fwd_tangent_for_position(position: Vector3) -> Vector3:
