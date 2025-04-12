@@ -293,6 +293,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
+	var last_ln_reverse: bool
 
 	# Cache for sparse node removal
 	var active_lanes = []
@@ -305,7 +306,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	var lane_shift := {"reverse": 0, "forward": 0}
 
 	var _tmppar = _par.get_children()
-
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
@@ -346,8 +346,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# Set direction
 		# TODO: When directionality is made consistent, we should no longer
 		# need to invert the direction assignment here.
-		if ln_dir != RoadPoint.LaneDir.REVERSE:
-			new_ln.reverse_direction = true
+		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
 		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
 			new_ln.transition = true
@@ -355,7 +354,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.
-		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln.reverse_direction)
+		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln_reverse)
 
 		# Visually display if indicated, and not mid transform (low_poly)
 		if low_poly:
@@ -367,7 +366,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.rebuild_geom()
 
 		# Update lane connectedness for left/right lane connections.
-		if not last_ln == null and last_ln.reverse_direction == new_ln.reverse_direction:
+		if not last_ln == null and last_ln_reverse == new_ln_reverse:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
@@ -382,6 +381,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		any_generated = true
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
+		last_ln_reverse = new_ln_reverse
 	clear_lane_segments(active_lanes)
 
 	return any_generated

@@ -902,10 +902,13 @@ func update_lane_seg_connections():
 			# prior lane be set to track to a next lane
 			for next_ln in next_seg_lanes:
 				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
-					if prior_ln.reverse_direction:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
 						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
 						next_ln.lane_next = next_ln.get_path_to(prior_ln)
 					else:
+						assert(prior_ln.lane_next_tag[0] == "R")
 						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
 						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
