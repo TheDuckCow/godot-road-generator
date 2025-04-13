@@ -43,7 +43,7 @@ enum MoveDir
 	STOP = 0,
 	BACKWARD = -1
 }
-enum LaneDir
+enum LaneChangeDir
 {
 	RIGHT = 1,
 	CURRENT = 0,
@@ -260,7 +260,7 @@ func change_lane(direction: int) -> int:
 func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 	if ! is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
 		return false
-	var link_test = current_lane.lane_next if move_dir > 0 else current_lane.lane_prior
+	var link_test = current_lane.lane_next if move_dir == MoveDir.FORWARD else current_lane.lane_prior
 	if link_test:
 		return false
 	var pos = actor.global_transform.origin
@@ -270,46 +270,48 @@ func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 	var lane_len = current_lane.curve.get_baked_length()
 	var dist:float
 	if current_lane.reverse_direction:
-		if move_dir > 0:
+		if move_dir == MoveDir.FORWARD:
 			dist = offset
 		else:
+			assert(move_dir == MoveDir.BACKWARD)
 			dist = current_lane.curve.get_baked_length() - offset
 	else:
-		if move_dir > 0:
+		if move_dir == MoveDir.FORWARD:
 			dist = current_lane.curve.get_baked_length() - offset
 		else:
+			assert(move_dir == MoveDir.BACKWARD)
 			dist = offset
 	return dist < proximity
 
 
-## Returns how many lanes left (lane_dir == -1) or right (lane_dir == 1)
+## Returns how many lanes left (lane_change_dir == -1) or right (lane_change_dir == 1)
 ## the road continues forward (move_dir == 1) or backward (move_dir == -1)
 ## Used for decision to change lanes from transition lanes (as there are no direct connection)
-func find_continued_lane(lane_dir: LaneDir, move_dir: MoveDir) -> int:
-	assert ( move_dir != MoveDir.STOP && (lane_dir == LaneDir.LEFT || lane_dir == LaneDir.RIGHT) )
+func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> int:
+	assert ( move_dir != MoveDir.STOP && (lane_change_dir == LaneChangeDir.LEFT || lane_change_dir == LaneChangeDir.RIGHT) )
 	var _new_lane = current_lane
 	var count:int = 0
 	while true:
-		var _new_lane_path = _new_lane.lane_right if lane_dir == 1 else _new_lane.lane_left
+		var _new_lane_path = _new_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else _new_lane.lane_left
 		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
 		if ! _new_lane:
 			return 0
-		count += lane_dir
-		var link_test = _new_lane.lane_next if (move_dir > 0) else _new_lane.lane_prior
+		count += lane_change_dir
+		var link_test = _new_lane.lane_next if move_dir == MoveDir.FORWARD else _new_lane.lane_prior
 		if link_test:
 			return count
 	return 0
 
 
-## Returns how many cars are in the current lane (lane_dir == 0)
-## left lane (lane_dir == -1) or right lane (lane_dir = 1)
+## Returns how many cars are in the current lane (lane_change_dir == 0)
+## left lane (lane_change_dir == -1) or right lane (lane_change_dir = 1)
 ## Used for simple heuristic decision making of traffic balancing
-func cars_in_lane(lane_dir: LaneDir) -> int:
+func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 	if ! is_instance_valid(current_lane):
 		return -1
-	if lane_dir == 0:
+	if lane_change_dir == LaneChangeDir.CURRENT:
 		return len(current_lane.get_vehicles())
-	var _lane_path = current_lane.lane_right if lane_dir > 0 else current_lane.lane_left
+	var _lane_path = current_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else current_lane.lane_left
 	var _lane:RoadLane = current_lane.get_node_or_null(_lane_path)
 	if ! _lane:
 		return -1;
