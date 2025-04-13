@@ -217,16 +217,31 @@ func generate_edge_curves():
 		return
 
 	var _par = get_parent()
-	var start_half_width: float = len(start_point.lanes) * start_point.lane_width * 0.5
-	var end_half_width: float = len(end_point.lanes) * end_point.lane_width * 0.5
+
+	var start_offset_R
+	var start_offset_F
+	var end_offset_R
+	var end_offset_F
+	if start_point.alignment == RoadPoint.Alignment.CENTER:
+		var start_half_width: float = len(start_point.lanes) * start_point.lane_width * 0.5
+		start_offset_R = start_half_width
+		start_offset_F = start_half_width
+	else:
+		assert( start_point.alignment == RoadPoint.Alignment.CENTERLINE )
+		start_offset_R = start_point.get_rev_lane_count() * start_point.lane_width
+		start_offset_F = start_point.get_fwd_lane_count() * start_point.lane_width
+	if end_point.alignment == RoadPoint.Alignment.CENTER:
+		var end_half_width: float = len(end_point.lanes) * end_point.lane_width * 0.5
+		end_offset_R = end_half_width
+		end_offset_F = end_half_width
+	else:
+		assert( end_point.alignment == RoadPoint.Alignment.CENTERLINE )
+		end_offset_R = end_point.get_rev_lane_count() * end_point.lane_width
+		end_offset_F = end_point.get_fwd_lane_count() * end_point.lane_width
 
 	# Add edge curves
 	var edge_R: Path3D = _par.get_node_or_null(EDGE_R_NAME)
 	var edge_F: Path3D = _par.get_node_or_null(EDGE_F_NAME)
-	var start_offset_R := start_half_width
-	var start_offset_F := start_half_width
-	var end_offset_R := end_half_width
-	var end_offset_F := end_half_width
 	var extra_offset: float = 0.0
 	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
 	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
@@ -253,10 +268,8 @@ func generate_edge_curves():
 
 	# Add center curve
 	var edge_C: Path3D = _par.get_node_or_null(EDGE_C_NAME)
-	var start_width_R: float = start_point.get_rev_lane_count() * start_point.lane_width
-	var end_width_R: float = end_point.get_rev_lane_count() * end_point.lane_width
-	var start_offset_C: float = start_width_R - start_half_width
-	var end_offset_C: float = end_width_R - end_half_width
+	var start_offset_C: float = 0
+	var end_offset_C: float = 0
 
 	if edge_C == null or not is_instance_valid(edge_C):
 		edge_C = Path3D.new()
@@ -284,12 +297,24 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		_matched_lanes = self._match_lanes()
 	if len(_matched_lanes) == 0:
 		return false
+	
+	var start_lane_offset
+	var end_lane_offset
+	if start_point.alignment == RoadPoint.Alignment.CENTERLINE:
+		start_lane_offset = start_point.get_rev_lane_count()
+	else:
+		assert( start_point.alignment == RoadPoint.Alignment.CENTER )
+		start_lane_offset = len(start_point.lanes) / 2.0
 
-	var any_generated = false
 	var manager:RoadManager = container.get_manager()
+	if end_point.alignment == RoadPoint.Alignment.CENTERLINE:
+		end_lane_offset = end_point.get_rev_lane_count()
+	else:
+		assert( end_point.alignment == RoadPoint.Alignment.CENTER )
+		end_lane_offset = len(end_point.lanes) / 2.0
 
-	var start_offset = len(start_point.lanes) / 2.0 * start_point.lane_width - start_point.lane_width/2.0
-	var end_offset = len(end_point.lanes) / 2.0 * end_point.lane_width - end_point.lane_width/2.0
+	var start_offset = (start_lane_offset - 0.5) * start_point.lane_width
+	var end_offset = (end_lane_offset - 0.5) * end_point.lane_width
 
 	# Tracker used during the loop, to sum offset to apply.
 	var lanes_added := 0
@@ -385,13 +410,12 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 				new_ln.lane_right = new_ln.get_path_to(last_ln)
 
 		# Assign that it was a success.
-		any_generated = true
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
 		last_ln_reverse = new_ln_reverse
 	clear_lane_segments(active_lanes)
 
-	return any_generated
+	return lanes_added > 0
 
 
 ## Offsets a destination curve from a source curve by a specified distance.
@@ -624,7 +648,7 @@ func _rebuild():
 
 func _update_curve():
 	curve.clear_points()
-	curve.bake_interval = density # Specing in meters between loops.
+	curve.bake_interval = density # Spacing in meters between loops.
 	# path.transform.origin = Vector3.ZERO
 	# path.transform.scaled(Vector3.ONE)
 	# path.transform. clear rotation.
@@ -846,6 +870,8 @@ func _insert_geo_loop(
 		lane_uvs_length: Array,
 		per_loop_uv_size: float,
 		uv_width: float):
+	assert (loop < loops)
+	
 	# One loop = row of quads left to right across the road, spanning lanes.
 	var offset_s = float(loop) / float(loops)
 	var offset_e = float(loop + 1) / float(loops)
@@ -880,17 +906,43 @@ func _insert_geo_loop(
 	var near_width_offset
 	var far_width_offset
 
-	near_width_offset = -lerp(
-			len(start_point.lanes) * start_point.lane_width,
-			len(end_point.lanes) * end_point.lane_width,
-			offset_s_ease
-	) / 2.0
-	far_width_offset = -lerp(
-			len(start_point.lanes) * start_point.lane_width,
-			len(end_point.lanes) * end_point.lane_width,
-			offset_e_ease
-	) / 2.0
+	var near_lane_offset = len(start_point.lanes) / 2.0
+	var far_lane_offset = len(end_point.lanes) / 2.0
+	if start_point.alignment == RoadPoint.Alignment.CENTERLINE || \
+		end_point.alignment == RoadPoint.Alignment.CENTERLINE:
+		var near_reverse = 0
+		var far_reverse = 0
+		for this_match in lanes:
+			var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
+			var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
+			if ln_dir == RoadPoint.LaneDir.REVERSE:
+				if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+					far_reverse += 1
+				elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
+					near_reverse += 1
+				elif ln_type != RoadPoint.LaneType.SHOULDER:
+					near_reverse += 1
+					far_reverse += 1
+			else:
+				assert (ln_dir == RoadPoint.LaneDir.FORWARD)
+		if start_point.alignment == RoadPoint.Alignment.CENTERLINE:
+			near_lane_offset = near_reverse
+		if end_point.alignment == RoadPoint.Alignment.CENTERLINE:
+			far_lane_offset = far_reverse
 
+	var near_width_offset_l = lerp(
+			near_lane_offset * start_point.lane_width,
+			far_lane_offset * end_point.lane_width,
+			offset_s_ease
+	)
+	var far_width_offset_l = lerp(
+			near_lane_offset * start_point.lane_width,
+			far_lane_offset * end_point.lane_width,
+			offset_e_ease
+	)
+
+	near_width_offset = -near_width_offset_l
+	far_width_offset = -far_width_offset_l
 	for i in range(lane_count):
 		# Create the contents of a single lane / quad within this quad loop.
 		var lane_offset_s = near_width_offset * start_basis
@@ -976,11 +1028,7 @@ func _insert_geo_loop(
 				end_loop + lane_offset_e,
 				start_loop + lane_offset_s,
 				start_loop + start_basis * lane_near_width + lane_offset_s,
-
 			])
-
-	#else:
-	#push_warning("Non-same number of lanes not implemented yet")
 
 	# Now create the shoulder geometry, including the "bevel" geo.
 
@@ -1024,10 +1072,10 @@ func _insert_geo_loop(
 		else:
 			near_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_s)
 			far_w_shoulder = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset_e)
-			pos_far_l = far_width_offset
-			pos_far_r = far_width_offset + far_w_shoulder
-			pos_near_l = near_width_offset
-			pos_near_r = near_width_offset + near_w_shoulder
+			pos_far_l = far_width_offset_l
+			pos_far_r = far_width_offset_l + far_w_shoulder
+			pos_near_l = near_width_offset_l
+			pos_near_r = near_width_offset_l + near_w_shoulder
 			pos_far_gutter = pos_far_r
 			pos_near_gutter = pos_near_r
 
@@ -1037,13 +1085,13 @@ func _insert_geo_loop(
 		var uv_r:float
 		var uv_mid = 0.8 # should be more like 0.9
 		if dir == 1:
-			uv_l = 0.0 * uv_width
+			uv_l = 0.0
 			uv_m = uv_mid * uv_width
-			uv_r = 1.0 * uv_width
+			uv_r = uv_width
 		else:
-			uv_l = 1.0 * uv_width
+			uv_l = uv_width
 			uv_m = uv_mid * uv_width
-			uv_r = 0.0 * uv_width
+			uv_r = 0.0
 		# LEFT (between pos:_s and _m, and between uv:_l and _m)
 		# The flat part of the shoulder on both sides
 		quad(

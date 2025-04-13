@@ -103,8 +103,10 @@ func _assign_copy_target(target) -> void:
 		"shoulder_width_l": target.shoulder_width_l,
 		"shoulder_width_r": target.shoulder_width_r,
 		"gutter_profile": target.gutter_profile,
-		"create_geo": target.create_geo
+		"create_geo": target.create_geo,
+		"alignment": target.alignment
 	}
+
 
 func _apply_settings_target(target, all:bool) -> void:
 	var undo_redo = _editor_plugin.get_undo_redo()
