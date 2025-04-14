@@ -140,14 +140,16 @@ func assign_nearest_lane() -> int:
 
 
 ## Brute force find the nearest lane out of all RoadLanes across the RoadManager
-func find_nearest_lane(pos = null) -> RoadLane:
+## if pos is null, actor's position will be used. don't look further than distance
+func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	if not is_instance_valid(actor) or not is_instance_valid(road_manager):
 		return null
 	if pos == null:
 		pos = actor.global_transform.origin
 	var closest_lane = null
-	var closest_dist = 50 # Ignore all lanes further than that
+	var closest_dist = distance # Ignore all lanes further than that
 
+	#TODO: for a case with a lot of lanes/agents, some spatial map would be beneficial for search
 	var all_lanes:Array = []
 	var groups_checked:Array = [] # Technically, each container could have its own group name
 	var containers = road_manager.get_containers()
@@ -161,8 +163,6 @@ func find_nearest_lane(pos = null) -> RoadLane:
 	for lane in all_lanes:
 		if not lane is RoadLane:
 			push_warning("Non RoadLane in lanes list (%s)" % lane)
-			continue
-		if lane == current_lane:
 			continue
 		var this_lane_closest = get_closest_path_point(lane, pos)
 		var this_lane_dist = pos.distance_to(this_lane_closest)
@@ -224,8 +224,8 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
 	var new_point: Vector3 = _update_lane.to_global(ref_local)
 	if update_lane && distance_left != 0: #workaround for missing connections
-		_update_lane = find_nearest_lane(pos + actor.global_transform.basis.z * dir * sign(move_distance))
-		if is_instance_valid(_update_lane) && _update_lane != current_lane:
+		_update_lane = find_nearest_lane(pos + actor.global_transform.basis.z * dir * sign(move_distance), 1)
+		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
 			assign_lane(_update_lane)
 	return new_point
 
