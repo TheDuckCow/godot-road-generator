@@ -238,7 +238,7 @@ func generate_edge_curves():
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
 	edge_R.curve = Curve3D.new()
-	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point)
+	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point, false)
 
 	if edge_F == null or not is_instance_valid(edge_F):
 		edge_F = Path3D.new()
@@ -247,7 +247,7 @@ func generate_edge_curves():
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
 	edge_F.curve = Curve3D.new()
-	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point)
+	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point, false)
 
 	# Add center curve
 	var edge_C: Path3D = _par.get_node_or_null(EDGE_C_NAME)
@@ -263,7 +263,7 @@ func generate_edge_curves():
 		edge_C.owner = _par.owner
 		edge_C.set_meta("_edit_lock_", true)
 	edge_C.curve = Curve3D.new()
-	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point)
+	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point, false)
 
 
 ## Utility to auto generate all road lanes for this road for use by AI.
@@ -293,6 +293,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
 	var last_ln = null
+	var last_ln_reverse: bool
 
 	# Cache for sparse node removal
 	var active_lanes = []
@@ -305,7 +306,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	var lane_shift := {"reverse": 0, "forward": 0}
 
 	var _tmppar = _par.get_children()
-
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
@@ -340,15 +340,13 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_type, ln_dir, lane_shift)
 		var start_shift:float = tmp[0]
 		var end_shift:float = tmp[1]
-
 		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
 		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
 
 		# Set direction
 		# TODO: When directionality is made consistent, we should no longer
 		# need to invert the direction assignment here.
-		if ln_dir != RoadPoint.LaneDir.REVERSE:
-			new_ln.reverse_direction = true
+		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
 		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
 			new_ln.transition = true
@@ -356,7 +354,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.
-		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point)
+		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln_reverse)
 
 		# Visually display if indicated, and not mid transform (low_poly)
 		if low_poly:
@@ -368,7 +366,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.rebuild_geom()
 
 		# Update lane connectedness for left/right lane connections.
-		if not last_ln == null and last_ln.reverse_direction == new_ln.reverse_direction:
+		if not last_ln == null and last_ln_reverse == new_ln_reverse:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
@@ -383,6 +381,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		any_generated = true
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
+		last_ln_reverse = new_ln_reverse
 	clear_lane_segments(active_lanes)
 
 	return any_generated
@@ -397,7 +396,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##  and distance.
 ##
 ##  For more details and context: https://github.com/TheDuckCow/godot-road-generator/issues/46
-func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D):
+func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = road_lane.curve
 	
@@ -461,15 +460,11 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	else:
 		out_pt_in = pt_g
 	
-	# Update or add points in the destination curve
-	if dst.get_point_count() > 1:
-		dst.set_point_position(0, in_pos)
-		dst.set_point_in(0, in_pt_in)
-		dst.set_point_out(0, in_pt_out)
-		
-		dst.set_point_position(1, out_pos)
-		dst.set_point_in(1, out_pt_in)
-		dst.set_point_out(1, out_pt_out)
+	# Set points in the destination curve
+	dst.clear_points()
+	if reverse:
+		dst.add_point(out_pos, out_pt_out, out_pt_in)
+		dst.add_point(in_pos, in_pt_out, in_pt_in)
 	else:
 		dst.add_point(in_pos, in_pt_in, in_pt_out)
 		dst.add_point(out_pos, out_pt_in, out_pt_out)

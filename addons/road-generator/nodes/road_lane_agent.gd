@@ -191,18 +191,15 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
 	# Find how much space is left along the RoadLane in this direction
 	var init_offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
-	# Account for the lane's UI setting for direction
-	var dir:int = -1 if current_lane.reverse_direction else 1
-	var check_next_offset:float = init_offset + move_distance * dir
+	var check_next_offset:float = init_offset + move_distance
 	var _update_lane = current_lane
 	var lane_length = current_lane.curve.get_baked_length()
 	var distance_left = 0
 	if check_next_offset > lane_length:
 		while check_next_offset > lane_length: # Target point is past the end of this curve
-			var lane_dir = _update_lane.lane_next if dir > 0 else _update_lane.lane_prior
-			var check_lane = _update_lane.get_node_or_null( lane_dir )
+			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_next )
 			if ! is_instance_valid(check_lane):
-				distance_left = (check_next_offset - lane_length) * dir
+				distance_left = check_next_offset - lane_length
 				check_next_offset = lane_length
 				break
 			check_next_offset -= lane_length
@@ -210,10 +207,9 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 			lane_length = _update_lane.curve.get_baked_length()
 	else:
 		while check_next_offset < 0:
-			var lane_dir = _update_lane.lane_next if dir < 0 else _update_lane.lane_prior
-			var check_lane = _update_lane.get_node_or_null( lane_dir )
+			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_prior )
 			if ! is_instance_valid(check_lane):
-				distance_left = check_next_offset * dir - init_offset
+				distance_left = check_next_offset - init_offset
 				check_next_offset = 0
 				break
 			init_offset = 0
@@ -224,7 +220,7 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
 	var new_point: Vector3 = _update_lane.to_global(ref_local)
 	if update_lane && distance_left != 0: #workaround for missing connections
-		_update_lane = find_nearest_lane(pos + actor.global_transform.basis.z * dir * sign(move_distance), 1)
+		_update_lane = find_nearest_lane(pos - actor.global_transform.basis.z * sign(move_distance), 1)
 		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
 			assign_lane(_update_lane)
 	return new_point
@@ -269,18 +265,11 @@ func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 	var offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
 	var lane_len = current_lane.curve.get_baked_length()
 	var dist:float
-	if current_lane.reverse_direction:
-		if move_dir == MoveDir.FORWARD:
-			dist = offset
-		else:
-			assert(move_dir == MoveDir.BACKWARD)
-			dist = current_lane.curve.get_baked_length() - offset
+	if move_dir == MoveDir.FORWARD:
+		dist = current_lane.curve.get_baked_length() - offset
 	else:
-		if move_dir == MoveDir.FORWARD:
-			dist = current_lane.curve.get_baked_length() - offset
-		else:
-			assert(move_dir == MoveDir.BACKWARD)
-			dist = offset
+		assert(move_dir == MoveDir.BACKWARD)
+		dist = offset
 	return dist < proximity
 
 

@@ -11,7 +11,6 @@ const COLOR_START = Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-@export var reverse_direction:bool = false: get = _get_direction, set = _set_direction
 @export var lane_left:NodePath # Used to indicate allowed lane changes
 @export var lane_right:NodePath # Used to indicate allowed lane changes
 @export var lane_next:NodePath # RoadLane or intersection
@@ -43,6 +42,10 @@ signal on_transform
 ## Auto queue-free any vehicles registered to this lane with the road lane exits
 @export var auto_free_vehicles: bool = true
 
+# TODO: remove when moved to Godot 4.4 and changed to simple button
+# the variable is not used - only to provide GUI element
+@export var reverse_direction = false: set = _set_reverse_direction
+
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
@@ -55,7 +58,6 @@ var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
-
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
@@ -75,32 +77,30 @@ func _ready():
 	#_instantiate_geom()
 
 
-func _set_direction(value):
-	reverse_direction = value
+#TODO: remove when moved to Godot 4.4 and changed to simple button
+func _set_reverse_direction(value: bool) -> void:
+	on_reverse_lane()
+
+
+## Reverse geometry of lane curve
+func on_reverse_lane() -> void:
+	var reversed_curve = Curve3D.new()
+	for i in range(self.curve.point_count - 1, -1, -1):
+		var pos = self.curve.get_point_position(i)
+		var in_tangent = self.curve.get_point_in(i)
+		var out_tangent = self.curve.get_point_out(i)
+		reversed_curve.add_point(pos, out_tangent, in_tangent)
+	self.curve = reversed_curve
 	refresh_geom = true
 	rebuild_geom()
 
 
-func _get_direction():
-	return reverse_direction
-
-
 func get_lane_start() -> Vector3:
-	var pos
-	if reverse_direction:
-		pos = curve.get_point_position(curve.get_point_count()-1)
-	else:
-		pos = curve.get_point_position(0)
-	return to_global(pos)
+	return to_global(curve.get_point_position(0))
 
 
 func get_lane_end() -> Vector3:
-	var pos
-	if reverse_direction:
-		pos = curve.get_point_position(0)
-	else:
-		pos = curve.get_point_position(curve.get_point_count()-1)
-	return to_global(pos)
+	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
 ## Register a car to be connected to (on, following) this lane.
@@ -169,7 +169,6 @@ func _draw_shark_fins() -> void:
 	var draw_dist = 3 # draw a new triangle at this interval in m
 	var tri_count = floor(curve_length / draw_dist)
 
-	var rev = -1 if reverse_direction else 1
 	geom.clear_surfaces()
 	for i in range (0, tri_count):
 		var f = i * curve_length / tri_count
@@ -177,7 +176,7 @@ func _draw_shark_fins() -> void:
 
 		xf.origin = curve.sample_baked(f)
 		var lookat = (
-			curve.sample_baked(f + 0.1*rev) - xf.origin
+			curve.sample_baked(f + 0.1) - xf.origin
 		).normalized()
 
 		geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)

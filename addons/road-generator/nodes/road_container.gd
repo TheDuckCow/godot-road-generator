@@ -898,25 +898,19 @@ func update_lane_seg_connections():
 		var next_seg_lanes = pt.next_seg.get_lanes()
 
 		# Check lanes attributed to the *prior* segment
-		for ln in prior_seg_lanes:
+		for prior_ln in prior_seg_lanes:
 			# prior lane be set to track to a next lane
 			for next_ln in next_seg_lanes:
-				if next_ln.lane_prior_tag == ln.lane_next_tag:
-					if ln.reverse_direction:
-						# if reverse, then a "next" lane becomes the "prior"
-						ln.lane_prior = ln.get_path_to(next_ln)
+				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
+						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
+						next_ln.lane_next = next_ln.get_path_to(prior_ln)
 					else:
-						ln.lane_next = ln.get_path_to(next_ln)
-		# Check lanes attributed to the *next* segment
-		for ln in next_seg_lanes:
-			# next lane be set to track to a prior lane
-			for prior_ln in prior_seg_lanes:
-				if prior_ln.lane_next_tag == ln.lane_prior_tag:
-					if ln.reverse_direction:
-						# if reverse, then a "prior" lane becomes the "next"
-						ln.lane_next = ln.get_path_to(prior_ln)
-					else:
-						ln.lane_prior = ln.get_path_to(prior_ln)
+						assert(prior_ln.lane_next_tag[0] == "R")
+						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
+						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
 
 # Triggered by adjusting RoadPoint transform in editor via signal connection.
