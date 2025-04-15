@@ -350,6 +350,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if ln_dir != RoadPoint.LaneDir.REVERSE:
 			new_ln.reverse_direction = true
 
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			new_ln.transition = true
+
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.

@@ -18,7 +18,12 @@ enum DriveState {
 
 @onready var agent = get_node("%road_lane_agent")
 
+# how big car difference triggers lane change
+var lane_change_tolerance = 3
+
 var velocity := Vector3.ZERO
+
+const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
 func _ready() -> void:
 	agent.visualize_lane = visualize_lane
@@ -33,8 +38,8 @@ func _ready() -> void:
 
 
 ## Generic function to calc speed
-func get_velocity() -> float:
-	return velocity.z
+func get_signed_speed() -> float:
+	return -velocity.z
 
 
 func get_input() -> Vector3:
@@ -42,17 +47,36 @@ func get_input() -> Vector3:
 		DriveState.AUTO:
 			return _get_auto_input()
 		DriveState.PLAYER:
-			return _get_player_inptu()
+			return _get_player_input()
 		_:
 			return Vector3.ZERO
 
 
 func _get_auto_input() -> Vector3:
-	# Using controversial take to make "forward" be positive z
-	return Vector3.FORWARD
+	if ! is_instance_valid(agent.current_lane):
+		return Vector3.ZERO
+
+	var lane_move:int = 0
+	var speed = get_signed_speed()
+	if agent.current_lane.transition && agent.close_to_lane_end(abs(speed * transition_time_close), sign(speed)):
+		# transition line ended, try to automatically switch to the lane that has lane ahead linked
+		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
+	else:
+		var cur_cars:int = agent.cars_in_lane(0)
+		if (cur_cars > 1):
+			var cur_cars_l:int = agent.cars_in_lane(agent.LaneChangeDir.LEFT)
+			var cur_cars_r:int = agent.cars_in_lane(agent.LaneChangeDir.RIGHT)
+			if (cur_cars_l >= 0) && (cur_cars - cur_cars_l > lane_change_tolerance):
+				lane_move -= 1
+			elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > lane_change_tolerance):
+				lane_move += 1
+	return Vector3(lane_move, 0, -1) # neg z is "forward"
 
 
-func _get_player_inptu() -> Vector3:
+func _get_player_input() -> Vector3:
+	if ! is_instance_valid(agent.current_lane):
+		return Vector3.ZERO
+
 	var dir:float = 0
 	var lane_move:int = 0
 	if Input.is_action_pressed("ui_up"):
@@ -60,10 +84,15 @@ func _get_player_inptu() -> Vector3:
 	if Input.is_action_pressed("ui_down"):
 		dir -= 1
 
-	if Input.is_action_just_pressed("ui_left"):
-		lane_move -= 1
-	if Input.is_action_pressed("ui_right"):
-		lane_move += 1
+	var speed = get_signed_speed()
+	if agent.current_lane.transition && agent.close_to_lane_end(abs(speed* transition_time_close), sign(speed)):
+		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
+		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
+	else:
+		if Input.is_action_just_pressed("ui_left"):
+			lane_move -= 1
+		if Input.is_action_just_pressed("ui_right"):
+			lane_move += 1
 	return Vector3(lane_move, 0, -dir) # neg z is "forward"
 
 
@@ -73,10 +102,7 @@ func _physics_process(delta: float) -> void:
 	var target_velz = lerp(velocity.z, target_dir.z * target_speed, delta * acceleration)
 	velocity.z = target_velz
 
-	if target_dir.x > 0:
-		agent.change_lane(1)
-	elif target_dir.x < 0:
-		agent.change_lane(-1)
+	agent.change_lane(target_dir.x)
 
 	if not is_instance_valid(agent.current_lane):
 		var res = agent.assign_nearest_lane()
@@ -89,14 +115,15 @@ func _physics_process(delta: float) -> void:
 	# we flip the direction along the Z axis so that positive move direction
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
-	var move_dist = -velocity.z * delta
-	var next_pos:Vector3 = agent.move_along_lane(move_dist)
+	var move_dist:float = get_signed_speed() * delta
+
+	var next_pos: Vector3 = agent.move_along_lane(move_dist)
+	global_transform.origin = next_pos
+
 	# Get another point a little further in front for orientation seeking,
 	# without actually moving the vehicle (ie don't update the assign lane
 	# if this margin puts us into the next lane in front)
-	var orientation:Vector3 = agent.test_move_along_lane(move_dist + 0.05)
+	var orientation:Vector3 = agent.test_move_along_lane(0.05)
 
-	# Position and orient the vehicle
-	global_transform.origin = next_pos
-	if next_pos != orientation:
+	if ! global_transform.origin.is_equal_approx(orientation):
 		look_at(orientation, Vector3.UP)

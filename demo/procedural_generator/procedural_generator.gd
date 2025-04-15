@@ -17,6 +17,13 @@ const RoadActor:PackedScene = preload("res://demo/procedural_generator/RoadActor
 @onready var car_label: Label = get_node("%car_count")
 
 
+func _init() -> void:
+	randomize()
+	var rseed = randi()
+	seed(rseed)
+	print("Seed number: ", rseed)
+
+
 func _ready() -> void:
 	pass
 
@@ -114,7 +121,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var _transform := new_rp.transform
 	var angle_range := 30 # Random angle rotation range
 	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
-	var rotation_axis := Vector3(0, 1, 0)
+	var rotation_axis := Vector3.UP
 	_transform = _transform.rotated(rotation_axis, deg_to_rad(random_angle))
 	
 	var rand_y_offset:float = (randf() - 0.5) * 15
