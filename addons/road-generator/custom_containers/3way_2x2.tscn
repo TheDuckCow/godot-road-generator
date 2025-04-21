@@ -8,28 +8,28 @@
 
 [sub_resource type="Curve3D" id="Curve3D_tt3ky"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.6356, 0, 3.00254, -5.70695, 0, 8.15993, 5.70695, 0, -8.15993, -1.5685, 0, -2.60429, 0, 0, 0, 0, 0, 0, 2.63662, 0, -15.52),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 2, -3.65163, 0, 4.70499, 3.65163, 0, -4.70499, -1.09681, 0, -2.79526, 0, 0, 0, 0, 0, 0, 2, 0, -16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
 
 [sub_resource type="Curve3D" id="Curve3D_lwn37"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.7942, 0, 5.93222, -2.80671, 0, -3.33044, 2.80671, 0, 3.33044, -7.90526, 0, 8.39406, 0, 0, 0, 0, 0, 0, -6.03235, 0, 16.0445),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 6, -2.7161, 0, -2.75859, 2.7161, 0, 2.75859, -8.47953, 0, 8.33909, 0, 0, 0, 0, 0, 0, -6, 0, 16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
 
 [sub_resource type="Curve3D" id="Curve3D_jw7wf"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.6356, 0, 3.00254, -5.70695, 0, 8.15993, 5.70695, 0, -8.15993, -1.5685, 0, -2.60429, 0, 0, 0, 0, 0, 0, 2.63662, 0, -15.52),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 2, -5.19055, 0, 6.0277, 5.19055, 0, -6.0277, -1.5685, 0, -2.60429, 0, 0, 0, 0, 0, 0, 2, 0, -16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
 
 [sub_resource type="Curve3D" id="Curve3D_45j6x"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.7942, 0, 5.93222, -2.80671, 0, -3.33044, 2.80671, 0, 3.33044, -7.90526, 0, 8.39406, 0, 0, 0, 0, 0, 0, -6.03235, 0, 16.0445),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 6, -2.19957, 0, -2.57842, 2.19957, 0, 2.57842, -8.69021, 0, 8.19864, 0, 0, 0, 0, 0, 0, -6, 0, 16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -55,6 +55,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_pt_init = NodePath("../RP_002")
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="RP_002" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
@@ -62,8 +64,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_pt_init = NodePath("../RP_001")
-prior_mag = 16.0
-next_mag = 16.0
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="RP_003" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -16, 0, 0)
@@ -71,6 +73,7 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_pt_init = NodePath("../RP_004")
+next_mag = 3.31814
 
 [node name="RP_004" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0.0117083, 0, 0)
@@ -79,8 +82,8 @@ traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_pt_init = NodePath("../RP_003")
 terminated = true
-prior_mag = 16.0
-next_mag = 16.0
+prior_mag = 4.81177
+next_mag = 4.81177
 
 [node name="W0N0" type="Path3D" parent="." groups=["road_lanes"]]
 curve = SubResource("Curve3D_tt3ky")
