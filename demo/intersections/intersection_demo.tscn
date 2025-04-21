@@ -30,6 +30,31 @@ transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_sc7xi")
 
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="instructions" type="Label" parent="UI"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -187.0
+offset_bottom = 49.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+text = "up/down arrow to move
+left/right to change lane"
+horizontal_alignment = 1
+
 [node name="ground" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 mesh = SubResource("1")
