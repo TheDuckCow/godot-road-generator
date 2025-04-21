@@ -45,6 +45,8 @@ script = ExtResource("5")
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 217.617, 4.00543e-05, -9.31158)
 drive_state = 2
+acceleration = 3
+target_speed = 50
 visualize_lane = true
 
 [node name="Camera3D" type="Camera3D" parent="RoadManager/vehicles/Player"]
@@ -112,10 +114,11 @@ script = ExtResource("1")
 material_resource = ExtResource("4")
 use_lowpoly_preview = true
 generate_ai_lanes = true
-edge_containers = Array[NodePath]([NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_offramp1"), NodePath("../highway_onramp"), NodePath("../highway_offramp1"), NodePath("../splitter_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x2"), NodePath("../splitter_2x4"), NodePath("../highway_onramp1"), NodePath("../splitter_2x4"), NodePath("../highway_offramp1"), NodePath("../splitter_2x4"), NodePath("../3way_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x3"), NodePath("../highway_offramp2"), NodePath("../splitter_2x3"), NodePath("../splitter_2x3"), NodePath("../4way_2x2"), NodePath("../4way_2x2"), NodePath("../3way_2x2"), NodePath("../4way_2x2"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_2x2")])
+draw_lanes_editor = true
+edge_containers = Array[NodePath]([NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_onramp1"), NodePath("../highway_offramp2"), NodePath("../highway_offramp1"), NodePath("../highway_onramp"), NodePath("../highway_offramp1"), NodePath("../splitter_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x2"), NodePath("../splitter_2x4"), NodePath("../highway_onramp1"), NodePath("../splitter_2x4"), NodePath("../highway_offramp1"), NodePath("../splitter_2x4"), NodePath("../3way_2x2"), NodePath("../highway_onramp"), NodePath("../splitter_2x3"), NodePath("../highway_offramp2"), NodePath("../splitter_2x3"), NodePath("../splitter_2x3"), NodePath("../4way_2x2"), NodePath("../4way_2x2"), NodePath("../3way_2x2"), NodePath("../4way_2x2"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_1x1"), NodePath("../4way_2x2"), NodePath("../4way_1x1")])
 edge_rp_targets = Array[NodePath]([NodePath("HW_02"), NodePath("HW_01"), NodePath("RAMP_01"), NodePath("RAMP_02"), NodePath("HW_01"), NodePath("HW_02"), NodePath("RAMP_02"), NodePath("RP_003"), NodePath("RAMP_01"), NodePath("RP_001"), NodePath("RP_003"), NodePath("HW_01"), NodePath("RP_001"), NodePath("HW_02"), NodePath("cap"), NodePath("RP_002"), NodePath("HW_01"), NodePath("RP_003"), NodePath("HW_02"), NodePath("RP_001"), NodePath("cap"), NodePath("RP_002"), NodePath("RP_004"), NodePath("RP_001"), NodePath("RP_003"), NodePath("RP_002"), NodePath("RP_004"), NodePath("RP_003"), NodePath("RP_001"), NodePath("RP_001")])
 edge_rp_target_dirs = Array[int]([0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1])
-edge_rp_locals = Array[NodePath]([NodePath("Node3D"), NodePath("Spatial2"), NodePath("Spatial3"), NodePath("Spatial4"), NodePath("Spatial5"), NodePath("Spatial6"), NodePath("Spatial7"), NodePath("Spatial8"), NodePath("Spatial9"), NodePath("Spatial10"), NodePath("Spatial11"), NodePath("Spatial12"), NodePath("Spatial13"), NodePath("Spatial14"), NodePath("Spatial15"), NodePath("Spatial17"), NodePath("Spatial18"), NodePath("Spatial19"), NodePath("Spatial20"), NodePath("Spatial21"), NodePath("Spatial22"), NodePath("Spatial23"), NodePath("Spatial24"), NodePath("Spatial25"), NodePath("Spatial26"), NodePath("Spatial27"), NodePath("Spatial28"), NodePath("Spatial30"), NodePath("Spatial32"), NodePath("Spatial33")])
+edge_rp_locals = Array[NodePath]([NodePath("Node3D"), NodePath("Spatial2"), NodePath("Spatial3"), NodePath("Spatial4"), NodePath("Spatial5"), NodePath("Spatial6"), NodePath("Spatial7"), NodePath("Spatial8"), NodePath("Spatial9"), NodePath("Spatial10"), NodePath("Spatial11"), NodePath("Spatial12"), NodePath("Spatial13"), NodePath("Spatial14"), NodePath("Spatial15"), NodePath("Spatial17"), NodePath("Spatial18"), NodePath("Spatial19"), NodePath("Spatial20"), NodePath("Spatial21"), NodePath("Spatial22"), NodePath("Spatial23"), NodePath("Spatial24"), NodePath("Spatial25"), NodePath("Spatial26"), NodePath("Spatial27"), NodePath("Spatial28"), NodePath("Spatial30"), NodePath("Spatial33"), NodePath("Spatial32")])
 edge_rp_local_dirs = Array[int]([1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0])
 
 [node name="Node3D" type="Node3D" parent="RoadManager/LocalRoads"]
@@ -249,7 +252,7 @@ script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_pt_init = NodePath("../Spatial16")
-prior_mag = 16.0
+prior_mag = 6.27905
 next_mag = 109.905
 
 [node name="Spatial18" type="Node3D" parent="RoadManager/LocalRoads"]
@@ -359,14 +362,6 @@ next_pt_init = NodePath("../Spatial30")
 prior_mag = 36.032
 next_mag = 36.032
 
-[node name="Spatial32" type="Node3D" parent="RoadManager/LocalRoads"]
-transform = Transform3D(0.954376, 0, 0.298607, 0, 1, 0, -0.298608, 0, 0.954376, 40.5095, 1.52588e-05, -239.207)
-script = ExtResource("10")
-traffic_dir = Array[int]([2, 1])
-lanes = Array[int]([5, 5])
-prior_pt_init = NodePath("../Spatial31")
-prior_mag = 29.721
-
 [node name="Spatial29" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(0.527401, -0.0114611, 0.849539, 0, 0.999909, 0.0134897, -0.849617, -0.00711448, 0.527353, 92.3317, 0.250019, -228.29)
 script = ExtResource("10")
@@ -383,6 +378,15 @@ script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_pt_init = NodePath("../Spatial29")
+
+[node name="Spatial32" type="Node3D" parent="RoadManager/LocalRoads"]
+transform = Transform3D(0.954376, 0, 0.298607, 0, 1, 0, -0.298608, 0, 0.954376, 40.5095, 1.52588e-05, -239.207)
+script = ExtResource("10")
+traffic_dir = Array[int]([2, 1])
+lanes = Array[int]([5, 5])
+prior_pt_init = NodePath("../Spatial31")
+prior_mag = 21.432
+next_mag = 8.0
 
 [node name="splitter_2x4" parent="RoadManager" instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.1187, 0, 102.944)

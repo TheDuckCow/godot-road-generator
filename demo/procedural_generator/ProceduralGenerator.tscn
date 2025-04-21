@@ -49,8 +49,8 @@ script = ExtResource("4")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_pt_init = NodePath("../RP_002")
-prior_mag = 20.0
-next_mag = 20.0
+prior_mag = 15.0
+next_mag = 15.0
 
 [node name="RP_002" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496)
@@ -58,8 +58,8 @@ script = ExtResource("4")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_pt_init = NodePath("../RP_001")
-prior_mag = 20.0
-next_mag = 20.0
+prior_mag = 15.0
+next_mag = 15.0
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 3

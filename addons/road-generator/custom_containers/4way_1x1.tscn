@@ -8,14 +8,14 @@
 
 [sub_resource type="Curve3D" id="Curve3D_yq2lp"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.6356, 0, 3.00254, -3.50139, 0, 4.39157, 3.50139, 0, -4.39157, 0.00121188, 0, -0.0845437, 0, 0, 0, 0, 0, 0, 2.63662, 0, -15.52),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 2, 3, 0, 3, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
 
 [sub_resource type="Curve3D" id="Curve3D_t0r0o"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -15.7637, 0, 2.95707, -1.68114, 0, -2.0826, 1.68114, 0, 2.0826, -3.39355, 0, 4.26183, 0, 0, 0, 0, 0, 0, -2.71608, 0, 16.0047),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -16, 0, 2, -3.29164, 0, -3.32391, 3.29164, 0, 3.32391, -5.08268, 0, 5.56675, 0, 0, 0, 0, 0, 0, -2, 0, 16),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -41,6 +41,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
 next_pt_init = NodePath("../RP_002")
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="RP_002" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
@@ -48,8 +50,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
 prior_pt_init = NodePath("../RP_001")
-prior_mag = 16.0
-next_mag = 16.0
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="RP_003" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -16, 0, 0)
@@ -57,6 +59,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
 next_pt_init = NodePath("../RP_004")
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="RP_004" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 16, 0, 0)
@@ -64,8 +68,8 @@ script = ExtResource("2")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
 prior_pt_init = NodePath("../RP_003")
-prior_mag = 16.0
-next_mag = 16.0
+prior_mag = 8.0
+next_mag = 8.0
 
 [node name="W0N0" type="Path3D" parent="." groups=["road_lanes"]]
 curve = SubResource("Curve3D_yq2lp")
