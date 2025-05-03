@@ -13,34 +13,27 @@ signal flip_roadpoint(selection)
 var _edi : set = set_edi
 var sel_road_point: RoadPoint
 var has_copy_ref: bool
-@onready var top_label = $SectionLabel
-@onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
-@onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
-@onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
-@onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
-@onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
-@onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
-@onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
-@onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
-@onready var hbox_add_rp_next = $HBoxAddNextRP
-@onready var hbox_add_rp_prior = $HBoxAddPriorRP
-@onready var hbox_sel_rp_next = $HBoxSelNextRP
-@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
-@onready var cp_settings: Button = $HBoxContainer/cp_settings
-@onready var apply_setting: Button = $HBoxContainer/apply_setting
-@onready var cp_to_all: Button = $HBoxContainer/cp_to_all
+@onready var top_label := %SectionLabel
+@onready var btn_add_lane_fwd = %fwd_add
+@onready var btn_add_lane_rev = %rev_add
+@onready var btn_rem_lane_fwd = %fwd_minus
+@onready var btn_rem_lane_rev = %rev_minus
+@onready var btn_sel_rp_next = %sel_rp_front
+@onready var btn_sel_rp_prior = %sel_rp_back
+@onready var btn_add_rp_next = %add_rp_front
+@onready var btn_add_rp_prior = %add_rp_back
+#@onready var hbox_add_rp_next = $HBoxAddNextRP
+#@onready var hbox_add_rp_prior = $HBoxAddPriorRP
+#@onready var hbox_sel_rp_next = $HBoxSelNextRP
+#@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
+@onready var cp_settings: Button = %cp_settings
+@onready var apply_setting: Button = %apply_setting
+@onready var cp_to_all: Button = %cp_to_all
 
 
 func _ready():
-	btn_add_lane_fwd.pressed.connect(add_lane_fwd_pressed)
-	btn_add_lane_rev.pressed.connect(add_lane_rev_pressed)
-	btn_rem_lane_fwd.pressed.connect(rem_lane_fwd_pressed)
-	btn_rem_lane_rev.pressed.connect(rem_lane_rev_pressed)
-	btn_sel_rp_next.pressed.connect(sel_rp_next_pressed)
-	btn_sel_rp_prior.pressed.connect(sel_rp_prior_pressed)
-	btn_add_rp_next.pressed.connect(add_rp_next_pressed)
-	btn_add_rp_prior.pressed.connect(add_rp_prior_pressed)
 	update_labels(Input.is_key_pressed(KEY_SHIFT))
+
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event.keycode == KEY_SHIFT:
@@ -81,18 +74,18 @@ func update_road_point_panel():
 		btn_rem_lane_rev.disabled = true
 
 	if sel_road_point.next_pt_init:
-		hbox_add_rp_next.visible = false
-		hbox_sel_rp_next.visible = true
+		btn_add_rp_next.visible = false
+		btn_sel_rp_next.visible = true
 	else:
-		hbox_add_rp_next.visible = true
-		hbox_sel_rp_next.visible = false
+		btn_add_rp_next.visible = true
+		btn_sel_rp_next.visible = false
 
 	if sel_road_point.prior_pt_init:
-		hbox_add_rp_prior.visible = false
-		hbox_sel_rp_prior.visible = true
+		btn_add_rp_prior.visible = false
+		btn_sel_rp_prior.visible = true
 	else:
-		hbox_add_rp_prior.visible = true
-		hbox_sel_rp_prior.visible = false
+		btn_add_rp_prior.visible = true
+		btn_sel_rp_prior.visible = false
 
 	notify_property_list_changed()
 
