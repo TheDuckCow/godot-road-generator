@@ -28,6 +28,7 @@ func _parse_begin(object):
 	panel_instance.on_add_connected_rp.connect(_handle_add_connected_rp)
 	panel_instance.assign_copy_target.connect(_assign_copy_target)
 	panel_instance.apply_settings_target.connect(_apply_settings_target)
+	panel_instance.flip_roadpoint.connect(_flip_roadpoint)
 
 	if is_instance_valid(_editor_plugin): 
 		panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes 
@@ -129,3 +130,11 @@ func _apply_settings_target(target, all:bool) -> void:
 		undo_redo.add_do_method(target, "emit_transform")
 		undo_redo.add_undo_method(target, "emit_transform")
 	undo_redo.commit_action()
+
+
+func _flip_roadpoint(rp:RoadPoint) -> void:
+	var undo_redo = _editor_plugin.get_undo_redo()
+	undo_redo.create_action("Flip RoadPoint")
+	_editor_plugin.subaction_flip_roadpoint(rp, undo_redo)
+	undo_redo.commit_action()
+	

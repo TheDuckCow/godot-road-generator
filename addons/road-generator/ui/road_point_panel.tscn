@@ -163,6 +163,10 @@ disabled = true
 text = "Apply All"
 clip_text = true
 
+[node name="flip" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "Flip"
+
 [node name="spacer2" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
@@ -170,3 +174,4 @@ layout_mode = 2
 [connection signal="pressed" from="HBoxContainer/cp_settings" to="." method="_on_cp_settings_pressed"]
 [connection signal="pressed" from="HBoxContainer/apply_setting" to="." method="_on_apply_setting_pressed"]
 [connection signal="pressed" from="HBoxContainer/cp_to_all" to="." method="_on_cp_to_all_pressed"]
+[connection signal="pressed" from="HBoxContainer/flip" to="." method="_on_btn_flip_pressed"]

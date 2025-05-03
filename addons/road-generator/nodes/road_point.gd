@@ -937,6 +937,11 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 	return true
 
 
+func set_internal_updating(state: bool) -> void:
+	self._is_internal_updating = state
+	container._auto_refresh = not state
+	
+
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_instance_valid(prior_seg):
