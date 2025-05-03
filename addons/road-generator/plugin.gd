@@ -1673,14 +1673,42 @@ func subaction_flip_roadpoint(rp: RoadPoint, undo_redo:EditorUndoRedoManager) ->
 	undo_redo.add_do_property(rp, "transform", flipped_transform)
 	undo_redo.add_undo_property(rp, "transform", rp.transform)
 	
+	# Update direction references within this and connected RoadContainers
+	if rp.is_on_edge() and is_instance_valid(rp.container):
+		var edge_rp_local_dirs_old:Array[int] = rp.container.edge_rp_local_dirs.duplicate(true)
+		var edge_rp_local_dirs_new:Array[int] = edge_rp_local_dirs_old.duplicate(true)
+		for _idx in range(len(rp.container.edge_rp_locals)):
+			if rp.container.get_node(rp.container.edge_rp_locals[_idx]) == rp:
+				edge_rp_local_dirs_new[_idx] = 0 if edge_rp_local_dirs_new[_idx] == 1 else 1
+		undo_redo.add_do_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_new)
+		undo_redo.add_undo_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_old)
+		
+		# Check if cross-container connected at this RP and grab container if so
+		var _pr = rp.get_prior_rp()
+		var _nt = rp.get_next_rp()
+		var other_cont:RoadContainer
+		if is_instance_valid(_pr) and _pr.container != rp.container:
+			other_cont = _pr.container
+		elif is_instance_valid(_nt) and _nt.container != rp.container:
+			other_cont = _nt.container
+		
+		# Now update the other direction too
+		if is_instance_valid(other_cont):
+			var edge_rp_target_dirs_old:Array[int] = other_cont.edge_rp_target_dirs.duplicate(true)
+			var edge_rp_target_dirs_new:Array[int] = edge_rp_target_dirs_old.duplicate(true)
+			for _idx in range(len(other_cont.edge_rp_target_dirs)):
+				if other_cont.get_node(other_cont.edge_containers[_idx]) != rp.container:
+					continue
+				if rp.container.get_node(other_cont.edge_rp_targets[_idx]) == rp:
+					edge_rp_target_dirs_new[_idx] = 0 if edge_rp_target_dirs_new[_idx] == 1 else 1
+			undo_redo.add_do_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_new)
+			undo_redo.add_undo_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_old)
+	
 	undo_redo.add_do_method(rp, "set_internal_updating", false)
 	undo_redo.add_undo_method(rp, "set_internal_updating", false)
 	
 	undo_redo.add_do_method(rp.container, "rebuild_segments", true)
 	undo_redo.add_undo_method(rp.container, "rebuild_segments", true)
-
-	# TODO: Handle cross container connections, flip their connected points
-	# if any
 
 
 ## Adds a single RoadPoint to the scene
