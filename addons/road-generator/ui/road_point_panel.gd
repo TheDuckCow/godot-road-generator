@@ -6,40 +6,34 @@ signal on_lane_change_pressed(selection, direction, change_type)
 signal on_add_connected_rp(selection, point_init_type)
 signal assign_copy_target(selection)
 signal apply_settings_target(selection, all)
+signal flip_roadpoint(selection)
 
 # EditorInterface, don't use as type:
 # https://github.com/godotengine/godot/issues/85079
 var _edi : set = set_edi
 var sel_road_point: RoadPoint
 var has_copy_ref: bool
-@onready var top_label = $SectionLabel
-@onready var btn_add_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_add
-@onready var btn_add_lane_rev = $HBoxLanes/HBoxSubLanes/rev_add
-@onready var btn_rem_lane_fwd = $HBoxLanes/HBoxSubLanes/fwd_minus
-@onready var btn_rem_lane_rev = $HBoxLanes/HBoxSubLanes/rev_minus
-@onready var btn_sel_rp_next = $HBoxSelNextRP/sel_rp_front
-@onready var btn_sel_rp_prior = $HBoxSelPriorRP/sel_rp_back
-@onready var btn_add_rp_next = $HBoxAddNextRP/add_rp_front
-@onready var btn_add_rp_prior = $HBoxAddPriorRP/add_rp_back
-@onready var hbox_add_rp_next = $HBoxAddNextRP
-@onready var hbox_add_rp_prior = $HBoxAddPriorRP
-@onready var hbox_sel_rp_next = $HBoxSelNextRP
-@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
-@onready var cp_settings: Button = $HBoxContainer/cp_settings
-@onready var apply_setting: Button = $HBoxContainer/apply_setting
-@onready var cp_to_all: Button = $HBoxContainer/cp_to_all
+@onready var top_label := %SectionLabel
+@onready var btn_add_lane_fwd = %fwd_add
+@onready var btn_add_lane_rev = %rev_add
+@onready var btn_rem_lane_fwd = %fwd_minus
+@onready var btn_rem_lane_rev = %rev_minus
+@onready var btn_sel_rp_next = %sel_rp_front
+@onready var btn_sel_rp_prior = %sel_rp_back
+@onready var btn_add_rp_next = %add_rp_front
+@onready var btn_add_rp_prior = %add_rp_back
+#@onready var hbox_add_rp_next = $HBoxAddNextRP
+#@onready var hbox_add_rp_prior = $HBoxAddPriorRP
+#@onready var hbox_sel_rp_next = $HBoxSelNextRP
+#@onready var hbox_sel_rp_prior = $HBoxSelPriorRP
+@onready var cp_settings: Button = %cp_settings
+@onready var apply_setting: Button = %apply_setting
+@onready var cp_to_all: Button = %cp_to_all
 
 
 func _ready():
-	btn_add_lane_fwd.connect("pressed", Callable(self, "add_lane_fwd_pressed"))
-	btn_add_lane_rev.connect("pressed", Callable(self, "add_lane_rev_pressed"))
-	btn_rem_lane_fwd.connect("pressed", Callable(self, "rem_lane_fwd_pressed"))
-	btn_rem_lane_rev.connect("pressed", Callable(self, "rem_lane_rev_pressed"))
-	btn_sel_rp_next.connect("pressed", Callable(self, "sel_rp_next_pressed"))
-	btn_sel_rp_prior.connect("pressed", Callable(self, "sel_rp_prior_pressed"))
-	btn_add_rp_next.connect("pressed", Callable(self, "add_rp_next_pressed"))
-	btn_add_rp_prior.connect("pressed", Callable(self, "add_rp_prior_pressed"))
 	update_labels(Input.is_key_pressed(KEY_SHIFT))
+
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event.keycode == KEY_SHIFT:
@@ -80,52 +74,47 @@ func update_road_point_panel():
 		btn_rem_lane_rev.disabled = true
 
 	if sel_road_point.next_pt_init:
-		hbox_add_rp_next.visible = false
-		hbox_sel_rp_next.visible = true
+		btn_add_rp_next.visible = false
+		btn_sel_rp_next.visible = true
 	else:
-		hbox_add_rp_next.visible = true
-		hbox_sel_rp_next.visible = false
+		btn_add_rp_next.visible = true
+		btn_sel_rp_next.visible = false
 
 	if sel_road_point.prior_pt_init:
-		hbox_add_rp_prior.visible = false
-		hbox_sel_rp_prior.visible = true
+		btn_add_rp_prior.visible = false
+		btn_sel_rp_prior.visible = true
 	else:
-		hbox_add_rp_prior.visible = true
-		hbox_sel_rp_prior.visible = false
+		btn_add_rp_prior.visible = true
+		btn_sel_rp_prior.visible = false
 
 	notify_property_list_changed()
 
 
 func add_lane_fwd_pressed():
-	#gd4, nice to have
-	# Here and below, change to:
-	#on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD)
 	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD, bulk)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_FORWARD, bulk)
 	update_road_point_panel()
 
 
 func add_lane_rev_pressed():
 	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE, bulk)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.ADD_REVERSE, bulk)
 	update_road_point_panel()
 
 
 func rem_lane_fwd_pressed():
 	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD, bulk)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.REM_FORWARD, bulk)
 	update_road_point_panel()
 
 
 func rem_lane_rev_pressed():
 	var bulk:bool = Input.is_key_pressed(KEY_SHIFT)
-	emit_signal("on_lane_change_pressed", sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE, bulk)
+	on_lane_change_pressed.emit(sel_road_point, RoadPoint.TrafficUpdate.REM_REVERSE, bulk)
 	update_road_point_panel()
 
 
 func sel_rp_next_pressed():
-	#gd4, not needed?
-	# not is empty
 	if not sel_road_point.next_pt_init:
 		return
 
@@ -138,8 +127,6 @@ func sel_rp_next_pressed():
 
 
 func sel_rp_prior_pressed():
-	#gd4, not needed?
-	# not is empty
 	if not sel_road_point.prior_pt_init:
 		return
 
@@ -152,11 +139,11 @@ func sel_rp_prior_pressed():
 
 
 func add_rp_next_pressed():
-	emit_signal("on_add_connected_rp", sel_road_point, RoadPoint.PointInit.NEXT)
+	on_add_connected_rp.emit(sel_road_point, RoadPoint.PointInit.NEXT)
 
 
 func add_rp_prior_pressed():
-	emit_signal("on_add_connected_rp", sel_road_point, RoadPoint.PointInit.PRIOR)
+	on_add_connected_rp.emit(sel_road_point, RoadPoint.PointInit.PRIOR)
 
 
 ## Adds a numeric sequence to the end of a RoadPoint name
@@ -180,16 +167,20 @@ func _on_cp_settings_pressed() -> void:
 	has_copy_ref = true
 	apply_setting.disabled = false
 	cp_to_all.disabled = false
-	emit_signal("assign_copy_target", sel_road_point)
+	assign_copy_target.emit(sel_road_point)
 
 
 func _on_cp_to_all_pressed() -> void:
 	if not has_copy_ref:
 		return
-	emit_signal("apply_settings_target", sel_road_point, true)
+	apply_settings_target.emit(sel_road_point, true)
 
 
 func _on_apply_setting_pressed() -> void:
 	if not has_copy_ref:
 		return
-	emit_signal("apply_settings_target", sel_road_point, false)
+	apply_settings_target.emit(sel_road_point, false)
+
+
+func _on_btn_flip_pressed() -> void:
+	flip_roadpoint.emit(sel_road_point)

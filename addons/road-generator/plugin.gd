@@ -1623,6 +1623,94 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 	undo_redo.commit_action()
 
 
+
+## Utility to call within an undo/redo transaction to flip around a RoadPoint
+## including handling of connections
+func subaction_flip_roadpoint(rp: RoadPoint, undo_redo:EditorUndoRedoManager) -> void:
+	# TODO: see if we can reuse?
+	#var undo_redo = get_undo_redo()
+	var flipped_transform = rp.transform
+	flipped_transform = flipped_transform.rotated_local(Vector3.UP, PI)
+	
+	# Flip all assymetric roadpoint properties
+	undo_redo.add_do_method(rp, "set_internal_updating", true)
+	undo_redo.add_undo_method(rp, "set_internal_updating", true)
+	
+	undo_redo.add_do_property(rp, "prior_pt_init", rp.next_pt_init)
+	undo_redo.add_undo_property(rp, "prior_pt_init", rp.prior_pt_init)
+	undo_redo.add_do_property(rp, "next_pt_init", rp.prior_pt_init)
+	undo_redo.add_undo_property(rp, "next_pt_init", rp.next_pt_init)
+	
+	undo_redo.add_do_property(rp, "shoulder_width_l", rp.shoulder_width_r)
+	undo_redo.add_undo_property(rp, "shoulder_width_l", rp.shoulder_width_l)
+	undo_redo.add_do_property(rp, "shoulder_width_r", rp.shoulder_width_l)
+	undo_redo.add_undo_property(rp, "shoulder_width_r", rp.shoulder_width_r)
+	
+	# Flip lanes around. e.g. we want to go from [-1, 1, 1] to [-1, -1, 1]
+	var _tmp_dirs:Array[RoadPoint.LaneDir] = rp.traffic_dir.duplicate(true)
+	_tmp_dirs.reverse()
+	var _new_traffic_dirs:Array[RoadPoint.LaneDir] = []
+	var _initial_dirs:Array[RoadPoint.LaneDir] = rp.traffic_dir.duplicate(true)
+	for _dir in _tmp_dirs:
+		match _dir:
+			RoadPoint.LaneDir.FORWARD:
+				_new_traffic_dirs.append(RoadPoint.LaneDir.REVERSE)
+			RoadPoint.LaneDir.REVERSE:
+				_new_traffic_dirs.append(RoadPoint.LaneDir.FORWARD)
+			RoadPoint.LaneDir.BOTH:
+				_new_traffic_dirs.append(RoadPoint.LaneDir.BOTH)
+			RoadPoint.LaneDir.NONE:
+				_new_traffic_dirs.append(RoadPoint.LaneDir.NONE)
+
+	undo_redo.add_do_property(rp, "traffic_dir", _new_traffic_dirs)
+	undo_redo.add_undo_property(rp, "traffic_dir", _initial_dirs)
+	
+	undo_redo.add_do_property(rp, "prior_mag", rp.next_mag)
+	undo_redo.add_undo_property(rp, "prior_mag", rp.prior_mag)
+	undo_redo.add_do_property(rp, "next_mag", rp.prior_mag)
+	undo_redo.add_undo_property(rp, "next_mag", rp.next_mag)
+	
+	undo_redo.add_do_property(rp, "transform", flipped_transform)
+	undo_redo.add_undo_property(rp, "transform", rp.transform)
+	
+	# Update direction references within this and connected RoadContainers
+	if rp.is_on_edge() and is_instance_valid(rp.container):
+		var edge_rp_local_dirs_old:Array[int] = rp.container.edge_rp_local_dirs.duplicate(true)
+		var edge_rp_local_dirs_new:Array[int] = edge_rp_local_dirs_old.duplicate(true)
+		for _idx in range(len(rp.container.edge_rp_locals)):
+			if rp.container.get_node(rp.container.edge_rp_locals[_idx]) == rp:
+				edge_rp_local_dirs_new[_idx] = 0 if edge_rp_local_dirs_new[_idx] == 1 else 1
+		undo_redo.add_do_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_new)
+		undo_redo.add_undo_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_old)
+		
+		# Check if cross-container connected at this RP and grab container if so
+		var _pr = rp.get_prior_rp()
+		var _nt = rp.get_next_rp()
+		var other_cont:RoadContainer
+		if is_instance_valid(_pr) and _pr.container != rp.container:
+			other_cont = _pr.container
+		elif is_instance_valid(_nt) and _nt.container != rp.container:
+			other_cont = _nt.container
+		
+		# Now update the other direction too
+		if is_instance_valid(other_cont):
+			var edge_rp_target_dirs_old:Array[int] = other_cont.edge_rp_target_dirs.duplicate(true)
+			var edge_rp_target_dirs_new:Array[int] = edge_rp_target_dirs_old.duplicate(true)
+			for _idx in range(len(other_cont.edge_rp_target_dirs)):
+				if other_cont.get_node(other_cont.edge_containers[_idx]) != rp.container:
+					continue
+				if rp.container.get_node(other_cont.edge_rp_targets[_idx]) == rp:
+					edge_rp_target_dirs_new[_idx] = 0 if edge_rp_target_dirs_new[_idx] == 1 else 1
+			undo_redo.add_do_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_new)
+			undo_redo.add_undo_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_old)
+	
+	undo_redo.add_do_method(rp, "set_internal_updating", false)
+	undo_redo.add_undo_method(rp, "set_internal_updating", false)
+	
+	undo_redo.add_do_method(rp.container, "rebuild_segments", true)
+	undo_redo.add_undo_method(rp.container, "rebuild_segments", true)
+
+
 ## Adds a single RoadPoint to the scene
 func _create_roadpoint_pressed() -> void:
 	var undo_redo = get_undo_redo()
