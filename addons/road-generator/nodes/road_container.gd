@@ -912,7 +912,11 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		else:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
-		new_seg.material = material_resource
+		
+		if material_resource:
+			new_seg.material = material_resource
+		elif is_instance_valid(_manager) and _manager.material_resource:
+			new_seg.material = _manager.material_resource
 		new_seg.check_rebuild()
 
 		return [true, new_seg]
