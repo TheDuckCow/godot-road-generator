@@ -820,8 +820,16 @@ func _create_collisions() -> void:
 		
 		if container.physics_material != null:
 			sbody.physics_material_override = container.physics_material
-		elif manager.physics_material != null:
+		elif is_instance_valid(manager) and manager.physics_material != null:
 			sbody.physics_material_override = manager.physics_material
+		
+		if container.override_collision_layers:
+			sbody.collision_layer = container.collision_layer
+			sbody.collision_mask = container.collision_mask
+		elif is_instance_valid(manager):
+			sbody.collision_layer = manager.collision_layer
+			sbody.collision_mask = manager.collision_mask
+		# else: will just be the godot default.
 		
 		sbody.set_meta("_edit_lock_", true)
 

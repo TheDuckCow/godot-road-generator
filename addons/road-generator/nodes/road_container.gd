@@ -40,6 +40,13 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 # If create_geo is true, then whether to reduce geo mid transform.
 @export var use_lowpoly_preview: bool = false
 
+
+# ------------------------------------------------------------------------------
+## Properties defining how to set up the road's StaticBody3D
+@export_group("Collision")
+# ------------------------------------------------------------------------------
+
+
 ## The PhysicsMaterial to apply to static bodies. An override of any present on
 ## the parent RoadManager's physics_material
 @export var physics_material: PhysicsMaterial:
@@ -51,6 +58,19 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 @export var collider_group_name := "": set = _set_collider_group
 ## Meta property name to assign to the static bodies created within a RoadSegment
 @export var collider_meta_name := "": set = _set_collider_meta
+
+## If enabled, use collision_layer and collision_mask defined on this RoadContainer instead of the RoadManager
+@export var override_collision_layers:bool = false
+## Collision layer to assign to the StaticBody3D's own collision_layer
+@export_flags_3d_physics var collision_layer: int = 1:
+	set(value):
+		collision_layer = value
+		_defer_refresh_on_change()
+## Collision mask to assign to the StaticBody3D's own collision_mask
+@export_flags_3d_physics var collision_mask: int = 1:
+	set(value):
+		collision_mask = value
+		_defer_refresh_on_change()
 
 
 # ------------------------------------------------------------------------------

@@ -35,6 +35,12 @@ var density: float = 4.0:
 		density = value
 		rebuild_all_containers()
 
+# ------------------------------------------------------------------------------
+## Properties defining how to set up the road's StaticBody3D
+@export_group("Collision")
+# ------------------------------------------------------------------------------
+
+
 ## The PhysicsMaterial to apply to genrated static bodies
 ##
 ## Can be overridden by individual RoadContainers
@@ -62,6 +68,21 @@ var collider_meta_name := "":
 		collider_meta_name = value
 		rebuild_all_containers()
 
+## Collision layer to assign to the StaticBody3D's own collision_layer
+##
+## Can be overridden by individual RoadContainers if override_collision_layers enabled
+@export_flags_3d_physics var collision_layer: int = 1:
+	set(value):
+		collision_layer = value
+		rebuild_all_containers()
+
+## Collision mask to assign to the StaticBody3D's own collision_mask
+##
+## Can be overridden by individual RoadContainers if override_collision_layers enabled
+@export_flags_3d_physics var collision_mask: int = 1:
+	set(value):
+		collision_mask = value
+		rebuild_all_containers()
 
 # ------------------------------------------------------------------------------
 ## Properties relating to how RoadLanes and AI tooling is set up
