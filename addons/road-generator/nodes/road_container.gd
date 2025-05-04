@@ -10,7 +10,6 @@ extends Node3D
 signal on_road_updated(updated_segments)
 signal on_transform(node)  # for internal purposes, to handle drags
 
-const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 
@@ -182,7 +181,7 @@ var _is_ready := false
 
 func _ready():
 	# setup_road_container won't work in _ready unless call_deferred is used
-	call_deferred("setup_road_container")
+	setup_road_container.call_deferred()
 
 	set_notify_transform(true) # TOOD: check if both of these are necessary
 	set_notify_local_transform(true)
@@ -1061,10 +1060,6 @@ func setup_road_container():
 		own = owner
 	else:
 		own = self
-
-	if not material_resource:
-		material_resource = RoadMaterial
-		print("Added material to ", name)
 
 	_check_migrate_points()
 
