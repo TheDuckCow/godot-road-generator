@@ -64,6 +64,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_gomn4")
 [node name="RoadManager" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -110.138, -3.05176e-05, 47.3471)
 script = ExtResource("5")
+material_resource = ExtResource("4")
 
 [node name="vehicles" type="Node3D" parent="RoadManager"]
 

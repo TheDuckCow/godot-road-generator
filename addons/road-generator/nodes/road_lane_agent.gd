@@ -1,6 +1,9 @@
 @icon("res://addons/road-generator/resources/road_lane_agent.png")
-## An agent helper for navigation on RoadLanes, inspired but not inheriting
-## from NavigationAgent, as we are not using navigation meshes
+
+## An agent helper for navigation on [RoadLane]'s.
+##
+## Inspired, but does not inherit from, NavigationAgent since this does not rely
+## on navigation meshes, but instead on explicit path curves.
 ##
 ## Used to help calculate position updates, but currently does not directly
 ## perform these position updates directly.
@@ -10,32 +13,13 @@
 ## is specified. If it is a (grand)child of a RoadManager, then
 ## road_manager_path does not need to be specified. This node does not need to
 ## be a child of an actual RoadLane, but there is no harm in doing so.
+##
+## @tutorial(Intersection demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/intersections
+## @tutorial(Procedural demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/procedural_generator
 class_name RoadLaneAgent
 extends Node
 
 signal on_lane_changed(old_lane)
-
-## Directly assign the path to the RoadManager instance, otherwise will assume it
-## is in the parent hierarchy. Should refer to RoadManager nodes only.
-@export var road_manager_path: NodePath
-## Automatically register and unregiter this vehicle to RoadLanes as we travel.
-## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
-## being removed, but likely should turn off for player agents to avoid freeing
-@export var auto_register: bool = true
-## Debug tool to make the current lane visible in the game. Can be slow, best
-## to turn it off for production use.
-@export var visualize_lane: bool = false
-
-## Reference spatial to assume where this agent's position is assumed to be at
-var actor: Node3D
-## The RoadManager instance that is containing all RoadContainers to consider,
-## primarily needed to fetch the initial nearest RoadLane
-var road_manager: RoadManager
-## The current RoadLane, used as the linking reference to all adjacent lanes
-var current_lane: RoadLane
-
-## Cache just to check whether the prior lane was made visible by visualize_lane
-var _did_make_lane_visible := false
 
 enum MoveDir
 {
@@ -49,6 +33,31 @@ enum LaneChangeDir
 	CURRENT = 0,
 	LEFT = -1
 }
+
+
+## Directly assign the path to the [RoadManager] instance, otherwise will assume it
+## is in the parent hierarchy. Should refer to [RoadManager] nodes only.
+@export var road_manager_path: NodePath
+## Automatically register and unregiter this vehicle to RoadLanes as we travel.[br][br]
+##
+## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
+## being removed, but likely should turn off for player agents to avoid freeing.
+@export var auto_register: bool = true
+## Debug option to mark the current [RoadLane] visible ingame.[br][br]
+##
+## Can be slow, best to turn it off for production use.
+@export var visualize_lane: bool = false
+
+## Reference spatial to assume where this agent's position is assumed to be at
+var actor: Node3D
+## The RoadManager instance that is containing all RoadContainers to consider,
+## primarily needed to fetch the initial nearest RoadLane
+var road_manager: RoadManager
+## The current RoadLane, used as the linking reference to all adjacent lanes
+var current_lane: RoadLane
+
+## Cache just to check whether the prior lane was made visible by visualize_lane
+var _did_make_lane_visible := false
 
 
 func _ready() -> void:

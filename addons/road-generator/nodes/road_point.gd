@@ -1,8 +1,12 @@
 @tool
 @icon("res://addons/road-generator/resources/road_point.png")
-## Definition for a single point handle, which 2+ road segments connect to.
+
 class_name RoadPoint
 extends Node3D
+## Definition for a single point handle, which 2+ road segments connect to.
+##
+## Functionally equivalent to a point along a curve, it defines the cross section
+## of the road at a particular slice.
 
 signal on_transform(node, low_poly)
 
@@ -32,7 +36,7 @@ enum TrafficUpdate{
 	REM_FORWARD,
 	REM_REVERSE,
 	MOVE_DIVIDER_LEFT,
-	MOVE_DIVIDER_RIGHT
+	MOVE_DIVIDER_RIGHT,
 }
 
 # TODO: swap these, so that "NEXT" is intuitively a higher enum int value.
@@ -46,7 +50,12 @@ const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
-# Assign the direction of traffic order.
+
+# ------------------------------------------------------------------------------
+@export_group("Lanes")
+# ------------------------------------------------------------------------------
+
+
 # TODO: decide whether to do this
 #gd4, not needed?
 #var _traffic_dir: Array[LaneDir] = [
@@ -58,33 +67,71 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 #	set(value):
 #		_traffic_dir = value
 #		_notify_network_on_set(value)
+## Defines the number and directions of each lane of traffic.
 @export var traffic_dir:Array[LaneDir]: get = _get_dir, set = _set_dir
 
-# Enables auto assignment of the lanes array below, based on traffic_dir setup.
+## Enables auto assignment of the [member RoadPoint.lanes] array, which defines
+## which UV slice of the material trimsheet to use for each lane.
 @export var auto_lanes := true: get = _get_auto_lanes, set = _set_auto_lanes
 
-# Assign the textures to use for each lane.
-# Order is left to right when oriented such that the RoadPoint is facing towards
-# the top of the screen in a top down orientation.
+## Assign the UV column of thematerial trimsheet to use for each lane.[br][br]
+##
+## Order is left to right when oriented such that the [RoadPoint] is facing towards
+## the top of the screen in a top down orientation.
+##
+## Updated automatically if [member RoadPoint.auto_lanes] is enabled.
 @export var lanes:Array[LaneType]: get = _get_lanes, set = _set_lanes
 
-@export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
-@export var shoulder_width_l := 2.0: get = _get_shoulder_width_l, set = _set_shoulder_width_l
-@export var shoulder_width_r := 2.0: get = _get_shoulder_width_r, set = _set_shoulder_width_r
-# Profile: x: how far out the gutter goes, y: how far down to clip.
-@export var gutter_profile := Vector2(2.0, -0.5): get = _get_profile, set = _set_profile
-
-# Path to next/prior RoadPoint, relative to this RoadPoint itself.
-@export var prior_pt_init: NodePath: get = _get_prior_pt_init, set = _set_prior_pt_init
-@export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
+## Method to mark a RoadPont as the non-edge end of a road.[br][br]
+##
+## By enabling this, this [RoadPoint] will not appear in the list of edges on its
+## parent [RoadContainer] and thus not be eleible for connections or snapping.
 @export var terminated := false: set = _set_terminated
-# Handle magniture
+
+
+# ------------------------------------------------------------------------------
+@export_group("Road Generation")
+# ------------------------------------------------------------------------------
+
+
+## Defines size of the bezier output leading to the prior [RoadPoint].
 @export var prior_mag := 5.0: get = _get_prior_mag, set = _set_prior_mag
+## Defines size of the bezier output leading to the next [RoadPoint].
 @export var next_mag := 5.0: get = _get_next_mag, set = _set_next_mag
 
-# Generate procedural road geometry
-# If off, it indicates the developer will load in their own custom mesh + collision.
+## Generate the procedural road geometry.[br][br]
+##
+## Turn this off if you want to swap in your own road mesh geometry and colliders.
 @export var create_geo := true: set = _set_create_geo
+
+## Width of each lane in meters in meters.
+@export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
+## Width of the left shoulder in meters.
+@export var shoulder_width_l := 2.0: get = _get_shoulder_width_l, set = _set_shoulder_width_l
+## Width of the right shoulder in meters.
+@export var shoulder_width_r := 2.0: get = _get_shoulder_width_r, set = _set_shoulder_width_r
+## Shape of the shoulder edge, definining how far over and down it will extend.[br][br]
+##
+## Use negative y-values to sink the road edge below the surface of the rest of the road.[br][br]
+##
+## Use positive x-values to widen the road even further beyond the shoulder width.
+@export var gutter_profile := Vector2(2.0, -0.5): get = _get_profile, set = _set_profile
+
+
+# ------------------------------------------------------------------------------
+@export_group("Internal data")
+# ------------------------------------------------------------------------------
+
+# TODO: convert these into direct node reference export vars instead of nodepaths
+## Considered private, not meant for editor or script interaction.[br][br]
+##
+## Path to prior [RoadPoint], relative to this [RoadPoint] itself.
+@export var prior_pt_init: NodePath: get = _get_prior_pt_init, set = _set_prior_pt_init
+## Considered private, not meant for editor or script interaction.[br][br]
+##
+## Path to next [RoadPoint], relative to this [RoadPoint] itself.
+@export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
+
 
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0

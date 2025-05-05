@@ -1,20 +1,21 @@
+extends Node3D
 ## Create and hold the geometry of a segment of road, including its curve.
 ##
 ## Assume lazy evaluation, only adding nodes when explicitly requested, so that
 ## the structure stays light only until needed.
-extends Node3D
-
-# Disabled, since we don't want users to manually via the UI to add this class.
+##
+## Not defined with a ClassName, since this should be treated as internal
+## functionality of how the road generation works, and may change.
+##
+## If necessary to reference like a class, place this in any script:
+## const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 #class_name RoadSegment, "road_segment.png"
-#
-# To be able to reference as if a class, place this in any script:
-# const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
 
 const LOWPOLY_FACTOR = 3.0
-const RAD_NINETY_DEG = PI/2 # aka 1.5707963267949, used for offset_curve algorithm
-const EDGE_R_NAME = "edge_R" # Name of reverse lane edge curve
-const EDGE_F_NAME = "edge_F" # Name of forward lane edge curve
-const EDGE_C_NAME = "edge_C" # Name of road center (direction divider) edge curve
+const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
+const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
+const EDGE_F_NAME = "edge_F" ## Name of forward lane edge curve
+const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge curve
 
 signal seg_ready(road_segment)
 
@@ -27,8 +28,8 @@ var end_point:RoadPoint
 var curve:Curve3D
 var road_mesh:MeshInstance3D
 var material:Material
-var density := 4.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
-var container:RoadContainer # The managing container node for this road segment (grandparent).
+var density := 4.00 ## Distance between loops, bake_interval in m applied to curve for geo creation.
+var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
@@ -47,6 +48,7 @@ var _end_flip: bool = false
 # For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
