@@ -1,27 +1,116 @@
 @tool
 @icon("res://addons/road-generator/resources/road_manager.png")
-## Manager for all children RoadContainers
+
 class_name RoadManager
 extends Node3D
+## Manager for all children RoadContainers
+##
+## This node should be added as the parent of all RoadContainers which are
+## meant to be managed by these settings. The exception is where a RoadContainer
+## is saved as the root of a tscn saved file.
+
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+
+# ------------------------------------------------------------------------------
+## How road meshes are generated
+@export_group("Road Generation")
+# ------------------------------------------------------------------------------
+
+## The default material applied to generated meshes, expects specific trimsheet UV layout
+## 
+## Can be overridden by individual RoadContainers
+@export
+var material_resource: Material:
+	set(value):
+		material_resource = value
+		rebuild_all_containers()
+
+## Defines the distnace in meters between road loop cuts. This mirrors the
+## same term used in native Curve3D objects where a higher density means a larger
+## spacing between loops and fewer overall verticies.
+##
+## Can be overridden by individual RoadContainers
+@export
+var density: float = 4.0:
+	set(value):
+		density = value
+		rebuild_all_containers()
+
+# ------------------------------------------------------------------------------
+## Properties defining how to set up the road's StaticBody3D
+@export_group("Collision")
+# ------------------------------------------------------------------------------
+
+
+## The PhysicsMaterial to apply to genrated static bodies
+##
+## Can be overridden by individual RoadContainers
+@export
+var physics_material: PhysicsMaterial:
+	set(value):
+		physics_material = value
+		rebuild_all_containers()
+
+## Group name to assign to the staic bodies created within a RoadSegment
+##
+## Can be overridden by individual RoadContainers
+@export
+var collider_group_name := "":
+	set(value):
+		collider_group_name = value
+		rebuild_all_containers()
+
+## Meta property name to assign to the static bodies created within RoadSegments
+##
+## Can be overridden by individual RoadContainers
+@export
+var collider_meta_name := "":
+	set(value):
+		collider_meta_name = value
+		rebuild_all_containers()
+
+## Collision layer to assign to the StaticBody3D's own collision_layer
+##
+## Can be overridden by individual RoadContainers if override_collision_layers enabled
+@export_flags_3d_physics var collision_layer: int = 1:
+	set(value):
+		collision_layer = value
+		rebuild_all_containers()
+
+## Collision mask to assign to the StaticBody3D's own collision_mask
+##
+## Can be overridden by individual RoadContainers if override_collision_layers enabled
+@export_flags_3d_physics var collision_mask: int = 1:
+	set(value):
+		collision_mask = value
+		rebuild_all_containers()
+
+# ------------------------------------------------------------------------------
+## Properties relating to how RoadLanes and AI tooling is set up
+@export_group("Lanes and AI")
+# ------------------------------------------------------------------------------
+
+
+## The group name to assign to any procedurally generated RoadLanes
+##
+## Can be overridden by individual RoadContainers
+@export
+var ai_lane_group := "road_lanes":
+	set(value):
+		ai_lane_group = value
+		rebuild_all_containers()
 
 
 # ------------------------------------------------------------------------------
-# Inherited default settings used by RoadContainers
-# ------------------------------------------------------------------------------
-
-
-@export var density: float = 4.0: set = _set_density
-
-
-# ------------------------------------------------------------------------------
-# Editor settings
+@export_group("Editor settings")
 # ------------------------------------------------------------------------------
 
 
 # Auto refresh on transforms or other actions on roads. Good to disable if
 # you modify roads during runtime and want to manually trigger refreshes on
 # specific RoadContainers/RoadPoints at a time.
-@export var auto_refresh: bool = true: set = _ui_refresh_set
+@export
+var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 # ------------------------------------------------------------------------------
@@ -41,6 +130,14 @@ func _ready():
 	# the manager initializes (different from _ready), meaning
 	# it would default to true even if auto refresh is false here.
 	_ui_refresh_set(auto_refresh)
+	
+	# setup_road_container won't work in _ready unless call_deferred is used
+	assign_default_material.call_deferred()
+	
+
+func assign_default_material() -> void:
+	if not material_resource:
+		material_resource = RoadMaterial
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -61,11 +158,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 # Workaround for cyclic typing
 func is_road_manager() -> bool:
 	return true
-
-
-func _set_density(value: float) -> void:
-	density = value
-	rebuild_all_containers()
 
 
 func _ui_refresh_set(value: bool) -> void:

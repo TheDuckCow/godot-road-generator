@@ -28,7 +28,7 @@ var curve:Curve3D
 var road_mesh:MeshInstance3D
 var material:Material
 var density := 4.00 # Distance between loops, bake_interval in m applied to curve for geo creation.
-var container # The managing container node for this road segment (grandparent).
+var container:RoadContainer # The managing container node for this road segment (grandparent).
 
 var is_dirty := true
 var low_poly := false  # If true, then was (or will be) generated as low poly.
@@ -284,6 +284,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		return false
 
 	var any_generated = false
+	var manager:RoadManager = container.get_manager()
 
 	var start_offset = len(start_point.lanes) / 2.0 * start_point.lane_width - start_point.lane_width/2.0
 	var end_offset = len(end_point.lanes) / 2.0 * end_point.lane_width - end_point.lane_width/2.0
@@ -322,7 +323,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
 				ln_child.owner = container.get_owner()
-			ln_child.add_to_group(container.ai_lane_group)
+			
+			if container.ai_lane_group != "":
+				ln_child.add_to_group(container.ai_lane_group)
+			elif is_instance_valid(manager) and manager.ai_lane_group != "":
+				ln_child.add_to_group(manager.ai_lane_group)
 			ln_child.set_meta("_edit_lock_", true)
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
 		else:
@@ -792,18 +797,41 @@ func _build_geo():
 func _create_collisions() -> void:
 	for ch in road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
+	
+	var manager:RoadManager = container.get_manager()
 
 	# Could also manually create with Mesh.create_trimesh_shape(),
 	# but this is still advertised as a non-cheap solution.
 	road_mesh.create_trimesh_collision()
 	for ch in road_mesh.get_children():
-		if not ch is StaticBody3D:
+		var sbody := ch as StaticBody3D # Set to null if casting fails
+		if not sbody:
 			continue
+		
 		if container.collider_group_name != "":
-			ch.add_to_group(container.collider_group_name)
+			sbody.add_to_group(container.collider_group_name)
+		elif is_instance_valid(manager) and manager.collider_group_name != "":
+			sbody.add_to_group(manager.collider_group_name)
+		
 		if container.collider_meta_name != "":
-			ch.set_meta(container.collider_meta_name, true)
-		ch.set_meta("_edit_lock_", true)
+			sbody.set_meta(container.collider_meta_name, true)
+		elif is_instance_valid(manager) and manager.collider_meta_name != "":
+			sbody.set_meta(manager.collider_meta_name, true)
+		
+		if container.physics_material != null:
+			sbody.physics_material_override = container.physics_material
+		elif is_instance_valid(manager) and manager.physics_material != null:
+			sbody.physics_material_override = manager.physics_material
+		
+		if container.override_collision_layers:
+			sbody.collision_layer = container.collision_layer
+			sbody.collision_mask = container.collision_mask
+		elif is_instance_valid(manager):
+			sbody.collision_layer = manager.collision_layer
+			sbody.collision_mask = manager.collision_mask
+		# else: will just be the godot default.
+		
+		sbody.set_meta("_edit_lock_", true)
 
 
 func _insert_geo_loop(
