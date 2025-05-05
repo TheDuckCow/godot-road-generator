@@ -16,7 +16,7 @@ enum DriveState {
 @export var seek_ahead := 5.0 # How many meters in front of agent to seek position
 @export var auto_register: bool = true
 
-@onready var agent = get_node("%road_lane_agent")
+@onready var agent:RoadLaneAgent = get_node("%road_lane_agent")
 
 # how big car difference triggers lane change
 var lane_change_tolerance = 3
@@ -62,7 +62,7 @@ func _get_auto_input() -> Vector3:
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
-		var cur_cars:int = agent.cars_in_lane(0)
+		var cur_cars:int = agent.cars_in_lane(RoadLaneAgent.LaneChangeDir.CURRENT)
 		if (cur_cars > 1):
 			var cur_cars_l:int = agent.cars_in_lane(agent.LaneChangeDir.LEFT)
 			var cur_cars_r:int = agent.cars_in_lane(agent.LaneChangeDir.RIGHT)
