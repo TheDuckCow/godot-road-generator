@@ -222,20 +222,20 @@ func generate_edge_curves():
 	var start_offset_F
 	var end_offset_R
 	var end_offset_F
-	if start_point.alignment == RoadPoint.Alignment.CENTER:
+	if start_point.alignment == RoadPoint.Alignment.GEOMETRIC:
 		var start_half_width: float = len(start_point.lanes) * start_point.lane_width * 0.5
 		start_offset_R = start_half_width
 		start_offset_F = start_half_width
 	else:
-		assert( start_point.alignment == RoadPoint.Alignment.CENTERLINE )
+		assert( start_point.alignment == RoadPoint.Alignment.DIVIDER )
 		start_offset_R = start_point.get_rev_lane_count() * start_point.lane_width
 		start_offset_F = start_point.get_fwd_lane_count() * start_point.lane_width
-	if end_point.alignment == RoadPoint.Alignment.CENTER:
+	if end_point.alignment == RoadPoint.Alignment.GEOMETRIC:
 		var end_half_width: float = len(end_point.lanes) * end_point.lane_width * 0.5
 		end_offset_R = end_half_width
 		end_offset_F = end_half_width
 	else:
-		assert( end_point.alignment == RoadPoint.Alignment.CENTERLINE )
+		assert( end_point.alignment == RoadPoint.Alignment.DIVIDER )
 		end_offset_R = end_point.get_rev_lane_count() * end_point.lane_width
 		end_offset_F = end_point.get_fwd_lane_count() * end_point.lane_width
 
@@ -300,17 +300,17 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	
 	var start_lane_offset
 	var end_lane_offset
-	if start_point.alignment == RoadPoint.Alignment.CENTERLINE:
+	if start_point.alignment == RoadPoint.Alignment.DIVIDER:
 		start_lane_offset = start_point.get_rev_lane_count()
 	else:
-		assert( start_point.alignment == RoadPoint.Alignment.CENTER )
+		assert( start_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		start_lane_offset = len(start_point.lanes) / 2.0
 
 	var manager:RoadManager = container.get_manager()
-	if end_point.alignment == RoadPoint.Alignment.CENTERLINE:
+	if end_point.alignment == RoadPoint.Alignment.DIVIDER:
 		end_lane_offset = end_point.get_rev_lane_count()
 	else:
-		assert( end_point.alignment == RoadPoint.Alignment.CENTER )
+		assert( end_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		end_lane_offset = len(end_point.lanes) / 2.0
 
 	var start_offset = (start_lane_offset - 0.5) * start_point.lane_width
@@ -890,8 +890,8 @@ func _insert_geo_loop(
 	var lane_offset = []
 	for nf in NearFar.values():
 		lane_offset.append(len(point[nf].lanes) / 2.0)
-	if start_point.alignment == RoadPoint.Alignment.CENTERLINE || \
-		end_point.alignment == RoadPoint.Alignment.CENTERLINE:
+	if start_point.alignment == RoadPoint.Alignment.DIVIDER || \
+		end_point.alignment == RoadPoint.Alignment.DIVIDER:
 		var nf_reverse = [0, 0]
 		for l in lanes:
 			if l[1] == RoadPoint.LaneDir.REVERSE:
@@ -905,7 +905,7 @@ func _insert_geo_loop(
 			else:
 				assert (l[1] == RoadPoint.LaneDir.FORWARD)
 		for nf in NearFar.values():
-			if point[nf].alignment == RoadPoint.Alignment.CENTERLINE:
+			if point[nf].alignment == RoadPoint.Alignment.DIVIDER:
 				lane_offset[nf] = nf_reverse[nf]
 
 	var nf_loop = [null, null]

@@ -46,8 +46,8 @@ enum PointInit {
 }
 
 enum Alignment {
-	CENTER,
-	CENTERLINE,
+	GEOMETRIC,  ## Aligns equal amount of road to the left and right of the RoadPoint
+	DIVIDER,  ## Ensures the lane direction dividing line is aligned to the RoadPoint
 }
 
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
@@ -122,8 +122,7 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Use positive x-values to widen the road even further beyond the shoulder width.
 @export var gutter_profile := Vector2(2.0, -0.5): get = _get_profile, set = _set_profile
 
-# Generate procedural road geometry
-# If off, it indicates the developer will load in their own custom mesh + collision.
+## Determines how the geometry will center itself around the RoadPoint origin
 @export var alignment: Alignment: get = _get_alignment, set = _set_alignment
 
 # ------------------------------------------------------------------------------

@@ -213,7 +213,7 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, index: int, secondary: bool) ->
 	var lane_width = point.lane_width
 	var lane_count = len(point.traffic_dir)
 	var width_mag: float = lane_count * lane_width / 2
-	if point.alignment == RoadPoint.Alignment.CENTERLINE:
+	if point.alignment == RoadPoint.Alignment.DIVIDER:
 		if index == HandleType.REV_WIDTH_MAG:
 			width_mag = point.get_rev_lane_count() * lane_width
 		elif index == HandleType.FWD_WIDTH_MAG:
@@ -318,7 +318,7 @@ func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, po
 		var lane_count = len(roadpoint.traffic_dir)
 
 		var road_divider = 0
-		if roadpoint.alignment == RoadPoint.Alignment.CENTER:
+		if roadpoint.alignment == RoadPoint.Alignment.GEOMETRIC:
 			road_divider = (roadpoint.get_rev_lane_count() - lane_count / 2.0) * lane_width
 		var road_div_rev_limit = road_divider - (lane_width * LaneOffset)
 		var road_div_fwd_limit = road_divider + (lane_width * LaneOffset)
