@@ -17,6 +17,9 @@ const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
 const EDGE_F_NAME = "edge_F" ## Name of forward lane edge curve
 const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge curve
 
+## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
+const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
+
 signal seg_ready(road_segment)
 
 @export var start_init: NodePath: get = _init_start_get, set = _init_start_set
@@ -48,6 +51,18 @@ var _end_flip: bool = false
 # For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
+
+## For iteration on values related to Near(start) or Far(end) points of a segment
+enum NearFar {
+	NEAR,
+	FAR
+}
+
+## For iteration on values related to Left or Right sides of a segment
+enum LeftRight {
+	LEFT,
+	RIGHT
+}
 
 
 # ------------------------------------------------------------------------------
@@ -859,17 +874,6 @@ func _create_collisions() -> void:
 		
 		sbody.set_meta("_edit_lock_", true)
 
-enum NearFar {
-	NEAR,
-	FAR
-}
-enum LeftRight {
-	LEFT,
-	RIGHT
-}
-
-#correspond to RoadPoint.LaneType enum - lookup for lane texture multiplier
-const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
 
 func _insert_geo_loop(
 		st: SurfaceTool,
