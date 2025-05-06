@@ -1,8 +1,11 @@
 @tool
 @icon("res://addons/road-generator/resources/road_intersection.png")
-## Center point of an intersection
+
+## Center point of an intersection.
 ##
-## Should be contained within a RoadContainer and a sibling to 1+ RoadPoints
+## Should be contained within a [RoadContainer] and a sibling to 1+ [RoadPoints].
+##
+## @experimental: Currently unused and may change.
 class_name RoadIntersection
 extends Node3D
 

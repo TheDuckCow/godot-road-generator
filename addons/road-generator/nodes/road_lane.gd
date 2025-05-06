@@ -1,50 +1,84 @@
 @tool
 @icon("res://addons/road-generator/resources/road_lane.png")
-## Class for defining a directional or bidirectional lane.
-##
-## Could, but does not have to be, parented to a RoadSegment class object.
+
 class_name RoadLane
 extends Path3D
+## Defines a directional lane of traffic for AI with references to adjacent lanes.
+##
+## These are generated as children of [RoadPoint]'s automatically if its given
+## [member RoadContainer.generate_ai_lanes] is set to true.
+##
+## @tutorial(Using RoadLanes with custom meshes): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
+## @tutorial(Procedural demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/procedural_generator
 
-const COLOR_PRIMARY = Color(0.6, 0.3, 0,3)
-const COLOR_START = Color(0.7, 0.7, 0,7)
+const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
+const COLOR_START := Color(0.7, 0.7, 0,7)
 
 signal on_transform
 
-@export var lane_left:NodePath # Used to indicate allowed lane changes
-@export var lane_right:NodePath # Used to indicate allowed lane changes
-@export var lane_next:NodePath # RoadLane or intersection
-@export var lane_prior:NodePath # RoadLane or intersection
 
-# Can override to draw if outside the editor
+# ------------------------------------------------------------------------------
+@export_group("Connections")
+# ------------------------------------------------------------------------------
+
+
+## Reference to the next left-side [RoadLane] if any, for allowed lane transitions.
+@export var lane_left:NodePath
+## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
+@export var lane_right:NodePath
+## The next forward [RoadLane] for agents to follow along.
+@export var lane_next:NodePath
+## The prior [RoadLane] for agents to follow (if going backwards).
+@export var lane_prior:NodePath
+
+## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
+##
+## Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
+## matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
+## lane_prior_tag (since lane_B follows lane_A in this situation).[br][br]
+##
+## Any matching name will do, and it will match the first match. Auto-generated
+## lanes have a convention of a prefix F or R (for forward or reverse lane,
+## relative to the road segment) followed by a 0-indexed integer, based on how
+## far from the middle of the road (middle = where the lane direction flips).[br][br]
+##
+## This way, the inner most lanes are always matched together. A lane F2 being
+## removed on the right (forward) will be recognized as needing to have it's
+## lane_next_tag set to F1, representing cars merging from this removed lane into
+## the next interior lane.[br][br]
+##
+## e.g. R0, R1,...R#, F0, F1, ... F#.
+@export var lane_next_tag:String
+## See description above for [member RoadLane.lane_next_tag] which is the equivalent.
+@export var lane_prior_tag:String
+
+
+# ------------------------------------------------------------------------------
+@export_group("Behavior")
+# ------------------------------------------------------------------------------
+
+## Visualize this [RoadLane] and its direction in the editor directly.
 @export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
+## Visualize this [RoadLane] and its direction during the game runtime.
 @export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
 
-
-# Tags are used help populate the lane_next and lane_prior NodePaths above.
-#
-# Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
-# matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
-# lane_prior_tag (since lane_B follows lane_A in this situation).
-#
-# Any matching name will do, and it will match the first match. Auto-generated
-# lanes have a convention of a prefix F or R (for forward or reverse lane,
-# relative to the road segment) followed by a 0-indexed integer, based on how
-# far from the middle of the road (middle = where the lane direction flips).
-#
-# This way, the inner most lanes are always matched together. A lane F2 being
-# removed on the right (forward) will be recognized as needing to have it's
-# lane_next_tag set to F1, representing cars merging from this removed lane into
-# the next interior lane.
-@export var lane_prior_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
-@export var lane_next_tag:String  # e.g. R0, R1,...R#, F0, F1, ... F#.
-
-## Auto queue-free any vehicles registered to this lane with the road lane exits
+## Auto queue-free any vehicles registered to this lane with the road lane exits.
 @export var auto_free_vehicles: bool = true
+
+
+# ------------------------------------------------------------------------------
+@export_group("Editor tools")
+# ------------------------------------------------------------------------------
+
 
 # TODO: remove when moved to Godot 4.4 and changed to simple button
 # the variable is not used - only to provide GUI element
+## UI tool to easily flip the order of points of the curve.[br][br]
+##
+## Property will remain unchecked but will perform the action described. Will be
+## replaced with a tool button once this addon targets Godot 4.4 as the minimum.
 @export var reverse_direction = false: set = _set_reverse_direction
+
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
@@ -58,6 +92,7 @@ var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
+
 
 # ------------------------------------------------------------------------------
 # Setup and export setter/getters
