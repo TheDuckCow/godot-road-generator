@@ -125,8 +125,8 @@ func _redraw(gizmo) -> void:
 		collider.size = BaseColliderSize * width_scale
 
 	var lines = PackedVector3Array()
-	lines.push_back(Vector3(0, 1, 0))
-	lines.push_back(Vector3(0, 1, 0))
+	lines.push_back(Vector3.UP)
+	lines.push_back(Vector3.UP)
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
 
 	gizmo.add_collision_triangles(collider_tri_mesh)
@@ -186,7 +186,7 @@ func _redraw(gizmo) -> void:
 		if i < lane_count:
 			div.visible = true
 			div.position = Vector3(x_pos, 0, 0)
-			div.scale = Vector3(width_scale, width_scale, width_scale)
+			div.scale = width_scale_v
 			x_pos += lane_width
 		else:
 			div.visible = false
@@ -213,6 +213,11 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, index: int, secondary: bool) ->
 	var lane_width = point.lane_width
 	var lane_count = len(point.traffic_dir)
 	var width_mag: float = lane_count * lane_width / 2
+	if point.alignment == RoadPoint.Alignment.DIVIDER:
+		if index == HandleType.REV_WIDTH_MAG:
+			width_mag = point.get_rev_lane_count() * lane_width
+		elif index == HandleType.FWD_WIDTH_MAG:
+			width_mag = point.get_fwd_lane_count() * lane_width
 
 	match index:
 		HandleType.PRIOR_MAG:
@@ -311,9 +316,10 @@ func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, po
 		# Prevent handles from crossing over road divider
 		var lane_width = roadpoint.lane_width
 		var lane_count = len(roadpoint.traffic_dir)
-		var half_road_width = lane_count * lane_width / 2
-		var rev_lane_width = roadpoint.get_rev_lane_count() * lane_width
-		var road_divider = -half_road_width + rev_lane_width
+
+		var road_divider = 0
+		if roadpoint.alignment == RoadPoint.Alignment.GEOMETRIC:
+			road_divider = (roadpoint.get_rev_lane_count() - lane_count / 2.0) * lane_width
 		var road_div_rev_limit = road_divider - (lane_width * LaneOffset)
 		var road_div_fwd_limit = road_divider + (lane_width * LaneOffset)
 		if index == HandleType.REV_WIDTH_MAG and new_mag > road_div_rev_limit:

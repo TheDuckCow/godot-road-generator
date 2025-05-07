@@ -45,6 +45,11 @@ enum PointInit {
 	PRIOR,
 }
 
+enum Alignment {
+	GEOMETRIC,  ## Aligns equal amount of road to the left and right of the RoadPoint
+	DIVIDER,  ## Ensures the lane direction dividing line is aligned to the RoadPoint
+}
+
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
@@ -117,6 +122,8 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Use positive x-values to widen the road even further beyond the shoulder width.
 @export var gutter_profile := Vector2(2.0, -0.5): get = _get_profile, set = _set_profile
 
+## Determines how the geometry will center itself around the RoadPoint origin
+@export var alignment: Alignment: get = _get_alignment, set = _set_alignment
 
 # ------------------------------------------------------------------------------
 @export_group("Internal data")
@@ -131,7 +138,6 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ##
 ## Path to next [RoadPoint], relative to this [RoadPoint] itself.
 @export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
-
 
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
@@ -353,6 +359,18 @@ func _set_create_geo(value: bool) -> void:
 	if value == true:
 		emit_transform()
 
+
+func _get_alignment() -> Alignment:
+	return alignment
+
+
+func _set_alignment(value: Alignment) -> void:
+	if value == alignment:
+		return
+	alignment = value
+	if not is_instance_valid(container):
+		return  # Might not be initialized yet.
+	emit_transform()
 
 # ------------------------------------------------------------------------------
 # Editor interactions
@@ -667,6 +685,7 @@ func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) 
 	gutter_profile.y = ref_road_point.gutter_profile.y
 	create_geo = ref_road_point.create_geo
 	_last_update_ms = ref_road_point._last_update_ms
+	alignment = ref_road_point.alignment
 
 	if copy_transform:
 		prior_mag = ref_road_point.prior_mag
