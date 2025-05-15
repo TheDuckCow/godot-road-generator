@@ -32,6 +32,7 @@ clip_text = true
 
 [node name="add_rp_front" type="Button" parent="HBoxNext"]
 unique_name_in_owner = true
+visible = false
 clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -91,6 +92,7 @@ clip_text = true
 
 [node name="add_rp_back" type="Button" parent="HBoxPrior"]
 unique_name_in_owner = true
+visible = false
 clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
