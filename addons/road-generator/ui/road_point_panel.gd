@@ -72,20 +72,26 @@ func update_road_point_panel():
 		btn_rem_lane_rev.disabled = false
 	else:
 		btn_rem_lane_rev.disabled = true
-
+	
+	# TODO(#234): Resolve crashing when using next button, using disable for now.
 	if sel_road_point.next_pt_init:
-		btn_add_rp_next.visible = false
-		btn_sel_rp_next.visible = true
+		btn_sel_rp_next.disabled = false
+		#btn_add_rp_next.visible = false
+		#btn_sel_rp_next.visible = true
 	else:
-		btn_add_rp_next.visible = true
-		btn_sel_rp_next.visible = false
-
+		btn_sel_rp_next.disabled = true
+		#btn_add_rp_next.visible = true
+		#btn_sel_rp_next.visible = false
+	
+	# TODO(#234): Resolve crashing when using next button, using disable for now.
 	if sel_road_point.prior_pt_init:
-		btn_add_rp_prior.visible = false
-		btn_sel_rp_prior.visible = true
+		btn_sel_rp_prior.disabled = false
+		#btn_add_rp_prior.visible = false
+		#btn_sel_rp_prior.visible = true
 	else:
-		btn_add_rp_prior.visible = true
-		btn_sel_rp_prior.visible = false
+		btn_sel_rp_prior.disabled = true
+		#btn_add_rp_prior.visible = true
+		#btn_sel_rp_prior.visible = false
 
 	notify_property_list_changed()
 
