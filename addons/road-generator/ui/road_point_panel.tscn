@@ -16,7 +16,7 @@ script = ExtResource("1")
 [node name="SectionLabel" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
-text = "RoadPoint Profile"
+text = "Edit RoadPoint"
 
 [node name="HBoxNext" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -49,14 +49,16 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Add Reverse lane. Hold shift to add another reverse lane to all RoadPoints in this container."
+tooltip_text = "Add Reverse lane.
+Hold shift to add another reverse lane to all RoadPoints in this container."
 text = "+"
 
 [node name="rev_minus" type="Button" parent="HBoxSubLanes"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Remove Reverse lane. Hold shift to remove a reverse lane from all RoadPoints in this container."
+tooltip_text = "Remove Reverse lane.
+Hold shift to remove a reverse lane from all RoadPoints in this container."
 text = "-"
 
 [node name="diver_label" type="Label" parent="HBoxSubLanes"]
@@ -68,14 +70,16 @@ text = "||"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Remove Forward lane. Hold shift to add another forward lane to all RoadPoints in this container."
+tooltip_text = "Remove Forward lane.
+Hold shift to add another forward lane to all RoadPoints in this container."
 text = "-"
 
 [node name="fwd_add" type="Button" parent="HBoxSubLanes"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Add Forward lane. Hold shift to remove a reverse lane from all RoadPoints in this container."
+tooltip_text = "Add Forward lane.
+Hold shift to remove a reverse lane from all RoadPoints in this container."
 text = "+"
 
 [node name="HBoxPrior" type="HBoxContainer" parent="."]
@@ -106,7 +110,7 @@ layout_mode = 2
 [node name="Label" type="Label" parent="debug_separator"]
 layout_mode = 2
 size_flags_horizontal = 0
-text = "Debug features "
+text = "Settings"
 
 [node name="HSeparator" type="HSeparator" parent="debug_separator"]
 visible = false
@@ -121,9 +125,7 @@ unique_name_in_owner = true
 clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Copies the attributes of this RoadPoint such as lane count shoulder size to easily apply to other RoadPoints.
-
-Hold shift to apply to all."
+tooltip_text = "Copies the attributes of this RoadPoint such as lane count shoulder size to easily apply to other RoadPoints."
 text = "Copy Settings"
 clip_text = true
 
@@ -150,7 +152,9 @@ clip_text = true
 
 [node name="flip" type="Button" parent="."]
 layout_mode = 2
-tooltip_text = "Flips this RoadPoint 180º while keeping all connections and attributes in place. Visually, it should appear nothing has changed - but is a way to fix roadpoints to point in a consistent direction without breaking connections."
+tooltip_text = "Flips this RoadPoint 180º while keeping all connections and attributes in place. Visually,
+it should appear nothing has changed - but is a way to fix roadpoints to point in a
+consistent direction without breaking connections."
 text = "Flip"
 
 [node name="spacer3" type="Control" parent="."]
