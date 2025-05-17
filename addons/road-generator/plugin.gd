@@ -12,7 +12,9 @@ enum SnapState {
 
 const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
+const RoadContainerEdit = preload("res://addons/road-generator/ui/road_container_edit.gd")
 const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
+const RoadToolbarClass = preload("res://addons/road-generator/ui/road_toolbar.gd")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
@@ -27,7 +29,8 @@ var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
-var _road_toolbar
+var road_container_editor = RoadContainerEdit.new(self)
+var _road_toolbar: RoadToolbarClass
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
@@ -42,6 +45,7 @@ var _overlay_hint_delete := false
 var _snapping = SnapState.IDLE
 var _nearest_edges: Array # [Selected RP, Target RP]
 var _edge_positions: Array # [edge_from_pos, edge_to_pos]
+var _export_file_dialog: FileDialog
 
 var _press_init_pos: Vector2
 
@@ -57,6 +61,8 @@ func _enter_tree():
 	add_node_3d_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
 	road_point_editor.call("set_edi", _edi)
+	add_inspector_plugin(road_container_editor)
+	road_container_editor.call("set_edi", _edi)
 	_eds.connect("selection_changed", Callable(self, "_on_selection_changed"))
 	_eds.connect("selection_changed", Callable(road_point_gizmo, "on_selection_changed"))
 	connect("scene_changed", Callable(self, "_on_scene_changed"))
@@ -86,6 +92,7 @@ func _exit_tree():
 	disconnect("scene_closed", Callable(self, "_on_scene_closed"))
 	_road_toolbar.queue_free()
 	remove_node_3d_gizmo_plugin(road_point_gizmo)
+	remove_inspector_plugin(road_container_editor)
 	remove_inspector_plugin(road_point_editor)
 
 	# Don't add the following, as they would result in repeast in the UI.
@@ -934,6 +941,9 @@ func _show_road_toolbar() -> void:
 
 		# Specials / prefabs
 		_road_toolbar.create_menu.create_2x2_road.connect(_create_2x2_road_pressed)
+		
+		# Aditional tools
+		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
 
 
 func _hide_road_toolbar() -> void:
@@ -953,6 +963,9 @@ func _hide_road_toolbar() -> void:
 
 		# Specials / prefabs
 		_road_toolbar.create_menu.create_2x2_road.disconnect(_create_2x2_road_pressed)
+		
+		# Aditional tools
+		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
 
 
 func _on_regenerate_pressed() -> void:
@@ -1849,6 +1862,110 @@ func _create_2x2_road_undo(selected_node: RoadContainer, single_point: bool) -> 
 			return
 	if initial_children[-2] is RoadPoint:
 		initial_children[-2].queue_free()
+
+
+func _export_mesh_modal() -> void:
+	var selected := get_selected_node()
+	if not selected is RoadContainer:
+		push_error("Must have RoadContainer selected to export to gLTF")
+		return
+	
+	var basepath: String
+	if selected.get_owner() and selected.get_owner().scene_file_path:
+		var subpath := selected.get_owner().scene_file_path
+		print("subpath:", subpath)
+		basepath = subpath.get_basename() + "_"
+	else:
+		basepath = "res://"
+
+	print("base: ", basepath)
+	var path := "%s%s_geo.glb" % [basepath, selected.name]
+	print("Path here?? ", path)
+	var abspath := ProjectSettings.globalize_path(path)
+	print("Abs path? ", abspath)
+
+	var editorViewport = Engine.get_singleton(&"EditorInterface").get_editor_viewport_3d()
+	_export_file_dialog = FileDialog.new()
+	
+	_export_file_dialog.file_selected.connect(_export_gltf)
+	_export_file_dialog.current_dir = abspath.get_base_dir()
+	_export_file_dialog.current_path = abspath
+	_export_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_export_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_export_file_dialog.title = "Export RoadContainer to gLTF"
+	
+	_export_file_dialog.set_option_count(1)
+	_export_file_dialog.set_option_name(0, "Instance after export")
+	_export_file_dialog.set_option_values(0, ["Yes", "No"])
+	_export_file_dialog.set_option_default(0, 1)
+	
+	editorViewport.add_child(_export_file_dialog, true)
+	_export_file_dialog.popup_centered_ratio()
+
+
+func _export_gltf(path: String) -> void:
+	var container:RoadContainer = get_selected_node()
+	
+	if not path.get_extension() in ["glb", "gltf"]:
+		path = "%s.%s" % [path, "glb"]
+		print("Resolved path to: ", path)
+	
+	# Identify options selected
+	var _option_values := _export_file_dialog.get_selected_options()
+	var option_index:int = _option_values[_export_file_dialog.get_option_name(0)]
+	var instance_after_export:bool = option_index == 0
+	
+	var meshes: Array[Mesh] = []
+	var unset_owners:Array[Array] = []
+	for _seg in container.get_segments():
+		_seg as RoadSegment
+		var seg := _seg as RoadSegment 
+		unset_owners.append([_seg, _seg.owner])
+		_seg.owner = container.get_owner()
+		if is_instance_valid(seg.road_mesh):
+			meshes.append(seg.road_mesh.mesh)
+			unset_owners.append([seg.road_mesh, seg.road_mesh.owner])
+			seg.road_mesh.owner = container.get_owner()
+	
+	var gltf_document_save := GLTFDocument.new()
+	var gltf_state_save := GLTFState.new()
+	print("Path here0? ", path)
+
+	# This works, but export *everything* contained, not just the road segment
+	# meshes. Potential improvement or execution option: temporarily instance
+	# another branch of the node tree with just the meshes placed as needed.
+	gltf_document_save.append_from_scene(container, gltf_state_save)
+	gltf_document_save.write_to_filesystem(gltf_state_save, path)
+	
+	# Undo the owner overrides
+	for unsetter in unset_owners:
+		unsetter[0].owner = unsetter[1]
+
+	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().scan_sources()
+	if instance_after_export:
+		print("Path here3? ", path)
+		_instance_gltf_post_export(container, path)
+
+	_export_file_dialog.queue_free()
+
+
+func _instance_gltf_post_export(container:RoadContainer, export_file: String) -> void:
+	var local_path := ProjectSettings.localize_path(export_file)
+	if export_file == local_path and not export_file.begins_with("res://"):
+		push_error("Failed to localize the path, ensure gltf was saved within project folder to instance after")
+		return
+	
+	var glb_scene:PackedScene = load(export_file)
+	if not glb_scene:
+		push_error("Failed load gltf/glb export, check output path and try again")
+		return
+	
+	# TODO: implement undo/redo steps here for instancing and property changing
+	var glb_model:Node3D = glb_scene.instantiate()
+	glb_model.name = export_file.get_file().get_basename()
+	container.add_child(glb_model)
+	glb_model.owner = container.get_owner()
+	container.create_geo = false
 
 
 ## Adds a single RoadLane to the scene.
