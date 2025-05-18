@@ -15,6 +15,7 @@ signal create_roadpoint
 signal create_lane
 signal create_lane_agent
 signal create_2x2_road
+signal export_mesh
 
 # ripple up from children
 signal pressed_add_custom_roadcontainer(path)
@@ -28,6 +29,7 @@ enum CreateMenu {
 	LANE,
 	LANEAGENT,
 	TWO_X_TWO,
+	EXPORT_MESH
 }
 
 enum MenuMode {
@@ -71,9 +73,9 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	pup.set_item_tooltip(idx, "Select this RoadPoint's parent RoadContainer")
 	idx += 1
 
-	if menu_mode == MenuMode.SAVED_SUBSCENE:
-		# Don't offer to modify subscenes
-		return
+	#if menu_mode == MenuMode.SAVED_SUBSCENE:
+	#	# Don't offer to modify subscenes
+	#	return
 
 	pup.add_separator()
 	idx += 1
@@ -100,6 +102,13 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	rc_submenu.name = "rc_items"
 	pup.add_submenu_item("RoadContainer presets", "rc_items", idx)
 	idx += 1
+	
+	pup.add_separator()
+	pup.add_item("Export RoadContainer", CreateMenu.EXPORT_MESH)
+	idx += 1
+	if not primary_sel is RoadContainer:
+		pup.set_item_disabled(idx, true)
+		
 
 
 func _exit_tree() -> void:
@@ -122,6 +131,9 @@ func _create_menu_item_clicked(id: int) -> void:
 			emit_signal("create_lane_agent")
 		CreateMenu.TWO_X_TWO:
 			emit_signal("create_2x2_road")
+		CreateMenu.EXPORT_MESH:
+			emit_signal("export_mesh")
+
 
 func _on_pressed_add_custom_roadcontainer(path:String) -> void:
 	pressed_add_custom_roadcontainer.emit(path)
