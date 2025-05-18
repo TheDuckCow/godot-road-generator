@@ -1873,16 +1873,12 @@ func _export_mesh_modal() -> void:
 	var basepath: String
 	if selected.get_owner() and selected.get_owner().scene_file_path:
 		var subpath := selected.get_owner().scene_file_path
-		print("subpath:", subpath)
 		basepath = subpath.get_basename() + "_"
 	else:
 		basepath = "res://"
 
-	print("base: ", basepath)
 	var path := "%s%s_geo.glb" % [basepath, selected.name]
-	print("Path here?? ", path)
 	var abspath := ProjectSettings.globalize_path(path)
-	print("Abs path? ", abspath)
 
 	var editorViewport = Engine.get_singleton(&"EditorInterface").get_editor_viewport_3d()
 	_export_file_dialog = FileDialog.new()
@@ -1929,7 +1925,6 @@ func _export_gltf(path: String) -> void:
 	
 	var gltf_document_save := GLTFDocument.new()
 	var gltf_state_save := GLTFState.new()
-	print("Path here0? ", path)
 
 	# This works, but export *everything* contained, not just the road segment
 	# meshes. Potential improvement or execution option: temporarily instance
@@ -1941,10 +1936,10 @@ func _export_gltf(path: String) -> void:
 	for unsetter in unset_owners:
 		unsetter[0].owner = unsetter[1]
 
-	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().scan_sources()
 	if instance_after_export:
-		print("Path here3? ", path)
 		_instance_gltf_post_export(container, path)
+	else:
+		Engine.get_singleton(&"EditorInterface").get_resource_filesystem().scan_sources()
 
 	_export_file_dialog.queue_free()
 
@@ -1955,14 +1950,29 @@ func _instance_gltf_post_export(container:RoadContainer, export_file: String) ->
 		push_error("Failed to localize the path, ensure gltf was saved within project folder to instance after")
 		return
 	
+	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().update_file(local_path)
+	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().reimport_files([local_path])
+	
 	var glb_scene:PackedScene = load(export_file)
 	if not glb_scene:
 		push_error("Failed load gltf/glb export, check output path and try again")
 		return
 	
-	# TODO: implement undo/redo steps here for instancing and property changing
 	var glb_model:Node3D = glb_scene.instantiate()
 	glb_model.name = export_file.get_file().get_basename()
+	
+	# Undo/redoable part of action
+	# TODO: Revisit this, the "do" action works, but undo is unstable/can crash godot.
+	#var undo_redo = get_undo_redo()
+	#undo_redo.create_action("Replace road geo with instance")
+	#undo_redo.add_do_method(container, "add_child", glb_model, true)
+	#undo_redo.add_do_method(glb_model, "set_owner", get_tree().get_edited_scene_root())
+	#undo_redo.add_do_property(container, "create_geo", false)
+	#undo_redo.add_do_reference(glb_model)
+	#undo_redo.add_undo_property(container, "create_geo", container.create_geo)
+	#undo_redo.add_undo_method(container, "remove_child", glb_model)
+	#undo_redo.commit_action()
+	
 	container.add_child(glb_model)
 	glb_model.owner = container.get_owner()
 	container.create_geo = false
