@@ -1033,13 +1033,35 @@ func _insert_geo_loop(
 		if lr == LeftRight.RIGHT:
 			quad( st, uv_square(0, uv_m, uv_y),
 				pts_square(nf_loop, nf_basis,
-					[pos_l[NearFar.FAR] + gutr_x[NearFar.FAR] * dir, pos_r[NearFar.FAR], pos_r[NearFar.NEAR], pos_l[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir],
-					[gutr_y[NearFar.FAR], 0, 0, gutr_y[NearFar.NEAR]]) )
+					[
+						pos_l[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
+						pos_l[NearFar.FAR],
+						pos_l[NearFar.NEAR],
+						pos_l[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir
+					],
+					[
+						gutr_y[NearFar.FAR],
+						0,
+						0,
+						gutr_y[NearFar.NEAR]
+					])
+				)
 		else:
 			quad( st, uv_square(uv_m, 0, uv_y),
 				pts_square(nf_loop, nf_basis,
-					[pos_r[NearFar.FAR], pos_r[NearFar.FAR] + gutr_x[NearFar.FAR] * dir, pos_r[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir, pos_r[NearFar.NEAR]],
-					[0, gutr_y[NearFar.FAR], gutr_y[NearFar.NEAR], 0]) )
+					[
+						pos_r[NearFar.FAR],
+						pos_r[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
+						pos_r[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir,
+						pos_r[NearFar.NEAR]
+					],
+					[
+						0,
+						gutr_y[NearFar.FAR],
+						gutr_y[NearFar.NEAR],
+						0
+					])
+				)
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
