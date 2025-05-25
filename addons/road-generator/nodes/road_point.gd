@@ -10,6 +10,8 @@ extends Node3D
 
 signal on_transform(node, low_poly)
 
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 enum LaneType {
 	NO_MARKING, # Default no marking placed first, but is last texture UV column.
 	SHOULDER, # Left side of texture...
@@ -143,11 +145,11 @@ var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
 #var prior_pt:Spatial # Road Point or Junction
-var prior_seg
+var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
-var next_seg
+var next_seg:RoadSegment
 
-var container # The managing container node for this road segment (direct parent).
+var container:RoadContainer # The managing container node for this road segment (direct parent).
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
@@ -820,37 +822,39 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	return true
 
 
-## Function to explicitly connect this RoadNode to another
+## Function to explicitly disconnect this RoadNode to another
 ##
-## Only meant to connect RoadPoints belonging to the same RoadContainer.
+## Only meant to disconnect RoadPoints belonging to the same RoadContainer.
 func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
 	var disconnect_from: Node
-
-	self._is_internal_updating = true
-	var seg
-
+	var seg: RoadSegment
 	match this_direction:
 		PointInit.NEXT:
-			if not next_pt_init:
+			if not self.next_pt_init:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(next_pt_init)
-			self.next_pt_init = ^""
 			seg = self.next_seg
 		PointInit.PRIOR:
-			if not prior_pt_init:
-				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
+			if not self.prior_pt_init:
+				push_error("Failed to disconnect, not already connected to target RoadPoint in the Prior direction")
 				return false
 			disconnect_from = get_node(prior_pt_init)
-			self.prior_pt_init = ^""
 			seg = self.prior_seg
 
 	disconnect_from._is_internal_updating = true
 
 	if self.container != disconnect_from.container:
 		push_warning("Wrong function: Disconnecting roadpoints from different RoadContainers, should use disconnect_container")
-		# already made some changes, so continue.
+		return false
+
+	self._is_internal_updating = true
+	match this_direction:
+		PointInit.NEXT:
+			self.next_pt_init = ^""
+		PointInit.PRIOR:
+			self.prior_pt_init = ^""
 
 	match target_direction:
 		PointInit.NEXT:
@@ -860,7 +864,15 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	self._is_internal_updating = false
 	disconnect_from._is_internal_updating = false
 
-	container.remove_segment(seg)
+	for l: RoadLane in seg.get_lanes():
+		var ln:RoadLane = l.get_node_or_null(l.lane_next)
+		if (ln):
+			ln.lane_prior = NodePath("")
+		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
+		if (lp):
+			lp.lane_next = NodePath("")
+		l.queue_free()
+	self.container.remove_segment(seg)
 
 	self.validate_junctions()
 	disconnect_from.validate_junctions()

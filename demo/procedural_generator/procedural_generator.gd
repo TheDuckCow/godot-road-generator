@@ -1,18 +1,20 @@
 extends Node3D
 
-const RoadActor:PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
+const RoadActorScene: PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
 
 ## How far ahead of the camera will we let a new RoadPoint be added
-@export var max_rp_distance: int = 200
+@export var max_rp_distance: int = 50 #TODO: revert before merge (only to see the end)
 ## How much buffer around this max dist to avoid adding new RPs
 ## (this will also define spacing between RoadPoints)
 @export var buffer_distance: int = 50
+## How much RPs are allowed
+@export var max_rp: int = 20
 
 ## Node used to calcualte distances
 @export var target_node: NodePath
 
 @onready var container: RoadContainer = get_node("RoadManager/Road_001")
-@onready var vehicles:Node = get_node("RoadManager/vehicles")
+@onready var vehicles: Node = get_node("RoadManager/vehicles")
 @onready var target: Node = get_node_or_null(target_node)
 @onready var car_label: Label = get_node("%car_count")
 
@@ -24,13 +26,9 @@ func _init() -> void:
 	print("Seed number: ", rseed)
 
 
-func _ready() -> void:
-	pass
-
-
 func _physics_process(_delta: float) -> void:
 	update_road()
-	update_car_count()
+	update_stats()
 
 
 func xz_target_distance_to(_target: Node3D) -> float:
@@ -65,19 +63,31 @@ func update_road() -> void:
 		var edge_rp:RoadPoint = container.get_node(edge_list[_idx])
 		var dist := xz_target_distance_to(edge_rp)
 		# print("Process loop %s with RoadPoint %s with dist %s" % [_idx, edge_rp, dist])
+		var which_edge = edge_dirs[_idx]
 		if dist > max_rp_distance + buffer_distance * 1.5:
 			# buffer * factor is to ensure buffer range is wider than the distance between rps,
 			# to avoid flicker spawning
-			remove_rp(edge_rp)
+			remove_rp(edge_rp, which_edge)
 		elif dist < max_rp_distance:
-			var which_edge = edge_dirs[_idx]
 			add_next_rp(edge_rp, which_edge)
-		elif rp_count > 20:
+		elif rp_count > max_rp:
 			pass
 
 
+## Move spawner from one node to another node
+func move_spawner(from: RoadPoint, to: RoadPoint) -> void:
+	var spawner = from.get_node("ActorSpawner")
+	assert(spawner)
+	from.remove_child(spawner)
+	to.add_child(spawner)
+
+
 ## Manually clear prior/next points to ensure it gets fully disconnected
-func remove_rp(edge_rp: RoadPoint) -> void:
+func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
+	var next_edge_rp: RoadPoint = edge_rp.get_next_rp() if dir == RoadPoint.PointInit.PRIOR else edge_rp.get_prior_rp()
+	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+	next_edge_rp.disconnect_roadpoint(dir, flip_dir)
+	move_spawner(edge_rp, next_edge_rp)
 	# No need to manually remove cars, as we use the default: RoadLane.auto_free_vehicles=true
 	#despawn_cars(edge_rp)
 	edge_rp.prior_pt_init = ""
@@ -100,17 +110,16 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	new_rp.traffic_dir=[]
 	new_rp.lanes=[]
 
-	randomize()
-	for i in range(randi()%4 + 1):
+	for i in range(randi_range(1, 4)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
 		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
-	for i in range(randi()%3):
+	for i in range(randi_range(0, 2)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
 		new_rp.lanes.append(RoadPoint.LaneType.FAST)
-	for i in range(randi()%3):
+	for i in range(randi_range(0, 2)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
 		new_rp.lanes.append(RoadPoint.LaneType.FAST)
-	for i in range(randi()%4 + 1):
+	for i in range(randi_range(1, 4)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
 		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
 
@@ -124,7 +133,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var rotation_axis := Vector3.UP
 	_transform = _transform.rotated(rotation_axis, deg_to_rad(random_angle))
 	
-	var rand_y_offset:float = (randf() - 0.5) * 15
+	var rand_y_offset:float = randf_range(-7.5, 7.5)
 	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag + Vector3.UP * rand_y_offset
 
 	new_rp.transform.origin += offset_pos
@@ -135,6 +144,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 		print("Failed to connect RoadPoint")
 		return
 	spawn_vehicles_on_lane(rp, dir)
+	move_spawner(rp, new_rp)
 
 
 func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
@@ -145,39 +155,33 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		return
 	var new_lanes = new_seg.get_lanes()
 	for _lane in new_lanes:
-		# TODO: get random poing along this lane and spawn,
-		# for now just placing at the start point
-		var new_instance = RoadActor.instantiate()
+		var new_instance = RoadActorScene.instantiate()
 		vehicles.add_child(new_instance)
+
+		var rand_offset = randf() * _lane.curve.get_baked_length()
+		var rand_pos = _lane.curve.sample_baked(rand_offset)
+		new_instance.global_transform.origin = _lane.to_global(rand_pos)
 
 		# We could let the agent auto-find the nearest road lane, but to save
 		# on some performance we can directly assign BEFORE entering the tree
 		# so that it skips the recusive find funciton.
 		# Must run after its ready function, but before its physics_process call
-		new_instance.agent.current_lane = _lane
+		new_instance.agent.assign_lane(_lane)
 		print("new_instance %s " % new_instance)
 
-		var rand_offset = randf() * _lane.curve.get_baked_length()
-		var rand_pos = _lane.curve.sample_baked(rand_offset)
-		new_instance.global_transform.origin = _lane.to_global(rand_pos)
-		_lane.register_vehicle(new_instance)
 
-
-## Manual way to emvoe all vehicles registered to lanes of this RoadPoint,
+## Manual way to remove all vehicles registered to lanes of this RoadPoint,
 ## if we didn't use RoadLane.auto_free_vehicles = true
 func despawn_cars(road_point:RoadPoint) -> void:
 	var lanes:Array = []
-	var any_valid := false
 	for seg in [road_point.prior_seg, road_point.next_seg]:
 		if not is_instance_valid(seg):
 			continue
 		# Any connected segment is about to be destroyed since this RP is going
 		# away, so all adjacent vehicles should all be removed
 		lanes.append_array(seg.get_lanes())
-		any_valid = true
-	if not any_valid:
-		print("No segments valid for car despawning")
-		return
+	if lanes.is_empty():
+		print("No lanes valid for car despawning")
 
 	for _lane in lanes:
 		var this_lane:RoadLane = _lane
@@ -187,7 +191,7 @@ func despawn_cars(road_point:RoadPoint) -> void:
 			_vehicle.queue_free()
 
 
-func update_car_count() -> void:
+func update_stats() -> void:
 	# For debugging purpses, brute force count the number of cars registered
 	# across all RoadLanes; number should match overall car count.
 	var _ln_cars = 0
