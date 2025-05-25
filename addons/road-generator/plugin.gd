@@ -1323,7 +1323,7 @@ func _connect_rp_on_click(rp_a, rp_b):
 		target_dir = RoadPoint.PointInit.PRIOR # only prior open
 	else:
 		var rel_vec = rp_a.global_transform.origin - rp_b.global_transform.origin
-		if rp_b.global_transform.basis.z.dor(rel_vec) > 0:
+		if rp_b.global_transform.basis.z.dot(rel_vec) > 0:
 			target_dir = RoadPoint.PointInit.NEXT
 		else:
 			target_dir = RoadPoint.PointInit.PRIOR
