@@ -76,19 +76,31 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	#if menu_mode == MenuMode.SAVED_SUBSCENE:
 	#	# Don't offer to modify subscenes
 	#	return
+	
+	# Set icon width so that it's scaled for the UI properly
+	# Though it would seem like DisplayServer.screen_get_scale() would be good to
+	# use, it seems that the icon scale is already correctly handled on mac OSX
+	# even when setting a single size on 1x vs 2x monitors, and the function
+	# is itself not implemented on windows. Thus, we'll just assign values based
+	# on OS, since 32x looks too large on windows.
+	var width := 32 if OS.get_name() == "macOS" else 16
 
 	pup.add_separator()
 	idx += 1
 	pup.add_icon_item(ICN_CT, "RoadContainer", CreateMenu.CONTAINER)
+	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadContianer child to RoadManager")
 	idx += 1
 	pup.add_icon_item(ICN_RP, "RoadPoint", CreateMenu.POINT)
+	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a new RoadPoint")
 	idx += 1
 	pup.add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
+	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadLane which can be used for AI paths")
 	idx += 1
 	pup.add_icon_item(ICN_AG, "RoadLaneAgent (AI)", CreateMenu.LANEAGENT)
+	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadLaneAgent to follow RoadLane paths")
 	idx += 1
 	pup.add_separator()
