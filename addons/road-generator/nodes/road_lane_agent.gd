@@ -1,3 +1,4 @@
+@tool
 @icon("res://addons/road-generator/resources/road_lane_agent.png")
 
 ## An agent helper for navigation on [RoadLane]'s.

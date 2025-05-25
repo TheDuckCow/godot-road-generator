@@ -8,7 +8,8 @@ extends Node3D
 ## functionality of how the road generation works, and may change.
 ##
 ## If necessary to reference like a class, place this in any script:
-## const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+## const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 #class_name RoadSegment, "road_segment.png"
 
 const LOWPOLY_FACTOR = 3.0
