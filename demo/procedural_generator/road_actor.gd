@@ -1,5 +1,5 @@
+class_name RoadActor
 extends Node3D
-
 
 enum DriveState {
 	PARK,
@@ -108,6 +108,7 @@ func _physics_process(delta: float) -> void:
 		var res = agent.assign_nearest_lane()
 		if not res == OK:
 			print("Failed to find new lane")
+			queue_free()
 			return
 
 	# Find the next position to jump to; note that the car's forward is the
