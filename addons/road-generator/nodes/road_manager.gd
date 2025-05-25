@@ -115,9 +115,9 @@ var ai_lane_group := "road_lanes":
 # ------------------------------------------------------------------------------
 
 
-# Auto refresh on transforms or other actions on roads. Good to disable if
-# you modify roads during runtime and want to manually trigger refreshes on
-# specific RoadContainers/RoadPoints at a time.
+## Auto refresh on transforms or other actions on roads. Good to disable if
+## you modify roads during runtime and want to manually trigger refreshes on
+## specific RoadContainers/RoadPoints at a time.
 @export
 var auto_refresh: bool = true: set = _ui_refresh_set
 
