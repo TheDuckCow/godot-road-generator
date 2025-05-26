@@ -312,9 +312,9 @@ func test_match_lanes_sequence(params=use_parameters(auto_lane_setup)):
 
 	seg.start_point = autoqfree(RoadPoint.new())
 	seg.end_point = autoqfree(RoadPoint.new())
-	seg.start_point.traffic_dir = params[0]
-	seg.end_point.traffic_dir = params[1]
-	seg.start_point.lanes = params[2]
+	seg.start_point.traffic_dir.assign(params[0])
+	seg.end_point.traffic_dir.assign(params[1])
+	seg.start_point.lanes.assign(params[2])
 
 	var target = params[3]
 	var result = seg._match_lanes()
@@ -325,9 +325,9 @@ func test_one_way_lanes_sequence(params=use_parameters(one_way_lane_setup)):
 
 	seg.start_point = autoqfree(RoadPoint.new())
 	seg.end_point = autoqfree(RoadPoint.new())
-	seg.start_point.traffic_dir = params[0]
-	seg.end_point.traffic_dir = params[1]
-	seg.start_point.lanes = params[2]
+	seg.start_point.traffic_dir.assign(params[0])
+	seg.end_point.traffic_dir.assign(params[1])
+	seg.start_point.lanes.assign(params[2])
 
 	var target = params[3]
 	var result = seg._match_lanes()
@@ -346,9 +346,9 @@ func test_flipped_dirs(params=use_parameters(flipped_dir_setup)):
 	else:
 		seg._end_flip = true
 
-	seg.start_point.traffic_dir = params[0]
-	seg.end_point.traffic_dir = params[1]
-	seg.start_point.lanes = params[2]
+	seg.start_point.traffic_dir.assign(params[0])
+	seg.end_point.traffic_dir.assign(params[1])
+	seg.start_point.lanes.assign(params[2])
 
 	var target = params[3]
 	var result = seg._match_lanes()

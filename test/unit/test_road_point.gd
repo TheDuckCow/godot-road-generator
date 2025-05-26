@@ -43,7 +43,8 @@ var count_params = [1, 2, 3, 4, 5, 6]
 
 func test_auto_lanes_count(params=use_parameters(count_params)):
 	var pt = autoqfree(RoadPoint.new())
-	pt.traffic_dir = []
+	var nullarray: Array[RoadPoint.LaneDir] = []
+	pt.traffic_dir = nullarray
 	for _i in range(params):
 		pt.traffic_dir.append(pt.LaneDir.NONE)
 	pt.assign_lanes()
@@ -86,8 +87,9 @@ var auto_lane_pairs = [
 
 func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
 	var pt = autoqfree(RoadPoint.new())
-
-	pt.traffic_dir = params[0]
+	#var assign_dir: Array[RoadPoint.LaneDir] = params[0] as Array[RoadPoint.LaneDir]
+	# use array.assign() I guess, huh. https://forum.godotengine.org/t/cast-untyped-array-to-typed-array/50135/2
+	pt.traffic_dir.assign(params[0]) # = assign_dir
 	var target = params[1]
 	pt.assign_lanes()
 	assert_eq(pt.lanes, target, "Auto lane %s" % params[2])
@@ -95,7 +97,7 @@ func test_auto_lanes_sequence(params=use_parameters(auto_lane_pairs)):
 
 func test_error_no_traffic_dir():
 	var pt = autoqfree(RoadPoint.new())
-	pt.traffic_dir = []
+	pt.traffic_dir.assign([])
 	pt.assign_lanes()
 	pass_test('nothing tested, passing')
 
@@ -231,4 +233,3 @@ func test_roadpoint_disconnection():
 	assert_false(res, "Should fail to disconnect already disconnected rp")
 	res = p1.disconnect_roadpoint(RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.PRIOR)
 	assert_false(res, "Should fail to disconnect invalid connection prior to prior")
-
