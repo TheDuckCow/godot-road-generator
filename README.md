@@ -62,8 +62,10 @@ In addition to each point above, each scenario requires you to make your own cus
 | RoadPoint inspector panel to define lane width, shoulder, and more. Hold shift to affect all RoadPoints within same container. | ![inspector panel](./demo/gifs/inspector_panel.gif) |
 | RoadContainers to organize roads and snap roads together. Save a RoadContainer out to a scene for reuse! | ![Containers](./demo/gifs/containers.gif) |
 | Changeable materials per RoadContainer. Source trim-sheet vector is provided to guide creating your own customized materials. | ![Material swap](./demo/gifs/material_swap.gif) |
+| Prefab intersection RoadContainers. Snap together built-in four way, three way, and highway on/off ramps with ease. | ![Prefab containers](./demo/gifs/prefab_roadcontainers.gif) |
 | Optional auto-generated AI path lanes. You can also manually define AI paths to link up roads. A provided RoadLaneAgent makes for easy navigation. | ![AI path demo](./demo/gifs/ai_lanes.gif) |
 | Runtime-available functions for procedural use cases, operations apply on single RoadSegments at a time to be performant. | ![Procedural demo](./demo/gifs/procedural_demo.gif) |
+| Quick export your road meshes. Output gltf/glb for sections of your road network to edit further in a 3D software, without exporting your whole scene. | ![Export road mesh](./demo/gifs/export_geo.png) |
 | Support for custom-made meshes. Turn off "Create Geo", then drop in your own meshes + colliders. AI paths remain connected. | ![Custom road meshes demo](./demo/gifs/custom_geo.gif) |
 | GDScript-only (for now), no extra compiling or dependencies to worry about. | ![GDScript only](./demo/gifs/gdscript-only.png) |
 | ***[Planned](https://github.com/TheDuckCow/godot-road-generator/issues/121), not implemented:*** Procedural intersections. Can currently create using pre-saved scenes with custom geometry per above. | ![Planned intersections](./demo/gifs/intersection.gif) |
