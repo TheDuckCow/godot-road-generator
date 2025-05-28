@@ -26,10 +26,8 @@ In order to submit changes, you should run the repository tests (and consider ad
 
 To get GUT set up:
 
-1. Download the latest [bitwes/GUT release here](https://github.com/bitwes/Gut/releases/) (download the source code/zip).
-1. Then, unzip the download.
-1. Copy the 'gut' folder from this downloaded folders addons/gut subfolder (to be explicit: you are just copying one folder from the unzipped archive, not the entire thing)
-1. Paste this folder to be next to the road-generator folder under addons in your road-generator repo.
+1. Search for GUT addon in the asset library
+    1. Alternatively, directly download the relevant [bitwes/GUT release here](https://github.com/bitwes/Gut/releases/) and copy into an addons/gut folder
 1. Enable the plugin: Go to Project > Project Settings > Plugins tab, ensure GUT is enabled.
 
 To run tests, you now should see a "GUT" tab at the bottom of your main window (to the right of Animation). Inside this window, you just need to `Run All` to run all tests.
@@ -38,7 +36,7 @@ You can also run tests from the command line (script set up for Linux/Max OSX):
 
 1. Create a `godot_versions.txt` file in the root of the repo. This should not be checked in (already added to gitignores)
 1. Create a single line with the path to the godot versions you want to use for testing. It should be the full path to the binary executable (not just the .app, for instance on OSX)
-1. Then execute `run_tests.sh` and you should see test results in progress. As of this writing, Godot opens, tests run, and then godot closes all in less than 5 seconds.
+1. Then execute `run_tests.sh` and you should see test results in progress. As of this writing, Godot opens, tests run, and then godot closes all in less than 10 seconds.
 
 
 ## General guidance
@@ -48,7 +46,7 @@ You can also run tests from the command line (script set up for Linux/Max OSX):
 	- Owners will comment and request changes to ensure code style matches, so don't be surprised by this (or take offense!)
 - Generally try to additionally follow the [incremental style guide](https://www.gdquest.com/docs/guidelines/best-practices/godot-gdscript/) set forth by GDQuest, which adds several useful additional conventions.
 - To reiterate a subset of what these code style guidelines indicate, you should:
-	- Be using typing where possible (sometimes cyclic issues break this in 3.x)
+	- Be using typing where possible
 	- Follow naming convention
 	- More lines of code is ok if it makes what is happening clearer.
 
