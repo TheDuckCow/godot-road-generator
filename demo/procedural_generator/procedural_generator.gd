@@ -3,7 +3,7 @@ extends Node3D
 const RoadActorScene: PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
 
 ## How far ahead of the camera will we let a new RoadPoint be added
-@export var max_rp_distance: int = 50 #TODO: revert before merge (only to see the end)
+@export var max_rp_distance: int = 200
 ## How much buffer around this max dist to avoid adding new RPs
 ## (this will also define spacing between RoadPoints)
 @export var buffer_distance: int = 50
@@ -74,20 +74,15 @@ func update_road() -> void:
 			pass
 
 
-## Move spawner from one node to another node
-func move_spawner(from: RoadPoint, to: RoadPoint) -> void:
-	var spawner = from.get_node("ActorSpawner")
-	assert(spawner)
-	from.remove_child(spawner)
-	to.add_child(spawner)
-
-
 ## Manually clear prior/next points to ensure it gets fully disconnected
 func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 	var next_edge_rp: RoadPoint = edge_rp.get_next_rp() if dir == RoadPoint.PointInit.PRIOR else edge_rp.get_prior_rp()
 	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
-	next_edge_rp.disconnect_roadpoint(dir, flip_dir)
-	move_spawner(edge_rp, next_edge_rp)
+	var spawner = edge_rp.get_node("ActorSpawner")
+	assert(spawner)
+	edge_rp.remove_child(spawner)
+	edge_rp.disconnect_roadpoint(flip_dir, dir)
+	next_edge_rp.add_child(spawner)
 	# No need to manually remove cars, as we use the default: RoadLane.auto_free_vehicles=true
 	#despawn_cars(edge_rp)
 	edge_rp.prior_pt_init = ""
@@ -132,19 +127,23 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var random_angle: float = randf_range(-angle_range / 2.0, angle_range / 2.0) # Generate a random angle within the range
 	var rotation_axis := Vector3.UP
 	_transform = _transform.rotated(rotation_axis, deg_to_rad(random_angle))
-	
+
 	var rand_y_offset:float = randf_range(-7.5, 7.5)
 	var offset_pos:Vector3 = _transform.basis.z * buffer_distance * mag + Vector3.UP * rand_y_offset
 
 	new_rp.transform.origin += offset_pos
+
+	var spawner = rp.get_node("ActorSpawner")
+	assert(spawner)
+	rp.remove_child(spawner)
 
 	# Finally, connect them together
 	var res = rp.connect_roadpoint(dir, new_rp, flip_dir)
 	if res != true:
 		print("Failed to connect RoadPoint")
 		return
+	new_rp.add_child(spawner)
 	spawn_vehicles_on_lane(rp, dir)
-	move_spawner(rp, new_rp)
 
 
 func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:

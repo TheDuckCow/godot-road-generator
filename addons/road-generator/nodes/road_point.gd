@@ -843,8 +843,6 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 			disconnect_from = get_node(prior_pt_init)
 			seg = self.prior_seg
 
-	disconnect_from._is_internal_updating = true
-
 	if self.container != disconnect_from.container:
 		push_warning("Wrong function: Disconnecting roadpoints from different RoadContainers, should use disconnect_container")
 		return false
@@ -853,25 +851,23 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	match this_direction:
 		PointInit.NEXT:
 			self.next_pt_init = ^""
+			self.next_seg = null #TODO should we do this in remove_segment?
 		PointInit.PRIOR:
 			self.prior_pt_init = ^""
+			self.prior_seg = null
+	self._is_internal_updating = false
 
+
+	disconnect_from._is_internal_updating = true
 	match target_direction:
 		PointInit.NEXT:
 			disconnect_from.next_pt_init = ^""
+			disconnect_from.next_seg = null
 		PointInit.PRIOR:
 			disconnect_from.prior_pt_init = ^""
-	self._is_internal_updating = false
+			disconnect_from.prior_seg = null
 	disconnect_from._is_internal_updating = false
 
-	for l: RoadLane in seg.get_lanes():
-		var ln:RoadLane = l.get_node_or_null(l.lane_next)
-		if (ln):
-			ln.lane_prior = NodePath("")
-		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
-		if (lp):
-			lp.lane_next = NodePath("")
-		l.queue_free()
 	self.container.remove_segment(seg)
 
 	self.validate_junctions()
@@ -1018,12 +1014,12 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 func set_internal_updating(state: bool) -> void:
 	self._is_internal_updating = state
 	container._auto_refresh = not state
-	
+
 
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_instance_valid(prior_seg):
-		prior_seg.queue_free()
+		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
 	if is_instance_valid(next_seg):
 		next_seg.queue_free()
 
