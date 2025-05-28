@@ -25,7 +25,7 @@ signal on_road_updated(updated_segments)
 signal on_transform(node)
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 
 # ------------------------------------------------------------------------------
 # How road meshes are generated
@@ -1098,6 +1098,9 @@ func setup_road_container():
 		own = self
 
 	_check_migrate_points()
+	if not is_instance_valid(get_manager()):
+		# Assign a road material by default if there's no parent RoadManager
+		material_resource = RoadMaterial
 
 
 ## Detect and move legacy node hierharcy layout.

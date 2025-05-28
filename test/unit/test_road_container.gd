@@ -280,7 +280,7 @@ func test_container_disconnection():
 
 	# Now try connecting/disconnected in flipped order (next to next)
 	pt1 = cont_a.get_roadpoints()[0]
-	pt2 = cont_b.get_roadpoints()[0]	# the change from above, using first rp.
+	pt2 = cont_b.get_roadpoints()[0] # the change from above, using first rp.
 
 	res = pt1.connect_container(RoadPoint.PointInit.PRIOR, pt2, RoadPoint.PointInit.PRIOR)
 	assert_true(res, "Connection should be a success for same-dir")
@@ -299,7 +299,18 @@ func test_container_disconnection():
 
 
 func test_container_snap_unsnap():
-	pass
+	var cont_a:RoadContainer = add_child_autofree(RoadContainer.new())
+	var cont_b:RoadContainer = add_child_autofree(RoadContainer.new())
+	cont_a._auto_refresh = false
+	cont_b._auto_refresh = false
+
+	create_two_containers(cont_a, cont_b)
+	var pt1:RoadPoint = cont_a.get_roadpoints()[0]
+	var pt2:RoadPoint = cont_b.get_roadpoints()[1]
+
+	cont_a.snap_to_road_point(pt1, pt2)
+	assert_true(pt1.cross_container_connected())
+	assert_true(pt2.cross_container_connected())
 
 
 func test_collider_assignmens():

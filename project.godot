@@ -11,7 +11,11 @@ config_version=5
 [application]
 
 config/name="Godot Road Generator"
-config/description="An addon for Godot 3.x, which allows you to create roads and highways. Designed originally for a highway roaming game called \"Wheel Steal\", this open source repository is meant to enable the development of complex road networks for 3D games."
+config/description="An addon for Godot 4.x, which allows you to create roads and highways.
+
+Designed originally for a highway roaming game called \"Wheel Steal\", this open
+source repository allows you to define complex road networks for 3D games for
+both pre-authored static roads as well as procedural user cases."
 config/features=PackedStringArray("4.3")
 config/icon="res://icon.png"
 
@@ -22,7 +26,7 @@ window/size/viewport_height=1080
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/road-generator/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/road-generator/plugin.cfg")
 
 [physics]
 
