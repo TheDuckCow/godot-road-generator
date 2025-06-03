@@ -1,10 +1,5 @@
-@tool
-@icon("res://addons/road-generator/resources/road_agent_spawner.png")
-
-class_name RoadAgentSpawner
+class_name RoadActorSpawner
 extends Node3D
-
-const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 class DespawnRoadLane extends RoadLane:
 	const DEBUG_OUT: bool = false
@@ -31,11 +26,12 @@ class DespawnRoadLane extends RoadLane:
 ## Don't change when the spawner object is attached
 @export var road_actor_scenes: Array[PackedScene]
 ## Update when there are changes in segments connected to the road point
+## Consider using when segments around road point may be changed in game
 @export var auto_update:bool = false: set = _set_auto_update
 
 const DEBUG_OUT: bool = false
-var agent_manager
-var _road_container:RoadContainer
+var agent_manager = null
+var _road_container: RoadContainer
 var _despawn_lanes: Dictionary = {}
 var _spawn_timers: Dictionary = {}
 
@@ -85,10 +81,9 @@ func _set_auto_update(val: bool) -> void:
 ## only if no lanes are were attached to the point or
 func _on_road_updated(updated_segments) -> void:
 	var rp: RoadPoint = get_parent()
-	for seg:RoadSegment in updated_segments:
-		if seg.start_point == rp || seg.end_point == rp:
-			_attach()
-			return
+	if rp.next_seg in updated_segments or rp.prior_seg in updated_segments:
+		_attach()
+		return
 
 
 ## Create new spawn tmer (if all previously created are already used)
@@ -187,7 +182,7 @@ func _attach() -> void:
 	var dlx = 0
 	var stx = 0
 	for dir in ["F", "R"]:
-		var seg:RoadSegment = rp.next_seg if dir == "R" else rp.prior_seg
+		var seg = rp.next_seg if dir == "R" else rp.prior_seg
 		if not is_instance_valid(seg):
 			continue
 		for l in seg.get_lanes():
@@ -233,7 +228,7 @@ func _spawn_actor(l: RoadLane) -> void:
 	if agent_manager:
 		agent_manager.add_child(new_actor)
 	new_actor.global_transform.origin = l.to_global(l.curve.get_point_position(0))
-	var agent = new_actor.get_node("road_lane_agent")
+	var agent = new_actor.get_node_or_null("road_lane_agent")
 	if is_instance_valid(agent) && agent is RoadLaneAgent:
 		agent.assign_lane(l)
 	if DEBUG_OUT:

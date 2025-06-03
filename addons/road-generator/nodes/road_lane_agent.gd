@@ -1,4 +1,3 @@
-@tool
 @icon("res://addons/road-generator/resources/road_lane_agent.png")
 
 ## An agent helper for navigation on [RoadLane]'s.
@@ -164,7 +163,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	var groups_checked:Array = [] # Technically, each container could have its own group name
 	var containers = road_manager.get_containers()
 	containers.push_front(road_manager)
-	
+
 	for _cont in containers:
 		if _cont.ai_lane_group in groups_checked:
 			continue

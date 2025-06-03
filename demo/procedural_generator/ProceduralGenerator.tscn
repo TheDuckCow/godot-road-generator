@@ -1,12 +1,12 @@
 [gd_scene load_steps=9 format=3 uid="uid://c57yq8evxe3w3"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
-[ext_resource type="Material" uid="uid://c10238aau72pu" path="res://addons/road-generator/resources/road_texture.material" id="2"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
 [ext_resource type="Script" path="res://demo/procedural_generator/procedural_generator.gd" id="5"]
 [ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="7"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_agent_spawner.gd" id="7_2hqjq"]
+[ext_resource type="Script" path="res://demo/procedural_generator/road_actor_spawner.gd" id="7_2hqjq"]
 
 [sub_resource type="Environment" id="Environment_v4pga"]
 background_mode = 1
