@@ -1621,7 +1621,7 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 
 	# This just means we're cancelling the user's movement efforts, so put back without undo
 	if is_cancelling:
-		sel_rp.container = tgt_transform
+		sel_rp.container.transform = tgt_transform
 		return
 
 	undo_redo.create_action("Snap RoadContainer to RoadPoint")

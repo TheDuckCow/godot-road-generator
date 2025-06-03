@@ -884,6 +884,7 @@ func remove_segment(seg:RoadSegment) -> void:
 		push_warning("RoadSegment is invalid, cannot remove: ")
 		#print("Did NOT signal for the removal here", seg)
 		return
+	seg.clear_lane_segments()
 	var id := seg.get_id()
 	seg.queue_free()
 	segid_map.erase(id)
@@ -967,7 +968,7 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		else:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
-		
+
 		if material_resource:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
