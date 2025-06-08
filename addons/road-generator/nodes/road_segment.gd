@@ -74,6 +74,8 @@ var _end_flip: bool = false
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
 
+const DEBUG_OUT := true
+
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -656,23 +658,22 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments(ignore_list: Array = []) -> void:
-	for l: RoadLane in self.get_lanes():
-		if l in ignore_list or is_instance_valid(l.owner):
+	for lane: RoadLane in self.get_lanes():
+		if DEBUG_OUT:
+			print("removing lane ", lane, " while removing segment ", self)
+		if lane in ignore_list or is_instance_valid(lane.owner):
 			continue
-		var ln:RoadLane = l.get_node_or_null(l.lane_next)
-		if ln && ln.lane_prior == ln.get_path_to(l):
-			ln.lane_prior = NodePath("")
-		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
-		if lp && lp.lane_next == lp.get_path_to(l):
-			lp.lane_next = NodePath("")
-		
-		var ll:RoadLane = l.get_node_or_null(l.lane_left)
-		if ll && ll.lane_right == ll.get_path_to(l):
-			ll.lane_right = NodePath("")
-		var lr:RoadLane = l.get_node_or_null(l.lane_right)
-		if lr && lr.lane_left == lr.get_path_to(l):
-			lr.lane_left = NodePath("")
-		l.queue_free()
+		for dir in RoadLane.LaneDirection.values():
+			var dir_back := RoadLane.flip_dir(dir)
+			var lane_next := lane.get_adjacent_lane(dir)
+			if lane_next && lane_next.adjacent_lanes[dir_back] == lane_next.get_path_to(lane):
+				lane_next.adjacent_lanes[dir_back] = NodePath("")
+		for dir in RoadLane.LaneSideways.values():
+			var dir_back := RoadLane.flip_side(dir)
+			var lane_side := lane.get_side_lane(dir)
+			if lane_side && lane_side.side_lanes[dir_back] == lane_side.get_path_to(lane):
+				lane_next.side_lanes[dir_back] = NodePath("")
+		lane.queue_free()
 
 
 ## Remove all edge curves attached to this RoadSegment
