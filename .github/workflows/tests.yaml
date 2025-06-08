@@ -45,9 +45,10 @@ jobs:
 
       - name: Install GUT framework
         run: |
-          GUT_URL=$(<./test/test_framework_version.txt)
+          GUT_URL=$(head -n 1 ./test/test_framework_version.txt)
           TMP_DIR=$(mktemp -d)
           ZIP_FILE="$TMP_DIR/archive.zip"
+          echo "Downloading GUT from: $ZIP_FILE"
           curl -L "$ZIP_URL" -o "$ZIP_FILE"
           if [ ! -f "$ZIP_FILE" ]; then
               echo "Download failed"
