@@ -20,26 +20,53 @@ signal on_transform
 const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
 const COLOR_START := Color(0.7, 0.7, 0,7)
 
+enum LaneDirection
+{
+	FORWARD,
+	BACKWARD,
+}
+static func flip_dir(dir: LaneDirection) -> LaneDirection:
+	return 1 - dir
+
+enum LaneSideways
+{
+	RIGHT,
+	LEFT,
+}
+static func flip_side(side: LaneSideways) -> LaneSideways:
+	return 1 - side
+
 
 # ------------------------------------------------------------------------------
 #endregion
 #region Export vars
 # ------------------------------------------------------------------------------
 
-
 # -------------------------------------
 @export_group("Connections")
 # -------------------------------------
 
 
+var side_lanes : Array[NodePath] = ["", ""]
 ## Reference to the next left-side [RoadLane] if any, for allowed lane transitions.
-@export var lane_left:NodePath
+@export var lane_left: NodePath:
+	get: return side_lanes[LaneSideways.LEFT]
+	set(val): side_lanes[LaneSideways.LEFT] = val
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
-@export var lane_right:NodePath
+@export var lane_right: NodePath:
+	get: return side_lanes[LaneSideways.RIGHT]
+	set(val): side_lanes[LaneSideways.RIGHT] = val
+
+
+var adjacent_lanes: Array[NodePath] = ["", ""]
 ## The next forward [RoadLane] for agents to follow along.
-@export var lane_next:NodePath
+@export var lane_next: NodePath:
+	get: return adjacent_lanes[LaneDirection.FORWARD]
+	set(val): assert(get_node_or_null(val) != self); adjacent_lanes[LaneDirection.FORWARD] = val
 ## The prior [RoadLane] for agents to follow (if going backwards).
-@export var lane_prior:NodePath
+@export var lane_prior: NodePath:
+	get: return adjacent_lanes[LaneDirection.BACKWARD]
+	set(val): adjacent_lanes[LaneDirection.BACKWARD] = val
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
 ##
@@ -58,10 +85,14 @@ const COLOR_START := Color(0.7, 0.7, 0,7)
 ## the next interior lane.[br][br]
 ##
 ## e.g. R0, R1,...R#, F0, F1, ... F#.
-@export var lane_next_tag:String
+var adjacent_lane_tags: Array[String] = ["", ""]
+@export var lane_next_tag: String:
+	get: return adjacent_lane_tags[LaneDirection.FORWARD]
+	set(val): adjacent_lane_tags[LaneDirection.FORWARD] = val
 ## See description above for [member RoadLane.lane_next_tag] which is the equivalent.
-@export var lane_prior_tag:String
-
+@export var lane_prior_tag: String:
+	get: return adjacent_lane_tags[LaneDirection.BACKWARD]
+	set(val): adjacent_lane_tags[LaneDirection.BACKWARD] = val
 
 # -------------------------------------
 @export_group("Behavior")
@@ -97,11 +128,16 @@ var geom_node: MeshInstance3D
 # Internal field used by agents for intra-segment lane changes
 var transition: bool = false
 
-var _vehicles_in_lane = [] # Registration
+# this container should contain agents in order:
+# from beginning to the end, i.e. agents' lower offset to higher offset
+# also offsets are expected but not enforced to be unique
+var _agents_in_lane: Array[RoadLaneAgent] = [] # Registration
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
+
+const DEBUG_OUT := true
 
 
 # ------------------------------------------------------------------------------
@@ -162,28 +198,95 @@ func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
-## Register a car to be connected to (on, following) this lane.
-func register_vehicle(vehicle: Node) -> void:
-	_vehicles_in_lane.append(vehicle)
+func is_agent_list_correct():
+	for i in range(self._agents_in_lane.size() - 1):
+		if _agents_in_lane[i].lane_pos.offset >= _agents_in_lane[i + 1].lane_pos.offset:
+			print("on lane ", self, " offset of agent ", _agents_in_lane[i], " is not less than offset of agent ", _agents_in_lane[i +1])
+			return false
+		if _agents_in_lane[i].adjacent_agents[LaneDirection.FORWARD] != _agents_in_lane[i + 1]:
+			print("on lane ", self, " agent ", _agents_in_lane[i +1], " is not next for agent ", _agents_in_lane[i])
+			return false
+		if _agents_in_lane[i] != _agents_in_lane[i + 1].adjacent_agents[LaneDirection.BACKWARD]:
+			print("on lane ", self, " agent ", _agents_in_lane[i], " is not prior for agent ", _agents_in_lane[i +1])
+			return false
+	return true
+
+
+func find_agent_index(agent: RoadLaneAgent, before: bool) -> int:
+	assert(self.is_agent_list_correct())
+	var idx = self._agents_in_lane.bsearch_custom(agent, RoadLaneAgent.compare_offset, before)
+	return idx
+
+
+func get_first_agent() -> RoadLaneAgent:
+	return null if self._agents_in_lane.is_empty() else _agents_in_lane[0]
+
+
+func get_adjacent_lane(dir : LaneDirection) -> RoadLane:
+	return get_node_or_null(self.adjacent_lanes[dir])
+
+
+## Register a agent to be connected to (on, following) this lane.
+func register_agent(agent: RoadLaneAgent, link_agents: bool) -> void:
+	if DEBUG_OUT:
+		print(Time.get_ticks_usec(), " Registering agent ", agent, " on lane ", self, " with lanes connected FORWARD ", self.get_adjacent_lane(LaneDirection.FORWARD), " and BACKWARD ", self.get_adjacent_lane(LaneDirection.BACKWARD))
+	assert(self.is_agent_list_correct())
+	assert(agent not in _agents_in_lane)
+	assert(agent.lane_pos)
+	var idx = find_agent_index(agent, false)
+	assert(idx == _agents_in_lane.size() || _agents_in_lane[idx].lane_pos.offset > agent.lane_pos.offset)
+	assert(idx == 0 || _agents_in_lane[idx -1].lane_pos.offset < agent.lane_pos.offset)
+	_agents_in_lane.insert(idx, agent)
+	if link_agents:
+		for dir in LaneDirection.values():
+			#print(agent, " HERE2 ", idx, "/", _agents_in_lane.size() )
+			if agent.adjacent_agents[dir] == null && idx != ((_agents_in_lane.size() -1) if dir == LaneDirection.FORWARD else 0):
+				agent.link_next_agent(self._agents_in_lane[idx + (1 if dir == LaneDirection.FORWARD else -1)], dir)
+	assert(self.is_agent_list_correct())
+
+
+func find_adjacent_agents(agent: RoadLaneAgent) -> void:
+	for dir in LaneDirection.values(): # didn't find any of the agents on the lane, will look on adjacent lanes
+		if agent.adjacent_agents[dir] == null:
+			var lane: RoadLane = self.get_adjacent_lane(dir)
+			var count := 3
+			while lane && count:
+				#print(self, " -> ", lane, " HERE1 ",  agent, " ", count)
+				if ! lane._agents_in_lane.is_empty():
+					agent.link_next_agent(lane._agents_in_lane[0 if dir == LaneDirection.FORWARD else -1], dir)
+					break
+				lane = lane.get_adjacent_lane(dir)
+				count -= 1
+	for dir in LaneDirection.values(): # didn't find any of the agents on the lane, will look on adjacent lanes
+		if agent.adjacent_agents[dir] == null:
+			var lane: RoadLane = self.get_adjacent_lane(dir)
+			assert(!lane || lane._agents_in_lane.is_empty())
+
 
 
 ## Optional but good cleanup of references.
-func unregister_vehicle(vehicle: Node) -> void:
-	if vehicle in _vehicles_in_lane:
-		_vehicles_in_lane.erase(vehicle)
+func unregister_agent(agent: RoadLaneAgent) -> void:
+	if DEBUG_OUT:
+		print("Unregistering ", agent, " from lane ", self)
+	assert( agent in _agents_in_lane )
+	_agents_in_lane.erase(agent)
+	assert( agent not in _agents_in_lane )
 
 
-## Return all vehicles registered to this lane, performing cleanup as needed.
-func get_vehicles() -> Array:
-	for vehicle in _vehicles_in_lane:
-		if (not is_instance_valid(vehicle)) or vehicle.is_queued_for_deletion():
-			_vehicles_in_lane.erase(vehicle)
-			continue
-	return _vehicles_in_lane
+## Return all agents registered to this lane, performing cleanup as needed.
+func get_agents() -> Array[RoadLaneAgent]:
+	for agent in _agents_in_lane:
+		if (not is_instance_valid(agent)) or agent.is_queued_for_deletion():
+			print("problematic agent ", agent, " in lane ", self)
+			_agents_in_lane.erase(agent)
+	return _agents_in_lane
+
+
+func get_lane_end_point_by_dir(dir: LaneDirection) -> Vector3:
+	return get_lane_start() if dir == LaneDirection.FORWARD else get_lane_end()
 
 
 func _instantiate_geom() -> void:
-
 	if Engine.is_editor_hint():
 		_display_fins = _draw_in_editor or _draw_override
 	else:
@@ -279,6 +382,13 @@ func _get_draw_in_editor() -> bool:
 func show_fins(value: bool) -> void:
 	_draw_override = value
 	rebuild_geom()
+
+
+func _exit_tree() -> void:
+	if auto_free_vehicles:
+		for agent in _agents_in_lane:
+			if is_instance_valid(agent):
+				agent.actor.call_deferred("queue_free")
 
 
 #endregion
