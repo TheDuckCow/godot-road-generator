@@ -31,6 +31,12 @@ fi
 # Extract the current version number.
 VER=$(grep "version=" addons/road-generator/plugin.cfg | awk -F'"' '{print $2}')
 
+ALL_TAGS=$(git tag -l)
+if [[ $ALL_TAGS == *$VER* ]]; then
+    echo "Version $VER already exists, need to update plugin.cfg"
+    exit 1
+fi
+
 echo "Current version detected:"
 echo $VER
 echo "Is this the correct version to be generating?"
@@ -39,7 +45,10 @@ read -p "(Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] 
 
 echo ""
 echo "Creating release with tag: $VER"
-gh release create $VER --generate-notes --draft
+gh release create $VER \
+    --generate-notes \
+    --draft \
+    -t "${VER} (Godot 4.3+) | Updates"
 
 echo ""
 echo "Done, validate release and check download:"
