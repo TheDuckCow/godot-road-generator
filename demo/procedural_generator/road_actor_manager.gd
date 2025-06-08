@@ -14,7 +14,7 @@ extends Node3D
 ## Don't free actors right away. Instead reuse them when spawned
 @export var reuse_removed: bool = true
 
-const DEBUG_OUT = false
+const DEBUG_OUT = true
 var _stashed_vehicles: Array = [] #these are to be added on spawn
 
 
@@ -27,7 +27,7 @@ func _ready():
 ## Spawn random actor (from road_actor_scenes) at the pos
 ## if actor has road_lane_agent child, assign lane
 ## if possible reuse one of the hidden actors. otherwise create new
-func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
+func add_actor(pos: Vector3, lane: RoadLane = null, offset: float = NAN) -> Node3D:
 	if vehicles_max >= 0 && get_actor_count() >= vehicles_max:
 		if DEBUG_OUT:
 			print("Can't create new actor, amount of vehicles is already at the limit")
@@ -51,7 +51,7 @@ func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
 	var agent = new_actor.get_node_or_null("road_lane_agent")
 	if lane != null:
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.assign_lane(lane)
+			agent.assign_lane(lane, offset)
 		else:
 			push_error("Trying to assign actor ", new_actor, " to lane ", lane, " but it doesn't have immediate child agent:RoadLaneAgent")
 	return new_actor
@@ -64,18 +64,21 @@ func remove_actor(actor: Node3D):
 		push_error("Trying to remove invalid actor")
 		return
 	assert(actor.get_parent() == self)
+	var agent = actor.get_node_or_null("road_lane_agent")
 	if reuse_removed:
+		assert(actor not in _stashed_vehicles)
 		actor.visible = false
 		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
 			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
-		var agent = actor.get_node_or_null("road_lane_agent")
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
 			agent.unassign_lane()
 		_stashed_vehicles.append(actor)
 		if DEBUG_OUT:
 			print("Hid actor ", actor)
 	else:
+		if is_instance_valid(agent) && agent is RoadLaneAgent:
+			agent.unassign_lane()
 		actor.queue_free()
 		if DEBUG_OUT:
 			print("Freed actor ", actor)

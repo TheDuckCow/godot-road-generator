@@ -8,12 +8,12 @@ class DespawnRoadLane extends RoadLane:
 		super()
 		_actor_manager = actor_manager
 
-	func register_vehicle(vehicle: Node) -> void:
+	func register_agent(agent: RoadLaneAgent, _links_agents: bool) -> void:
+		_agents_in_lane.append(agent)
 		if _actor_manager:
-			_actor_manager.remove_actor(vehicle)
+			_actor_manager.remove_actor(agent.actor)
 		else:
-			vehicle.queue_free()
-
+			agent.queue_free()
 
 ## Defines a traffic spawner.
 ##
@@ -31,6 +31,8 @@ class DespawnRoadLane extends RoadLane:
 ## Used to reduce almost unnecessary timer signal events
 ## Less than 0.05 is not recommended due to Timer implementation
 @export var spawn_time_delta: float = 0.1: set = _set_spawn_time_delta
+## Distance to the first actor in lane needed to spawn an actor
+@export var spawn_distance_min: float = 4.0
 ## Road actor manager, that tracks the actors
 ## Expected methods: add_actor, remove_actor
 @export var actor_manager_path: NodePath: set = _set_actor_manager
@@ -38,7 +40,7 @@ class DespawnRoadLane extends RoadLane:
 ## Consider using when segments around road point may be changed in game
 @export var auto_update:bool = false: set = _set_auto_update
 
-const DEBUG_OUT: bool = false
+const DEBUG_OUT: bool = true
 var _actor_manager = null
 var _road_container: RoadContainer
 
@@ -63,7 +65,7 @@ func _ready() -> void:
 		print("Created new spawn timer ", _spawn_timer)
 
 	_despawn_lane = DespawnRoadLane.new(_actor_manager)
-	_despawn_lane.lane_next = _despawn_lane.get_path_to(_despawn_lane) # looping on itself just in case
+	_despawn_lane.adjacent_lanes = [_despawn_lane.get_path_to(_despawn_lane), _despawn_lane.get_path_to(_despawn_lane)] # looping on itself just in case
 	_despawn_lane.lane_prior = _despawn_lane.get_path_to(_despawn_lane)
 	_despawn_lane.curve.add_point(Vector3.ZERO)
 	_despawn_lane.curve.add_point(Vector3.FORWARD * 100) # just so it wouldn't be a point
@@ -188,8 +190,10 @@ func _run_timer(prior_delay: float) -> void:
 			if DEBUG_OUT:
 				print("Spawn timer ", _spawn_timer, " fired for lane ", _spawn_lanes[idx])
 			_spawn_delays[idx] = randf_range(spawn_time_min, spawn_time_max)
-			var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
-			_actor_manager.add_actor(lane_start, _spawn_lanes[idx])
+			var next_agent: RoadLaneAgent = _spawn_lanes[idx].get_first_agent()
+			if next_agent && next_agent.lane_pos.offset >= spawn_distance_min: #check if another agent is too close
+				var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
+				_actor_manager.add_actor(lane_start, _spawn_lanes[idx], 0)
 		new_wait = min(new_wait, _spawn_delays[idx])
 	assert( ! is_inf(new_wait) )
 	_spawn_timer.wait_time = new_wait

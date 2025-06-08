@@ -1,7 +1,7 @@
 [gd_scene load_steps=10 format=3 uid="uid://c57yq8evxe3w3"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="2"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
 [ext_resource type="Script" path="res://demo/procedural_generator/road_actor_manager.gd" id="4_jhbve"]
@@ -28,7 +28,6 @@ road_actor_scenes = Array[PackedScene]([ExtResource("7")])
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281)
 drive_state = 2
-target_speed = 100
 visualize_lane = true
 auto_register = false
 
