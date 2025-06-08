@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3.1"]') }}
+        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3-stable"]') }}
     steps:
       - uses: actions/checkout@v4
 
