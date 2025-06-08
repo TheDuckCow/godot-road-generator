@@ -1,0 +1,72 @@
+name: Run tests
+
+on:
+  workflow_dispatch: 
+    inputs:
+      godot_versions:
+        description: 'Godot version(s)'
+        required: false
+        default: '["4.3-stable"]'
+        type: choice
+        options:
+        - '["4.3-stable"]'
+  pull_request:
+    types: [opened, reopened, ready_for_review]  # add synchronize to run per commit
+    paths:
+      - 'addons/road-generator/**'
+
+
+run-name: Test on ${{ inputs.godot_versions }}
+
+jobs:
+  test:
+    name: Test Godot
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3.1"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        # Disable fetching history
+        filter: tree:0
+        fetch-depth: 0
+
+      - run: |
+          echo "Running with Godot: $GVERSION"
+          echo "event name is:" ${{ github.event_name }}
+          echo "event type is:" ${{ github.event.action }}
+        env:
+          GVERSION: ${{ matrix.godot-version }}
+
+      - uses: chickensoft-games/setup-godot@v2
+        id: download-godot
+        name: 🤖 Download Godot ${{ matrix.godot-version }}
+        with:
+          version: ${{ matrix.godot-version }} # also valid: 4.0.0.rc1 or 4.0.0 or "global.json", etc
+          use-dotnet: false
+          include-templates: false
+
+      - name: Install GUT framework
+        run: |
+          GUT_URL=$(<./test/test_framework_version.txt)
+          TMP_DIR=$(mktemp -d)
+          ZIP_FILE="$TMP_DIR/archive.zip"
+          curl -L "$ZIP_URL" -o "$ZIP_FILE"
+          if [ ! -f "$ZIP_FILE" ]; then
+              echo "Download failed"
+              exit 1
+          fi
+          mkdir -p addons/gut
+          unzip -q "$ZIP_FILE" -d "$TMP_DIR"
+          GUT_SRC=$(find "$TMP_DIR" -type d -path "*/Gut-*/addons/gut" | head -n 1)
+          if [ ! -d "$GUT_SRC" ]; then
+              echo "Could not find 'addons/gut' folder in the archive."
+              exit 1
+          fi
+          cp -r "$GUT_SRC/"* addons/gut/
+          rm -rf "$TMP_DIR"
+          echo "GUT install complete"
+
+      - name: 🔬 Run unit tests
+        run: |
+          godot -s addons/gut/gut_cmdln.gd --path $PWD --headless -d -gconfig=.gut_editor_config.json -gexit
