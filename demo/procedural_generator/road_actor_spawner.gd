@@ -1,4 +1,3 @@
-class_name RoadActorSpawner
 extends Node3D
 
 class DespawnRoadLane extends RoadLane:
@@ -124,45 +123,45 @@ func _on_spawn_timeout(timer: Timer) -> void:
 
 ## Create new despawn lane (if all previously created are already used)
 func _create_despawn_lane() -> RoadLane:
-	var dl = DespawnRoadLane.new()
+	var despawn_lane = DespawnRoadLane.new()
 	# looping despawn lane on itself just in case
-	dl.lane_next = dl.get_path_to(dl)
-	dl.lane_prior = dl.get_path_to(dl)
-	for i in 2:
-		dl.curve.add_point(Vector3.ZERO)
-	add_child(dl)
-	_despawn_lanes[dl] = null
+	despawn_lane.lane_next = despawn_lane.get_path_to(despawn_lane)
+	despawn_lane.lane_prior = despawn_lane.get_path_to(despawn_lane)
+	for idx in 2:
+		despawn_lane.curve.add_point(Vector3.ZERO)
+	add_child(despawn_lane)
+	_despawn_lanes[despawn_lane] = null
 	if DEBUG_OUT:
-		print("Created new despawn lane ", dl)
-	return dl
+		print("Created new despawn lane ", despawn_lane)
+	return despawn_lane
 
 
 ## Update despawn lane to continue from the end of a lane
 ## link said lane to despawn lane
-func _set_despawn_lane(dl:DespawnRoadLane, l: RoadLane, dir) -> bool:
+func _set_despawn_lane(despawn_lane:DespawnRoadLane, lane: RoadLane, dir) -> bool:
 	# try to continue the lane just in case (so there would not be flickering)
 	# otherwise we could have just one lane and link everything to it
 	# and we need at least some geometry so it to work for road agent
 	var pts: Array[Vector3]
-	if l.lane_next_tag[0] == dir:
-		if not l.get_node_or_null(l.lane_prior):
-			l.lane_prior = l.get_path_to(dl)
-			pts = [ l.curve.get_point_position(1),
-					l.curve.get_point_position(1) - l.curve.get_point_in(1) ]
+	if lane.lane_next_tag[0] == dir:
+		if not lane.get_node_or_null(lane.lane_prior):
+			lane.lane_prior = lane.get_path_to(despawn_lane)
+			pts = [ lane.curve.get_point_position(1),
+					lane.curve.get_point_position(1) - lane.curve.get_point_in(1) ]
 	else:
-		if not l.get_node_or_null(l.lane_next):
-			l.lane_next = l.get_path_to(dl)
-			pts = [ l.curve.get_point_position(0) - l.curve.get_point_out(0),
-					l.curve.get_point_position(0) ]
+		if not lane.get_node_or_null(lane.lane_next):
+			lane.lane_next = lane.get_path_to(despawn_lane)
+			pts = [ lane.curve.get_point_position(0) - lane.curve.get_point_out(0),
+					lane.curve.get_point_position(0) ]
 	if pts.is_empty():
 		return false # didn't lane is already linked somewhere
 	if pts[1] == pts[0]:
-		pts[1 if l.lane_next_tag[0] == dir else 0] += Vector3.FORWARD
-	for i in pts.size():
-		dl.curve.set_point_position(i, pts[i])
+		pts[1 if lane.lane_next_tag[0] == dir else 0] += Vector3.FORWARD
+	for idx in pts.size():
+		despawn_lane.curve.set_point_position(idx, pts[idx])
 	if DEBUG_OUT:
-		print("Attached despawn lane ", dl, " to lane ", l)
-	_despawn_lanes[dl] = l
+		print("Attached despawn lane ", despawn_lane, " to lane ", lane)
+	_despawn_lanes[despawn_lane] = lane
 	return true
 
 
@@ -185,13 +184,13 @@ func _attach() -> void:
 		var seg = rp.next_seg if dir == "R" else rp.prior_seg
 		if not is_instance_valid(seg):
 			continue
-		for l in seg.get_lanes():
-			if l.lane_next_tag[0] == dir:
+		for lane in seg.get_lanes():
+			if lane.lane_next_tag[0] == dir:
 				var st = sts[stx] if stx < sts.size() else _create_spawn_timer()
 				stx += 1
-				_set_spawn_timer(st, l)
-			var dl = dls[dlx] if dlx < dls.size() else _create_despawn_lane()
-			if _set_despawn_lane(dl, l, dir):
+				_set_spawn_timer(st, lane)
+			var despawn_lane = dls[dlx] if dlx < dls.size() else _create_despawn_lane()
+			if _set_despawn_lane(despawn_lane, lane, dir):
 				dlx += 1
 
 
@@ -202,16 +201,16 @@ func _attach() -> void:
 func _detach() -> void:
 	if DEBUG_OUT:
 		print("Detaching ", name)
-	for dl:DespawnRoadLane in _despawn_lanes:
-		if is_instance_valid(_despawn_lanes[dl]):
-			var l: RoadLane = _despawn_lanes[dl]
-			if l.get_node_or_null(l.lane_prior) == dl:
-				l.lane_prior = NodePath("")
-			if l.get_node_or_null(l.lane_next) == dl:
-				l.lane_next = NodePath("")
-		_despawn_lanes[dl] = null
+	for despawn_lane:DespawnRoadLane in _despawn_lanes:
+		if is_instance_valid(_despawn_lanes[despawn_lane]):
+			var lane: RoadLane = _despawn_lanes[despawn_lane]
+			if lane.get_node_or_null(lane.lane_prior) == despawn_lane:
+				lane.lane_prior = NodePath("")
+			if lane.get_node_or_null(lane.lane_next) == despawn_lane:
+				lane.lane_next = NodePath("")
+		_despawn_lanes[despawn_lane] = null
 		if DEBUG_OUT:
-			print("Detached despawn lane ", dl)
+			print("Detached despawn lane ", despawn_lane)
 	for timer in _spawn_timers:
 		timer.stop()
 		_spawn_timers[timer] = null
@@ -219,17 +218,17 @@ func _detach() -> void:
 			print("Stopped spawn timer ", timer)
 
 
-## Spawn random actor (from road_actor_scenes) at the beginning of the lane l
+## Spawn random actor (from road_actor_scenes) at the beginning of the lane
 ## if actor has road_lane_agent child, assign lane
 ## if agent managing container is present, add actor there as a child
-func _spawn_actor(l: RoadLane) -> void:
+func _spawn_actor(lane: RoadLane) -> void:
 	var chosen_actor_scene = road_actor_scenes[randi_range(0, road_actor_scenes.size() -1)]
 	var new_actor = chosen_actor_scene.instantiate()
 	if agent_manager:
 		agent_manager.add_child(new_actor)
-	new_actor.global_transform.origin = l.to_global(l.curve.get_point_position(0))
+	new_actor.global_transform.origin = lane.to_global(lane.curve.get_point_position(0))
 	var agent = new_actor.get_node_or_null("road_lane_agent")
 	if is_instance_valid(agent) && agent is RoadLaneAgent:
-		agent.assign_lane(l)
+		agent.assign_lane(lane)
 	if DEBUG_OUT:
 		print("Spawned new actor ", new_actor)

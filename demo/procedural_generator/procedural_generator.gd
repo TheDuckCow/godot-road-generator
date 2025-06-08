@@ -7,8 +7,6 @@ const RoadActorScene: PackedScene = preload("res://demo/procedural_generator/Roa
 ## How much buffer around this max dist to avoid adding new RPs
 ## (this will also define spacing between RoadPoints)
 @export var buffer_distance: int = 50
-## How much RPs are allowed
-@export var max_rp: int = 20
 
 ## Node used to calcualte distances
 @export var target_node: NodePath
@@ -51,9 +49,6 @@ func update_road() -> void:
 		print("No edges to add")
 		return
 
-	# Iterate over all the RoadPoints with open connections.
-	var rp_count:int = container.get_child_count()
-
 	# Cache the initial edges, to avoid referencing export vars on container
 	# that get updated as we add new RoadPoints
 	var edge_list: Array = container.edge_rp_locals
@@ -70,8 +65,6 @@ func update_road() -> void:
 			remove_rp(edge_rp, which_edge)
 		elif dist < max_rp_distance:
 			add_next_rp(edge_rp, which_edge)
-		elif rp_count > max_rp:
-			pass
 
 
 ## Manually clear prior/next points to ensure it gets fully disconnected
@@ -105,16 +98,16 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	new_rp.traffic_dir=[]
 	new_rp.lanes=[]
 
-	for i in range(randi_range(1, 4)):
+	for idx in range(randi_range(1, 4)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
 		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
-	for i in range(randi_range(0, 2)):
+	for idx in range(randi_range(0, 2)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.REVERSE)
 		new_rp.lanes.append(RoadPoint.LaneType.FAST)
-	for i in range(randi_range(0, 2)):
+	for idx in range(randi_range(0, 2)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
 		new_rp.lanes.append(RoadPoint.LaneType.FAST)
-	for i in range(randi_range(1, 4)):
+	for idx in range(randi_range(1, 4)):
 		new_rp.traffic_dir.append(RoadPoint.LaneDir.FORWARD)
 		new_rp.lanes.append(RoadPoint.LaneType.SLOW)
 

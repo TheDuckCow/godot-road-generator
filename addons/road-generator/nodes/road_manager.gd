@@ -21,7 +21,7 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 # ------------------------------------------------------------------------------
 
 ## The material applied to generated meshes.[br][br]
-## 
+##
 ## This mateiral is expected to use a specific trimsheet UV layout.[br][br]
 ##
 ## Can be overridden by each [RoadContainer].
@@ -139,10 +139,10 @@ func _ready():
 	# the manager initializes (different from _ready), meaning
 	# it would default to true even if auto refresh is false here.
 	_ui_refresh_set(auto_refresh)
-	
+
 	# setup_road_container won't work in _ready unless call_deferred is used
 	assign_default_material.call_deferred()
-	
+
 
 func assign_default_material() -> void:
 	if not material_resource:

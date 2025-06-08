@@ -588,20 +588,6 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 		if lp && lp.lane_next == lp.get_path_to(l):
 			lp.lane_next = NodePath("")
 		l.queue_free()
-	#TODO do we still need this?
-	var _par = get_parent()
-	for ch in _par.get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
-	# Legacy, RoadLanes used to be children of the segment class, but are now
-	# direct children of the RoadPoint with the option to be visualized in editor later.
-	for ch in get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
 
 
 ## Remove all edge curves attached to this RoadSegment
