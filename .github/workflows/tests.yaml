@@ -6,10 +6,10 @@ on:
       godot_versions:
         description: 'Godot version(s)'
         required: false
-        default: '["4.3-stable"]'
+        default: '["4.3.0"]'
         type: choice
         options:
-        - '["4.3-stable"]'
+        - '["4.3.0"]'
   pull_request:
     types: [opened, reopened, ready_for_review]  # add synchronize to run per commit
     #paths:
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3-stable"]') }}
+        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3.0"]') }}
     steps:
       - uses: actions/checkout@v4
 
