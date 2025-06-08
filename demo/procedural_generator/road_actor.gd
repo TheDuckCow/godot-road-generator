@@ -24,12 +24,15 @@ var velocity := Vector3.ZERO
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
+const DEBUG_OUT: bool = false
+
 func _ready() -> void:
 	agent.visualize_lane = visualize_lane
 	agent.auto_register = auto_register
-	print("Agent state: %s par, %s lane, %s manager" % [
-		agent.actor, agent.current_lane, agent.road_manager
-	])
+	if DEBUG_OUT:
+		print("Agent state: %s par, %s lane, %s manager" % [
+			agent.actor, agent.current_lane, agent.road_manager
+		])
 
 	if not visible:
 		set_process(false)

@@ -59,13 +59,15 @@ var current_lane: RoadLane
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
 
+const DEBUG_OUT: bool = false
 
 func _ready() -> void:
 	var res = assign_actor()
 	assert(res == OK)
 	res = assign_manager()
 	assert(res == OK)
-	print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
+	if DEBUG_OUT:
+		print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
 
 
 func assign_lane(new_lane:RoadLane) -> void:
@@ -142,7 +144,8 @@ func assign_nearest_lane() -> int:
 	var res = find_nearest_lane()
 	if is_instance_valid(res) and res is RoadLane:
 		assign_lane(res)
-		print("Assigned nearest lane: ", current_lane)
+		if DEBUG_OUT:
+			print("Assigned nearest lane: ", current_lane)
 		return OK
 	else:
 		return FAILED

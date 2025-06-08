@@ -1,7 +1,5 @@
 extends Node3D
 
-const RoadActorScene: PackedScene = preload("res://demo/procedural_generator/RoadActor.tscn")
-
 ## How far ahead of the camera will we let a new RoadPoint be added
 @export var max_rp_distance: int = 200
 ## How much buffer around this max dist to avoid adding new RPs
@@ -14,7 +12,7 @@ const RoadActorScene: PackedScene = preload("res://demo/procedural_generator/Roa
 @onready var container: RoadContainer = get_node("RoadManager/Road_001")
 @onready var vehicles: Node = get_node("RoadManager/vehicles")
 @onready var target: Node = get_node_or_null(target_node)
-@onready var car_label: Label = get_node("%car_count")
+@onready var info_label: Label = get_node("%info_label")
 
 
 func _init() -> void:
@@ -73,11 +71,10 @@ func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 	var spawner = edge_rp.get_node("ActorSpawner")
 	assert(spawner)
+	despawn_cars(edge_rp) # reusing despawned actors with RoadActorManager, so auto_free_vehicles == false
 	edge_rp.remove_child(spawner)
 	edge_rp.disconnect_roadpoint(flip_dir, dir)
 	next_edge_rp.add_child(spawner)
-	# No need to manually remove cars, as we use the default: RoadLane.auto_free_vehicles=true
-	#despawn_cars(edge_rp)
 	edge_rp.prior_pt_init = ""
 	edge_rp.next_pt_init = ""
 	# Defer to allow time to free cars first, if using despawn_cars above
@@ -147,19 +144,9 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		return
 	var new_lanes = new_seg.get_lanes()
 	for _lane in new_lanes:
-		var new_instance = RoadActorScene.instantiate()
-		vehicles.add_child(new_instance)
-
 		var rand_offset = randf() * _lane.curve.get_baked_length()
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
-		new_instance.global_transform.origin = _lane.to_global(rand_pos)
-
-		# We could let the agent auto-find the nearest road lane, but to save
-		# on some performance we can directly assign BEFORE entering the tree
-		# so that it skips the recusive find funciton.
-		# Must run after its ready function, but before its physics_process call
-		new_instance.agent.assign_lane(_lane)
-		print("new_instance %s " % new_instance)
+		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
 
 
 ## Manual way to remove all vehicles registered to lanes of this RoadPoint,
@@ -174,13 +161,11 @@ func despawn_cars(road_point:RoadPoint) -> void:
 		lanes.append_array(seg.get_lanes())
 	if lanes.is_empty():
 		print("No lanes valid for car despawning")
-
 	for _lane in lanes:
 		var this_lane:RoadLane = _lane
 		var lane_vehicles = this_lane._vehicles_in_lane #this_lane.get_vehicles()
 		for _vehicle in lane_vehicles:
-			print("Freeing vehicle ", _vehicle)
-			_vehicle.queue_free()
+			vehicles.remove_actor(_vehicle)
 
 
 func update_stats() -> void:
@@ -197,13 +182,13 @@ func update_stats() -> void:
 			for lane in seg.get_lanes():
 				_ln_cars += len(lane._vehicles_in_lane)
 
-	var car_count: int = len(get_tree().get_nodes_in_group("cars"))
+	var car_count: int = vehicles.get_actor_count()
 	var rp_count: int = len(container.get_roadpoints())
 	var _origin = target.global_transform.origin
 	var player_pos: String = "(%s, %s, %s)" % [
 		round(_origin.x), round(_origin.y), round(_origin.z)
 	]
-	car_label.text = "Roadpoints:%s\nCars: %s (lane-registered %s)\nfps: %s\nPlayer at: %s" % [
+	info_label.text = "Roadpoints:%s\nCars: %s (lane-registered %s)\nfps: %s\nPlayer at: %s" % [
 		rp_count,
 		car_count,
 		_ln_cars,
