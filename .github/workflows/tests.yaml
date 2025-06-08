@@ -12,8 +12,8 @@ on:
         - '["4.3-stable"]'
   pull_request:
     types: [opened, reopened, ready_for_review]  # add synchronize to run per commit
-    paths:
-      - 'addons/road-generator/**'
+    #paths:
+    #  - 'addons/road-generator/**'
 
 
 run-name: Test on ${{ inputs.godot_versions }}
