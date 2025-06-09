@@ -1,5 +1,12 @@
 extends Node3D
 
+## Defines a traffic manager.
+##
+## Adds and removes actors
+## Can reuse removed actors. In this case instead of freeing,
+## hides and pauses actor node, then restores on "creation"
+## restored process_mode is PROCESS_MODE_INHERIT
+
 ## How many vehicles are allowed to be created, -1 is unlimited
 @export var vehicles_max: int = -1
 ## Actor scenes that will be spawned randomly
@@ -11,9 +18,15 @@ const DEBUG_OUT = false
 var _stashed_vehicles: Array = [] #these are to be added on spawn
 
 
+func _ready():
+	if road_actor_scenes.is_empty():
+		push_error("Road Actor Scenes are empty in ", name, ". No actor will be created")
+		return null
+
+
 ## Spawn random actor (from road_actor_scenes) at the pos
 ## if actor has road_lane_agent child, assign lane
-## if possible reuse hidden actor. otherwise create new
+## if possible reuse one of the hidden actors. otherwise create new
 func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
 	if vehicles_max >= 0 && get_actor_count() >= vehicles_max:
 		if DEBUG_OUT:
@@ -27,7 +40,7 @@ func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
 		new_actor.process_mode = Node.PROCESS_MODE_INHERIT
 		new_actor.visible = true
 		if DEBUG_OUT:
-			print("Reusing new actor ", new_actor)
+			print("Reusing old actor ", new_actor)
 	else:
 		var chosen_actor_scene: PackedScene = road_actor_scenes[randi_range(0, road_actor_scenes.size() -1)]
 		new_actor = chosen_actor_scene.instantiate()
@@ -39,17 +52,22 @@ func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
 	if lane != null:
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
 			agent.assign_lane(lane)
-		elif DEBUG_OUT:
-			print("Trying to assign actor ", new_actor, " to lane ", lane, " but it doesn't have immediate child agent:RoadLaneAgent")
+		else:
+			push_error("Trying to assign actor ", new_actor, " to lane ", lane, " but it doesn't have immediate child agent:RoadLaneAgent")
 	return new_actor
 
 
 ## Despawn an actor
 ## depending on reuse_removed, free or hide
 func remove_actor(actor: Node3D):
+	if ! is_instance_valid(actor):
+		push_error("Trying to remove invalid actor")
+		return
 	assert(actor.get_parent() == self)
 	if reuse_removed:
 		actor.visible = false
+		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
+			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
 		_stashed_vehicles.append(actor)
 		if DEBUG_OUT:
