@@ -69,6 +69,9 @@ func remove_actor(actor: Node3D):
 		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
 			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
+		var agent = actor.get_node_or_null("road_lane_agent")
+		if is_instance_valid(agent) && agent is RoadLaneAgent:
+			agent.unassign_lane()
 		_stashed_vehicles.append(actor)
 		if DEBUG_OUT:
 			print("Hid actor ", actor)

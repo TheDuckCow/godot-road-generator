@@ -78,18 +78,25 @@ func assign_lane(new_lane:RoadLane) -> void:
 	# once to avoid getting lost in the void if something freed in between
 	if auto_register:
 		new_lane.register_vehicle(actor)
+	if not new_lane.draw_in_game and visualize_lane:
+		new_lane.draw_in_game = true
+		_did_make_lane_visible = true
+	var _initial_lane = unassign_lane()
+	current_lane = new_lane
+	emit_signal("on_lane_changed", _initial_lane)
+
+
+func unassign_lane() -> RoadLane:
+	var prev_lane: RoadLane = null
 	if is_instance_valid(current_lane) and current_lane is RoadLane:
 		# Even if auto_register is off, no harm in attempt to unregister, in
 		# case the setting had recently changed
 		current_lane.unregister_vehicle(actor)
 		if current_lane.draw_in_game and _did_make_lane_visible:
 			current_lane.draw_in_game = false
-	if not new_lane.draw_in_game and visualize_lane:
-		new_lane.draw_in_game = true
-		_did_make_lane_visible = true
-	var _initial_lane = current_lane
-	current_lane = new_lane
-	emit_signal("on_lane_changed", _initial_lane)
+		prev_lane = current_lane
+		current_lane = null
+	return prev_lane
 
 
 func assign_actor() -> int:
