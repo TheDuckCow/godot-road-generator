@@ -76,13 +76,13 @@ func _ready() -> void:
 
 func _enter_tree():
 	if spawn_time_delta >= spawn_time_min || spawn_time_min > spawn_time_max:
-		push_error("Minimum spawn time shall be bigger than spawn time delta and less or equal to maximum spawn time")
+		push_error("Minimum spawn time should be bigger than spawn time delta and less or equal to maximum spawn time")
 
 	_actor_manager = get_node_or_null(actor_manager_path)
 	if ! _actor_manager:
 		push_error("Actor manager path ", actor_manager_path, " is incorrect")
 	elif ! _actor_manager.has_method("add_actor") || ! _actor_manager.has_method("remove_actor"):
-		push_error("Actor manager at ", actor_manager_path, " shall have add_actor and remove_actor methods")
+		push_error("Actor manager at ", actor_manager_path, " should have add_actor and remove_actor methods")
 	if DEBUG_OUT:
 		print("Using actor manager ", _actor_manager)
 
@@ -112,14 +112,14 @@ func _exit_tree():
 func _set_spawn_time_min(val: float) -> void:
 	if is_inside_tree():
 		if val <= spawn_time_delta || val > spawn_time_max:
-			push_error("Minimum spawn time shall be bigger than spawn time delta and less or equal to maximum spawn time")
+			push_error("Minimum spawn time should be bigger than spawn time delta and less or equal to maximum spawn time")
 	spawn_time_min = val
 
 
 func _set_spawn_time_max(val: float) -> void:
 	if is_inside_tree():
 		if val < spawn_time_min:
-			push_error("Maximum spawn time max shall be bigger or equal to minimum spawn time")
+			push_error("Maximum spawn time max should be bigger or equal to minimum spawn time")
 	spawn_time_max = val
 
 
@@ -128,7 +128,7 @@ func _set_spawn_time_delta(val: float) -> void:
 		push_warning("Spawn time delta(as well as min/max spawn times) less than 0.05s is not recommended due to Timer implementation")
 	if is_inside_tree():
 		if val >= spawn_time_min:
-			push_error("Spawn time delta shall be less than minimum spawn time")
+			push_error("Spawn time delta should be less than minimum spawn time")
 	spawn_time_delta = val
 
 
@@ -138,7 +138,7 @@ func _set_actor_manager(new_path: NodePath) -> void:
 		if ! new_actor_manager:
 			push_error("Actor manager path ", new_path, " is incorrect")
 		elif ! new_actor_manager.has_method("add_actor") || ! new_actor_manager.has_method("remove_actor"):
-			push_error("Actor manager at ", new_path, " shall have add_actor and remove_actor methods")
+			push_error("Actor manager at ", new_path, " should have add_actor and remove_actor methods")
 		_actor_manager = new_actor_manager
 	actor_manager_path = new_path
 
@@ -230,7 +230,7 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 			print("Linked lane ", lane, " to despawn lane ", _despawn_lane)
 		_despawn_lanes.append(lane)
 	elif DEBUG_OUT:
-		print("Can't link lane ", lane, " to despawn lane ", _despawn_lane, " the end at RoadPoint is busy")
+		print("Corresponding end of lane ", lane, " is already linked and won't be linked to to despawn lane ", _despawn_lane)
 	return linked
 
 
