@@ -59,13 +59,15 @@ var current_lane: RoadLane
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
 
+const DEBUG_OUT: bool = false
 
 func _ready() -> void:
 	var res = assign_actor()
 	assert(res == OK)
 	res = assign_manager()
 	assert(res == OK)
-	print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
+	if DEBUG_OUT:
+		print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
 
 
 func assign_lane(new_lane:RoadLane) -> void:
@@ -76,18 +78,25 @@ func assign_lane(new_lane:RoadLane) -> void:
 	# once to avoid getting lost in the void if something freed in between
 	if auto_register:
 		new_lane.register_vehicle(actor)
+	if not new_lane.draw_in_game and visualize_lane:
+		new_lane.draw_in_game = true
+		_did_make_lane_visible = true
+	var _initial_lane = unassign_lane()
+	current_lane = new_lane
+	emit_signal("on_lane_changed", _initial_lane)
+
+
+func unassign_lane() -> RoadLane:
+	var prev_lane: RoadLane = null
 	if is_instance_valid(current_lane) and current_lane is RoadLane:
 		# Even if auto_register is off, no harm in attempt to unregister, in
 		# case the setting had recently changed
 		current_lane.unregister_vehicle(actor)
 		if current_lane.draw_in_game and _did_make_lane_visible:
 			current_lane.draw_in_game = false
-	if not new_lane.draw_in_game and visualize_lane:
-		new_lane.draw_in_game = true
-		_did_make_lane_visible = true
-	var _initial_lane = current_lane
-	current_lane = new_lane
-	emit_signal("on_lane_changed", _initial_lane)
+		prev_lane = current_lane
+		current_lane = null
+	return prev_lane
 
 
 func assign_actor() -> int:
@@ -142,7 +151,8 @@ func assign_nearest_lane() -> int:
 	var res = find_nearest_lane()
 	if is_instance_valid(res) and res is RoadLane:
 		assign_lane(res)
-		print("Assigned nearest lane: ", current_lane)
+		if DEBUG_OUT:
+			print("Assigned nearest lane: ", current_lane)
 		return OK
 	else:
 		return FAILED
@@ -163,7 +173,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	var groups_checked:Array = [] # Technically, each container could have its own group name
 	var containers = road_manager.get_containers()
 	containers.push_front(road_manager)
-	
+
 	for _cont in containers:
 		if _cont.ai_lane_group in groups_checked:
 			continue

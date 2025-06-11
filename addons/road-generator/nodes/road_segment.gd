@@ -8,7 +8,8 @@ extends Node3D
 ## functionality of how the road generation works, and may change.
 ##
 ## If necessary to reference like a class, place this in any script:
-## const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+## const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 #class_name RoadSegment, "road_segment.png"
 
 const LOWPOLY_FACTOR = 3.0
@@ -312,7 +313,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		_matched_lanes = self._match_lanes()
 	if len(_matched_lanes) == 0:
 		return false
-	
+
 	var start_lane_offset
 	var end_lane_offset
 	if start_point.alignment == RoadPoint.Alignment.DIVIDER:
@@ -365,7 +366,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
 				ln_child.owner = container.get_owner()
-			
+
 			if container.ai_lane_group != "":
 				ln_child.add_to_group(container.ai_lane_group)
 			elif is_instance_valid(manager) and manager.ai_lane_group != "":
@@ -445,14 +446,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = road_lane.curve
-	
+
 	# Transformations in local space relative to the road_lane
 	var a_transform := road_lane.global_transform.affine_inverse() * start_point.global_transform
 	var d_transform := road_lane.global_transform.affine_inverse() * end_point.global_transform
-	
+
 	var a_gbasis := a_transform.basis
 	var d_gbasis := d_transform.basis
-	
+
 	var in_pos := a_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
 	var out_pos := d_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
 
@@ -461,7 +462,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var pt_b := src.get_point_position(0) + src.get_point_out(0)
 	var pt_c := src.get_point_position(1) + src.get_point_in(1)
 	var pt_d := src.get_point_position(1)
-	
+
 	# Project the primary curve points onto the road_lane
 	var pt_e := a_transform.origin + (a_gbasis.x * in_offset)
 	var pt_i := pt_b + (a_gbasis.x * in_offset)
@@ -472,28 +473,28 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var vec_ab := pt_b - pt_a
 	var vec_bc := pt_c - pt_b
 	var vec_cd := pt_d - pt_c
-	
+
 	var angle_q := -vec_ab.signed_angle_to(vec_bc, a_gbasis.y) * 0.5
 	var angle_s := vec_cd.signed_angle_to(vec_bc, d_gbasis.y) * 0.5
-	
+
 	var offset_q := tan(angle_q) * in_offset
 	var offset_s := tan(angle_s) * out_offset
-	
+
 	# Calculate adjusted handles using local coordinates
 	var pt_f := a_gbasis.z * (vec_ab.length() + offset_q)
 	var pt_g := -d_gbasis.z * (vec_cd.length() + offset_s)
-	
+
 	var margin := 0.1745329  # roughly 10 degrees
-	
+
 	# Calculate final in/out points and positions in local space
 	var in_pt_in := pt_a
 	var in_pt_out: Vector3
 	var out_pt_in: Vector3
 	var out_pt_out := pt_d
-	
+
 	in_pos = pt_e
 	out_pos = pt_h
-	
+
 	# Adjust for harsh angles at the "in" point
 	if abs(angle_q) > RAD_NINETY_DEG - margin and abs(angle_q) < RAD_NINETY_DEG + margin:
 		in_pt_out = pt_b
@@ -505,7 +506,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		out_pt_in = pt_c
 	else:
 		out_pt_in = pt_g
-	
+
 	# Set points in the destination curve
 	dst.clear_points()
 	if reverse:
@@ -577,19 +578,16 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments(ignore_list: Array = []) -> void:
-	var _par = get_parent()
-	for ch in _par.get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
-	# Legacy, RoadLanes used to be children of the segment class, but are now
-	# direct children of the RoadPoint with the option to be visualized in editor later.
-	for ch in get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
+	for l: RoadLane in self.get_lanes():
+		if l in ignore_list:
+			return
+		var ln:RoadLane = l.get_node_or_null(l.lane_next)
+		if ln && ln.lane_prior == ln.get_path_to(l):
+			ln.lane_prior = NodePath("")
+		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
+		if lp && lp.lane_next == lp.get_path_to(l):
+			lp.lane_next = NodePath("")
+		l.queue_free()
 
 
 ## Remove all edge curves attached to this RoadSegment
@@ -838,7 +836,7 @@ func _build_geo():
 func _create_collisions() -> void:
 	for ch in road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
-	
+
 	var manager:RoadManager = container.get_manager()
 
 	# Could also manually create with Mesh.create_trimesh_shape(),
@@ -848,22 +846,22 @@ func _create_collisions() -> void:
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
-		
+
 		if container.collider_group_name != "":
 			sbody.add_to_group(container.collider_group_name)
 		elif is_instance_valid(manager) and manager.collider_group_name != "":
 			sbody.add_to_group(manager.collider_group_name)
-		
+
 		if container.collider_meta_name != "":
 			sbody.set_meta(container.collider_meta_name, true)
 		elif is_instance_valid(manager) and manager.collider_meta_name != "":
 			sbody.set_meta(manager.collider_meta_name, true)
-		
+
 		if container.physics_material != null:
 			sbody.physics_material_override = container.physics_material
 		elif is_instance_valid(manager) and manager.physics_material != null:
 			sbody.physics_material_override = manager.physics_material
-		
+
 		if container.override_collision_layers:
 			sbody.collision_layer = container.collision_layer
 			sbody.collision_mask = container.collision_mask
@@ -871,7 +869,7 @@ func _create_collisions() -> void:
 			sbody.collision_layer = manager.collision_layer
 			sbody.collision_mask = manager.collision_mask
 		# else: will just be the godot default.
-		
+
 		sbody.set_meta("_edit_lock_", true)
 
 
@@ -886,7 +884,7 @@ func _insert_geo_loop(
 		per_loop_uv_size: float,
 		uv_width: float):
 	assert (loop < loops)
-	
+
 	# One loop = row of quads left to right across the road, spanning lanes.
 	var offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
 	var point = [start_point, end_point]
