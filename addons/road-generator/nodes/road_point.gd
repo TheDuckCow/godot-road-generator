@@ -1346,6 +1346,26 @@ func get_width_with_shoulders():
 	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
 	return total_width
 
+func connect_segment_lanes() -> void:
+	if self.prior_seg && self.next_seg:
+		# Check lanes attributed to the *prior* segment
+		for prior_ln in self.prior_seg.get_lanes():
+			# prior lane be set to track to a next lane
+			for next_ln in self.next_seg.get_lanes():
+				if is_instance_valid(next_ln.owner):
+					# Don't auto update paths owned by the editor
+					continue
+				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
+						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
+						next_ln.lane_next = next_ln.get_path_to(prior_ln)
+					else:
+						assert(prior_ln.lane_next_tag[0] == "R")
+						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
+						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
+
 # ------------------------------------------------------------------------------
 #endregion
 # ------------------------------------------------------------------------------
