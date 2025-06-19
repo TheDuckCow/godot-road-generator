@@ -1015,23 +1015,7 @@ func update_lane_seg_connections():
 			# risk of having faulty connections.
 			continue
 
-		var prior_seg_lanes = pt.prior_seg.get_lanes()
-		var next_seg_lanes = pt.next_seg.get_lanes()
-
-		# Check lanes attributed to the *prior* segment
-		for prior_ln in prior_seg_lanes:
-			# prior lane be set to track to a next lane
-			for next_ln in next_seg_lanes:
-				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
-					# TODO: When directionality is made consistent, we should no longer
-					# need to invert the direction assignment here.
-					if prior_ln.lane_next_tag[0] == "F":
-						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
-						next_ln.lane_next = next_ln.get_path_to(prior_ln)
-					else:
-						assert(prior_ln.lane_next_tag[0] == "R")
-						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
-						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
+		pt.connect_segment_lanes()
 
 
 ## Configures roadcontainer owner and assigns material if necessary
@@ -1138,6 +1122,9 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 				segs_updated.append(inter)
 
 	if len(segs_updated) > 0:
+		point.connect_segment_lanes()
+		if self.debug:
+			print_debug("Road segs rebuilt: ", len(segs_updated))
 		_emit_road_updated(segs_updated)
 
 
