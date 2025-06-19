@@ -1169,3 +1169,19 @@ func _autofix_noncyclic_references(
 
 	# In the event of change in edges, update all references.
 	container.update_edges()
+
+
+func connect_segment_lanes() -> void:
+	if self.prior_seg && self.next_seg:
+		for prior_ln in self.prior_seg.get_lanes():
+			for next_ln in self.next_seg.get_lanes():
+				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
+						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
+						next_ln.lane_next = next_ln.get_path_to(prior_ln)
+					else:
+						assert(prior_ln.lane_next_tag[0] == "R")
+						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
+						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
