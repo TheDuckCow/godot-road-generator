@@ -20,20 +20,74 @@ signal on_transform
 const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
 const COLOR_START := Color(0.7, 0.7, 0,7)
 
-enum LaneDirection
+class Obstacle:
+	var lane: RoadLane
+	var offset: float
+	var node: Node3D
+
+
+	## RoadLaneAgent will only use following if agent/actor find it on a position above
+	## they shouldn't be too far from original lane_offset, but could overflow to another lane
+	## offsets to the front and back - in positive direction of lane of the obstacle (meters)
+	## as obstacles shouldn't be at the same point of the lane, zero offsets may be problematic
+	var end_offsets: Array[float] = [0.0, 0.0]
+	const END_OFFSET_MAX = 5.0
+
+	## approximate speed an obstacle on lane (m/s)
+	## for example if actor moves with an angle from tagent, its obstacle's speed
+	## should be just a fraction (dependent on the angle) of actor's speed
+	## Note: the obstacle won't be moved along lane automatically
+	var speed: float
+
+	static func compare_offset(a1: RoadLane.Obstacle, a2: RoadLane.Obstacle) -> bool:
+		return a1.offset < a2.offset
+
+	func distance_to_end(dir: RoadLane.MoveDir) -> float:
+		assert(check_valid())
+		return self.lane.offset_from_end(self.offset, dir)
+
+	func check_valid() -> bool:
+		var all_good = true
+		if !is_instance_valid(self.node):
+			print(self, " has invalid node ", self.node)
+			all_good = false
+		for dir in MoveDir.values():
+			if self.end_offsets[dir] < 0:
+				print(self, " negative ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
+				all_good = false
+			elif self.end_offsets[dir] > END_OFFSET_MAX:
+				print(self, " too big ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
+				all_good = false
+		if !is_instance_valid(self.lane):
+			print(self, " has invalid lane ", self.lane)
+			all_good = false
+		else:
+			if self not in self.lane.obstacles:
+				print(self, " is not registered in ", self.lane)
+				all_good = false
+			if self.offset < 0:
+				print(self, " has negative offset ", self.offset)
+				all_good = false
+			elif self.offset > self.lane.curve.get_baked_length():
+				print(self, " has too big offset ", self.offset, " - lane's length is ", self.lane.curve.get_baked_length())
+				all_good = false
+		return all_good
+
+
+enum MoveDir
 {
 	FORWARD,
 	BACKWARD,
 }
-static func flip_dir(dir: LaneDirection) -> LaneDirection:
+static func reverse_move_dir(dir: MoveDir) -> MoveDir:
 	return 1 - dir
 
-enum LaneSideways
+enum SideDir
 {
 	RIGHT,
 	LEFT,
 }
-static func flip_side(side: LaneSideways) -> LaneSideways:
+static func other_side(side: SideDir) -> SideDir:
 	return 1 - side
 
 
@@ -50,23 +104,23 @@ static func flip_side(side: LaneSideways) -> LaneSideways:
 var side_lanes : Array[NodePath] = ["", ""]
 ## Reference to the next left-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_left: NodePath:
-	get: return side_lanes[LaneSideways.LEFT]
-	set(val): side_lanes[LaneSideways.LEFT] = val
+	get: return side_lanes[SideDir.LEFT]
+	set(val): assert(get_node_or_null(val) != self); side_lanes[SideDir.LEFT] = val
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right: NodePath:
-	get: return side_lanes[LaneSideways.RIGHT]
-	set(val): side_lanes[LaneSideways.RIGHT] = val
+	get: return side_lanes[SideDir.RIGHT]
+	set(val): assert(get_node_or_null(val) != self); side_lanes[SideDir.RIGHT] = val
 
 
-var adjacent_lanes: Array[NodePath] = ["", ""]
+var sequential_lanes: Array[NodePath] = ["", ""]
 ## The next forward [RoadLane] for agents to follow along.
 @export var lane_next: NodePath:
-	get: return adjacent_lanes[LaneDirection.FORWARD]
-	set(val): assert(get_node_or_null(val) != self); adjacent_lanes[LaneDirection.FORWARD] = val
+	get: return sequential_lanes[MoveDir.FORWARD]
+	set(val): assert(get_node_or_null(val) != self); sequential_lanes[MoveDir.FORWARD] = val
 ## The prior [RoadLane] for agents to follow (if going backwards).
 @export var lane_prior: NodePath:
-	get: return adjacent_lanes[LaneDirection.BACKWARD]
-	set(val): adjacent_lanes[LaneDirection.BACKWARD] = val
+	get: return sequential_lanes[MoveDir.BACKWARD]
+	set(val): assert(get_node_or_null(val) != self); sequential_lanes[MoveDir.BACKWARD] = val
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
 ##
@@ -85,14 +139,14 @@ var adjacent_lanes: Array[NodePath] = ["", ""]
 ## the next interior lane.[br][br]
 ##
 ## e.g. R0, R1,...R#, F0, F1, ... F#.
-var adjacent_lane_tags: Array[String] = ["", ""]
+var sequential_lane_tags: Array[String] = ["", ""]
 @export var lane_next_tag: String:
-	get: return adjacent_lane_tags[LaneDirection.FORWARD]
-	set(val): adjacent_lane_tags[LaneDirection.FORWARD] = val
+	get: return sequential_lane_tags[MoveDir.FORWARD]
+	set(val): sequential_lane_tags[MoveDir.FORWARD] = val
 ## See description above for [member RoadLane.lane_next_tag] which is the equivalent.
 @export var lane_prior_tag: String:
-	get: return adjacent_lane_tags[LaneDirection.BACKWARD]
-	set(val): adjacent_lane_tags[LaneDirection.BACKWARD] = val
+	get: return sequential_lane_tags[MoveDir.BACKWARD]
+	set(val): sequential_lane_tags[MoveDir.BACKWARD] = val
 
 # -------------------------------------
 @export_group("Behavior")
@@ -104,7 +158,7 @@ var adjacent_lane_tags: Array[String] = ["", ""]
 @export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
 
 ## Auto queue-free any vehicles registered to this lane with the road lane exits.
-@export var auto_free_vehicles: bool = true
+@export var auto_free_vehicles: bool = false
 
 
 # -------------------------------------
@@ -128,16 +182,17 @@ var geom_node: MeshInstance3D
 # Internal field used by agents for intra-segment lane changes
 var transition: bool = false
 
-# this container should contain agents in order:
+# this container should contain obstacles in order:
 # from beginning to the end, i.e. agents' lower offset to higher offset
 # also offsets are expected but not enforced to be unique
-var _agents_in_lane: Array[RoadLaneAgent] = [] # Registration
+var obstacles: Array[RoadLane.Obstacle] = [] # Registration
+
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
 
-const DEBUG_OUT := true
+const DEBUG_OUT := false
 
 
 # ------------------------------------------------------------------------------
@@ -198,92 +253,84 @@ func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
-func is_agent_list_correct():
-	for i in range(self._agents_in_lane.size() - 1):
-		if _agents_in_lane[i].lane_pos.offset >= _agents_in_lane[i + 1].lane_pos.offset:
-			print("on lane ", self, " offset of agent ", _agents_in_lane[i], " is not less than offset of agent ", _agents_in_lane[i +1])
+func is_obstacle_list_correct() -> bool:
+	var all_good := true
+	if RoadLane.Obstacle.END_OFFSET_MAX > self.curve.get_baked_length():
+		print(self, " is shorter than maximum obstacle end offset")
+		return false
+	for obstacle in self.obstacles:
+		if not is_instance_valid(obstacle):
+			print("invalid obstacle ", obstacle, " on lane ", self)
 			return false
-		if _agents_in_lane[i].adjacent_agents[LaneDirection.FORWARD] != _agents_in_lane[i + 1]:
-			print("on lane ", self, " agent ", _agents_in_lane[i +1], " is not next for agent ", _agents_in_lane[i])
-			return false
-		if _agents_in_lane[i] != _agents_in_lane[i + 1].adjacent_agents[LaneDirection.BACKWARD]:
-			print("on lane ", self, " agent ", _agents_in_lane[i], " is not prior for agent ", _agents_in_lane[i +1])
-			return false
-	return true
+		if obstacle.is_queued_for_deletion():
+			print("obstacle ", obstacle, " on lane ", self, " is queued to be freed")
+			all_good = false
+		if obstacle.lane != self:
+			print("on lane ", self, " wrong lane (", obstacle.lane, ") assigned to ", obstacle)
+			all_good = false
+		if ! obstacle.check_valid():
+			all_good = false
+	for i in range(self.obstacles.size() - 1):
+		var prior_obst := obstacles[i]
+		var next_obst := obstacles[i +1]
+		if prior_obst.offset >= next_obst.offset:
+			print("on lane ", self, " offset ", prior_obst.offset, " (prior ", prior_obst,") >= ",  next_obst.offset, " (next ", next_obst, ")")
+			all_good = false
+		var prior_forward_end := prior_obst.offset + prior_obst.end_offsets[MoveDir.FORWARD]
+		var back_backward_end := next_obst.offset + next_obst.end_offsets[MoveDir.BACKWARD]
+		if prior_forward_end >= back_backward_end:
+			print("on lane ", self, " forward end ", prior_forward_end, " (prior ", prior_obst, ") overlaps with backward end ", back_backward_end, " (next ", next_obst, ")" )
+			all_good = false
+	#TODO check sequential lanes for intersections?
+	return all_good
 
 
-func find_agent_index(agent: RoadLaneAgent, before: bool) -> int:
-	assert(self.is_agent_list_correct())
-	var idx = self._agents_in_lane.bsearch_custom(agent, RoadLaneAgent.compare_offset, before)
+func find_obstable_index(agent: RoadLane.Obstacle, before: bool) -> int:
+	assert(self.is_obstacle_list_correct())
+	var idx = self.obstacles.bsearch_custom(agent, RoadLane.Obstacle.compare_offset, before)
 	return idx
 
 
-func get_first_agent() -> RoadLaneAgent:
-	return null if self._agents_in_lane.is_empty() else _agents_in_lane[0]
+func get_sequential_lane(dir : MoveDir) -> RoadLane:
+	var lane: RoadLane = get_node_or_null(self.sequential_lanes[dir])
+	assert(lane != self)
+	return lane
 
-
-func get_adjacent_lane(dir : LaneDirection) -> RoadLane:
-	return get_node_or_null(self.adjacent_lanes[dir])
+func get_side_lane(dir : SideDir) -> RoadLane:
+	var lane: RoadLane = get_node_or_null(self.side_lanes[dir])
+	assert(lane != self)
+	return lane
 
 
 ## Register a agent to be connected to (on, following) this lane.
-func register_agent(agent: RoadLaneAgent, link_agents: bool) -> void:
+func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
 	if DEBUG_OUT:
-		print(Time.get_ticks_usec(), " Registering agent ", agent, " on lane ", self, " with lanes connected FORWARD ", self.get_adjacent_lane(LaneDirection.FORWARD), " and BACKWARD ", self.get_adjacent_lane(LaneDirection.BACKWARD))
-	assert(self.is_agent_list_correct())
-	assert(agent not in _agents_in_lane)
-	assert(agent.lane_pos)
-	var idx = find_agent_index(agent, false)
-	assert(idx == _agents_in_lane.size() || _agents_in_lane[idx].lane_pos.offset > agent.lane_pos.offset)
-	assert(idx == 0 || _agents_in_lane[idx -1].lane_pos.offset < agent.lane_pos.offset)
-	_agents_in_lane.insert(idx, agent)
-	if link_agents:
-		for dir in LaneDirection.values():
-			#print(agent, " HERE2 ", idx, "/", _agents_in_lane.size() )
-			if agent.adjacent_agents[dir] == null && idx != ((_agents_in_lane.size() -1) if dir == LaneDirection.FORWARD else 0):
-				agent.link_next_agent(self._agents_in_lane[idx + (1 if dir == LaneDirection.FORWARD else -1)], dir)
-	assert(self.is_agent_list_correct())
-
-
-func find_adjacent_agents(agent: RoadLaneAgent) -> void:
-	for dir in LaneDirection.values(): # didn't find any of the agents on the lane, will look on adjacent lanes
-		if agent.adjacent_agents[dir] == null:
-			var lane: RoadLane = self.get_adjacent_lane(dir)
-			var count := 3
-			while lane && count:
-				#print(self, " -> ", lane, " HERE1 ",  agent, " ", count)
-				if ! lane._agents_in_lane.is_empty():
-					agent.link_next_agent(lane._agents_in_lane[0 if dir == LaneDirection.FORWARD else -1], dir)
-					break
-				lane = lane.get_adjacent_lane(dir)
-				count -= 1
-	for dir in LaneDirection.values(): # didn't find any of the agents on the lane, will look on adjacent lanes
-		if agent.adjacent_agents[dir] == null:
-			var lane: RoadLane = self.get_adjacent_lane(dir)
-			assert(!lane || lane._agents_in_lane.is_empty())
-
+		print("Registering ", obstacle, " on lane ", self, " with lanes connected FORWARD ", self.get_sequential_lane(MoveDir.FORWARD), " and BACKWARD ", self.get_sequential_lane(MoveDir.BACKWARD))
+	assert(self.is_obstacle_list_correct())
+	assert(obstacle not in obstacles)
+	var idx = find_obstable_index(obstacle, false)
+	assert(idx == obstacles.size() || obstacles[idx].offset > obstacle.offset)
+	assert(idx == 0 || obstacles[idx -1].offset < obstacle.offset)
+	obstacles.insert(idx, obstacle)
+	assert(self.is_obstacle_list_correct())
 
 
 ## Optional but good cleanup of references.
-func unregister_agent(agent: RoadLaneAgent) -> void:
+func unregister_obstacle(obstacle: RoadLane.Obstacle) -> void:
 	if DEBUG_OUT:
-		print("Unregistering ", agent, " from lane ", self)
-	assert( agent in _agents_in_lane )
-	_agents_in_lane.erase(agent)
-	assert( agent not in _agents_in_lane )
+		print("Unregistering ", obstacle, " from lane ", self)
+	assert( obstacle in obstacles )
+	obstacles.erase(obstacle)
 
 
-## Return all agents registered to this lane, performing cleanup as needed.
-func get_agents() -> Array[RoadLaneAgent]:
-	for agent in _agents_in_lane:
-		if (not is_instance_valid(agent)) or agent.is_queued_for_deletion():
-			print("problematic agent ", agent, " in lane ", self)
-			_agents_in_lane.erase(agent)
-	return _agents_in_lane
+func get_lane_end_point_by_dir(dir: MoveDir) -> Vector3:
+	assert(dir in MoveDir.values())
+	return get_lane_start() if dir == MoveDir.FORWARD else get_lane_end()
 
 
-func get_lane_end_point_by_dir(dir: LaneDirection) -> Vector3:
-	return get_lane_start() if dir == LaneDirection.FORWARD else get_lane_end()
+func offset_from_end(distance: float, dir: RoadLane.MoveDir) -> float:
+	assert(distance >= 0 && distance <= self.curve.get_baked_length())
+	return (self.curve.get_baked_length() - distance) if dir == MoveDir.FORWARD else distance
 
 
 func _instantiate_geom() -> void:
@@ -386,9 +433,9 @@ func show_fins(value: bool) -> void:
 
 func _exit_tree() -> void:
 	if auto_free_vehicles:
-		for agent in _agents_in_lane:
-			if is_instance_valid(agent):
-				agent.actor.call_deferred("queue_free")
+		for obstable in obstacles:
+			if is_instance_valid(obstable):
+				obstable.node.call_deferred("queue_free")
 
 
 #endregion
