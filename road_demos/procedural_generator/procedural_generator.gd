@@ -141,7 +141,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 
 
 func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
-	const before_end := 5.0
+	const after_start := 4.0
 	# Now spawn vehicles
 	var new_seg = rp.next_seg if dir == RoadPoint.PointInit.NEXT else rp.prior_seg
 	if not is_instance_valid(new_seg):
@@ -149,7 +149,10 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		return
 	var new_lanes = new_seg.get_lanes()
 	for _lane: RoadLane in new_lanes:
-		var rand_offset = randf() * (_lane.curve.get_baked_length() - before_end)
+		var length = _lane.curve.get_baked_length()
+		var start = after_start if _lane.description != RoadLane.LaneDescription.DIVERGING else length / 2.0
+		var end = length if _lane.description != RoadLane.LaneDescription.MERGING else length / 2.0
+		var rand_offset = randf_range(start, end)
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
 
