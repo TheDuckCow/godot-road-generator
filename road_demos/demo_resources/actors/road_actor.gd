@@ -94,7 +94,7 @@ func _get_auto_input() -> Vector3:
 		return Vector3.ZERO
 	var lane_move:int = 0
 	var speed = get_signed_speed()
-	if agent.agent_pos.lane.transition && was_lane_end: #speed != 0 && agent.close_to_lane_end(abs(speed * transition_time_close), speed < 0):
+	if agent.agent_pos.lane.description == RoadLane.LaneDescription.MERGING && was_lane_end:
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
@@ -134,7 +134,9 @@ func _get_player_input() -> Vector3:
 			dyn_accel -= compute_idm_acceleration(reverse_speed, acceleration, false)
 
 	var lane_move:int = 0
-	if agent.agent_pos.lane.transition && was_lane_end: #agent.close_to_lane_end(abs(speed* transition_time_close), int(speed < 0)):
+	if was_lane_end && (
+		agent.agent_pos.lane.description == RoadLane.LaneDescription.MERGING ||
+		agent.agent_pos.lane.description == RoadLane.LaneDescription.DIVERGING ):
 		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
