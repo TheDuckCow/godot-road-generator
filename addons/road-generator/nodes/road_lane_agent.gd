@@ -426,10 +426,7 @@ class MoveAlongLane:
 		var lane_length := agent_pos.distance_to_end(dir)
 		var lane_next := lane.get_sequential_lane(dir)
 		assert(lane_next != lane)
-		var count := 3
 		while true:
-			assert(count) #TODO REMOVE
-			count -= 1
 			# there is also no obstacle on the current lane
 			if distance_left <= lane_length - agent_pos.end_offsets[dir] - (0 if ! lane_next || lane_next.obstacles.is_empty() else (RoadLane.Obstacle.END_OFFSET_MAX)):
 				# nothing is expected in the range we're moving
