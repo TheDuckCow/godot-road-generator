@@ -37,9 +37,11 @@ func _ready() -> void:
 	if drive_state != DriveState.PLAYER:
 		forward_speed = randf_range(forward_speed_min, forward_speed_max)
 	agent.visualize_lane = visualize_lane
+	agent.agent_pos.node = self
+	agent.agent_pos.end_offsets = [2.0, 2.0]
 	if DEBUG_OUT:
 		print("Agent state: %s par, %s lane (%s offset), %s manager" % [
-			agent.actor, agent.lane_pos.lane if agent.lane_pos else null, agent.lane_pos.offset if agent.lane_pos else NAN, agent.road_manager
+			agent.actor, agent.agent_pos.lane if agent.agent_pos else null, agent.agent_pos.offset if agent.agent_pos else NAN, agent.road_manager
 		])
 
 
@@ -60,24 +62,29 @@ func get_input() -> Vector3:
 
 ## For more info see Intelligent driver model
 ## https://en.wikipedia.org/wiki/Intelligent_driver_model
-func compute_idm_acceleration(target_speed: float, accel: float, next_agent: RoadLaneAgent) -> float:
+func compute_idm_acceleration(target_speed: float, accel: float, follow: bool) -> float:
 	assert(target_speed != 0)
 	const delta_exp := 4.0 # constant emulating acceleration/braking profile
 	var speed := self.get_signed_speed() # if delta_exp is changed from even, make speed abs
 	var dyn_accel := accel * (1 - pow(speed / target_speed, delta_exp))
-	if next_agent:
-		var speed_lead: float = next_agent.actor.get_signed_speed()
-		var gap := global_position.distance_to(next_agent.actor.global_position) - keep_distance
-		var s_star := ( keep_distance + speed * safe_headway +
-			(speed * (speed - speed_lead)) / (2 * sqrt(accel * breaking)) )
-		dyn_accel -= accel * pow(s_star / max(gap, 0.1), 2)
+	if follow:
+		var vo_pair = agent.find_obstacle(looking_forward, RoadLaneAgent.MoveDir.FORWARD)
+		var forward_distance: float = vo_pair[0]
+		var forward_obstacle: RoadLane.Obstacle = vo_pair[1]
+		if forward_obstacle:
+			assert(forward_distance > 0)
+			var speed_lead: float = forward_obstacle.speed
+			var gap := forward_distance - keep_distance
+			var s_star := ( keep_distance + speed * safe_headway +
+				(speed * (speed - speed_lead)) / (2 * sqrt(accel * breaking)) )
+			dyn_accel -= accel * pow(s_star / max(gap, 0.1), 2)
 	dyn_accel = clamp(dyn_accel, -breaking, acceleration)
 	return dyn_accel
 
 
 func player_breaking(decel: float) -> float:
 	const speed_coeff = 1.1 # without it breaking on speed close to maximum is too slow
-	return compute_idm_acceleration(forward_speed * speed_coeff, decel, null)
+	return compute_idm_acceleration(forward_speed * speed_coeff, decel, false)
 
 
 func _get_auto_input() -> Vector3:
@@ -85,7 +92,7 @@ func _get_auto_input() -> Vector3:
 		return Vector3.ZERO
 	var lane_move:int = 0
 	var speed = get_signed_speed()
-	if agent.lane_pos.lane.transition && speed != 0 && agent.close_to_lane_end(abs(speed * transition_time_close), speed < 0):
+	if agent.agent_pos.lane.transition && speed != 0 && agent.close_to_lane_end(abs(speed * transition_time_close), speed < 0):
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
@@ -97,8 +104,7 @@ func _get_auto_input() -> Vector3:
 				lane_move -= 1
 			elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > lane_change_tolerance):
 				lane_move += 1
-	var next_agent := agent.adjacent_agents[RoadLaneAgent.MoveDir.FORWARD]
-	var dyn_accel := compute_idm_acceleration(forward_speed, acceleration, next_agent)
+	var dyn_accel := compute_idm_acceleration(forward_speed, acceleration, true)
 
 	#return Vector3(lane_move, 0, dyn_accel)
 	return Vector3(0, 0, dyn_accel)
@@ -117,16 +123,16 @@ func _get_player_input() -> Vector3:
 		if speed != 0:
 			dyn_accel -= sign(speed) * player_breaking(breaking / 2.0)
 	elif up || down:
-		var reversed_move: bool = (speed - sign(speed) * 0.1) < 0 #accelerate from low negative speeds
+		var reversed_move: bool = speed < 0 #accelerate from low negative speeds
 		if up == reversed_move:
 			dyn_accel -= sign(speed) * player_breaking(breaking)
 		elif up:
-			dyn_accel += compute_idm_acceleration(forward_speed, acceleration, null)
+			dyn_accel += compute_idm_acceleration(forward_speed, acceleration, false)
 		elif down:
-			dyn_accel -= compute_idm_acceleration(reverse_speed, acceleration, null)
+			dyn_accel -= compute_idm_acceleration(reverse_speed, acceleration, false)
 
 	var lane_move:int = 0
-	if agent.lane_pos.lane.transition && agent.close_to_lane_end(abs(speed* transition_time_close), int(speed < 0)):
+	if agent.agent_pos.lane.transition && agent.close_to_lane_end(abs(speed* transition_time_close), int(speed < 0)):
 		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
@@ -141,6 +147,8 @@ func _physics_process(delta: float) -> void:
 	velocity.y = 0
 	var target_dir:Vector3 = get_input()
 	velocity.z -= delta * target_dir.z
+
+	agent.agent_pos.speed = self.get_signed_speed()
 
 	agent.change_lane(int(target_dir.x))
 

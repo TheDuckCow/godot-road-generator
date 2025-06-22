@@ -77,7 +77,7 @@ func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 	assert(spawner)
 	despawn_cars(edge_rp) # reusing despawned actors with RoadActorManager, so auto_free_vehicles == false
 	edge_rp.remove_child(spawner)
-	edge_rp.disconnect_roadpoint(flip_dir, dir)
+	edge_rp.disconnect_roadpoint(back_dir, dir)
 	next_edge_rp.add_child(spawner)
 	edge_rp.prior_pt_init = ""
 	edge_rp.next_pt_init = ""
@@ -88,7 +88,7 @@ func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 ## Add a new roadpoint in a given direction
 func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	var mag = 1 if dir == RoadPoint.PointInit.NEXT else -1
-	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
+	var back_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 
 	var new_rp := RoadPoint.new()
 	container.add_child(new_rp)
@@ -132,7 +132,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 	rp.remove_child(spawner)
 
 	# Finally, connect them together
-	var res = rp.connect_roadpoint(dir, new_rp, flip_dir)
+	var res = rp.connect_roadpoint(dir, new_rp, back_dir)
 	if res != true:
 		print("Failed to connect RoadPoint")
 		return
@@ -165,8 +165,8 @@ func despawn_cars(road_point:RoadPoint) -> void:
 		# away, so all adjacent vehicles should all be removed
 		for _lane: RoadLane in seg.get_lanes():
 			no_lane = false
-			while ! _lane._agents_in_lane.is_empty():
-				vehicles.remove_actor(_lane._agents_in_lane[0].actor)
+			while ! _lane.obstacles.is_empty():
+				vehicles.remove_actor(_lane.obstacles[0].node)
 	if no_lane:
 		print("No lanes valid for car despawning")
 
@@ -184,7 +184,7 @@ func update_stats() -> void:
 			if not seg in rp.get_children():
 				continue # avoid double counting
 			for lane in seg.get_lanes():
-				_ln_cars += len(lane.get_agents())
+				_ln_cars += len(lane.obstacles)
 
 	var car_count: int = vehicles.get_actor_count()
 	var rp_count: int = len(container.get_roadpoints())
