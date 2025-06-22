@@ -68,6 +68,7 @@ func remove_actor(actor: Node3D):
 	if reuse_removed:
 		assert(actor not in _stashed_vehicles)
 		actor.visible = false
+		actor.velocity = Vector3.ZERO
 		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
 			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
