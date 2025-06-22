@@ -426,8 +426,10 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# need to invert the direction assignment here.
 		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
-			new_ln.transition = true
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			new_ln.description = RoadLane.LaneDescription.MERGING if new_ln_reverse else RoadLane.LaneDescription.DIVERGING
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			new_ln.description = RoadLane.LaneDescription.DIVERGING if new_ln_reverse else RoadLane.LaneDescription.MERGING
 
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease

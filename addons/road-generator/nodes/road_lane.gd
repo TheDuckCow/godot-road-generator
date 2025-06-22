@@ -21,10 +21,14 @@ const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
 const COLOR_START := Color(0.7, 0.7, 0,7)
 
 class Obstacle:
+	enum ObstacleType {
+		HARD,
+		INTENT
+	}
+	var type := ObstacleType.HARD
 	var lane: RoadLane
 	var offset: float
 	var node: Node3D
-
 
 	## RoadLaneAgent will only use following if agent/actor find it on a position above
 	## they shouldn't be too far from original lane_offset, but could overflow to another lane
@@ -89,7 +93,6 @@ enum SideDir
 }
 static func other_side(side: SideDir) -> SideDir:
 	return 1 - side
-
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -179,8 +182,19 @@ var this_road_segment = null # RoadSegment
 var refresh_geom = true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 var geom_node: MeshInstance3D
+
+enum LaneDescription {
+	NORMAL,
+	MERGE_INTO,
+	MERGING,
+	DIVERGE_FROM,
+	DIVERGING,
+	INTERSECTION,
+	DESPAWN,
+}
+
 # Internal field used by agents for intra-segment lane changes
-var transition: bool = false
+var description := LaneDescription.NORMAL
 
 # this container should contain obstacles in order:
 # from beginning to the end, i.e. agents' lower offset to higher offset

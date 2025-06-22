@@ -4,10 +4,10 @@ extends Node3D
 class DespawnRoadLane extends RoadLane:
 	var _actor_manager = null
 	var _despawn_obstacle: RoadLane.Obstacle = null
-	var _despawn_lane: bool = true
 
 	func _init(actor_manager):
 		super()
+		description = RoadLane.LaneDescription.DESPAWN
 		_actor_manager = actor_manager
 
 	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
@@ -211,8 +211,8 @@ func _run_timer(prior_delay: float) -> void:
 func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _spawn_lanes )
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
-	if lane.lane_next_tag[0] != dir || lane.transition:
-		return false # don't spawn on transition lanes. maybe should be only added lane
+	if lane.lane_next_tag[0] != dir || lane.description == RoadLane.LaneDescription.DIVERGING:
+		return false
 	_spawn_lanes.append(lane)
 	if _spawn_lanes.size() > _spawn_delays.size():
 		_spawn_delays.append(randf_range(spawn_time_min, spawn_time_max))
