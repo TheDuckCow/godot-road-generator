@@ -31,6 +31,8 @@ var velocity := Vector3.ZERO
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
+var was_lane_end := false
+
 const DEBUG_OUT: bool = false
 
 func _ready() -> void:
@@ -83,7 +85,7 @@ func compute_idm_acceleration(target_speed: float, accel: float, follow: bool) -
 
 
 func player_breaking(decel: float) -> float:
-	const speed_coeff = 1.1 # without it breaking on speed close to maximum is too slow
+	const speed_coeff = 2.0 # without it breaking on speed close to maximum is too slow
 	return compute_idm_acceleration(forward_speed * speed_coeff, decel, false)
 
 
@@ -92,7 +94,7 @@ func _get_auto_input() -> Vector3:
 		return Vector3.ZERO
 	var lane_move:int = 0
 	var speed = get_signed_speed()
-	if agent.agent_pos.lane.transition && speed != 0 && agent.close_to_lane_end(abs(speed * transition_time_close), speed < 0):
+	if agent.agent_pos.lane.transition && was_lane_end: #speed != 0 && agent.close_to_lane_end(abs(speed * transition_time_close), speed < 0):
 		# transition line ended, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
@@ -106,8 +108,8 @@ func _get_auto_input() -> Vector3:
 				lane_move += 1
 	var dyn_accel := compute_idm_acceleration(forward_speed, acceleration, true)
 
-	#return Vector3(lane_move, 0, dyn_accel)
-	return Vector3(0, 0, dyn_accel)
+	return Vector3(lane_move, 0, dyn_accel)
+	#return Vector3(0, 0, dyn_accel)
 
 
 func _get_player_input() -> Vector3:
@@ -124,7 +126,7 @@ func _get_player_input() -> Vector3:
 			dyn_accel -= sign(speed) * player_breaking(breaking / 2.0)
 	elif up || down:
 		var reversed_move: bool = speed < 0 #accelerate from low negative speeds
-		if up == reversed_move:
+		if speed != 0 && up == reversed_move:
 			dyn_accel -= sign(speed) * player_breaking(breaking)
 		elif up:
 			dyn_accel += compute_idm_acceleration(forward_speed, acceleration, false)
@@ -132,7 +134,7 @@ func _get_player_input() -> Vector3:
 			dyn_accel -= compute_idm_acceleration(reverse_speed, acceleration, false)
 
 	var lane_move:int = 0
-	if agent.agent_pos.lane.transition && agent.close_to_lane_end(abs(speed* transition_time_close), int(speed < 0)):
+	if agent.agent_pos.lane.transition && was_lane_end: #agent.close_to_lane_end(abs(speed* transition_time_close), int(speed < 0)):
 		# transition line ends soon, try to automatically switch to the lane that has lane ahead linked
 		lane_move = agent.find_continued_lane(agent.LaneChangeDir.LEFT, sign(speed))
 	else:
@@ -147,6 +149,7 @@ func _physics_process(delta: float) -> void:
 	velocity.y = 0
 	var target_dir:Vector3 = get_input()
 	velocity.z -= delta * target_dir.z
+	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
 
 	agent.agent_pos.speed = self.get_signed_speed()
 
@@ -166,7 +169,19 @@ func _physics_process(delta: float) -> void:
 	# going in reverse in the lane's intended direction.
 	var move_dist:float = get_signed_speed() * delta
 
+	was_lane_end = false
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
+	if agent.agent_move.block == RoadLaneAgent.MoveBlock.OBSTACLE:
+		var other := agent.agent_move.obstacle.node
+		var elasticity := 1.5 # more than fully elastic (1.0) just for the fun of it
+		var self_mass := 1.0
+		var other_mass := 1.0
+		var self_speed := self.velocity.z
+		var other_speed: float = other.velocity.z
+		self.velocity.z = ((self_mass - elasticity*other_mass)*self_speed + (1 + elasticity)*other_mass*other_speed) / (self_mass + other_mass)
+		other.velocity.z = ((other_mass - elasticity*self_mass)*other_speed + (1 + elasticity)*self_mass*self_speed) / (self_mass + other_mass)
+	elif agent.agent_move.block == RoadLaneAgent.MoveBlock.LANE_END:
+		was_lane_end = true
 	global_transform.origin = next_pos
 
 	# Get another point a little further in front for orientation seeking,
