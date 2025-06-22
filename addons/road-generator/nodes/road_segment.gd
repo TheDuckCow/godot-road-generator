@@ -74,7 +74,7 @@ var _end_flip: bool = false
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
 
-const DEBUG_OUT := true
+const DEBUG_OUT := false
 
 
 # ------------------------------------------------------------------------------
@@ -664,10 +664,10 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 		if lane in ignore_list or is_instance_valid(lane.owner):
 			continue
 		for dir in RoadLane.LaneDirection.values():
-			var dir_back := RoadLane.flip_dir(dir)
-			var lane_next := lane.get_adjacent_lane(dir)
-			if lane_next && lane_next.adjacent_lanes[dir_back] == lane_next.get_path_to(lane):
-				lane_next.adjacent_lanes[dir_back] = NodePath("")
+			var dir_back := RoadLane.reverse_move_dir(dir)
+			var lane_next := lane.get_sequential_lane(dir)
+			if lane_next && lane_next.sequential_lanes[dir_back] == lane_next.get_path_to(lane):
+				lane_next.sequential_lanes[dir_back] = NodePath("")
 		for dir in RoadLane.LaneSideways.values():
 			var dir_back := RoadLane.flip_side(dir)
 			var lane_side := lane.get_side_lane(dir)
