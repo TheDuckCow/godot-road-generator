@@ -14,7 +14,7 @@ extends Node3D
 ## Don't free actors right away. Instead reuse them when spawned
 @export var reuse_removed: bool = true
 
-const DEBUG_OUT = true
+const DEBUG_OUT = false
 var _stashed_vehicles: Array = [] #these are to be added on spawn
 
 
