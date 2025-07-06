@@ -44,7 +44,7 @@ enum MoveBlock
 {
 	NOTHING,
 	OBSTACLE,
-	LANE_END
+	NO_LANE
 }
 
 ## Directly assign the path to the [RoadManager] instance, otherwise will assume it
@@ -113,6 +113,12 @@ func assign_lane(new_lane: RoadLane, new_offset := NAN) -> void:
 						actor.global_transform.origin)))
 		if DEBUG_OUT:
 			print("Found new offset ", new_offset," for ", self )
+	var old_shared_parts: Array[RoadLane.SharedPart] = [null, null]
+	if _initial_lane:
+		for dir in MoveDir.values():
+			var shared_part := _initial_lane.shared_parts[dir]
+			if shared_part && shared_part.is_relevant(agent_pos):
+				old_shared_parts[dir] = shared_part
 	agent_pos.lane = new_lane
 	agent_pos.offset = new_offset
 	if new_lane != _initial_lane:
@@ -122,6 +128,17 @@ func assign_lane(new_lane: RoadLane, new_offset := NAN) -> void:
 		if not new_lane.draw_in_game and visualize_lane:
 			new_lane.draw_in_game = true
 			_did_make_lane_visible = true
+	for dir in MoveDir.values():
+		var shared_part := new_lane.shared_parts[dir]
+		if shared_part && shared_part.is_relevant(agent_pos):
+			if old_shared_parts[dir] == shared_part:
+				if _initial_lane != new_lane:
+					shared_part.swap_with_block(agent_pos, _initial_lane)
+				old_shared_parts[dir] = null
+			shared_part.make_blocks(agent_pos)
+	for dir in MoveDir.values():
+		if old_shared_parts[dir]:
+			old_shared_parts[dir].remove_blocks(agent_pos)
 	assert(new_lane.is_obstacle_list_correct())
 	emit_signal("on_lane_changed", _initial_lane)
 
@@ -252,6 +269,16 @@ func move_along_lane(move_distance: float) -> Vector3:
 	return agent_move.get_position()
 
 
+## Finds the poistion this many many units forward (or backwards, if negative)
+## along the current lane, assigning a new lane if the next one is reached
+func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
+	assign_lane(new_lane)
+	agent_move.set_by_agent_pos(agent_pos, agent_move.distance_left)
+	agent_move.along_lane()
+	assign_lane(agent_move.lane, agent_move.offset)
+	return agent_move.get_position()
+
+
 ## Finds the position this many many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
@@ -282,37 +309,6 @@ func change_lane(direction: int) -> Error:
 	return OK
 
 
-## Returns true if the current lane is going to end soon
-## proximity is a distance until the end of the lane in forward (move_dir == 1)
-## or backward (move_dir == -1) direction
-## Used for decision to change lanes from transition lanes (as there are no direct connection)
-func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
-	if ! is_instance_valid(agent_pos.lane) || proximity == 0:
-		return false
-	if agent_pos.lane.sequential_lanes[move_dir]:
-		return false
-	var dist := agent_pos.distance_to_end(move_dir)
-	return dist < proximity
-
-
-## Returns how many lanes left (lane_change_dir == -1) or right (lane_change_dir == 1)
-## the road continues forward (move_dir == 1) or backward (move_dir == -1)
-## Used for decision to change lanes from transition lanes (as there are no direct connection)
-func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> int:
-	assert(move_dir != MoveDir.STOP && (lane_change_dir == LaneChangeDir.LEFT || lane_change_dir == LaneChangeDir.RIGHT))
-	var _new_lane := agent_pos.lane
-	var count:int = 0
-	while true:
-		var _new_lane_path = _new_lane.side_lanes[to_lane_side(lane_change_dir)]
-		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
-		if ! _new_lane:
-			return 0
-		count += lane_change_dir
-		if _new_lane.get_node_or_null(_new_lane.sequential_lanes[move_dir]):
-			return count
-	return 0
-
-
 ## Returns how many cars are in the current lane (lane_change_dir == 0)
 ## left lane (lane_change_dir == -1) or right lane (lane_change_dir = 1)
 ## Used for simple heuristic decision making of traffic balancing
@@ -330,12 +326,14 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 ## finding obstacle at the front or at the back and distance to it
 ## max_distance is a guidance, the function can find agents that are farther than that
 ## returns distance and obstacle in position 0 and 1 of the array
-func find_obstacle(max_distance: float, dir : MoveDir) -> Array:
+func find_obstacle(max_distance: float, dir: MoveDir) -> Array:
 	assert(agent_pos.check_valid())
+	var dir_back := RoadLane.reverse_move_dir(dir)
 	var idx = agent_pos.lane.find_obstable_index(agent_pos, true)
 	if idx != ((agent_pos.lane.obstacles.size() -1) if dir == MoveDir.FORWARD else 0):
 		var obstacle = agent_pos.lane.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
-		return [ abs(obstacle.offset - agent_pos.offset), obstacle ]
+		var distance = max(0, abs(obstacle.offset - agent_pos.offset) - obstacle.end_offsets[dir_back])
+		return [ distance, obstacle ]
 	else:
 		var distance = agent_pos.distance_to_end(dir)
 		var lane: RoadLane = agent_pos.lane.get_sequential_lane(dir)
@@ -343,6 +341,8 @@ func find_obstacle(max_distance: float, dir : MoveDir) -> Array:
 			if ! lane.obstacles.is_empty():
 				var obstacle = lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
 				distance += obstacle.distance_to_end(RoadLane.reverse_move_dir(dir))
+				distance -= obstacle.end_offsets[dir_back]
+				distance = max(0, distance)
 				return [ distance, obstacle ]
 			distance += lane.curve.get_baked_length()
 			lane = lane.get_sequential_lane(dir)
@@ -403,7 +403,7 @@ class MoveAlongLane:
 		dist_to_end = max(dist_to_end, 0)
 		self.distance_left -= dist_to_end
 		self.offset += self._dir_sign * dist_to_end
-		self.block = MoveBlock.LANE_END
+		self.block = MoveBlock.NO_LANE
 		if DEBUG_OUT:
 			print(self.agent_pos, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
 
@@ -471,7 +471,7 @@ class MoveAlongLane:
 			var lane_check := lane.get_sequential_lane(dir)
 			if lane_check == null:
 				return lane.to_global( lane.curve.get_point_position((lane.curve.point_count -1) if dir == MoveDir.FORWARD else 0) )
-				block = MoveBlock.LANE_END
+				block = MoveBlock.NO_LANE
 			offset = 0
 			distance_left -= lane_length
 			lane = lane_check

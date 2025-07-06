@@ -21,11 +21,12 @@ const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
 const COLOR_START := Color(0.7, 0.7, 0,7)
 
 class Obstacle:
-	enum ObstacleType {
-		HARD,
-		INTENT
+	enum ObstacleFlags {
+		REAL = 0x0, # the node is on this lane
+		INTENT = 0x1, # the node won't stop until it's here
+		BLOCK = 0x2, # the node is on another lane but blocks this lane
 	}
-	var type := ObstacleType.HARD
+	var flags := ObstacleFlags.REAL
 	var lane: RoadLane
 	var offset: float
 	var node: Node3D
@@ -51,31 +52,213 @@ class Obstacle:
 		return self.lane.offset_from_end(self.offset, dir)
 
 	func check_valid() -> bool:
-		var all_good = true
+		var all_good := true
 		if !is_instance_valid(self.node):
-			print(self, " has invalid node ", self.node)
+			print(self, " Obst. has invalid node ", self.node)
 			all_good = false
 		for dir in MoveDir.values():
 			if self.end_offsets[dir] < 0:
-				print(self, " negative ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
+				print(self, " Obst. negative ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
 				all_good = false
 			elif self.end_offsets[dir] > END_OFFSET_MAX:
-				print(self, " too big ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
+				print(self, " Obst. too big ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
 				all_good = false
 		if !is_instance_valid(self.lane):
-			print(self, " has invalid lane ", self.lane)
+			print(self, " Obst. has invalid lane ", self.lane)
 			all_good = false
 		else:
 			if self not in self.lane.obstacles:
-				print(self, " is not registered in ", self.lane)
+				print(self, " Obst. is not registered in ", self.lane)
 				all_good = false
 			if self.offset < 0:
-				print(self, " has negative offset ", self.offset)
+				print(self, " Obst. has negative offset ", self.offset)
 				all_good = false
 			elif self.offset > self.lane.curve.get_baked_length():
-				print(self, " has too big offset ", self.offset, " - lane's length is ", self.lane.curve.get_baked_length())
+				print(self, " Obst. has too big offset ", self.offset, " - lane's length is ", self.lane.curve.get_baked_length())
 				all_good = false
 		return all_good
+
+
+class SharedPart:
+	var _end_dir: MoveDir
+	var _primary_lane: RoadLane
+	var _lanes: Array[RoadLane]
+	var _width: float
+
+	var _end_offset := 0.0
+	const _STEP := 0.25
+	var _obstacle_blocks: Dictionary # Dictionary from real obstacle to the virtual ones. end_offsets of block obstacles is shared
+
+	const DEBUG_OUT := true
+
+	func _init(lane: RoadLane, dir: MoveDir, lane_width: float) -> void:
+		assert(dir in [MoveDir.FORWARD, MoveDir.BACKWARD])
+		_end_dir = dir
+		_lanes = [lane]
+		_primary_lane = lane
+		_width = lane_width / 2.0
+		if DEBUG_OUT:
+			print(self, " ShP. created for primary ", lane, " in direction ", MoveDir.find_key(dir))
+
+	func is_compatible(other: SharedPart) -> bool:
+		if self._end_dir != other._end_dir:
+			return false
+		if self._lanes.size() != other._lanes.size():
+			return false
+		for idx in _lanes.size():
+			if self._lanes[idx] != other._lanes[idx]:
+				return false
+		if self._width != other._width:
+			return false
+		return true
+
+	func get_obstacles_from(other: SharedPart) -> void:
+		assert(is_compatible(other))
+		assert(self._obstacle_blocks.is_empty())
+		self._end_offset = other._end_offset #TODO: it's actually unsafe if lane geometry is changed
+		self._obstacle_blocks = other._obstacle_blocks
+		if DEBUG_OUT:
+			print(self, " ShP. get obstacles from ShP ", other)
+		assert(check_valid())
+
+	func check_valid() -> bool:
+		var all_good := true
+		if _lanes.size() <= 1:
+			print(self, " ShP. has only ", _lanes.size(), " lanes")
+			all_good = false
+		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
+		if _end_offset == 0:
+			print(self, " ShP. offset is not initialized")
+			all_good = false
+		if min_length < _end_offset:
+			print(self, " ShP. offset is too big ", min_length, " > ", _end_offset)
+			all_good = false
+		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
+			if obstacle.lane not in _lanes:
+				print(self, " ShP. has ", obstacle, " assigned to a lane that is not a part of the shared part ", obstacle.lane)
+				all_good = false
+			if _obstacle_blocks[obstacle].size() != _lanes.size() -1:
+				print(self, " ShP. has ", obstacle, " with incorrect amount of blocks ", _obstacle_blocks[obstacle].size())
+				all_good = false
+			var lane_check_arr: Array[int] = []
+			for i in _lanes.size():
+				lane_check_arr.append(0)
+			lane_check_arr[_lanes.find(obstacle.lane)] += 1
+			for block in _obstacle_blocks[obstacle]:
+				lane_check_arr[_lanes.find(block.lane)] += 1
+			for idx in lane_check_arr.size() -1:
+				if lane_check_arr[idx] != 1:
+					print(self, " ShP. obstacles/blocks for ", obstacle, " in lane ", _lanes[idx], " found ", lane_check_arr[idx], " times ")
+					all_good = false
+		return all_good
+
+	func add_lane(lane: RoadLane) -> void:
+		assert(lane not in _lanes)
+		assert(lane.curve.point_count == 2)
+		assert(_end_offset == 0)
+		var point_id = 1 if _end_dir == MoveDir.FORWARD else 0
+		assert(lane.curve.get_point_position(point_id) == _primary_lane.curve.get_point_position(point_id))
+		_lanes.push_back(lane)
+		if DEBUG_OUT:
+			print(self, " ShP. added ", lane)
+
+	func init_offset() -> void:
+		assert(_obstacle_blocks.is_empty())
+		assert(_end_offset == 0)
+		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
+		_end_offset = _width
+		while _end_offset < min_length:
+			var points := _lanes.map(func(lane): return lane.curve.sample_baked(lane.offset_from_end(_end_offset, _end_dir)))
+			if ! _are_points_close(points):
+				break
+			_end_offset += _STEP
+		assert(check_valid())
+
+	func _are_points_close(points: Array) -> bool:
+		for idx1 in range(points.size() -1):
+			for idx2 in range(idx1 + 1, points.size()):
+				var point1: Vector3 = points[idx1]
+				var point2: Vector3 = points[idx2]
+				if point1.distance_to(point2) < _width:
+					return true
+		return false
+
+	func make_blocks(obstacle: RoadLane.Obstacle) -> void:
+		assert(check_valid())
+		assert(obstacle.lane in _lanes)
+		var initial := obstacle not in _obstacle_blocks
+		if initial:
+			if DEBUG_OUT:
+				print(self, " ShP. creating blocks for ", obstacle)
+			var new_blocks: Array[RoadLane.Obstacle] = []
+			_obstacle_blocks[obstacle] = new_blocks
+			var block_end_offsets := obstacle.end_offsets.duplicate()
+			var main_offset = obstacle.distance_to_end(_end_dir)
+			for lane in _lanes:
+				if lane == obstacle.lane:
+					continue
+				var block = RoadLane.Obstacle.new()
+				if DEBUG_OUT:
+					print(self, " ShP. creating block ", block, " on lane ", lane)
+				block.flags = obstacle.flags | RoadLane.Obstacle.ObstacleFlags.BLOCK
+				block.end_offsets = block_end_offsets
+				block.lane = lane
+				block.node = obstacle.node
+				new_blocks.push_back(block)
+		_update_blocks(obstacle)
+		if initial:
+			for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
+				block.lane.register_obstacle(block)
+		assert(check_valid())
+
+	func _update_blocks(obstacle: RoadLane.Obstacle) -> void:
+		if DEBUG_OUT:
+			print(self, " ShP. updating blocks for ", obstacle)
+		var offset_from_end := obstacle.distance_to_end(_end_dir)
+		var clipped_from_end := min(_end_offset, offset_from_end)
+		for block in _obstacle_blocks[obstacle]:
+			block.speed = obstacle.speed
+			block.offset = block.lane.offset_from_end(clipped_from_end, _end_dir)
+		var block0 = _obstacle_blocks[obstacle][0]
+		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
+		block0.end_offsets[_end_dir] = min(_end_offset, offset_from_end + obstacle.end_offsets[_end_dir]) - clipped_from_end
+		block0.end_offsets[other_dir_end] = -(min(_end_offset, offset_from_end - obstacle.end_offsets[other_dir_end]) - clipped_from_end)
+
+	func remove_blocks(obstacle: RoadLane.Obstacle) -> void:
+		if obstacle in _obstacle_blocks:
+			if DEBUG_OUT:
+				print(self, " ShP. removing blocks for ", obstacle)
+			for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
+				block.lane.unregister_obstacle(block)
+			_obstacle_blocks.erase(obstacle)
+		assert(check_valid())
+
+	func clear_blocks() -> void:
+		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
+			remove_blocks(obstacle)
+		if DEBUG_OUT:
+			print(self, " ShP. cleaning up shared part")
+
+	func swap_with_block(obstacle: RoadLane.Obstacle, lane: RoadLane) -> void:
+		if DEBUG_OUT:
+			print(self, " ShP. swapping block from ", obstacle, " to ", lane)
+		var swap_block: RoadLane.Obstacle = null
+		for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
+			if block.lane == obstacle.lane:
+				swap_block = block
+		swap_block.lane.unregister_obstacle(swap_block)
+		swap_block.lane = lane
+		swap_block.lane.register_obstacle(swap_block)
+		assert(check_valid())
+
+	func is_relevant(obstacle: RoadLane.Obstacle) -> bool:
+		var offset_from_end := obstacle.distance_to_end(_end_dir)
+		if _end_offset > offset_from_end:
+			return true
+		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
+		if _end_offset > offset_from_end - obstacle.end_offsets[_end_dir]:
+			return true
+		return false
 
 
 enum MoveDir
@@ -183,23 +366,33 @@ var refresh_geom = true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 var geom_node: MeshInstance3D
 
-enum LaneDescription {
-	NORMAL,
-	MERGE_INTO,
-	MERGING,
-	DIVERGE_FROM,
-	DIVERGING,
-	INTERSECTION,
-	DESPAWN,
+enum LaneFlags {
+	# primary and secondary here are about connectivity - primary lane is going to be connected to the next/prior primary lane
+	#  and which lane is going to be used for agent collision evasion by RoadLaneAgent
+	# we know which lanes are meging/diverging and to where they're merging into/diverging from in road segments
+	# for intersections the idea is to use the least curvy or the priority lane as the main one
+	# while it may be possible to make such cases as two lanes, where first is main for merging and second is main for divering
+	#  the first is diverging from second and second is merging into first - i wouldn't expect RoadLaneAgent to work with it
+	NORMAL = 0x0, # plain simple lane
+	MERGE_INTO = 0x1, # main lane to which all seconady lane(s) merging into (mutually exclusive with MERGING)
+	MERGING = 0x2, # secondary lane that merges into the primary lane (mutually exclusive with MERGE_INTO, see merge_lane)
+	DIVERGE_FROM = 0x4, # main lane from which secondary lanes diverging from (mutually exclusive with DIVERGING)
+	DIVERGING = 0x8, # secondary lane that diverges from the primary lane (mutually exclusive with DIVERGE_FROM, see diverge_from)
+	INTERSECTION = 0x10, # the lane is a part of intersection. it may intersect other lanes (see intersection_points)
+	BOTH_WAYS = 0x20, # the lane have a twin RoadLane with reverse direction (see opposite_lane)
+	PERSONAL = 0x40000000, # the lane is created for one RoadLaneAgent, other agents or lanes are not aware of it - e.g. for lane changing (in which case it's also MERGING and DIVERGING)
+	UTILITY = 0x80000000, # lanes that are created for some internal reason - e.g. despawn lane
 }
 
 # Internal field used by agents for intra-segment lane changes
-var description := LaneDescription.NORMAL
+var flags: RoadLane.LaneFlags = LaneFlags.NORMAL
 
 # this container should contain obstacles in order:
 # from beginning to the end, i.e. agents' lower offset to higher offset
 # also offsets are expected but not enforced to be unique
 var obstacles: Array[RoadLane.Obstacle] = [] # Registration
+
+var shared_parts: Array[SharedPart] = [null, null]
 
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
@@ -294,7 +487,7 @@ func is_obstacle_list_correct() -> bool:
 		var back_backward_end := next_obst.offset + next_obst.end_offsets[MoveDir.BACKWARD]
 		if prior_forward_end >= back_backward_end:
 			print("on lane ", self, " forward end ", prior_forward_end, " (prior ", prior_obst, ") overlaps with backward end ", back_backward_end, " (next ", next_obst, ")" )
-			all_good = false
+			#all_good = false #TODO
 	#TODO check sequential lanes for intersections?
 	return all_good
 

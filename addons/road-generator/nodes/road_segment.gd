@@ -206,6 +206,7 @@ func _init_end_get():
 ## Check if needing to be rebuilt.
 ## Returns true if rebuild was done, else (including if invalid) false.
 func check_rebuild() -> bool:
+	print("executing check_rebuild for ", self)
 	if is_queued_for_deletion():
 		return false
 	if not is_instance_valid(container):
@@ -359,14 +360,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		assert( end_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		end_lane_offset = len(end_point.lanes) / 2.0
 
-	var start_offset = (start_lane_offset - 0.5) * start_point.lane_width
-	var end_offset = (end_lane_offset - 0.5) * end_point.lane_width
+	var start_offset = start_lane_offset - 0.5
+	var end_offset = end_lane_offset - 0.5
 
 	# Tracker used during the loop, to sum offset to apply.
 	var lanes_added := 0
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
-	var last_ln = null
+	var last_ln: RoadLane = null
 	var last_ln_reverse: bool
 
 	# Cache for sparse node removal
@@ -379,6 +380,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
 
+	var old_shared_parts: Array[RoadLane.SharedPart] = [null, null]
+	var new_shared_parts: Array[RoadLane.SharedPart] = [null, null]
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
@@ -386,6 +389,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
+
+		# Set direction
+		# TODO: When directionality is made consistent, we should no longer
+		# need to invert the direction assignment here.
+		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
@@ -414,22 +422,12 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
 
-		var tmp = get_transition_offset(
+		var tmp = get_transition_shift(
 			ln_type, ln_dir, lane_shift)
 		var start_shift:float = tmp[0]
 		var end_shift:float = tmp[1]
-		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
-		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
-
-		# Set direction
-		# TODO: When directionality is made consistent, we should no longer
-		# need to invert the direction assignment here.
-		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
-
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
-			new_ln.description = RoadLane.LaneDescription.MERGING if new_ln_reverse else RoadLane.LaneDescription.DIVERGING
-		elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
-			new_ln.description = RoadLane.LaneDescription.DIVERGING if new_ln_reverse else RoadLane.LaneDescription.MERGING
+		var in_offset = (lanes_added - start_offset + start_shift) * start_point.lane_width
+		var out_offset = (lanes_added - end_offset + end_shift) * end_point.lane_width
 
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
@@ -450,17 +448,73 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
-			if ln_dir == RoadPoint.LaneDir.FORWARD:
+			if new_ln_reverse:
 				last_ln.lane_right = last_ln.get_path_to(new_ln)
 				new_ln.lane_left = new_ln.get_path_to(last_ln)
 			else:
 				last_ln.lane_left = last_ln.get_path_to(new_ln)
 				new_ln.lane_right = new_ln.get_path_to(last_ln)
 
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			new_ln.flags = RoadLane.LaneFlags.MERGING if new_ln_reverse else RoadLane.LaneFlags.DIVERGING
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			new_ln.flags = RoadLane.LaneFlags.DIVERGING if new_ln_reverse else RoadLane.LaneFlags.MERGING
+		else:
+			new_ln.flags = RoadLane.LaneFlags.NORMAL
+			var shared_part_dir := RoadLane.MoveDir.FORWARD if ! new_ln_reverse else RoadLane.MoveDir.BACKWARD
+			if ! old_shared_parts[shared_part_dir]:
+				assert(!(new_ln.shared_parts[RoadLane.MoveDir.FORWARD] && new_ln.shared_parts[RoadLane.MoveDir.BACKWARD]))
+				old_shared_parts[shared_part_dir] = new_ln.shared_parts[RoadLane.MoveDir.FORWARD] if new_ln.shared_parts[RoadLane.MoveDir.FORWARD] else new_ln.shared_parts[RoadLane.MoveDir.BACKWARD]
+			new_ln.shared_parts = [null, null]
+		if last_ln && new_ln_reverse == last_ln_reverse:
+			if new_ln_reverse:
+				if new_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]:
+					assert(last_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
+					var shared_part_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					if last_ln.flags == RoadLane.LaneFlags.NORMAL:
+						assert(! new_shared_parts[RoadLane.MoveDir.BACKWARD])
+						last_ln.flags = RoadLane.LaneFlags.MERGE_INTO if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
+						new_shared_parts[RoadLane.MoveDir.BACKWARD] = RoadLane.SharedPart.new(last_ln, shared_part_dir, start_point.lane_width)
+						last_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
+						new_shared_parts[RoadLane.MoveDir.BACKWARD].add_lane(new_ln)
+						new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
+					else:
+						assert(last_ln.flags == new_ln.flags)
+						assert(new_shared_parts[RoadLane.MoveDir.BACKWARD])
+						new_shared_parts[RoadLane.MoveDir.BACKWARD].add_lane(new_ln)
+						new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
+			else:
+				assert(new_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
+				if (new_ln.flags == RoadLane.LaneFlags.NORMAL
+					&& last_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]):
+					assert(! new_shared_parts[RoadLane.MoveDir.FORWARD])
+					var shared_part_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					new_ln.flags = RoadLane.LaneFlags.MERGE_INTO if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
+					new_shared_parts[RoadLane.MoveDir.FORWARD] = RoadLane.SharedPart.new(new_ln, shared_part_dir, end_point.lane_width)
+					new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.FORWARD]
+					var transition_ln := last_ln
+					while transition_ln:
+						assert(transition_ln.flags == last_ln.flags)
+						new_shared_parts[RoadLane.MoveDir.FORWARD].add_lane(transition_ln)
+						transition_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.FORWARD]
+						transition_ln = transition_ln.get_side_lane(RoadLane.SideDir.RIGHT)
+
 		# Assign that it was a success.
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
 		last_ln_reverse = new_ln_reverse
+	for dir in RoadLane.MoveDir.values():
+		if new_shared_parts[dir]:
+			if old_shared_parts[dir]:
+				if new_shared_parts[dir].is_compatible(old_shared_parts[dir]):
+					new_shared_parts[dir].get_obstacles_from(old_shared_parts[dir])
+				else:
+					old_shared_parts[dir].clear_blocks()
+					new_shared_parts[dir].init_offset()
+			else:
+				new_shared_parts[dir].init_offset()
+		elif old_shared_parts[dir]:
+			old_shared_parts[dir].clear_blocks()
 	clear_lane_segments(active_lanes)
 
 	return lanes_added > 0
@@ -582,13 +636,13 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	road_lane.curve = dst
 
 
-## Offset the curve in/out points based on lane index.
+## shift of the lanes (how many added/removed)
 ##
 ## Track the init (for reverse) or the stacking (fwd) number of
 ## transition lanes to offset.
 ##
 ## Note: lane_shift is passed by reference and mutated.
-func get_transition_offset(
+func get_transition_shift(
 		ln_type: int,
 		ln_dir: int,
 		lane_shift: Dictionary) -> Array:
@@ -620,9 +674,6 @@ func get_transition_offset(
 			lane_shift.reverse += 1
 	#else:
 	# General non transition case, but should be reverse=0 by now.
-
-	start_shift *= start_point.lane_width
-	end_shift *= end_point.lane_width
 
 	return [start_shift, end_shift]
 
