@@ -150,8 +150,8 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	var new_lanes = new_seg.get_lanes()
 	for _lane: RoadLane in new_lanes:
 		var length = _lane.curve.get_baked_length()
-		var start = after_start if _lane.description != RoadLane.LaneDescription.DIVERGING else length / 2.0
-		var end = length if _lane.description != RoadLane.LaneDescription.MERGING else length / 2.0
+		var start = after_start if _lane.flags != RoadLane.LaneFlags.DIVERGING else length / 2.0
+		var end = length if _lane.flags != RoadLane.LaneFlags.MERGING else length / 2.0
 		var rand_offset = randf_range(start, end)
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
@@ -167,6 +167,10 @@ func despawn_cars(road_point:RoadPoint) -> void:
 		# Any connected segment is about to be destroyed since this RP is going
 		# away, so all adjacent vehicles should all be removed
 		for _lane: RoadLane in seg.get_lanes():
+			for dir in RoadLane.MoveDir.values():
+				var shared_part = _lane.shared_parts[dir]
+				if shared_part:
+					shared_part.clear_blocks()
 			no_lane = false
 			while ! _lane.obstacles.is_empty():
 				vehicles.remove_actor(_lane.obstacles[0].node)

@@ -7,7 +7,7 @@ class DespawnRoadLane extends RoadLane:
 
 	func _init(actor_manager):
 		super()
-		description = RoadLane.LaneDescription.DESPAWN
+		flags = RoadLane.LaneFlags.UTILITY
 		_actor_manager = actor_manager
 
 	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
@@ -211,7 +211,7 @@ func _run_timer(prior_delay: float) -> void:
 func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _spawn_lanes )
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
-	if lane.lane_next_tag[0] != dir || lane.description == RoadLane.LaneDescription.DIVERGING:
+	if lane.lane_next_tag[0] != dir || lane.flags == RoadLane.LaneFlags.DIVERGING:
 		return false
 	_spawn_lanes.append(lane)
 	if _spawn_lanes.size() > _spawn_delays.size():
