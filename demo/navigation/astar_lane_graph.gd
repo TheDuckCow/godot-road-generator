@@ -106,7 +106,7 @@ func plot_route() -> PackedInt64Array:
 	var _nearest_start := astar.get_point_position(astar.get_closest_point(path_start_marker.position))
 	var _nearest_end := astar.get_point_position(astar.get_closest_point(path_end_marker.position))
 
-	for _id in astar.get_point_ids():
+	for _id in astar.get_point_ids(): # Get alternate start and end points
 		if astar.get_point_position(_id).distance_squared_to(_nearest_start) < search_radius_squared:
 			_possible_starts.push_back(_id)
 		if astar.get_point_position(_id).distance_squared_to(_nearest_end) < search_radius_squared:
@@ -114,7 +114,7 @@ func plot_route() -> PackedInt64Array:
 	
 	var _lowest_cost := INF
 	var _id_path: PackedInt64Array
-	for _possible_start in _possible_starts:
+	for _possible_start in _possible_starts: # Loop over possible start & end points to find shortest path
 		for _possible_end in _possible_ends:
 			var _test_id_path := astar.get_id_path(_possible_start, _possible_end)
 			if len(_test_id_path) == 0: continue
@@ -124,7 +124,7 @@ func plot_route() -> PackedInt64Array:
 				_id_path = _test_id_path
 
 	var _markers := marker_container.get_children()
-	for _marker: MeshInstance3D in _markers:
+	for _marker: MeshInstance3D in _markers: # Highlight markers along path, un-highlight others
 		if _marker.get_meta("point_id") in _id_path:
 			_marker.set_surface_override_material(0, path_highlight_material)
 			_marker.scale = Vector3(2, 2, 2)
