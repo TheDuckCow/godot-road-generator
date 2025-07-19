@@ -196,7 +196,7 @@ func _run_timer(prior_delay: float) -> void:
 				print("Spawn timer ", _spawn_timer, " fired for lane ", _spawn_lanes[idx])
 			_spawn_delays[idx] = randf_range(spawn_time_min, spawn_time_max)
 			var first_obstacle: RoadLane.Obstacle = null if _spawn_lanes[idx].obstacles.is_empty() else _spawn_lanes[idx].obstacles[0]
-			if first_obstacle && first_obstacle.offset >= spawn_distance_min: #check if another agent is too close
+			if ! first_obstacle || first_obstacle.offset >= spawn_distance_min: #check if another agent is too close
 				var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
 				_actor_manager.add_actor(lane_start, _spawn_lanes[idx], 0)
 		new_wait = min(new_wait, _spawn_delays[idx])
