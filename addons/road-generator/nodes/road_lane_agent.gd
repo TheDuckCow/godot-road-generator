@@ -330,22 +330,25 @@ func find_obstacle(max_distance: float, dir: MoveDir) -> Array:
 	assert(agent_pos.check_valid())
 	var dir_back := RoadLane.reverse_move_dir(dir)
 	var idx = agent_pos.lane.find_obstable_index(agent_pos, true)
+	var obstacle: RoadLane.Obstacle = null
+	var distance: float
 	if idx != ((agent_pos.lane.obstacles.size() -1) if dir == MoveDir.FORWARD else 0):
-		var obstacle = agent_pos.lane.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
-		var distance = max(0, abs(obstacle.offset - agent_pos.offset) - obstacle.end_offsets[dir_back])
-		return [ distance, obstacle ]
+		obstacle = agent_pos.lane.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
+		distance = max(0, abs(obstacle.offset - agent_pos.offset) - obstacle.end_offsets[dir_back])
 	else:
-		var distance = agent_pos.distance_to_end(dir)
+		distance = agent_pos.distance_to_end(dir)
 		var lane: RoadLane = agent_pos.lane.get_sequential_lane(dir)
 		while lane && distance < max_distance:
 			if ! lane.obstacles.is_empty():
-				var obstacle = lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
+				obstacle = lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
 				distance += obstacle.distance_to_end(RoadLane.reverse_move_dir(dir))
-				distance -= obstacle.end_offsets[dir_back]
-				distance = max(0, distance)
-				return [ distance, obstacle ]
+				break
 			distance += lane.curve.get_baked_length()
 			lane = lane.get_sequential_lane(dir)
+	if obstacle:
+		assert(!is_nan(distance))
+		distance -= agent_pos.end_offsets[dir] + obstacle.end_offsets[dir_back]
+		return [ max(0, distance), obstacle ]
 	return [ NAN, null ]
 
 

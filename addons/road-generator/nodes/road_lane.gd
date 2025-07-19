@@ -89,7 +89,7 @@ class SharedPart:
 	const _STEP := 0.25
 	var _obstacle_blocks: Dictionary # Dictionary from real obstacle to the virtual ones. end_offsets of block obstacles is shared
 
-	const DEBUG_OUT := true
+	const DEBUG_OUT := false
 
 	func _init(lane: RoadLane, dir: MoveDir, lane_width: float) -> void:
 		assert(dir in [MoveDir.FORWARD, MoveDir.BACKWARD])
