@@ -15,7 +15,7 @@ material = SubResource("StandardMaterial3D_1dpoc")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0qrr4"]
 shading_mode = 0
-albedo_color = Color(0.757422, 0.869987, 3.85046e-07, 1)
+albedo_color = Color(1, 0, 1, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_evk4j"]
 albedo_color = Color(0.466667, 0.466667, 0.466667, 1)
