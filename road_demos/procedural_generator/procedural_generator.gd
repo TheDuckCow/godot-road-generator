@@ -75,6 +75,7 @@ func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 	var spawner: RoadActorSpawner = edge_rp.get_node("ActorSpawner")
 	assert(spawner)
+	clear_shared_parts(edge_rp) #dropping all blocks on shared parts. primary obstacles will remain
 	despawn_cars(edge_rp) # reusing despawned actors with RoadActorManager, so auto_free_vehicles == false
 	edge_rp.remove_child(spawner)
 	edge_rp.disconnect_roadpoint(back_dir, dir)
@@ -141,7 +142,7 @@ func add_next_rp(rp: RoadPoint, dir: int) -> void:
 
 
 func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
-	const after_start := 4.0
+	const before_after := 2.5
 	# Now spawn vehicles
 	var new_seg = rp.next_seg if dir == RoadPoint.PointInit.NEXT else rp.prior_seg
 	if not is_instance_valid(new_seg):
@@ -150,11 +151,26 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	var new_lanes = new_seg.get_lanes()
 	for _lane: RoadLane in new_lanes:
 		var length = _lane.curve.get_baked_length()
-		var start = after_start if _lane.flags != RoadLane.LaneFlags.DIVERGING else length / 2.0
-		var end = length if _lane.flags != RoadLane.LaneFlags.MERGING else length / 2.0
+		var start = (0.0 if _lane.flags != RoadLane.LaneFlags.DIVERGING else
+						_lane.shared_parts[RoadLane.MoveDir.BACKWARD].end_offset) + before_after
+		var end = length - (0.0 if _lane.flags != RoadLane.LaneFlags.MERGING else
+						_lane.shared_parts[RoadLane.MoveDir.FORWARD].end_offset)  - before_after
+		if start > end:
+			continue
 		var rand_offset = randf_range(start, end)
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
+
+
+func clear_shared_parts(road_point:RoadPoint) -> void:
+	for seg in [road_point.prior_seg, road_point.next_seg]:
+		if not is_instance_valid(seg):
+			continue
+		for _lane: RoadLane in seg.get_lanes():
+			for dir in RoadLane.MoveDir.values():
+				var shared_part = _lane.shared_parts[dir]
+				if shared_part:
+					shared_part.clear_blocks()
 
 
 ## Manual way to remove all vehicles registered to lanes of this RoadPoint,
@@ -167,10 +183,6 @@ func despawn_cars(road_point:RoadPoint) -> void:
 		# Any connected segment is about to be destroyed since this RP is going
 		# away, so all adjacent vehicles should all be removed
 		for _lane: RoadLane in seg.get_lanes():
-			for dir in RoadLane.MoveDir.values():
-				var shared_part = _lane.shared_parts[dir]
-				if shared_part:
-					shared_part.clear_blocks()
 			no_lane = false
 			while ! _lane.obstacles.is_empty():
 				vehicles.remove_actor(_lane.obstacles[0].node)

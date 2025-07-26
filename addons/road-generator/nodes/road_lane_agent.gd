@@ -92,7 +92,7 @@ func _ready() -> void:
 
 
 func is_lane_position_valid() -> bool:
-	assert(!agent_pos.lane || agent_pos.check_valid())
+	assert( !agent_pos.lane || ( is_instance_valid(agent_pos.lane) && agent_pos.check_valid() ) )
 	return true if agent_pos.lane else false
 
 
@@ -153,7 +153,7 @@ func unassign_lane() -> RoadLane:
 
 
 func _unassign_lane(old_lane: RoadLane) -> void:
-	if is_instance_valid(old_lane):
+		assert(is_instance_valid(old_lane))
 		old_lane.unregister_obstacle(self.agent_pos)
 		if old_lane.draw_in_game and _did_make_lane_visible:
 			old_lane.draw_in_game = false
@@ -261,21 +261,17 @@ func move_along_lane(move_distance: float) -> Vector3:
 	agent_move.set_by_agent_pos(agent_pos, move_distance)
 	agent_move.along_lane()
 	assign_lane(agent_move.lane, agent_move.offset)
-	#TODO
-	#workaround for missing connections
-	#_update_lane = find_nearest_lane(actor.global_transform.origin - actor.global_transform.basis.z * sign(move_distance), 1)
-	#if is_instance_valid(_update_lane) && _update_lane != agent_pos.lane: # TODO: it's still possible to find merging transition lanes
-		#assign_lane(_update_lane, 0)
 	return agent_move.get_position()
 
 
 ## Finds the poistion this many many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
-	assign_lane(new_lane)
-	agent_move.set_by_agent_pos(agent_pos, agent_move.distance_left)
-	agent_move.along_lane()
-	assign_lane(agent_move.lane, agent_move.offset)
+	if new_lane:
+		assign_lane(new_lane)
+		agent_move.set_by_agent_pos(agent_pos, agent_move.distance_left)
+		agent_move.along_lane()
+		assign_lane(agent_move.lane, agent_move.offset)
 	return agent_move.get_position()
 
 
@@ -324,9 +320,10 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 
 
 ## finding obstacle at the front or at the back and distance to it
-## max_distance is a guidance, the function can find agents that are farther than that
+## lookup_distance the function can find agents that are farther than that
+##   but it's guaranteed that the obstacle closer than lookup_distance will be found
 ## returns distance and obstacle in position 0 and 1 of the array
-func find_obstacle(max_distance: float, dir: MoveDir) -> Array:
+func find_obstacle(lookup_distance: float, dir: MoveDir) -> Array:
 	assert(agent_pos.check_valid())
 	var dir_back := RoadLane.reverse_move_dir(dir)
 	var idx = agent_pos.lane.find_obstable_index(agent_pos, true)
@@ -338,7 +335,7 @@ func find_obstacle(max_distance: float, dir: MoveDir) -> Array:
 	else:
 		distance = agent_pos.distance_to_end(dir)
 		var lane: RoadLane = agent_pos.lane.get_sequential_lane(dir)
-		while lane && distance < max_distance:
+		while lane && distance < lookup_distance:
 			if ! lane.obstacles.is_empty():
 				obstacle = lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
 				distance += obstacle.distance_to_end(RoadLane.reverse_move_dir(dir))
@@ -354,14 +351,15 @@ func find_obstacle(max_distance: float, dir: MoveDir) -> Array:
 
 class MoveAlongLane:
 	var agent_pos: RoadLane.Obstacle
-	var requested_distance: float
 	var offset: float
 	var lane: RoadLane
 	var block: MoveBlock
 	var distance_left: float
 	var obstacle: RoadLane.Obstacle
 
-	var _dir_sign: float
+	var dir_sign: float
+	func move_dir() -> MoveDir:
+		return int(dir_sign < 0)
 
 	const DEBUG_OUT := false
 
@@ -372,13 +370,11 @@ class MoveAlongLane:
 		self.lane = agent_pos.lane
 		self.block = MoveBlock.NOTHING
 		self.obstacle = null
-
-		self.requested_distance = move_distance
-		self.distance_left = abs(self.requested_distance)
-		self._dir_sign = sign(self.requested_distance)
+		self.distance_left = abs(move_distance)
+		self.dir_sign = sign(move_distance)
 
 	func get_signed_distance_left() -> float:
-		return self._dir_sign * distance_left
+		return self.dir_sign * distance_left
 
 	func get_position() -> Vector3:
 		return self.lane.to_global(self.lane.curve.sample_baked(self.offset))
@@ -387,7 +383,7 @@ class MoveAlongLane:
 		dist_to_obst = max(dist_to_obst, 0) #in case of overlap
 		if self.distance_left > dist_to_obst:
 			self.distance_left -= dist_to_obst
-			self.offset += self._dir_sign * dist_to_obst
+			self.offset += self.dir_sign * dist_to_obst
 			self.block = MoveBlock.OBSTACLE
 			self.obstacle = obstacle
 			if DEBUG_OUT:
@@ -396,7 +392,7 @@ class MoveAlongLane:
 			_up_to_distance()
 
 	func _up_to_distance():
-		self.offset += self._dir_sign * self.distance_left
+		self.offset += self.dir_sign * self.distance_left
 		self.distance_left = 0
 		if DEBUG_OUT:
 			print(self.agent_pos, " stopping at ", self.offset, ", all good")
@@ -405,13 +401,13 @@ class MoveAlongLane:
 		var dist_to_end := lane_length - self.agent_pos.end_offsets[dir]
 		dist_to_end = max(dist_to_end, 0)
 		self.distance_left -= dist_to_end
-		self.offset += self._dir_sign * dist_to_end
+		self.offset += self.dir_sign * dist_to_end
 		self.block = MoveBlock.NO_LANE
 		if DEBUG_OUT:
 			print(self.agent_pos, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
 
 	func along_lane() -> void:
-		var dir: MoveDir = int(requested_distance < 0)
+		var dir := move_dir()
 		if DEBUG_OUT:
 			print(self.agent_pos, " is moving ", MoveDir.find_key(dir), " from offset ", self.offset, ", distance to go ", self.distance_left)
 		# Find how much space is left along the RoadLane in this direction
@@ -462,7 +458,7 @@ class MoveAlongLane:
 			assert(lane_next != lane)
 
 	func along_lane_ignore_obstacles() -> void:
-		var dir: MoveDir = int(requested_distance < 0)
+		var dir := move_dir()
 		if DEBUG_OUT:
 			print(self.agent_pos, " is moving ", MoveDir.find_key(dir), " from offset ", self.offset, " ingoring obstacles, distance to go ", self.distance_left)
 		# Find how much space is left along the RoadLane in this direction

@@ -80,12 +80,15 @@ class Obstacle:
 
 
 class SharedPart:
+	var end_offset := 0.0 :
+		get: return end_offset
+		set(val): assert(end_offset == 0); end_offset = val
+
 	var _end_dir: MoveDir
 	var _primary_lane: RoadLane
 	var _lanes: Array[RoadLane]
 	var _width: float
 
-	var _end_offset := 0.0
 	const _STEP := 0.25
 	var _obstacle_blocks: Dictionary # Dictionary from real obstacle to the virtual ones. end_offsets of block obstacles is shared
 
@@ -115,7 +118,7 @@ class SharedPart:
 	func get_obstacles_from(other: SharedPart) -> void:
 		assert(is_compatible(other))
 		assert(self._obstacle_blocks.is_empty())
-		self._end_offset = other._end_offset #TODO: it's actually unsafe if lane geometry is changed
+		self.end_offset = other.end_offset #TODO: it's actually unsafe if lane geometry is changed
 		self._obstacle_blocks = other._obstacle_blocks
 		if DEBUG_OUT:
 			print(self, " ShP. get obstacles from ShP ", other)
@@ -127,11 +130,11 @@ class SharedPart:
 			print(self, " ShP. has only ", _lanes.size(), " lanes")
 			all_good = false
 		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
-		if _end_offset == 0:
+		if end_offset == 0:
 			print(self, " ShP. offset is not initialized")
 			all_good = false
-		if min_length < _end_offset:
-			print(self, " ShP. offset is too big ", min_length, " > ", _end_offset)
+		if min_length < end_offset:
+			print(self, " ShP. offset is too big ", min_length, " > ", end_offset)
 			all_good = false
 		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
 			if obstacle.lane not in _lanes:
@@ -155,7 +158,7 @@ class SharedPart:
 	func add_lane(lane: RoadLane) -> void:
 		assert(lane not in _lanes)
 		assert(lane.curve.point_count == 2)
-		assert(_end_offset == 0)
+		assert(end_offset == 0)
 		var point_id = 1 if _end_dir == MoveDir.FORWARD else 0
 		assert(lane.curve.get_point_position(point_id) == _primary_lane.curve.get_point_position(point_id))
 		_lanes.push_back(lane)
@@ -164,14 +167,15 @@ class SharedPart:
 
 	func init_offset() -> void:
 		assert(_obstacle_blocks.is_empty())
-		assert(_end_offset == 0)
+		assert(end_offset == 0)
 		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
-		_end_offset = _width
-		while _end_offset < min_length:
-			var points := _lanes.map(func(lane): return lane.curve.sample_baked(lane.offset_from_end(_end_offset, _end_dir)))
+		var end_offset_tmp = _width
+		while end_offset_tmp < min_length:
+			var points := _lanes.map(func(lane): return lane.curve.sample_baked(lane.offset_from_end(end_offset_tmp, _end_dir)))
 			if ! _are_points_close(points):
 				break
-			_end_offset += _STEP
+			end_offset_tmp += _STEP
+		end_offset = end_offset_tmp
 		assert(check_valid())
 
 	func _are_points_close(points: Array) -> bool:
@@ -215,27 +219,33 @@ class SharedPart:
 		if DEBUG_OUT:
 			print(self, " ShP. updating blocks for ", obstacle)
 		var offset_from_end := obstacle.distance_to_end(_end_dir)
-		var clipped_from_end := min(_end_offset, offset_from_end)
+		var clipped_from_end := min(end_offset, offset_from_end)
 		for block in _obstacle_blocks[obstacle]:
 			block.speed = obstacle.speed
 			block.offset = block.lane.offset_from_end(clipped_from_end, _end_dir)
 		var block0 = _obstacle_blocks[obstacle][0]
 		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
-		block0.end_offsets[_end_dir] = min(_end_offset, offset_from_end + obstacle.end_offsets[_end_dir]) - clipped_from_end
-		block0.end_offsets[other_dir_end] = -(min(_end_offset, offset_from_end - obstacle.end_offsets[other_dir_end]) - clipped_from_end)
+		block0.end_offsets[_end_dir] = min(end_offset, offset_from_end + obstacle.end_offsets[_end_dir]) - clipped_from_end
+		block0.end_offsets[other_dir_end] = -(min(end_offset, offset_from_end - obstacle.end_offsets[other_dir_end]) - clipped_from_end)
 
 	func remove_blocks(obstacle: RoadLane.Obstacle) -> void:
 		if obstacle in _obstacle_blocks:
 			if DEBUG_OUT:
 				print(self, " ShP. removing blocks for ", obstacle)
-			for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
-				block.lane.unregister_obstacle(block)
+			_remove_blocks(obstacle)
 			_obstacle_blocks.erase(obstacle)
 		assert(check_valid())
 
+	func _remove_blocks(obstacle: RoadLane.Obstacle) -> void:
+		for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
+			block.lane.unregister_obstacle(block)
+			if DEBUG_OUT:
+				print(self, " ShP. removing block ", block)
+
 	func clear_blocks() -> void:
 		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
-			remove_blocks(obstacle)
+			_remove_blocks(obstacle)
+		_obstacle_blocks.clear()
 		if DEBUG_OUT:
 			print(self, " ShP. cleaning up shared part")
 
@@ -253,10 +263,10 @@ class SharedPart:
 
 	func is_relevant(obstacle: RoadLane.Obstacle) -> bool:
 		var offset_from_end := obstacle.distance_to_end(_end_dir)
-		if _end_offset > offset_from_end:
+		if end_offset > offset_from_end:
 			return true
 		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
-		if _end_offset > offset_from_end - obstacle.end_offsets[_end_dir]:
+		if end_offset > offset_from_end - obstacle.end_offsets[_end_dir]:
 			return true
 		return false
 
