@@ -206,7 +206,8 @@ func _init_end_get():
 ## Check if needing to be rebuilt.
 ## Returns true if rebuild was done, else (including if invalid) false.
 func check_rebuild() -> bool:
-	print("executing check_rebuild for ", self)
+	if DEBUG_OUT:
+		print("executing check_rebuild for ", self)
 	if is_queued_for_deletion():
 		return false
 	if not is_instance_valid(container):
