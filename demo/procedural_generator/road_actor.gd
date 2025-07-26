@@ -105,8 +105,8 @@ func _get_auto_input() -> Vector3:
 			lane_move += 1
 	var dyn_accel := _compute_idm_acceleration()
 
-	return Vector3(lane_move, 0, dyn_accel)
-	#return Vector3(0, 0, dyn_accel)
+	#return Vector3(lane_move, 0, dyn_accel)
+	return Vector3(0, 0, dyn_accel)
 
 func _compute_player_acceleration(target_speed: float, accel: float) -> float:
 	const delta_exp := 4.0 # constant emulating acceleration/braking profile
@@ -145,14 +145,28 @@ func _get_player_input() -> Vector3:
 		lane_move += 1
 	return Vector3(lane_move, 0, dyn_accel)
 
-func _collide_with(other) -> void:
-		var elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
-		var self_mass := 1.0
-		var other_mass := 1.0
-		var self_speed := self.velocity.z
-		var other_speed: float = other.velocity.z
-		self.velocity.z = 0#((self_mass - elasticity*other_mass)*self_speed + (1 + elasticity)*other_mass*other_speed) / (self_mass + other_mass)
-		#other.velocity.z = ((other_mass - elasticity*self_mass)*other_speed + (1 + elasticity)*self_mass*self_speed) / (self_mass + other_mass)
+func _process_collision() -> void:
+	var other = agent.agent_move.obstacle.node
+	var elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
+	var self_mass := 1.0
+	var other_mass := 1.0
+	var self_speed := self.velocity.z
+	var other_speed: float = other.velocity.z
+	self.velocity.z = ((self_mass - elasticity*other_mass)*self_speed + (1 + elasticity)*other_mass*other_speed) / (self_mass + other_mass)
+	other.velocity.z = ((other_mass - elasticity*self_mass)*other_speed + (1 + elasticity)*self_mass*self_speed) / (self_mass + other_mass)
+
+func _move_to_next_lane() -> void:
+	var dir := agent.agent_move.move_dir()
+	var shared_part := agent.agent_pos.lane.shared_parts[dir]
+	if shared_part && shared_part._primary_lane != agent.agent_pos.lane:
+		var next_pos = agent.continue_along_new_lane(shared_part._primary_lane)
+		global_transform.origin = next_pos
+	#else:
+		#workaround for missing connections
+		#var next_lane = agent.find_nearest_lane(global_transform.origin - global_transform.basis.z * agent.agent_move.dir_sign, 1)
+		#if is_instance_valid(next_lane) && next_lane != agent.agent_pos.lane: # TODO: it's still possible to find merging transition lanes
+			#var next_pos = agent.continue_along_new_lane(next_lane)
+			#global_transform.origin = next_pos
 
 func _physics_process(delta: float) -> void:
 	velocity.y = 0
@@ -182,15 +196,11 @@ func _physics_process(delta: float) -> void:
 
 	was_lane_end = false
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
-	global_transform.origin = next_pos # has to set it before switching lanes
+	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
 	if agent.agent_move.block == RoadLaneAgent.MoveBlock.OBSTACLE:
-		_collide_with(agent.agent_move.obstacle.node)
+		_process_collision()
 	elif agent.agent_move.block == RoadLaneAgent.MoveBlock.NO_LANE:
-		var dir: RoadLane.MoveDir = RoadLane.MoveDir.FORWARD if move_dist > 0 else RoadLane.MoveDir.BACKWARD
-		var shared_part := agent.agent_pos.lane.shared_parts[dir]
-		if shared_part && shared_part._primary_lane != agent.agent_pos.lane:
-			next_pos = agent.continue_along_new_lane(shared_part._primary_lane)
-			global_transform.origin = next_pos
+		_move_to_next_lane()
 
 	# Get another point a little further in front for orientation seeking,
 	# without actually moving the vehicle (ie don't update the assign lane
