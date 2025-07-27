@@ -1,5 +1,4 @@
 # Addon-specific ignores
-addons/gut/
 addons/godot-plugin-refresher/
 addons/godot-reload-scene/
 *.DS_store
