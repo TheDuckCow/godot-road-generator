@@ -26,7 +26,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 ## Immediately level the terrain to match roads
 @export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 
-var _pending_updates:Array = [] # TODO: type as RoadSegments, need to update internal typing
+var _pending_updates:Dictionary = {} # TODO: type as RoadSegments, need to update internal typing
 var _timer:SceneTreeTimer
 var _mutex:Mutex
 
@@ -72,7 +72,9 @@ func do_full_refresh():
 func _schedule_refresh(segments: Array) -> void:
 	print("_schedule_refresh")
 	_mutex.lock()
-	_pending_updates += segments
+	for _seg in segments:
+		# Using a dictionary to accumulate updates to process
+		_pending_updates[_seg] = true
 	if not is_instance_valid(_timer):
 		print("\tCreated timer")
 		_timer = get_tree().create_timer(0.2)
@@ -91,7 +93,7 @@ func _refresh_scheduled_segments() -> void:
 	_pending_updates.clear()
 	_timer = null
 	_mutex.unlock()
-	refresh_roadsegments(_segs)
+	refresh_roadsegments(_segs.keys())
 	
 
 func refresh_roadsegments(segments: Array) -> void:
@@ -106,7 +108,7 @@ func refresh_roadsegments(segments: Array) -> void:
 		_seg = _seg as RoadSegment
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
-	terrain.data.force_update_maps()
+	terrain.data.update_maps(Terrain3DRegion.MapType.TYPE_HEIGHT)
 
 
 
