@@ -96,7 +96,6 @@ func test_road_container_create():
 	assert_signal_emit_count(container, "on_road_updated", 1, "Signal after rebuild")
 	# No children = road update called, but nothing rebuilt
 	assert_signal_emitted_with_parameters(container, "on_road_updated", [[]])
-	assert_true(false, "Test failure for github runner")
 
 
 func test_on_road_updated_single_segment():
