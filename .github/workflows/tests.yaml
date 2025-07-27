@@ -45,4 +45,5 @@ jobs:
 
       - name: 🔬 Run unit tests
         run: |
+          godot --headless --import
           godot -s addons/gut/gut_cmdln.gd --path $PWD --headless -d -gconfig=.gut_editor_config.json -gexit
