@@ -45,5 +45,7 @@ jobs:
 
       - name: 🔬 Run unit tests
         run: |
-          godot --headless --import
+          # Import project once, to help resolve some issues
+          godot --headless --import > /dev/null 2>&1
+          # Perform tests
           godot -s addons/gut/gut_cmdln.gd --path $PWD --headless -d -gconfig=.gut_editor_config.json -gexit
