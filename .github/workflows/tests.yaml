@@ -43,27 +43,6 @@ jobs:
           use-dotnet: false
           include-templates: false
 
-      - name: Install GUT framework
-        run: |
-          GUT_URL=$(head -n 1 ./test/test_framework_version.txt)
-          TMP_DIR=$(mktemp -d)
-          ZIP_FILE="$TMP_DIR/archive.zip"
-          wget -O "$ZIP_FILE" "$GUT_URL"
-          if [ ! -f "$ZIP_FILE" ]; then
-              echo "Download failed from $GUT_URL to $ZIP_FILE"
-              exit 1
-          fi
-          mkdir -p addons/gut
-          unzip -q "$ZIP_FILE" -d "$TMP_DIR"
-          GUT_SRC=$(find "$TMP_DIR" -type d -path "*/Gut-*/addons/gut" | head -n 1)
-          if [ ! -d "$GUT_SRC" ]; then
-              echo "Could not find 'addons/gut' folder in the archive."
-              exit 1
-          fi
-          cp -r "$GUT_SRC/"* addons/gut/
-          rm -rf "$TMP_DIR"
-          echo "GUT install complete"
-
       - name: 🔬 Run unit tests
         run: |
           godot -s addons/gut/gut_cmdln.gd --path $PWD --headless -d -gconfig=.gut_editor_config.json -gexit
