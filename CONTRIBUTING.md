@@ -10,27 +10,27 @@ The full process would thus be:
 1. Owners give the go ahead with any guidance
 1. Create your branch/fork
     1. If you don't have edit access to the repo, then fork the entire project on github. If you have edit access, go to next sub bullet.
-    1. If a `dev` branch exists, check it out; otherwise, check out the `main` branch.
+    1. Base your changes off of the `dev` branch.
     1. Now create an appropriately named branch, add commits there
 1. Run GUT tests to ensure everything is working as expected (nothing new broken)
-1. Create a pull request, requesting to merge back into `main` (or into `dev` if that branch exists), and explicitly request review (add an owner)
-    - Best practice: Assign the relating issue to the pull request (or vice versa) in the GitHub UI so it's clear what it relates to.
+    - These will also run automatically when a PR is opened, but best to check locally first
+1. Create a pull request, requesting to merge back into `dev`, and explicitly request review (add an owner)
+    - Best practice: Assign the relating issue to the pull request (or vice versa) in the GitHub UI on the righthand side, so it's clear what it relates to.
 1. Owners will review and likely give feedback. Don't be discouraged! But to get an edge, see the dev guidance below.
 1. Author responds to comments, makes changes if appropriate. Go back one step to re-review
+    - To re-trigger the test runner on an existing PR, mark it as draft and switch back to review-ready; the runner does not run on every commit pushed.
 1. An owner approves, and indicates to the author if/when to merge
 1. Author merges in the PR (owners may do this step if an approval is there and author is not responding)
 
 ## How to run tests
 
-In order to submit changes, you should run the repository tests (and consider adding new tests to validate new functionality). 
+In order to submit changes, all tests need to be passing. This repository uses the [bitwes/GUT framework](https://github.com/bitwes/Gut/) for this purpose.
 
-To get GUT set up:
+Tests automatically run on GitHub via the workflow found in `.github/workflows/tests.yaml`. If your changes result in a test failure (red x), you should click on the details of that action run and then look into which test has failed.
 
-1. Search for GUT addon in the asset library
-    1. Alternatively, directly download the relevant [bitwes/GUT release here](https://github.com/bitwes/Gut/releases/) and copy into an addons/gut folder
-1. Enable the plugin: Go to Project > Project Settings > Plugins tab, ensure GUT is enabled.
+### Running tests locally
 
-To run tests, you now should see a "GUT" tab at the bottom of your main window (to the right of Animation). Inside this window, you just need to `Run All` to run all tests.
+To run tests, you should see a "GUT" tab at the bottom of your main window to the right of Animation (if not, make sure the GUT plugin is enabled in project settings). Inside the GUT tab, you just need to `Run All` to run all tests.
 
 You can also run tests from the command line (script set up for Linux/Max OSX):
 
