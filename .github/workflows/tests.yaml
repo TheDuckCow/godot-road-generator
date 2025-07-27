@@ -10,6 +10,8 @@ on:
         type: choice
         options:
         - '["4.3.0"]'
+        - '["4.4.1"]'
+        - '["4.3.0", "4.4.1"]'
   pull_request:
     types: [opened, reopened, ready_for_review]  # add synchronize to run per commit
     paths:

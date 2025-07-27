@@ -28,6 +28,11 @@ In order to submit changes, all tests need to be passing. This repository uses t
 
 Tests automatically run on GitHub via the workflow found in `.github/workflows/tests.yaml`. If your changes result in a test failure (red x), you should click on the details of that action run and then look into which test has failed.
 
+Automated tests only run if:
+- Changes are made to the `addon/road-generator` or `test` folders
+- The PR is just opend or marked for review; tests do NOT run on each commit
+  - To re-run tests for an already open PR, mark it as draft (top right on github) and then re-request review at the bottom
+
 ### Running tests locally
 
 To run tests, you should see a "GUT" tab at the bottom of your main window to the right of Animation (if not, make sure the GUT plugin is enabled in project settings). Inside the GUT tab, you just need to `Run All` to run all tests.
