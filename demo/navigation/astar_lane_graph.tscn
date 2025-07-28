@@ -47,8 +47,10 @@ height = 4.0
 
 [sub_resource type="Environment" id="Environment_av7ms"]
 
-[node name="AstarLaneGraph" type="Node3D"]
+[node name="AstarLaneGraph" type="Node3D" node_paths=PackedStringArray("camera", "road_manager")]
 script = ExtResource("1_g562n")
+camera = NodePath("Camera3D")
+road_manager = NodePath("RoadManager")
 path_marker_mesh = SubResource("SphereMesh_hbfo0")
 path_highlight_material = SubResource("StandardMaterial3D_0qrr4")
 
