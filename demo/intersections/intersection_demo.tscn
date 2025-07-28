@@ -238,18 +238,18 @@ transform = Transform3D(-0.845085, 0, -0.534632, 0, 1, 0, 0.534632, 0, -0.845085
 script = ExtResource("10")
 traffic_dir = Array[int]([1])
 lanes = Array[int]([0])
-next_pt_init = NodePath("../Spatial4")
 prior_mag = 15.064
 next_mag = 16.0
+next_pt_init = NodePath("../Spatial4")
 
 [node name="Spatial4" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-0.852412, 0, 0.52287, 0, 1, 0, -0.52287, 0, -0.852412, 72.4169, 7.62939e-06, -36.1512)
 script = ExtResource("10")
 traffic_dir = Array[int]([1])
 lanes = Array[int]([0])
-prior_pt_init = NodePath("../Spatial3")
 prior_mag = 12.9596
 next_mag = 12.9596
+prior_pt_init = NodePath("../Spatial3")
 
 [node name="Spatial5" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.931, 7.62939e-06, 16.1098)
@@ -270,26 +270,26 @@ transform = Transform3D(0.848769, 0, -0.528764, 0, 1, 0, 0.528764, 0, 0.848769, 
 script = ExtResource("10")
 traffic_dir = Array[int]([1])
 lanes = Array[int]([0])
-prior_pt_init = NodePath("../Spatial8")
 prior_mag = 12.9596
 next_mag = 12.9596
+prior_pt_init = NodePath("../Spatial8")
 
 [node name="Spatial8" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(3.0598e-07, 0, -1, 0, 1, 0, 1, 0, 3.0598e-07, 166.099, -3.05176e-05, -2.5339)
 script = ExtResource("10")
 traffic_dir = Array[int]([1, 1])
 lanes = Array[int]([0, 2])
-next_pt_init = NodePath("../Spatial7")
 next_mag = 5.59434
+next_pt_init = NodePath("../Spatial7")
 
 [node name="Spatial9" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(0.848769, 0, 0.528764, 0, 1, 0, -0.528764, 0, 0.848769, 126.911, 7.62939e-06, -36.835)
 script = ExtResource("10")
 traffic_dir = Array[int]([1])
 lanes = Array[int]([0])
-next_pt_init = NodePath("../Spatial10")
 prior_mag = 15.064
 next_mag = 16.0
+next_pt_init = NodePath("../Spatial10")
 
 [node name="Spatial10" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-2.18557e-07, 0, 1, 0, 1, 0, -1, 0, -2.18557e-07, 166.099, -3.05176e-05, -18.5339)
@@ -331,28 +331,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.1187, 0, 118.944)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-next_pt_init = NodePath("../Spatial16")
 prior_mag = 1.70326
 next_mag = 40.8762
+next_pt_init = NodePath("../Spatial16")
 
 [node name="Spatial16" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-0.00627685, -0.00383273, 0.999973, 0, 0.999993, 0.00383281, -0.99998, 2.4058e-05, -0.0062768, 162.682, 0.25, 169.094)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-prior_pt_init = NodePath("../Spatial15")
-next_pt_init = NodePath("../Spatial17")
 prior_mag = 40.8762
 next_mag = 40.8762
+prior_pt_init = NodePath("../Spatial15")
+next_pt_init = NodePath("../Spatial17")
 
 [node name="Spatial17" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-1, 0, -2.62269e-07, 0, 1, 0, 2.62269e-07, 0, -1, 214.099, -3.05176e-05, 5.4661)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-prior_pt_init = NodePath("../Spatial16")
 prior_mag = 109.905
 next_mag = 6.27905
+prior_pt_init = NodePath("../Spatial16")
 
 [node name="Spatial18" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.01, 7.62939e-06, -76.835)
@@ -387,35 +387,35 @@ transform = Transform3D(-0.999994, 0, -0.00338593, 0, 1, 0, 0.00338593, 0, -0.99
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-next_pt_init = NodePath("../Spatial23")
 prior_mag = 3.90903
 next_mag = 3.90903
+next_pt_init = NodePath("../Spatial23")
 
 [node name="Spatial23" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 0.999999, 0, 8.74227e-08, 0, -0.999999, 101.62, 1.52588e-05, -166.767)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-prior_pt_init = NodePath("../Spatial22")
 prior_mag = 3.65088
 next_mag = 3.65088
+prior_pt_init = NodePath("../Spatial22")
 
 [node name="Spatial24" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 0.999999, 0, -0.999999, 0, -4.37114e-08, 117.62, 1.52588e-05, -182.767)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-next_pt_init = NodePath("../Spatial25")
 prior_mag = 16.0
 next_mag = 82.605
+next_pt_init = NodePath("../Spatial25")
 
 [node name="Spatial25" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 214.099, -3.05176e-05, -26.5339)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-prior_pt_init = NodePath("../Spatial24")
 prior_mag = 117.574
+prior_pt_init = NodePath("../Spatial24")
 
 [node name="Spatial26" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 0.999999, 0, -0.999999, 0, -4.37114e-08, 85.6204, 1.52588e-05, -182.767)
@@ -429,47 +429,47 @@ transform = Transform3D(0.954376, 0, 0.298607, 0, 1, 0, -0.298608, 0, 0.954376, 
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
-next_pt_init = NodePath("../Spatial26")
 prior_mag = 16.0
 next_mag = 41.4804
+next_pt_init = NodePath("../Spatial26")
 
 [node name="Spatial28" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-0.298608, 0, 0.954376, 0, 1, 0, -0.954376, 0, -0.298608, 60.5573, 1.52588e-05, -228.715)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
-next_pt_init = NodePath("../Spatial29")
 prior_mag = 16.0
 next_mag = 15.4706
+next_pt_init = NodePath("../Spatial29")
 
 [node name="Spatial30" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(-0.298608, 0, 0.954376, 0, 1, 0, -0.954376, 0, -0.298608, 30.0172, 1.52588e-05, -219.159)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
-prior_pt_init = NodePath("../Spatial31")
 prior_mag = 49.0822
 next_mag = 36.032
+prior_pt_init = NodePath("../Spatial31")
 
 [node name="Spatial31" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(0.832704, 0.00199863, -0.553714, 0, 0.999994, 0.00360948, 0.553718, -0.00300563, 0.832699, -15.5192, 0.250015, -256.057)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
-prior_pt_init = NodePath("../Spatial32")
-next_pt_init = NodePath("../Spatial30")
 prior_mag = 36.032
 next_mag = 36.032
+prior_pt_init = NodePath("../Spatial32")
+next_pt_init = NodePath("../Spatial30")
 
 [node name="Spatial29" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(0.527401, -0.0114611, 0.849539, 0, 0.999909, 0.0134897, -0.849617, -0.00711448, 0.527353, 92.3317, 0.250019, -228.29)
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-prior_pt_init = NodePath("../Spatial28")
-next_pt_init = NodePath("../Spatial33")
 prior_mag = 15.4706
 next_mag = 15.4706
+prior_pt_init = NodePath("../Spatial28")
+next_pt_init = NodePath("../Spatial33")
 
 [node name="Spatial33" type="Node3D" parent="RoadManager/LocalRoads"]
 transform = Transform3D(1, 0, 0, 0, 0.999999, 0, 0, 0, 0.999999, 101.62, 1.52588e-05, -198.767)
@@ -483,9 +483,9 @@ transform = Transform3D(-0.954376, 0, -0.298607, 0, 1, 0, 0.298608, 0, -0.954376
 script = ExtResource("10")
 traffic_dir = Array[int]([2, 1])
 lanes = Array[int]([5, 5])
-next_pt_init = NodePath("../Spatial31")
 prior_mag = 8.0
 next_mag = 21.432
+next_pt_init = NodePath("../Spatial31")
 
 [node name="splitter_2x4" parent="RoadManager" instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.1187, 0, 102.944)
