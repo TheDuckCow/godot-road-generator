@@ -40,13 +40,6 @@ static func to_lane_side(dir : LaneChangeDir) -> RoadLane.SideDir:
 static func other_side(dir: LaneChangeDir) -> LaneChangeDir:
 	return -1 * dir
 
-enum MoveBlock
-{
-	NOTHING,
-	OBSTACLE,
-	NO_LANE
-}
-
 ## Directly assign the path to the [RoadManager] instance, otherwise will assume it
 ## is in the parent hierarchy. Should refer to [RoadManager] nodes only.
 @export var road_manager_path: NodePath
@@ -319,37 +312,20 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 	return _lane.obstacles.size()
 
 
-## finding obstacle at the front or at the back and distance to it
-## lookup_distance the function can find agents that are farther than that
-##   but it's guaranteed that the obstacle closer than lookup_distance will be found
-## returns distance and obstacle in position 0 and 1 of the array
 func find_obstacle(lookup_distance: float, dir: MoveDir) -> Array:
 	assert(agent_pos.check_valid())
-	var dir_back := RoadLane.reverse_move_dir(dir)
-	var idx = agent_pos.lane.find_obstable_index(agent_pos, true)
-	var obstacle: RoadLane.Obstacle = null
-	var distance: float
-	if idx != ((agent_pos.lane.obstacles.size() -1) if dir == MoveDir.FORWARD else 0):
-		obstacle = agent_pos.lane.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
-		distance = max(0, abs(obstacle.offset - agent_pos.offset) - obstacle.end_offsets[dir_back])
-	else:
-		distance = agent_pos.distance_to_end(dir)
-		var lane: RoadLane = agent_pos.lane.get_sequential_lane(dir)
-		while lane && distance < lookup_distance:
-			if ! lane.obstacles.is_empty():
-				obstacle = lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
-				distance += obstacle.distance_to_end(RoadLane.reverse_move_dir(dir))
-				break
-			distance += lane.curve.get_baked_length()
-			lane = lane.get_sequential_lane(dir)
-	if obstacle:
-		assert(!is_nan(distance))
-		distance -= agent_pos.end_offsets[dir] + obstacle.end_offsets[dir_back]
-		return [ max(0, distance), obstacle ]
-	return [ NAN, null ]
+	var idx = agent_pos.lane.find_existing_obstacle_index(agent_pos)
+	return agent_pos.lane.find_next_obstacle_from_index(idx, lookup_distance, dir, -agent_pos.end_offsets[dir])
 
 
 class MoveAlongLane:
+	enum MoveBlock
+	{
+		NOTHING,
+		OBSTACLE,
+		NO_LANE
+	}
+
 	var agent_pos: RoadLane.Obstacle
 	var offset: float
 	var lane: RoadLane
@@ -416,7 +392,7 @@ class MoveAlongLane:
 		var dir_back := RoadLane.reverse_move_dir(dir)
 		var obstacle: RoadLane.Obstacle = null
 		var dist_to_obst: float
-		var idx := lane.find_obstable_index(agent_pos, true)
+		var idx := lane.find_existing_obstacle_index(agent_pos)
 		if idx != ((lane.obstacles.size() -1) if dir == MoveDir.FORWARD else 0):
 			# we have obstacle in front that is on the current lane
 			obstacle = lane.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
