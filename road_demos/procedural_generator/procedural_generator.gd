@@ -2,7 +2,6 @@ extends Node3D
 
 const RoadActorManager = preload("road_actor_manager.gd")
 const RoadActorSpawner = preload("road_actor_spawner.gd")
-const RoadActor = preload("road_actor.gd")
 
 ## How far ahead of the camera will we let a new RoadPoint be added
 @export var max_rp_distance: int = 200

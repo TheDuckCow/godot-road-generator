@@ -31,8 +31,6 @@ var velocity := Vector3.ZERO
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
-var was_lane_end := false
-
 const DEBUG_OUT: bool = false
 
 func _ready() -> void:
@@ -52,10 +50,10 @@ func get_signed_speed() -> float:
 	return -velocity.z
 
 
-func get_input() -> Vector3:
+func get_input(obstacle: RoadLane.Obstacle, obstacle_dist: float) -> Vector3:
 	match drive_state:
 		DriveState.AUTO:
-			return _get_auto_input()
+			return _get_auto_input(obstacle, obstacle_dist)
 		DriveState.PLAYER:
 			return _get_player_input()
 		_:
@@ -63,12 +61,9 @@ func get_input() -> Vector3:
 
 ## For more info see Intelligent driver model
 ## https://en.wikipedia.org/wiki/Intelligent_driver_model
-func _compute_idm_acceleration() -> float:
+func _compute_idm_acceleration(obstacle: RoadLane.Obstacle, obstacle_dist: float) -> float:
 	const delta_exp := 4.0 # constant emulating acceleration/braking profile
 	var speed := self.get_signed_speed() # if delta_exp is changed from even, make speed abs
-	var vo_pair = agent.find_obstacle(looking_forward, RoadLaneAgent.MoveDir.FORWARD)
-	var forward_distance: float = vo_pair[0]
-	var forward_obstacle: RoadLane.Obstacle = vo_pair[1]
 	var target_speed := forward_speed
 	var accela := acceleration
 	var breaka := breaking
@@ -78,10 +73,10 @@ func _compute_idm_acceleration() -> float:
 		dyn_accel = acceleration
 		accela = breaking
 		breaka = acceleration
-	if forward_obstacle:
-		assert(forward_distance >= 0)
-		var speed_lead: float = forward_obstacle.speed
-		var gap := forward_distance - keep_distance
+	if obstacle:
+		assert(obstacle_dist >= 0)
+		var speed_lead: float = obstacle.speed
+		var gap := obstacle_dist - keep_distance
 		if gap <= 0.0:
 			dyn_accel = -breaka
 		else:
@@ -91,7 +86,7 @@ func _compute_idm_acceleration() -> float:
 	dyn_accel = clamp(dyn_accel, -accela, breaka)
 	return dyn_accel
 
-func _get_auto_input() -> Vector3:
+func _get_auto_input(obstacle: RoadLane.Obstacle, obstacle_dist: float)-> Vector3:
 	if ! agent.is_lane_position_valid():
 		return Vector3.ZERO
 	var lane_move:int = 0
@@ -103,7 +98,7 @@ func _get_auto_input() -> Vector3:
 			lane_move -= 1
 		elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > lane_change_tolerance):
 			lane_move += 1
-	var dyn_accel := _compute_idm_acceleration()
+	var dyn_accel := _compute_idm_acceleration(obstacle, obstacle_dist)
 
 	#return Vector3(lane_move, 0, dyn_accel)
 	return Vector3(0, 0, dyn_accel)
@@ -145,15 +140,14 @@ func _get_player_input() -> Vector3:
 		lane_move += 1
 	return Vector3(lane_move, 0, dyn_accel)
 
-func _process_collision() -> void:
-	var other = agent.agent_move.obstacle.node
-	var elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
+func _process_collision(other) -> void:
+	const elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
 	var self_mass := 1.0
 	var other_mass := 1.0
 	var self_speed := self.velocity.z
 	var other_speed: float = other.velocity.z
-	self.velocity.z = ((self_mass - elasticity*other_mass)*self_speed + (1 + elasticity)*other_mass*other_speed) / (self_mass + other_mass)
-	other.velocity.z = ((other_mass - elasticity*self_mass)*other_speed + (1 + elasticity)*self_mass*self_speed) / (self_mass + other_mass)
+	self.velocity.z = ((self_mass - elasticity * other_mass) * self_speed + (1 + elasticity) * other_mass * other_speed) / (self_mass + other_mass)
+	other.velocity.z = ((other_mass - elasticity * self_mass) * other_speed + (1 + elasticity) * self_mass * self_speed) / (self_mass + other_mass)
 
 func _move_to_next_lane() -> void:
 	var dir := agent.agent_move.move_dir()
@@ -169,9 +163,23 @@ func _move_to_next_lane() -> void:
 			#global_transform.origin = next_pos
 
 func _physics_process(delta: float) -> void:
+	if ! agent.is_lane_position_valid():
+		var res = agent.assign_nearest_lane()
+		if not res == OK:
+			print("Failed to find new lane")
+			queue_free()
+			return
+
 	velocity.y = 0
-	var target_dir:Vector3 = get_input()
+	var vo_pair = agent.find_obstacle(looking_forward,
+						RoadLaneAgent.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLaneAgent.MoveDir.FORWARD)
+	var obstacle_dist: float = vo_pair[0]
+	var obstacle: RoadLane.Obstacle = vo_pair[1]
+	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
+	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
+	if old_velocity && sign(old_velocity) != sign(velocity.z):
+		velocity.z = 0
 	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
 	if abs(velocity.z) < 0.025:
 		velocity.z = 0
@@ -180,13 +188,6 @@ func _physics_process(delta: float) -> void:
 
 	agent.change_lane(int(target_dir.x))
 
-	if ! agent.is_lane_position_valid():
-		var res = agent.assign_nearest_lane()
-		if not res == OK:
-			print("Failed to find new lane")
-			queue_free()
-			return
-
 	# Find the next position to jump to; note that the car's forward is the
 	# negative Z direction (conventional with Vector3.FORWARD), and thus
 	# we flip the direction along the Z axis so that positive move direction
@@ -194,13 +195,19 @@ func _physics_process(delta: float) -> void:
 	# going in reverse in the lane's intended direction.
 	var move_dist:float = get_signed_speed() * delta
 
-	was_lane_end = false
+	var collided = false
+	if obstacle && obstacle_dist < abs(move_dist):
+		move_dist = sign(move_dist) * obstacle_dist
+		collided = true
+
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
-	if agent.agent_move.block == RoadLaneAgent.MoveBlock.OBSTACLE:
-		_process_collision()
-	elif agent.agent_move.block == RoadLaneAgent.MoveBlock.NO_LANE:
+	assert(agent.agent_move.block != RoadLaneAgent.MoveAlongLane.MoveBlock.OBSTACLE)
+	if agent.agent_move.block == RoadLaneAgent.MoveAlongLane.MoveBlock.NO_LANE:
+		assert(!collided)
 		_move_to_next_lane()
+	elif collided:
+		_process_collision(obstacle.node)
 
 	# Get another point a little further in front for orientation seeking,
 	# without actually moving the vehicle (ie don't update the assign lane
