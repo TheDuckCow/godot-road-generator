@@ -72,7 +72,7 @@ func configure_road_update_signal() -> void:
 			_cont.on_road_updated.disconnect(_schedule_refresh)
 
 
-func do_full_refresh():
+func do_full_refresh() -> void:
 	if not is_configured():
 		return
 	configure_road_update_signal()
@@ -134,7 +134,7 @@ func get_road_width(point: RoadPoint) -> float:
 	)
 
 
-func flatten_terrain_via_roadsegment(segment: RoadSegment):
+func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	if not is_instance_valid(segment):
 		return
 	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
