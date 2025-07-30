@@ -30,9 +30,18 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 		auto_refresh = value
 		configure_road_update_signal()
 
+# TODO this can be switched to a Dictionary[RoadPoint, RoadPoint]
+# once https://github.com/godotengine/godot/issues/103082 is fixed
 ## Can be used to ignore specific segments of road when performing
-## terrain flattening. Key/value pair is two road points that make up the segment.
-@export var ignored_road_segments: Dictionary[RoadPoint, RoadPoint] = {}
+## terrain flattening. Array should look like:
+## [
+##  start of segnment 1,
+##  end of segment 1,
+##  start of segment 2,
+##  end of segment 2,
+##  ...
+## ]
+@export var ignored_road_segments: Array[RoadPoint] = []
 
 ## Immediately level the terrain to match roads
 @export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
@@ -125,16 +134,22 @@ func refresh_roadsegments(segments: Array) -> void:
 	for _seg in segments:
 		_seg = _seg as RoadSegment
 
-		var ignored_from_start := ignored_road_segments.get(_seg.start_point)
-		if ignored_from_start and ignored_from_start == _seg.end_point:
-			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
-			# Skip this segment as it is already handled by the ignored start point
-			continue
+		# check if this segment should be ignored
+		var should_ignore := false
+		for i in range(0, ignored_road_segments.size(), 2):
+			if i + 1 < ignored_road_segments.size():
+				var ignored_start := ignored_road_segments[i]
+				var ignored_end := ignored_road_segments[i + 1]
 
-		var ignored_from_end := ignored_road_segments.get(_seg.end_point)
-		if ignored_from_end and ignored_from_end == _seg.start_point:
+				var ignore_from_start = _seg.start_point == ignored_start and _seg.end_point == ignored_end
+				var ignore_from_end = _seg.start_point == ignored_end and _seg.end_point == ignored_start
+
+				if ignore_from_start or ignore_from_end:
+					should_ignore = true
+					break
+
+		if should_ignore:
 			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
-			# Skip this segment as it is already handled by the ignored end point
 			continue
 
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
