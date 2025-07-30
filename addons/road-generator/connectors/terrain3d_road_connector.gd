@@ -30,19 +30,6 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 		auto_refresh = value
 		configure_road_update_signal()
 
-# TODO this can be switched to a Dictionary[RoadPoint, RoadPoint]
-# once https://github.com/godotengine/godot/issues/103082 is fixed
-## Can be used to ignore specific segments of road when performing
-## terrain flattening. Array should look like:
-## [
-##  start of segnment 1,
-##  end of segment 1,
-##  start of segment 2,
-##  end of segment 2,
-##  ...
-## ]
-@export var ignored_road_segments: Array[RoadPoint] = []
-
 ## Immediately level the terrain to match roads
 @export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 
@@ -135,20 +122,10 @@ func refresh_roadsegments(segments: Array) -> void:
 		_seg = _seg as RoadSegment
 
 		# check if this segment should be ignored
-		var should_ignore := false
-		for i in range(0, ignored_road_segments.size(), 2):
-			if i + 1 < ignored_road_segments.size():
-				var ignored_start := ignored_road_segments[i]
-				var ignored_end := ignored_road_segments[i + 1]
-
-				var ignore_from_start = _seg.start_point == ignored_start and _seg.end_point == ignored_end
-				var ignore_from_end = _seg.start_point == ignored_end and _seg.end_point == ignored_start
-
-				if ignore_from_start or ignore_from_end:
-					should_ignore = true
-					break
-
-		if should_ignore:
+		if (
+			not _seg.container.flatten_terrain
+			or (not _seg.start_point.flatten_terrain and not _seg.end_point.flatten_terrain)
+		):
 			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 

@@ -86,6 +86,12 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 # If off, it indicates the developer will load in their own custom mesh + collision.
 @export var create_geo := true: set = _set_create_geo
 
+## If enabled, then this road point will flatten terrain underneath it.
+##
+## NOTE: For this to be disabled, it must be disabled on at least two connected points
+## that are in the same segment.
+@export var flatten_terrain: bool = true
+
 var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified

@@ -26,6 +26,9 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 @export var create_geo := true: set = _set_create_geo
 # If create_geo is true, then whether to reduce geo mid transform.
 @export var use_lowpoly_preview: bool = false
+## If enabled, then road points that are children of this container will
+## flatten terrain underneath them if a terrain connector is used.
+@export var flatten_terrain: bool = true
 ## Whether to create approximated curves to fit along the forward, reverse, and center of the road.
 ## Visible in the editor, useful for adding procedural generation along road edges or center lane.
 @export var create_edge_curves := false: set = _set_create_edge_curves
