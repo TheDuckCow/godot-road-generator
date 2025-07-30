@@ -30,6 +30,10 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 		auto_refresh = value
 		configure_road_update_signal()
 
+## Can be used to ignore specific segments of road when performing
+## terrain flattening. Key/value pair is two road points that make up the segment.
+@export var ignored_road_segments: Dictionary[RoadPoint, RoadPoint] = {}
+
 ## Immediately level the terrain to match roads
 @export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 
@@ -120,6 +124,19 @@ func refresh_roadsegments(segments: Array) -> void:
 		return
 	for _seg in segments:
 		_seg = _seg as RoadSegment
+
+		var ignored_from_start := ignored_road_segments.get(_seg.start_point)
+		if ignored_from_start and ignored_from_start == _seg.end_point:
+			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
+			# Skip this segment as it is already handled by the ignored start point
+			continue
+
+		var ignored_from_end := ignored_road_segments.get(_seg.end_point)
+		if ignored_from_end and ignored_from_end == _seg.start_point:
+			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
+			# Skip this segment as it is already handled by the ignored end point
+			continue
+
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
 	terrain.data.update_maps(Terrain3DRegion.MapType.TYPE_HEIGHT)
