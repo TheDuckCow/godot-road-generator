@@ -851,7 +851,7 @@ func rebuild_segments(clear_existing := false):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
-			push_warning("Road point %s not connected to anything yet" % pt.name)
+			push_warning("Road point %s not connected to anything yet" % str(pt.get_parent().name + "/" + pt.name))
 			continue
 		var res
 		if prior_pt and prior_pt.visible:
