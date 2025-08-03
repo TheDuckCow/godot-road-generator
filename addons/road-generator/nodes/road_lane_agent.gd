@@ -115,23 +115,29 @@ func assign_lane(new_lane: RoadLane, new_offset := NAN) -> void:
 	agent_pos.lane = new_lane
 	agent_pos.offset = new_offset
 	if new_lane != _initial_lane:
-		new_lane.register_obstacle(agent_pos)
 		if _initial_lane:
+			for dir in MoveDir.values():
+				if old_shared_parts[dir]:
+					old_shared_parts[dir].remove_blocks(agent_pos)
 			_unassign_lane(_initial_lane)
+		new_lane.register_obstacle(agent_pos)
+		for dir in MoveDir.values():
+			var shared_part := new_lane.shared_parts[dir]
+			if shared_part && shared_part.is_relevant(agent_pos):
+				shared_part.make_blocks(agent_pos)
 		if not new_lane.draw_in_game and visualize_lane:
 			new_lane.draw_in_game = true
 			_did_make_lane_visible = true
-	for dir in MoveDir.values():
-		var shared_part := new_lane.shared_parts[dir]
-		if shared_part && shared_part.is_relevant(agent_pos):
-			if old_shared_parts[dir] == shared_part:
-				if _initial_lane != new_lane:
-					shared_part.swap_with_block(agent_pos, _initial_lane)
-				old_shared_parts[dir] = null
-			shared_part.make_blocks(agent_pos)
-	for dir in MoveDir.values():
-		if old_shared_parts[dir]:
-			old_shared_parts[dir].remove_blocks(agent_pos)
+	else:
+		for dir in MoveDir.values():
+			var shared_part := new_lane.shared_parts[dir]
+			if shared_part && shared_part.is_relevant(agent_pos):
+				if old_shared_parts[dir] == shared_part:
+					old_shared_parts[dir] = null
+				shared_part.make_blocks(agent_pos)
+		for dir in MoveDir.values():
+			if old_shared_parts[dir]:
+				old_shared_parts[dir].remove_blocks(agent_pos)
 	assert(new_lane.is_obstacle_list_correct())
 	emit_signal("on_lane_changed", _initial_lane)
 
@@ -278,6 +284,12 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 	return agent_move.get_position()
 
 
+## It's a heuristic to search
+func _position_on_side_lane(other_lane: RoadLane) -> float:
+	return ( self.agent_pos.offset *
+			other_lane.curve.get_baked_length() / self.agent_pos.lane.curve.get_baked_length() )
+
+
 ## Input of < 0 or > 0 to move abs(direction) amount of left or right lanes accordingly
 func change_lane(direction: int) -> Error:
 	if !direction:
@@ -285,16 +297,11 @@ func change_lane(direction: int) -> Error:
 	var _new_lane := agent_pos.lane
 	var dec = sign(direction)
 	while direction != 0:
-		var _new_lane_path = _new_lane.side_lanes[to_lane_side(dec)]
-		if not _new_lane_path:
-			# push_error("No lane to change to in target direction")
-			return FAILED
-		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
+		_new_lane = _new_lane.get_side_lane(to_lane_side(dec))
 		if not is_instance_valid(_new_lane):
-			push_error("Invalid target lane change nodepath")
 			return FAILED
 		direction -= dec
-	assign_lane(_new_lane) # recalculate offset, as new lane may be longer/shorter
+	assign_lane(_new_lane, _position_on_side_lane(_new_lane))
 	return OK
 
 
@@ -316,6 +323,15 @@ func find_obstacle(lookup_distance: float, dir: MoveDir) -> Array:
 	assert(agent_pos.check_valid())
 	var idx = agent_pos.lane.find_existing_obstacle_index(agent_pos)
 	return agent_pos.lane.find_next_obstacle_from_index(idx, lookup_distance, dir, -agent_pos.end_offsets[dir])
+
+
+func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir, lookup_distance: float, dir: MoveDir, node_ignore) -> Array:
+	assert(agent_pos.check_valid())
+	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
+	var side_lane: RoadLane = self.agent_pos.lane.get_side_lane(to_lane_side(lane_change_dir))
+	if ! side_lane:
+		return [ NAN, null ]
+	return side_lane.find_next_obstacle_from_offset( self._position_on_side_lane(side_lane), lookup_distance, dir, -agent_pos.end_offsets[dir], node_ignore )
 
 
 class MoveAlongLane:

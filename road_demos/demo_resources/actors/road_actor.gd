@@ -170,11 +170,14 @@ func _physics_process(delta: float) -> void:
 			queue_free()
 			return
 
+	var do_pair_seq = [[], []]
+	for dir in RoadLane.MoveDir.values():
+		do_pair_seq[dir] = agent.find_obstacle(looking_forward, dir)
 	velocity.y = 0
-	var vo_pair = agent.find_obstacle(looking_forward,
-						RoadLaneAgent.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLaneAgent.MoveDir.FORWARD)
-	var obstacle_dist: float = vo_pair[0]
-	var obstacle: RoadLane.Obstacle = vo_pair[1]
+	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	var do_pair = do_pair_seq[RoadLane.MoveDir.FORWARD]
+	var obstacle_dist: float = do_pair[0]
+	var obstacle: RoadLane.Obstacle = do_pair[1]
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
@@ -184,9 +187,26 @@ func _physics_process(delta: float) -> void:
 	if abs(velocity.z) < 0.025:
 		velocity.z = 0
 
+	move_dir = RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	do_pair = do_pair_seq[move_dir]
+	obstacle_dist = do_pair[0]
+	obstacle = do_pair[1]
+
 	agent.agent_pos.speed = self.get_signed_speed()
 
-	agent.change_lane(int(target_dir.x))
+	var lane_change := int(target_dir.x)
+	if lane_change:
+		var do_pair_side = [[], []]
+		for dir in RoadLane.MoveDir.values():
+			do_pair_side[dir] = agent.find_obstacle_on_side_lane(lane_change, looking_forward, dir, self)
+			var obstacle_dist_side: float = do_pair_side[dir][0]
+			if obstacle_dist_side == 0:
+				lane_change = 0;
+				break
+		agent.change_lane(lane_change)
+		if lane_change:
+			obstacle_dist = do_pair_side[move_dir][0]
+			obstacle = do_pair_side[move_dir][1]
 
 	# Find the next position to jump to; note that the car's forward is the
 	# negative Z direction (conventional with Vector3.FORWARD), and thus

@@ -248,19 +248,6 @@ class SharedPart:
 		if DEBUG_OUT:
 			print(self, " ShP. cleaning up shared part")
 
-	func swap_with_block(obstacle: RoadLane.Obstacle, lane: RoadLane) -> void:
-		if DEBUG_OUT:
-			print(self, " ShP. swapping block from ", obstacle, " to ", lane)
-		var swap_block: RoadLane.Obstacle = null
-		for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
-			if block.lane == obstacle.lane:
-				swap_block = block
-		swap_block.lane.unregister_obstacle(swap_block)
-		swap_block.lane = lane
-		swap_block.offset = lane.offset_from_end(min(end_offset, obstacle.distance_to_end(_end_dir)), _end_dir)
-		swap_block.lane.register_obstacle(swap_block)
-		assert(check_valid())
-
 	func is_relevant(obstacle: RoadLane.Obstacle) -> bool:
 		var offset_from_end := obstacle.distance_to_end(_end_dir)
 		if end_offset > offset_from_end:
@@ -510,18 +497,21 @@ func find_existing_obstacle_index(obstacle: RoadLane.Obstacle) -> int:
 	while self.obstacles[idx] != obstacle: idx += 1
 	return idx
 
-func find_closest_obstacle_index(obstacle: RoadLane.Obstacle, before := true) -> int:
+func find_closest_obstacle_index(obstacle: RoadLane.Obstacle, forward := true) -> int:
 	assert(self.is_obstacle_list_correct())
 	assert(obstacle not in self.obstacles)
-	return self.obstacles.bsearch_custom(obstacle, RoadLane.Obstacle.compare_offset, before)
+	var idx: int = self.obstacles.bsearch_custom(obstacle, RoadLane.Obstacle.compare_offset)
+	if ! forward:
+		idx -= 1
+	return idx
 
-static var _tmp_seek_obstacle_ := RoadLane.Obstacle.new() # obstacle that is going to be used only to seach in bsearch_custom
+static var _tmp_seek_obstacle_ := RoadLane.Obstacle.new() # obstacle that is going to be used only to search in bsearch_custom
 
 func find_offset_index(offset: float, dir: MoveDir) -> int:
 	assert(self.is_obstacle_list_correct())
 	_tmp_seek_obstacle_.offset = offset
 	var before := (dir == MoveDir.FORWARD)
-	return find_closest_obstacle_index(_tmp_seek_obstacle_, before);
+	return self.find_closest_obstacle_index(_tmp_seek_obstacle_, before);
 
 
 func get_sequential_lane(dir : MoveDir) -> RoadLane:
@@ -688,26 +678,38 @@ func find_next_obstacle_from_index(idx: int, lookup_distance: float, dir: MoveDi
 	return _find_first_obstacle_on_sequential_lanes(self.offset_from_end(idx_offset, dir) + initial_distance, lookup_distance, dir)
 
 
+func find_next_obstacle_from_offset(start_offset: float, lookup_distance: float, dir: MoveDir, initial_distance := 0.0, node_ignore = null) -> Array:
+	assert(start_offset <= curve.get_baked_length())
+	var idx = self.find_offset_index(start_offset, dir)
+	if node_ignore && idx != (self.obstacles.size() if dir == MoveDir.FORWARD else -1) && self.obstacles[idx].node == node_ignore:
+		idx += (1 if dir == MoveDir.FORWARD else -1)
+	if idx != (self.obstacles.size() if dir == MoveDir.FORWARD else -1):
+		var dir_back := RoadLane.reverse_move_dir(dir)
+		var obstacle := self.obstacles[idx]
+		var distance: float = abs(obstacle.offset - start_offset) + initial_distance - obstacle.end_offsets[dir_back]
+		return [ max(0, distance), obstacle ]
+	return _find_first_obstacle_on_sequential_lanes(self.offset_from_end(start_offset, dir) + initial_distance, lookup_distance, dir)
+
+
 func _find_first_obstacle_on_sequential_lanes(start_distance: float, lookup_distance: float, dir: MoveDir) -> Array:
 	var distance_tmp = start_distance
 	var dir_back := RoadLane.reverse_move_dir(dir)
-	var lane: RoadLane = self.get_sequential_lane(dir)
-	while lane && distance_tmp < lookup_distance:
+	var lane := self
+	while distance_tmp < lookup_distance:
+		var lane_next := lane.get_sequential_lane(dir)
+		if ! lane_next:
+			var shared_part := lane.shared_parts[dir]
+			if shared_part && shared_part._primary_lane != lane:
+				lane_next = shared_part._primary_lane.get_sequential_lane(dir)
+			if ! lane_next:
+				break
+		lane = lane_next
 		if ! lane.obstacles.is_empty():
 			var obstacle := lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
 			var distance: float = distance_tmp + obstacle.distance_to_end(dir_back) - obstacle.end_offsets[dir_back]
 			return [ max(0, distance), obstacle ]
 		distance_tmp += lane.curve.get_baked_length()
-		lane = lane.get_sequential_lane(dir)
 	return [ NAN, null ]
-
-
-func find_next_obstacle_from_offset(start_offset: float, lookup_distance: float, dir: MoveDir, start_obstacle: RoadLane.Obstacle) -> Array:
-	assert(start_offset <= curve.get_baked_length())
-	var idx = self.find_offset_index(start_offset, dir)
-	if idx == obstacles.size():
-		return _find_first_obstacle_on_sequential_lanes(self.offset_from_end(start_offset, dir), lookup_distance, dir)
-	return find_next_obstacle_from_index(idx, lookup_distance, dir, abs(self.obstacles[idx].offset - start_offset))
 
 
 #endregion
