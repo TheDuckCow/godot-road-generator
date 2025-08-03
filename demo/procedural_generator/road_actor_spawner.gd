@@ -3,17 +3,24 @@ extends Node3D
 ## simple RoadLane with override to despawn anyone assigned to it
 class DespawnRoadLane extends RoadLane:
 	var _actor_manager = null
+	var _despawn_obstacle: RoadLane.Obstacle = null
 
 	func _init(actor_manager):
 		super()
+		flags = RoadLane.LaneFlags.UTILITY
 		_actor_manager = actor_manager
 
-	func register_vehicle(vehicle: Node) -> void:
+	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
+		assert(_despawn_obstacle == null)
+		_despawn_obstacle = obstacle
 		if _actor_manager:
-			_actor_manager.remove_actor(vehicle)
+			_actor_manager.remove_actor(obstacle.node)
 		else:
-			vehicle.queue_free()
+			obstacle.node.queue_free()
 
+	func unregister_obstacle(obstacle: RoadLane.Obstacle) -> void:
+		assert(obstacle == _despawn_obstacle)
+		_despawn_obstacle = null
 
 ## Defines a traffic spawner.
 ##
@@ -31,6 +38,8 @@ class DespawnRoadLane extends RoadLane:
 ## Used to reduce almost unnecessary timer signal events
 ## Less than 0.05 is not recommended due to Timer implementation
 @export var spawn_time_delta: float = 0.1: set = _set_spawn_time_delta
+## Distance to the first actor in lane needed to spawn an actor
+@export var spawn_distance_min: float = 4.0
 ## Road actor manager, that tracks the actors
 ## Expected methods: add_actor, remove_actor
 @export var actor_manager_path: NodePath: set = _set_actor_manager
@@ -38,7 +47,6 @@ class DespawnRoadLane extends RoadLane:
 ## Consider using when segments around road point may be changed in game
 @export var auto_update:bool = false: set = _set_auto_update
 
-const DEBUG_OUT: bool = false
 var _actor_manager = null
 var _road_container: RoadContainer
 
@@ -49,6 +57,7 @@ var _spawn_timer: Timer = null
 var _spawn_lanes: Array[RoadLane] = [] # where to spawn
 var _spawn_delays: Array[float] = [] # how soon to spawn
 
+const DEBUG_OUT: bool = false
 
 # Create spawn Timer node child
 # Create new despawn lane node child
@@ -63,8 +72,6 @@ func _ready() -> void:
 		print("Created new spawn timer ", _spawn_timer)
 
 	_despawn_lane = DespawnRoadLane.new(_actor_manager)
-	_despawn_lane.lane_next = _despawn_lane.get_path_to(_despawn_lane) # looping on itself just in case
-	_despawn_lane.lane_prior = _despawn_lane.get_path_to(_despawn_lane)
 	_despawn_lane.curve.add_point(Vector3.ZERO)
 	_despawn_lane.curve.add_point(Vector3.FORWARD * 100) # just so it wouldn't be a point
 	add_child(_despawn_lane)
@@ -188,8 +195,10 @@ func _run_timer(prior_delay: float) -> void:
 			if DEBUG_OUT:
 				print("Spawn timer ", _spawn_timer, " fired for lane ", _spawn_lanes[idx])
 			_spawn_delays[idx] = randf_range(spawn_time_min, spawn_time_max)
-			var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
-			_actor_manager.add_actor(lane_start, _spawn_lanes[idx])
+			var first_obstacle: RoadLane.Obstacle = null if _spawn_lanes[idx].obstacles.is_empty() else _spawn_lanes[idx].obstacles[0]
+			if ! first_obstacle || first_obstacle.offset >= spawn_distance_min: #check if another agent is too close
+				var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
+				_actor_manager.add_actor(lane_start, _spawn_lanes[idx], 0)
 		new_wait = min(new_wait, _spawn_delays[idx])
 	assert( ! is_inf(new_wait) )
 	_spawn_timer.wait_time = new_wait
@@ -202,8 +211,8 @@ func _run_timer(prior_delay: float) -> void:
 func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _spawn_lanes )
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
-	if lane.lane_next_tag[0] != dir || lane.transition:
-		return false # don't spawn on transition lanes. maybe should be only added lane
+	if lane.lane_next_tag[0] != dir || lane.flags == RoadLane.LaneFlags.DIVERGING:
+		return false
 	_spawn_lanes.append(lane)
 	if _spawn_lanes.size() > _spawn_delays.size():
 		_spawn_delays.append(randf_range(spawn_time_min, spawn_time_max))
