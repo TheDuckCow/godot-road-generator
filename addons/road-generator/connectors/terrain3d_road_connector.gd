@@ -15,15 +15,11 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 		road_manager = value
 		configure_road_update_signal()
 ## Vertical offset to help avoid z-fighting, negative values will sink the terrain underneath the road
-@export var offset:float = -0.5
+@export var offset:float = -0.25
 ## Additional flattening to do beyond the edge of the road in meters
-## Note: Not yet implemented
-@export var edge_margin:float = 0.1
+@export var edge_margin:float = 0.5
 ## The falloff to apply for height changes from the edge of the road
-## Note: Not yet implemented
 @export var edge_falloff:float = 2
-# TODO: add property for density
-# TODO: add property for falloff beyond edges of road
 ## If enabled, auto refresh the terrain while manipulating roads
 @export var auto_refresh:bool = false:
 	set(value):
@@ -38,10 +34,10 @@ var refresh_timer: float = 0.05
 
 var _pending_updates:Dictionary = {} # TODO: type as RoadSegments, need to update internal typing
 var _timer:SceneTreeTimer
-var _mutex:Mutex
+var _mutex:Mutex = Mutex.new()
+
 
 func _ready() -> void:
-	_mutex = Mutex.new()
 	configure_road_update_signal()
 
 
@@ -139,6 +135,8 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		return
 	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
 		return
+	if not is_instance_valid(segment.road_mesh):
+		return
 
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
@@ -150,7 +148,6 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	var vertex_spacing: float = terrain.vertex_spacing
 
 	# Get global bounding box from mesh, expanded by affected smoothing radius
-	var local_aabb: AABB = mesh.get_aabb()
 	var offsets := Vector3(edge_margin+edge_falloff, 0, edge_margin+edge_falloff)
 	var aabb: AABB = segment.road_mesh.global_transform * segment.road_mesh.get_aabb()
 	var aabb_min := aabb.position - offsets
@@ -160,7 +157,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
 	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
 
-	var world_to_local := segment.global_transform.affine_inverse()
+	var world_to_local := segment.global_transform.inverse()
 
 	var x = min.x
 	while x <= max.x:
@@ -177,12 +174,12 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			# would overlap with updates done by the next RoadSegment
 			if closest_distance == 0.0:
 				var _offset = world_pos - segment.start_point.global_position 
-				var zdist:float = abs(segment.start_point.global_transform.basis.z.dot(_offset))
+				var zdist := absf(segment.start_point.global_transform.basis.z.dot(_offset))
 				if zdist > vertex_spacing:
 					z += vertex_spacing
 					continue
 			if closest_distance == curve.get_baked_length():
-				var _offset = world_pos - segment.start_point.global_position 
+				var _offset = world_pos - segment.end_point.global_position # check this, also if can be flipped..???
 				var zdist:float = abs(segment.end_point.global_transform.basis.z.dot(_offset))
 				if zdist > vertex_spacing:
 					z += vertex_spacing
@@ -200,7 +197,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			# is some ease/smoothing done for lane count / width changes
 			# TODO: Need to account for RoadPoint alignment, right now assumes CENTERED
 			# Offset by lane_width * number rev lanes if not centered.
-			var width := lerp(start_width, end_width, t)
+			var width := lerpf(start_width, end_width, t)
 			
 			var lat_dist: float = lateral_vector.length()
 			if lat_dist <= width / 2.0 + edge_margin:
@@ -213,7 +210,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				var terrain_pos := Vector3(x, road_y, z)
 				var reference_height := terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
-				var smoothed_height := lerp(road_y, reference_height, ease(factor, -1.5))
+				var smoothed_height := lerpf(road_y, reference_height, ease(factor, -1.5))
 				terrain.data.set_height(terrain_pos, smoothed_height)
 
 			z += vertex_spacing
