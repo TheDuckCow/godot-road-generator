@@ -677,8 +677,10 @@ func update_traffic_dir(traffic_update):
 func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) -> void:
 	var tmp_auto_lane = ref_road_point.auto_lanes
 	auto_lanes = false
-	lanes = ref_road_point.lanes.duplicate(true)
-	traffic_dir = ref_road_point.traffic_dir.duplicate(true)
+	
+	lanes = ref_road_point.lanes.duplicate()
+	traffic_dir = ref_road_point.traffic_dir.duplicate()
+	
 	auto_lanes = tmp_auto_lane
 	lane_width = ref_road_point.lane_width
 	shoulder_width_l = ref_road_point.shoulder_width_l
