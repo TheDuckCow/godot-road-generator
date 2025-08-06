@@ -151,12 +151,10 @@ func unregister_vehicle(vehicle: Node) -> void:
 
 ## Return all vehicles registered to this lane, performing cleanup as needed.
 func get_vehicles() -> Array:
-	var valid_vehicles: Array = []
 	for vehicle in _vehicles_in_lane:
-		if is_instance_valid(vehicle) and not vehicle.is_queued_for_deletion():
-			valid_vehicles.append(vehicle)
-	
-	_vehicles_in_lane = valid_vehicles
+		if (not is_instance_valid(vehicle)) or vehicle.is_queued_for_deletion():
+			_vehicles_in_lane.erase(vehicle)
+			continue
 	return _vehicles_in_lane
 
 
