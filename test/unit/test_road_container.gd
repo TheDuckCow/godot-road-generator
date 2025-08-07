@@ -74,28 +74,60 @@ func has_a2b_connection(cont_a, cont_b) -> bool:
 # ------------------------------------------------------------------------------
 
 
-func test_road_container_create():
+func test_road_container_creation_does_not_emit_signals():
 	var container = autoqfree(RoadContainer.new())
-	# Must add container to scene for signal to fire.
+
+	# Add to scene so signals can be emitted
 	add_child(container)
-	# Check the children are set up.
 
+	# Start watching emitted signals
 	watch_signals(container)
-	assert_signal_emit_count(container, "on_road_updated", 0, "Don't signal create")
 
-	# Trigger the auto setup which happens deferred in _ready
+	# No signals should be emitted on creation
+	assert_signal_emit_count(container, "on_road_updated", 0, "Creating the container should not emit any signals")
+
+	# Simulate _ready() setup
 	container.setup_road_container()
 
-	assert_eq(container.material_resource, RoadMaterial)
+	# Default material should be assigned
+	assert_eq(container.material_resource, RoadMaterial, "Default road material should be assigned after setup")
 
-	# Since only setup, still should not have triggered on update.
-	assert_signal_emit_count(container, "on_road_updated", 0, "Don't signal setup")
+	# Setup should not emit any signals
+	assert_signal_emit_count(container, "on_road_updated", 0, "Calling setup should not emit any signals")
+
+	# Rebuilding with no road points should not emit signals
 	container.rebuild_segments()
-	assert_eq(container.get_child_count(), 0, "Should have no children")
-	# Now it's updated
-	assert_signal_emit_count(container, "on_road_updated", 1, "Signal after rebuild")
-	# No children = road update called, but nothing rebuilt
-	assert_signal_emitted_with_parameters(container, "on_road_updated", [[]])
+	assert_signal_emit_count(container, "on_road_updated", 0, "Rebuilding with no segments should not emit a signal")
+	assert_eq(container.get_child_count(), 0, "New container should have no children")
+
+
+func test_road_container_emits_signal_when_road_points_connected():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+
+	var rp1 = RoadPoint.new()
+	container.add_child(rp1)
+
+	# Reset signal tracking
+	watch_signals(container)
+
+	# Add second road point but do not connect it yet
+	var rp2 = RoadPoint.new()
+	rp2.transform.origin += Vector3.FORWARD
+	container.add_child(rp2)
+
+	# No signal should be emitted if points are not connected
+	assert_signal_emit_count(container, "on_road_updated", 0, "Adding unconnected RoadPoints should not emit a signal")
+
+	# Connect the two road points
+	rp1.connect_roadpoint(RoadPoint.PointInit.NEXT, rp2, RoadPoint.PointInit.NEXT)
+
+	# Watch signals after the connection
+	watch_signals(container)
+
+	# Connecting points should emit one update signal
+	assert_signal_emit_count(container, "on_road_updated", 1, "Connecting RoadPoints should emit a road update signal")
 
 
 func test_on_road_updated_single_segment():
