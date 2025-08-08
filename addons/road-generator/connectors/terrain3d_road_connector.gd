@@ -18,9 +18,13 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 @export var offset:float = -0.25
 ## Additional flattening to do beyond the edge of the road in meters
 @export var edge_margin:float = 0.5
-## The falloff to apply for height changes from the edge of the road
+## The falloff to apply for height changes from the edge of the road.
+## This falloff range begins beyond the edge of the road + edge margin
 @export var edge_falloff:float = 2
-## If enabled, auto refresh the terrain while manipulating roads
+## If enabled, auto refresh the terrain while manipulating roads. 
+##
+## WARNING: if left on, each time scene is opened (tabbed over to), the terrain
+## will continue to be flattened, eventually making the smooth falloff not so smooth
 @export var auto_refresh:bool = false:
 	set(value):
 		auto_refresh = value
@@ -66,18 +70,54 @@ func configure_road_update_signal() -> void:
 			_cont.on_road_updated.connect(_schedule_refresh)
 		elif not auto_refresh and _cont.on_road_updated.is_connected(_schedule_refresh):
 			_cont.on_road_updated.disconnect(_schedule_refresh)
+			
+		# Handle transforms on containers themelves:
+		if auto_refresh and not _cont.on_transform.is_connected(_on_container_transform):
+			_cont.on_transform.connect(_on_container_transform)
+		elif not auto_refresh and _cont.on_transform.is_connected(_on_container_transform):
+			_cont.on_transform.disconnect(_on_container_transform)
 
 
 func do_full_refresh() -> void:
 	if not is_configured():
 		return
 	configure_road_update_signal()
+	var restart_geo_off: Array[RoadContainer] = []
+	var init_auto_refresh: bool = auto_refresh
 	for _container in road_manager.get_containers():
 		_container = _container as RoadContainer
+
+		if not _container.create_geo:
+			#print("Temp enabling geo on RoadContainer:", _container.name)
+			init_auto_refresh = false
+			_container.create_geo = true
+			_container.rebuild_segments(true)
+			init_auto_refresh = init_auto_refresh
+			restart_geo_off.append(_container)
+			
 		var segs:Array = _container.get_segments()
 		refresh_roadsegments(segs)
+		
+		# Restore the geo setting where temporarily turned on
+		for _rc in restart_geo_off:
+			_rc.create_geo = false
+
+## Workaround helper to transform geo for intersection scenes or other
+## scenarios where "create_geo" is turned off, by temporairly turning it on.
+func _on_container_transform(container:RoadContainer) -> void:
+	if container.create_geo or not auto_refresh:
+		return
+	container.create_geo = true
+	# This will trigger deferred updates which will have invalid instances,
+	# but will be safely ignored
+	container.rebuild_segments(true)
+	# Must directly update terrain now on these segments, before they get
+	# removed again when geo is turned off
+	refresh_roadsegments(container.get_segments())
+	container.create_geo = false
 
 
+## Accumulates road segments to be refreshed while an operation is in progress
 func _schedule_refresh(segments: Array) -> void:
 	_mutex.lock()
 	for _seg in segments:
@@ -115,6 +155,13 @@ func refresh_roadsegments(segments: Array) -> void:
 		push_warning("No terrain data available (yet)")
 		return
 	for _seg in segments:
+		if not is_instance_valid(_seg):
+			# Will happen (at a minimum) when handling RoadContainers which have
+			# create geo turned off AND auto_refresh is on; creates an extra
+			# deferred call to here when those segments are temporarily added,
+			# but will be invalid by the time this function actually runs as
+			# they are destroyed right away after a direct call to this func
+			continue
 		_seg = _seg as RoadSegment
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
