@@ -13,6 +13,10 @@ extends Node3D
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
 
+## Emitted when a road segment has been (re)generated, returning the list
+## of updated segments of type Array.
+signal on_road_updated(updated_segments: Array)
+
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 
 # ------------------------------------------------------------------------------
@@ -123,11 +127,12 @@ var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 # ------------------------------------------------------------------------------
-# Internal flags
+# Internal flags and setup
 # ------------------------------------------------------------------------------
 
 
 var _skip_warn_found_rc_child := false
+var _initial_ready_done := false
 
 
 # ------------------------------------------------------------------------------
@@ -143,6 +148,7 @@ func _ready():
 	# setup_road_container won't work in _ready unless call_deferred is used
 	assign_default_material.call_deferred()
 
+	_initial_ready_done = true
 
 func assign_default_material() -> void:
 	if not material_resource:
@@ -202,3 +208,9 @@ func rebuild_all_containers_deferred() -> void:
 	for ch in get_containers():
 		ch._dirty = true
 		ch._dirty_rebuild_deferred()
+
+
+## Propogates upwards signals emitted by child RoadContainers
+## Note: this function is connected to each RoadContainer's own on_road_updated signal
+func on_container_update(updated_segments: Array) -> void:
+	on_road_updated.emit(updated_segments)

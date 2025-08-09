@@ -189,7 +189,7 @@ func _ready():
 			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
 		container = par
 
-	connect("on_transform", Callable(container, "on_point_update"))
+	on_transform.connect(container.on_point_update)
 
 	# TODO: If a new roadpoint is just added, we need to trigger this. But,
 	# if this is just a scene startup, would be better to call it once only
