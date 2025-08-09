@@ -461,6 +461,8 @@ func get_segments() -> Array:
 		for pt_ch in ch.get_children():
 			if not pt_ch is RoadSegment:
 				continue
+			if pt_ch.is_queued_for_deletion():
+				continue
 			segs.append(pt_ch)
 	return segs
 
