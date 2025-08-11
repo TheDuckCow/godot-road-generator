@@ -111,10 +111,10 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Turn this off if you want to swap in your own road mesh geometry and colliders.
 @export var create_geo := true: set = _set_create_geo
 
-## If enabled, then this road point will flatten terrain underneath it.
+## Flatten terrain when updating or transforming this RoadPoint.[br][br]
 ##
-## NOTE: For this to be disabled, it must be disabled on at least two connected points
-## that are in the same segment.
+## NOTE: Must disable this setting on both RoadPoints around a given [br]
+## road segment to disable flattening.
 @export var flatten_terrain: bool = true
 
 ## Width of each lane in meters in meters.
