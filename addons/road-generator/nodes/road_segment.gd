@@ -1149,7 +1149,7 @@ func _insert_geo_loop(
 			[
 				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
 				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
-				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.NEAR]),
 				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] )
 			],
 			[
@@ -1174,7 +1174,7 @@ func _insert_geo_loop(
 				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
 				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
 				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR]),
-				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.FAR])
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.NEAR])
 			],
 			[
 				gutr_y[NearFar.FAR],
