@@ -163,6 +163,16 @@ func refresh_roadsegments(segments: Array) -> void:
 			# they are destroyed right away after a direct call to this func
 			continue
 		_seg = _seg as RoadSegment
+
+
+		# check if this segment should be ignored
+		if (
+			not _seg.container.flatten_terrain
+			or (not _seg.start_point.flatten_terrain and not _seg.end_point.flatten_terrain)
+		):
+			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
+			continue
+
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
 	terrain.data.update_maps(Terrain3DRegion.MapType.TYPE_HEIGHT)
