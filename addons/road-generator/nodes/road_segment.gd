@@ -312,7 +312,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		_matched_lanes = self._match_lanes()
 	if len(_matched_lanes) == 0:
 		return false
-	
+
 	var start_lane_offset
 	var end_lane_offset
 	if start_point.alignment == RoadPoint.Alignment.DIVIDER:
@@ -365,7 +365,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			_par.add_child(ln_child)
 			if container.debug_scene_visible:
 				ln_child.owner = container.get_owner()
-			
+
 			if container.ai_lane_group != "":
 				ln_child.add_to_group(container.ai_lane_group)
 			elif is_instance_valid(manager) and manager.ai_lane_group != "":
@@ -445,14 +445,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = road_lane.curve
-	
+
 	# Transformations in local space relative to the road_lane
 	var a_transform := road_lane.global_transform.affine_inverse() * start_point.global_transform
 	var d_transform := road_lane.global_transform.affine_inverse() * end_point.global_transform
-	
+
 	var a_gbasis := a_transform.basis
 	var d_gbasis := d_transform.basis
-	
+
 	var in_pos := a_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
 	var out_pos := d_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
 
@@ -461,7 +461,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var pt_b := src.get_point_position(0) + src.get_point_out(0)
 	var pt_c := src.get_point_position(1) + src.get_point_in(1)
 	var pt_d := src.get_point_position(1)
-	
+
 	# Project the primary curve points onto the road_lane
 	var pt_e := a_transform.origin + (a_gbasis.x * in_offset)
 	var pt_i := pt_b + (a_gbasis.x * in_offset)
@@ -472,28 +472,28 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var vec_ab := pt_b - pt_a
 	var vec_bc := pt_c - pt_b
 	var vec_cd := pt_d - pt_c
-	
+
 	var angle_q := -vec_ab.signed_angle_to(vec_bc, a_gbasis.y) * 0.5
 	var angle_s := vec_cd.signed_angle_to(vec_bc, d_gbasis.y) * 0.5
-	
+
 	var offset_q := tan(angle_q) * in_offset
 	var offset_s := tan(angle_s) * out_offset
-	
+
 	# Calculate adjusted handles using local coordinates
 	var pt_f := a_gbasis.z * (vec_ab.length() + offset_q)
 	var pt_g := -d_gbasis.z * (vec_cd.length() + offset_s)
-	
+
 	var margin := 0.1745329  # roughly 10 degrees
-	
+
 	# Calculate final in/out points and positions in local space
 	var in_pt_in := pt_a
 	var in_pt_out: Vector3
 	var out_pt_in: Vector3
 	var out_pt_out := pt_d
-	
+
 	in_pos = pt_e
 	out_pos = pt_h
-	
+
 	# Adjust for harsh angles at the "in" point
 	if abs(angle_q) > RAD_NINETY_DEG - margin and abs(angle_q) < RAD_NINETY_DEG + margin:
 		in_pt_out = pt_b
@@ -505,7 +505,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		out_pt_in = pt_c
 	else:
 		out_pt_in = pt_g
-	
+
 	# Set points in the destination curve
 	dst.clear_points()
 	if reverse:
@@ -731,6 +731,8 @@ func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector
 
 ## Enforce consistent lane width, at the cost of overlapping geometry.
 func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
+	#var transform = curve.sample_baked_with_rotation(sample_position)
+	#return transform.basis.x
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -763,6 +765,47 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	#var sample_eased = ease(sample_position, smooth_amount)
 
 	return normal_l.normalized()
+
+## Enforce consistent lane width, at the cost of overlapping geometry.
+func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
+	#var transform = curve.sample_baked_with_rotation(sample_position)
+	#return transform.basis.y
+	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
+	var start_offset: float
+	var end_offset: float
+	if sample_position <= 0.0 + offset_amount:
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return start_point.transform.basis.y * _start_flip_mult
+	elif sample_position >= 1.0 - offset_amount * 0.5:
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return end_point.transform.basis.y * _end_flip_mult
+	else:
+		start_offset = sample_position - offset_amount * 0.5
+		end_offset = sample_position + offset_amount * 0.5
+
+	var pt1:Vector3 = curve.sample_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.sample_baked(end_offset * curve.get_baked_length())
+	var tangent_l:Vector3 = pt2 - pt1
+
+	# Using local transforms. Both are transforms relative to the parent RoadContainer,
+	# and the current mesh we are writing to already has the inverse of the start_point
+	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
+	var start_up = start_point.transform.basis.y
+	var end_up = end_point.transform.basis.y
+
+	var up_vec_l:Vector3 = lerp(
+		start_up.normalized(),
+		end_up.normalized(),
+		sample_position)
+
+	var curve_plane: Plane = Plane(tangent_l)
+
+	var up_vec_projected: Vector3 = curve_plane.project(up_vec_l)
+
+	#var sample_eased = ease(sample_position, smooth_amount)
+
+	return up_vec_l.normalized()
+
 
 ## @babybedbug's first code contribution! It's not functional code, but hey.
 #func build_grandparent(car):
@@ -838,7 +881,7 @@ func _build_geo():
 func _create_collisions() -> void:
 	for ch in road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
-	
+
 	var manager:RoadManager = container.get_manager()
 
 	# Could also manually create with Mesh.create_trimesh_shape(),
@@ -848,22 +891,22 @@ func _create_collisions() -> void:
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
-		
+
 		if container.collider_group_name != "":
 			sbody.add_to_group(container.collider_group_name)
 		elif is_instance_valid(manager) and manager.collider_group_name != "":
 			sbody.add_to_group(manager.collider_group_name)
-		
+
 		if container.collider_meta_name != "":
 			sbody.set_meta(container.collider_meta_name, true)
 		elif is_instance_valid(manager) and manager.collider_meta_name != "":
 			sbody.set_meta(manager.collider_meta_name, true)
-		
+
 		if container.physics_material != null:
 			sbody.physics_material_override = container.physics_material
 		elif is_instance_valid(manager) and manager.physics_material != null:
 			sbody.physics_material_override = manager.physics_material
-		
+
 		if container.override_collision_layers:
 			sbody.collision_layer = container.collision_layer
 			sbody.collision_mask = container.collision_mask
@@ -871,7 +914,7 @@ func _create_collisions() -> void:
 			sbody.collision_layer = manager.collision_layer
 			sbody.collision_mask = manager.collision_mask
 		# else: will just be the godot default.
-		
+
 		sbody.set_meta("_edit_lock_", true)
 
 
@@ -886,7 +929,7 @@ func _insert_geo_loop(
 		per_loop_uv_size: float,
 		uv_width: float):
 	assert (loop < loops)
-	
+
 	# One loop = row of quads left to right across the road, spanning lanes.
 	var offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
 	var point = [start_point, end_point]
@@ -917,6 +960,7 @@ func _insert_geo_loop(
 	var nf_width = [null, null]
 	var add_width = [null, null]
 	var rem_width = [null, null]
+	var nf_top = [null, null]
 
 	var width_offset = [[null, null], [null, null]] #width_offset[LeftRight][NearFar]
 
@@ -925,6 +969,8 @@ func _insert_geo_loop(
 		var offset_ease = ease(offset[nf], smooth_amount)
 		nf_loop[nf] = curve.sample_baked(offset[nf] * clength)
 		nf_basis[nf] = _normal_for_offset(curve, offset[nf])
+		nf_top[nf] = _top_side_normal_for_offset_eased(curve, offset[nf])
+
 
 		# Calculate lane widths
 		nf_width[nf] = lerp(start_point.lane_width, end_point.lane_width, offset_ease)
@@ -937,7 +983,6 @@ func _insert_geo_loop(
 				offset_ease
 		)
 		width_offset[LeftRight.RIGHT][nf] = -width_offset[LeftRight.LEFT][nf]
-
 	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
 	#	loop, offset[NearFar.NEAR], offset[NearFar.FAR], nf_loop[NearFar.NEAR], nf_basis[NearFar.NEAR], nf_loop[NearFar.FAR], nf_basis[NearFar.FAR]
 	#])
@@ -1044,7 +1089,8 @@ func _insert_geo_loop(
 						0,
 						0,
 						gutr_y[NearFar.NEAR]
-					])
+					],
+					nf_top)
 				)
 		else:
 			quad( st, uv_square(uv_m, 0, uv_y),
@@ -1060,8 +1106,86 @@ func _insert_geo_loop(
 						gutr_y[NearFar.FAR],
 						gutr_y[NearFar.NEAR],
 						0
-					])
+					],
+					nf_top)
 				)
+
+#region underside
+	const thickness = 2.0
+
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
+
+		pts_square(nf_loop, nf_basis,
+			[
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR])
+			],
+			[
+				-thickness,
+				-thickness,
+				-thickness,
+				-thickness
+			],
+			nf_top)
+		)
+
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
+
+		pts_square(nf_loop, nf_basis,
+			[
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] )
+			],
+			[
+				-thickness,
+				gutr_y[NearFar.FAR],
+				gutr_y[NearFar.NEAR],
+				-thickness,
+			],
+			nf_top)
+		)
+
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
+
+		pts_square(nf_loop, nf_basis,
+			[
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.FAR])
+			],
+			[
+				gutr_y[NearFar.FAR],
+				-thickness,
+				-thickness,
+				gutr_y[NearFar.NEAR],
+			],
+			nf_top)
+		)
+
+#endregion
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
@@ -1072,7 +1196,7 @@ static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 			Vector2(uv_lmr1, uv_y[NearFar.NEAR]),
 			]
 
-static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset = null) -> Array:
+static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset: Array = [], nf_y_dir = [Vector3.UP, Vector3.UP]) -> Array:
 	assert( len(nf_loop) == 2 && len(nf_basis) == 2 )
 	var ret = [
 			nf_loop[NearFar.FAR] + nf_basis[NearFar.FAR] * width_offset[0],
@@ -1080,9 +1204,12 @@ static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_off
 			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[2],
 			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[3],
 			]
-	if y_offset != null:
-		for i in len(y_offset):
-			ret[i] += Vector3.UP * y_offset[i]
+	if y_offset != null and y_offset.size() == 4:
+		ret[0] += nf_y_dir[NearFar.FAR] * y_offset[0]
+		ret[1] += nf_y_dir[NearFar.FAR] * y_offset[1]
+		ret[2] += nf_y_dir[NearFar.NEAR] * y_offset[2]
+		ret[3] += nf_y_dir[NearFar.NEAR] * y_offset[3]
+
 	return ret
 
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
@@ -1105,6 +1232,22 @@ static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
+static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+	# Triangle 1.
+	st.set_uv(uvs[3])
+	# Add normal explicitly?
+	st.add_vertex(pts[3])
+	st.set_uv(uvs[1])
+	st.add_vertex(pts[1])
+	st.set_uv(uvs[0])
+	st.add_vertex(pts[0])
+	# Triangle 2.
+	st.set_uv(uvs[3])
+	st.add_vertex(pts[3])
+	st.set_uv(uvs[2])
+	st.add_vertex(pts[2])
+	st.set_uv(uvs[1])
+	st.add_vertex(pts[1])
 
 func _flip_traffic_dir(lanes: Array) -> Array:
 	var _spdir:Array = []
