@@ -56,6 +56,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 @export var use_lowpoly_preview: bool = false
 
 
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
+
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
 @export_group("Collision")
@@ -326,6 +332,11 @@ func _set_collider_meta(value: String) -> void:
 
 func _set_density(value) -> void:
 	density = value
+	_defer_refresh_on_change()
+
+
+func _set_thickness(value) -> void:
+	underside_thickness = value
 	_defer_refresh_on_change()
 
 
@@ -967,12 +978,16 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		else:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
-		
+
 		if material_resource:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
 		new_seg.check_rebuild()
+
+		var segment_thickness: float
+		#if
+		# VISSA ANCHOR POINT
 
 		return [true, new_seg]
 

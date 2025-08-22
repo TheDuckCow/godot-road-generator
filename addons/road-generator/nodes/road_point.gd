@@ -125,6 +125,12 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Determines how the geometry will center itself around the RoadPoint origin
 @export var alignment: Alignment: get = _get_alignment, set = _set_alignment
 
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadContainer will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
+
 # ------------------------------------------------------------------------------
 @export_group("Internal data")
 # ------------------------------------------------------------------------------
@@ -368,6 +374,12 @@ func _set_alignment(value: Alignment) -> void:
 	if value == alignment:
 		return
 	alignment = value
+	if not is_instance_valid(container):
+		return  # Might not be initialized yet.
+	emit_transform()
+
+func _set_thickness(value: float) -> void:
+	underside_thickness = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	emit_transform()
@@ -1006,7 +1018,7 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 func set_internal_updating(state: bool) -> void:
 	self._is_internal_updating = state
 	container._auto_refresh = not state
-	
+
 
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
@@ -1161,3 +1173,16 @@ func _autofix_noncyclic_references(
 
 	# In the event of change in edges, update all references.
 	container.update_edges()
+
+
+func get_thickness():
+	if underside_thickness != -1:
+		#print("point")
+		return underside_thickness
+	if is_instance_valid(container) and container.underside_thickness != -1.0:
+		#print("container")
+		return container.underside_thickness
+	if is_instance_valid(container._manager) and container._manager.underside_thickness != -1.0:
+		#print("manager")
+		return container.underside_thickness
+	return -1.0

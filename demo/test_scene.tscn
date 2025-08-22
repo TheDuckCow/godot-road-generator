@@ -19,6 +19,7 @@ material_resource = ExtResource("3")
 script = ExtResource("2")
 material_resource = ExtResource("3")
 use_lowpoly_preview = true
+underside_thickness = 2.0
 edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
 edge_rp_target_dirs = Array[int]([-1, -1, -1, -1, -1, -1])
@@ -42,6 +43,7 @@ traffic_dir = Array[int]([2, 1, 1])
 lanes = Array[int]([5, 4, 2])
 lane_width = 8.0
 gutter_profile = Vector2(0.5, -1)
+underside_thickness = 2.0
 prior_pt_init = NodePath("../neg1_point")
 next_pt_init = NodePath("../first_point")
 
@@ -88,6 +90,7 @@ traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 lane_width = 3.0
 gutter_profile = Vector2(0.5, -1)
+underside_thickness = null
 next_pt_init = NodePath("../third_point")
 
 [node name="disc_1" type="Node3D" parent="RoadManager/RoadContainer"]
@@ -121,6 +124,7 @@ script = ExtResource("1")
 traffic_dir = Array[int]([2, 2, 1, 1, 1])
 lanes = Array[int]([2, 4, 4, 3, 2])
 gutter_profile = Vector2(0.5, -1)
+underside_thickness = 3.0
 prior_pt_init = NodePath("../disc_3")
 
 [node name="disc_5" type="Node3D" parent="RoadManager/RoadContainer"]
@@ -142,6 +146,7 @@ prior_pt_init = NodePath("../disc_5")
 [node name="Road_001" type="Node3D" parent="RoadManager"]
 script = ExtResource("2")
 use_lowpoly_preview = true
+underside_thickness = 2.565
 edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
 edge_rp_target_dirs = Array[int]([-1, -1])
@@ -177,6 +182,60 @@ prior_mag = 20.8337
 next_mag = 20.8337
 gutter_profile = Vector2(9.17, 7.735)
 next_pt_init = NodePath("../RP_002")
+
+[node name="Road_002" type="Node3D" parent="RoadManager"]
+script = ExtResource("2")
+use_lowpoly_preview = true
+underside_thickness = 6.165
+
+[node name="RP_001" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(0.521558, 0, 0.853216, 0, 1, 0, -0.853216, 0, 0.521558, -51.0637, 5.91281, -26.8117)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_002")
+next_pt_init = NodePath("../RP_005")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(0.521558, -0.0166132, 0.853054, 0, 0.99981, 0.0194713, -0.853216, -0.0101554, 0.521459, -66.2825, 6.16281, -36.1147)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(0.774867, -0.0099927, -0.632045, 0.0192932, 0.999783, 0.00784622, 0.631829, -0.018274, 0.774892, -64.8561, 6.16393, -62.9557)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_004")
+next_pt_init = NodePath("../RP_002")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(-0.992425, -0.00805298, -0.122583, -0.00767816, 0.999964, -0.00352982, 0.122607, -0.00256188, -0.992452, -52.8127, 6.59402, -59.6916)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../RP_003")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/Road_002"]
+transform = Transform3D(0.512106, 0.00157627, -0.85892, 0.0063246, 0.999964, 0.00560597, 0.858899, -0.00830319, 0.512078, -31.7011, 7.02546, -55.2331)
+script = ExtResource("1")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_001")
+next_pt_init = NodePath("../RP_004")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0.355401, -0.934714, 0, 0.934714, 0.355401, 1, 1.55351e-08, -4.08576e-08, -31.0353, 19.5009, -0.18366)
