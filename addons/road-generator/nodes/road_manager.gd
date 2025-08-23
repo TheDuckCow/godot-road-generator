@@ -31,6 +31,15 @@ var material_resource: Material:
 		material_resource = value
 		rebuild_all_containers()
 
+## The material applied to the underside of the generated meshes.[br][br]
+##
+## Can be overridden by each [RoadContainer].
+@export
+var material_underside: Material:
+	set(value):
+		material_underside = value
+		rebuild_all_containers()
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher

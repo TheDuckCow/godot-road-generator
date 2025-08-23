@@ -1,15 +1,38 @@
-[gd_scene load_steps=7 format=3 uid="uid://dtdqpwngpuys0"]
+[gd_scene load_steps=11 format=3 uid="uid://dtdqpwngpuys0"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nbxyo"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_y0rkt"]
+sky_material = SubResource("ProceduralSkyMaterial_nbxyo")
+
+[sub_resource type="Environment" id="Environment_37l7f"]
+background_mode = 2
+sky = SubResource("Sky_y0rkt")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sdswp"]
+albedo_color = Color(1, 0.286275, 1, 1)
+
 [sub_resource type="BoxShape3D" id="2"]
 
 [sub_resource type="BoxMesh" id="3"]
 
 [node name="Node3D" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_37l7f")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866023, 0.40089, 0.298815, 0, 0.597626, -0.801775, -0.500003, -0.694356, -0.517558, 0, 0, 0)
+shadow_enabled = true
 
 [node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource("5")
@@ -62,8 +85,8 @@ next_pt_init = NodePath("../second_point")
 [node name="second_point" type="Node3D" parent="RoadManager/RoadContainer"]
 transform = Transform3D(0.957777, 0, 0.28751, 0, 1, 0, -0.28751, 0, 0.957777, -1.07604, -0.750719, 18.9381)
 script = ExtResource("1")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
+traffic_dir = Array[int]([2, 2, 1, 1, 1])
+lanes = Array[int]([2, 4, 4, 3, 2])
 prior_mag = 11.0325
 next_mag = 12.8194
 lane_width = 3.0
@@ -90,7 +113,6 @@ traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 lane_width = 3.0
 gutter_profile = Vector2(0.5, -1)
-underside_thickness = null
 next_pt_init = NodePath("../third_point")
 
 [node name="disc_1" type="Node3D" parent="RoadManager/RoadContainer"]
@@ -133,6 +155,7 @@ script = ExtResource("1")
 traffic_dir = Array[int]([2, 2, 1, 1, 1])
 lanes = Array[int]([2, 4, 4, 3, 2])
 gutter_profile = Vector2(0.5, -1)
+underside_thickness = -2.0
 next_pt_init = NodePath("../disc_6")
 
 [node name="disc_6" type="Node3D" parent="RoadManager/RoadContainer"]
@@ -141,10 +164,12 @@ script = ExtResource("1")
 traffic_dir = Array[int]([2, 2, 1, 1, 1])
 lanes = Array[int]([2, 4, 4, 3, 2])
 gutter_profile = Vector2(0.5, -1)
+underside_thickness = -2.0
 prior_pt_init = NodePath("../disc_5")
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]
 script = ExtResource("2")
+material_underside = SubResource("StandardMaterial3D_sdswp")
 use_lowpoly_preview = true
 underside_thickness = 2.565
 edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
@@ -238,7 +263,10 @@ prior_pt_init = NodePath("../RP_001")
 next_pt_init = NodePath("../RP_004")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(-4.37114e-08, 0.355401, -0.934714, 0, 0.934714, 0.355401, 1, 1.55351e-08, -4.08576e-08, -31.0353, 19.5009, -0.18366)
+transform = Transform3D(-4.37114e-08, 0.355401, -0.934714, 0, 0.934714, 0.355401, 1, 1.55351e-08, -4.08577e-08, -31.0353, 19.5009, -0.18366)
+
+[node name="Camera3D2" type="Camera3D" parent="."]
+transform = Transform3D(1, 3.64433e-08, -2.47103e-09, -3.31858e-08, 0.878184, -0.478324, -1.52617e-08, 0.478324, 0.878184, -113.12, -20.281, 40.4389)
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 transform = Transform3D(0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, 5.43023, 5.1977, -8.82278)
@@ -247,6 +275,16 @@ transform = Transform3D(0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0
 shape = SubResource("2")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D"]
+transform = Transform3D(1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0)
+mesh = SubResource("3")
+
+[node name="RigidBody3D2" type="RigidBody3D" parent="."]
+transform = Transform3D(0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, -136.548, 13.873, 8.31598)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D2"]
+shape = SubResource("2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D2"]
 transform = Transform3D(1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0)
 mesh = SubResource("3")
 

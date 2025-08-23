@@ -43,6 +43,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## If cleared, will utilize the default specificed by the [RoadManager].
 @export var material_resource: Material: set = _set_material
 
+## Material applied to the underside of the generated meshes[br][br]
+##
+## If cleared, will utilize the default specificed by the [RoadManager].
+@export var material_underside: Material: set = _set_material_underside
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -342,6 +347,11 @@ func _set_thickness(value) -> void:
 
 func _set_material(value) -> void:
 	material_resource = value
+	_defer_refresh_on_change()
+
+
+func _set_material_underside(value) -> void:
+	material_underside = value
 	_defer_refresh_on_change()
 
 
@@ -983,6 +993,12 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
+
+		if material_underside:
+			new_seg.material_underside = material_underside
+		elif is_instance_valid(_manager) and _manager.material_underside:
+			new_seg.material_underside = _manager.material_underside
+
 		new_seg.check_rebuild()
 
 		var segment_thickness: float
