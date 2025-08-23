@@ -31,6 +31,7 @@ var end_point:RoadPoint
 var curve:Curve3D
 var road_mesh:MeshInstance3D
 var material:Material
+var material_underside: Material
 var density := 4.00 ## Distance between loops, bake_interval in m applied to curve for geo creation.
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
@@ -1113,85 +1114,96 @@ func _insert_geo_loop(
 				)
 
 #region underside
+
 	if nf_thickness[NearFar.NEAR] >= 0 and nf_thickness[NearFar.FAR] >= 0:
+		_insert_underside_geo_loop(st, nf_loop, nf_basis, nf_top, nf_thickness, width_offset, w_shoulder, gutr_x, gutr_y)
 
-		const min_thickness = 0.001 # Used to prevent Z-fighting
-		for nf in NearFar.values():
-			if nf_thickness[nf] <= 0:
-				nf_thickness[nf] = min_thickness
+func _insert_underside_geo_loop(
+		st: SurfaceTool,
+		nf_loop: Array,
+		nf_basis: Array,
+		nf_top: Array,
+		nf_thickness: Array,
+		width_offset: Array,
+		w_shoulder: Array,
+		gutr_x: Array,
+		gutr_y: Array):
+	const min_thickness = 0.001 # Used to prevent Z-fighting
+	for nf in NearFar.values():
+		if nf_thickness[nf] <= 0:
+			nf_thickness[nf] = min_thickness
 
-		inverse_quad( st,
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
+
+		pts_square(nf_loop, nf_basis,
 			[
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR])
 			],
-
-			pts_square(nf_loop, nf_basis,
-				[
-					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
-					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR]),
-					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR]),
-					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR])
-				],
-				[
-					-nf_thickness[NearFar.FAR],
-					-nf_thickness[NearFar.FAR],
-					-nf_thickness[NearFar.NEAR],
-					-nf_thickness[NearFar.NEAR]
-				],
-				nf_top)
-			)
-
-		inverse_quad( st,
 			[
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
+				-nf_thickness[NearFar.FAR],
+				-nf_thickness[NearFar.FAR],
+				-nf_thickness[NearFar.NEAR],
+				-nf_thickness[NearFar.NEAR]
 			],
+			nf_top)
+		)
 
-			pts_square(nf_loop, nf_basis,
-				[
-					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
-					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
-					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.NEAR]),
-					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] )
-				],
-				[
-					-nf_thickness[NearFar.FAR],
-					gutr_y[NearFar.FAR],
-					gutr_y[NearFar.NEAR],
-					-nf_thickness[NearFar.NEAR],
-				],
-				nf_top)
-			)
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
 
-		inverse_quad( st,
+		pts_square(nf_loop, nf_basis,
 			[
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
+				-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.NEAR]),
+				-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] )
 			],
+			[
+				-nf_thickness[NearFar.FAR],
+				gutr_y[NearFar.FAR],
+				gutr_y[NearFar.NEAR],
+				-nf_thickness[NearFar.NEAR],
+			],
+			nf_top)
+		)
 
-			pts_square(nf_loop, nf_basis,
-				[
-					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
-					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
-					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR]),
-					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.NEAR])
-				],
-				[
-					gutr_y[NearFar.FAR],
-					-nf_thickness[NearFar.FAR],
-					-nf_thickness[NearFar.NEAR],
-					gutr_y[NearFar.NEAR],
-				],
-				nf_top)
-			)
+	inverse_quad( st,
+		[
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+			Vector2.ZERO,
+		],
 
+		pts_square(nf_loop, nf_basis,
+			[
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR]),
+				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.NEAR])
+			],
+			[
+				gutr_y[NearFar.FAR],
+				-nf_thickness[NearFar.FAR],
+				-nf_thickness[NearFar.NEAR],
+				gutr_y[NearFar.NEAR],
+			],
+			nf_top)
+		)
 #endregion
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
