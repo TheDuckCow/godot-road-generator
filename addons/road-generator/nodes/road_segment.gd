@@ -877,13 +877,14 @@ func _build_geo():
 	for loop_info in loops_info:
 		loop_info.insert_geo_loop()
 
-	#st.index() # TODO figure out why this breaks stuff.
-				#Reason I had to comment this one out is because it breaks addition of new surfaces
+	st.index()
 	if material:
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
 
+
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var underside_generated: bool = false
 	for loop_info in loops_info:
 		var result: bool = loop_info.insert_underside_geo_loop()
@@ -893,9 +894,8 @@ func _build_geo():
 	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	if underside_generated:
-		#st.index()
-		#st = SurfaceTool.new()
-		#st.begin(Mesh.PRIMITIVE_TRIANGLES) # TODO figure out how to make this work
+		st.index()
+
 		if material_underside:
 			print(material_underside)
 			st.set_material(material_underside)
