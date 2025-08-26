@@ -1,0 +1,54 @@
+name: Run tests
+
+on:
+  workflow_dispatch: 
+    inputs:
+      godot_versions:
+        description: 'Godot version(s)'
+        required: false
+        default: '["4.3.0"]'
+        type: choice
+        options:
+        - '["4.3.0"]'
+        - '["4.4.1"]'
+        - '["4.3.0", "4.4.1"]'
+  pull_request:
+    types: [opened, reopened, ready_for_review]  # add synchronize to run per commit
+    paths:
+      - 'addons/road-generator/**'
+      - 'test/**'
+
+
+run-name: Test on ${{ inputs.godot_versions }}
+
+jobs:
+  test:
+    name: Test Godot
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3.0"]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          echo "Running with Godot: $GVERSION"
+          echo "event name is:" ${{ github.event_name }}
+          echo "event type is:" ${{ github.event.action }}
+        env:
+          GVERSION: ${{ matrix.godot-version }}
+
+      - uses: chickensoft-games/setup-godot@v2
+        id: download-godot
+        name: 🤖 Download Godot ${{ matrix.godot-version }}
+        with:
+          version: ${{ matrix.godot-version }} # also valid: 4.0.0.rc1 or 4.0.0 or "global.json", etc
+          use-dotnet: false
+          include-templates: false
+
+      - name: 🔬 Run unit tests
+        run: |
+          # Import project once, to help resolve some issues
+          godot --headless --import > /dev/null 2>&1
+          # Perform tests
+          godot -s addons/gut/gut_cmdln.gd --path $PWD --headless -d -gconfig=.gut_editor_config.json -gexit

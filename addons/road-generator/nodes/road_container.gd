@@ -60,6 +60,10 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## Use fewer loop cuts for performance during transform.
 @export var use_lowpoly_preview: bool = false
 
+## Flatten terrain when transforming this RoadContainer or child RoadPoints[br]
+## if a terrain connector is set up.
+## flatten terrain underneath them if a terrain connector is used.
+@export var flatten_terrain: bool = true
 
 ## Defines the thickness in meters of the underside part of the road.[br][br]
 ##
@@ -872,7 +876,7 @@ func rebuild_segments(clear_existing := false):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
-			push_warning("Road point %s not connected to anything yet" % pt.name)
+			push_warning("Road point %s/%s not connected to anything yet" % [pt.get_parent().name, pt.name])
 			continue
 		var res
 		if prior_pt and prior_pt.visible:
@@ -893,10 +897,8 @@ func rebuild_segments(clear_existing := false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
-	# Aim to do a single signal emission across the whole container update.
-	# TODO: consider not signalling if none rebuilt,
-	# though right now returning = [] will still indicate the check was done (but not by whom)
-	emit_signal("on_road_updated", signal_rebuilt)
+	if signal_rebuilt.size() > 0:
+		emit_signal("on_road_updated", signal_rebuilt)
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -905,6 +907,7 @@ func remove_segment(seg:RoadSegment) -> void:
 		push_warning("RoadSegment is invalid, cannot remove: ")
 		#print("Did NOT signal for the removal here", seg)
 		return
+	seg.clear_lane_segments()
 	var id := seg.get_id()
 	seg.queue_free()
 	segid_map.erase(id)
@@ -1078,11 +1081,16 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if _auto_refresh:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
+	
+	# Batch updates to reduce signal emissions
+	var needs_update = false
+	
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
+		needs_update = true
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
@@ -1090,20 +1098,23 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
+		needs_update = true
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		if next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
-	if len(segs_updated) > 0:
+	if needs_update and len(segs_updated) > 0:
 		if self.debug:
 			print_debug("Road segs rebuilt: ", len(segs_updated))
 		emit_signal("on_road_updated", segs_updated)

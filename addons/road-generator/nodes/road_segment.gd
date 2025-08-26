@@ -8,7 +8,8 @@ extends Node3D
 ## functionality of how the road generation works, and may change.
 ##
 ## If necessary to reference like a class, place this in any script:
-## const RoadSegment = preload("res://addons/road-generator/road_segment.gd")
+## const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 #class_name RoadSegment, "road_segment.png"
 
 const LOWPOLY_FACTOR = 3.0
@@ -578,19 +579,16 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments(ignore_list: Array = []) -> void:
-	var _par = get_parent()
-	for ch in _par.get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
-	# Legacy, RoadLanes used to be children of the segment class, but are now
-	# direct children of the RoadPoint with the option to be visualized in editor later.
-	for ch in get_children():
-		if ch in ignore_list:
-			continue
-		if ch is RoadLane:
-			ch.queue_free()
+	for l: RoadLane in self.get_lanes():
+		if l in ignore_list:
+			return
+		var ln:RoadLane = l.get_node_or_null(l.lane_next)
+		if ln && ln.lane_prior == ln.get_path_to(l):
+			ln.lane_prior = NodePath("")
+		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
+		if lp && lp.lane_next == lp.get_path_to(l):
+			lp.lane_next = NodePath("")
+		l.queue_free()
 
 
 ## Remove all edge curves attached to this RoadSegment

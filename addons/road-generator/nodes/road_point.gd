@@ -10,6 +10,8 @@ extends Node3D
 
 signal on_transform(node, low_poly)
 
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
 enum LaneType {
 	NO_MARKING, # Default no marking placed first, but is last texture UV column.
 	SHOULDER, # Left side of texture...
@@ -109,6 +111,12 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Turn this off if you want to swap in your own road mesh geometry and colliders.
 @export var create_geo := true: set = _set_create_geo
 
+## Flatten terrain when updating or transforming this RoadPoint.[br][br]
+##
+## NOTE: Must disable this setting on both RoadPoints around a given [br]
+## road segment to disable flattening.
+@export var flatten_terrain: bool = true
+
 ## Width of each lane in meters in meters.
 @export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
 ## Width of the left shoulder in meters.
@@ -149,11 +157,11 @@ var rev_width_mag := -8.0
 var fwd_width_mag := 8.0
 # Ultimate assignment if any export path specified
 #var prior_pt:Spatial # Road Point or Junction
-var prior_seg
+var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
-var next_seg
+var next_seg:RoadSegment
 
-var container # The managing container node for this road segment (direct parent).
+var container:RoadContainer # The managing container node for this road segment (direct parent).
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
@@ -832,47 +840,53 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 	return true
 
 
-## Function to explicitly connect this RoadNode to another
+## Function to explicitly disconnect this RoadNode to another
 ##
-## Only meant to connect RoadPoints belonging to the same RoadContainer.
+## Only meant to disconnect RoadPoints belonging to the same RoadContainer.
 func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 	#print("Disconnecting %s (%s) and the target's (%s)" % [self, this_direction, target_direction])
 	var disconnect_from: Node
-
-	self._is_internal_updating = true
-	var seg
-
+	var seg: RoadSegment
 	match this_direction:
 		PointInit.NEXT:
-			if not next_pt_init:
+			if not self.next_pt_init:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
 			disconnect_from = get_node(next_pt_init)
-			self.next_pt_init = ^""
 			seg = self.next_seg
 		PointInit.PRIOR:
-			if not prior_pt_init:
-				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
+			if not self.prior_pt_init:
+				push_error("Failed to disconnect, not already connected to target RoadPoint in the Prior direction")
 				return false
 			disconnect_from = get_node(prior_pt_init)
-			self.prior_pt_init = ^""
 			seg = self.prior_seg
-
-	disconnect_from._is_internal_updating = true
 
 	if self.container != disconnect_from.container:
 		push_warning("Wrong function: Disconnecting roadpoints from different RoadContainers, should use disconnect_container")
-		# already made some changes, so continue.
+		return false
 
+	self._is_internal_updating = true
+	match this_direction:
+		PointInit.NEXT:
+			self.next_pt_init = ^""
+			self.next_seg = null #TODO should we do this in remove_segment?
+		PointInit.PRIOR:
+			self.prior_pt_init = ^""
+			self.prior_seg = null
+	self._is_internal_updating = false
+
+
+	disconnect_from._is_internal_updating = true
 	match target_direction:
 		PointInit.NEXT:
 			disconnect_from.next_pt_init = ^""
+			disconnect_from.next_seg = null
 		PointInit.PRIOR:
 			disconnect_from.prior_pt_init = ^""
-	self._is_internal_updating = false
+			disconnect_from.prior_seg = null
 	disconnect_from._is_internal_updating = false
 
-	container.remove_segment(seg)
+	self.container.remove_segment(seg)
 
 	self.validate_junctions()
 	disconnect_from.validate_junctions()
@@ -1023,7 +1037,7 @@ func set_internal_updating(state: bool) -> void:
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_instance_valid(prior_seg):
-		prior_seg.queue_free()
+		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
 	if is_instance_valid(next_seg):
 		next_seg.queue_free()
 
