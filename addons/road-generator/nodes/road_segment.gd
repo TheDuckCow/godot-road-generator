@@ -897,7 +897,7 @@ func _build_geo():
 		st.index()
 
 		if material_underside:
-			print(material_underside)
+			#print(material_underside)
 			st.set_material(material_underside)
 		elif material:
 			st.set_material(material)
@@ -973,6 +973,7 @@ class GeoLoopInfo:
 	var rem_width: Array
 	var nf_top: Array
 	var nf_thickness: Array
+	var has_thickness: bool
 	var width_offset: Array
 
 	var gutr_x: Array
@@ -1042,6 +1043,7 @@ class GeoLoopInfo:
 		rem_width = [null, null]
 		nf_top = [null, null]
 		nf_thickness = [1, 1]
+		has_thickness = segment.start_point.get_thickness() >= 0 and segment.end_point.get_thickness() >= 0
 
 		width_offset = [[null, null], [null, null]] #width_offset[LeftRight][NearFar]
 
@@ -1198,7 +1200,9 @@ class GeoLoopInfo:
 	## Call this under ``insert_geo_loop``. The lane width is being caclucated there so this line depends on it.
 	## Oops!
 	func insert_underside_geo_loop() -> bool:
-		if not (nf_thickness[NearFar.NEAR] >= 0 and nf_thickness[NearFar.FAR] >= 0):
+		# if not (nf_thickness[NearFar.NEAR] >= 0 and nf_thickness[NearFar.FAR] >= 0):
+		# ^ USE INSTEAD IF YOU WANT UNDERSIDE SLOPES INTO 0
+		if not has_thickness:
 			return false
 
 		const min_thickness = 0.001 # Used to prevent Z-fighting
