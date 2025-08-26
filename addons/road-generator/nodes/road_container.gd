@@ -237,6 +237,23 @@ func _ready():
 	rebuild_segments(true)
 
 
+## Cleanup the road segments specifically, in case they aren't children.
+func _exit_tree():
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	segid_map = {}
+	return
+
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
+
+
+
 # Workaround for cyclic typing
 func is_road_container() -> bool:
 	return true
@@ -406,7 +423,10 @@ func _notification(what):
 		if lmb_down and not _drag_init_transform:
 			self._drag_init_transform = global_transform
 		elif not lmb_down:
-			emit_signal("on_transform", self)
+			on_transform.emit(self)
+			var manager = get_manager()
+			if is_instance_valid(manager):
+				manager.on_container_transformed.emit(self)
 			_drag_init_transform = null
 
 
@@ -1145,19 +1165,3 @@ func _check_migrate_points():
 	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadContainer parent %s" % [
 		moved_pts, self.name
 	])
-
-
-## Cleanup the road segments specifically, in case they aren't children.
-func _exit_tree():
-	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
-	# freed instances.
-	segid_map = {}
-	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()

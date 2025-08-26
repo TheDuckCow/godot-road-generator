@@ -17,6 +17,9 @@ extends Node3D
 ## of updated segments of type Array.
 signal on_road_updated(updated_segments: Array)
 
+## For internal purposes, to handle drag events in the editor.
+signal on_container_transformed(updated_segments: RoadContainer)
+
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 

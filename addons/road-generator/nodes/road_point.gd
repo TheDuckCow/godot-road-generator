@@ -204,6 +204,14 @@ func _ready():
 	container.update_edges()
 
 
+func _exit_tree():
+	# Proactively disconnected any connected road segments, no longer valid.
+	if is_instance_valid(prior_seg):
+		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+	if is_instance_valid(next_seg):
+		next_seg.queue_free()
+
+
 func _to_string():
 	var parname
 	if self.get_parent():
@@ -1020,14 +1028,6 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 func set_internal_updating(state: bool) -> void:
 	self._is_internal_updating = state
 	container._auto_refresh = not state
-
-
-func _exit_tree():
-	# Proactively disconnected any connected road segments, no longer valid.
-	if is_instance_valid(prior_seg):
-		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
-	if is_instance_valid(next_seg):
-		next_seg.queue_free()
 
 
 ## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they

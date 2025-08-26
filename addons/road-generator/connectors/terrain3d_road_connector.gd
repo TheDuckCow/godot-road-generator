@@ -62,20 +62,18 @@ func configure_road_update_signal() -> void:
 		return
 	if not is_instance_valid(road_manager):
 		return
-	# TODO: Primary road generator project to expose this on the manager level, to bubble up from
-	# individual containers
-	for _cont in road_manager.get_containers():
-		_cont = _cont as RoadContainer
-		if auto_refresh and not _cont.on_road_updated.is_connected(_schedule_refresh):
-			_cont.on_road_updated.connect(_schedule_refresh)
-		elif not auto_refresh and _cont.on_road_updated.is_connected(_schedule_refresh):
-			_cont.on_road_updated.disconnect(_schedule_refresh)
-			
-		# Handle transforms on containers themelves:
-		if auto_refresh and not _cont.on_transform.is_connected(_on_container_transform):
-			_cont.on_transform.connect(_on_container_transform)
-		elif not auto_refresh and _cont.on_transform.is_connected(_on_container_transform):
-			_cont.on_transform.disconnect(_on_container_transform)
+
+	# Handle signals from each RoadContainer when there are updated segments
+	if auto_refresh and not road_manager.on_road_updated.is_connected(_schedule_refresh):
+		road_manager.on_road_updated.connect(_schedule_refresh)
+	elif not auto_refresh and road_manager.on_road_updated.is_connected(_schedule_refresh):
+		road_manager.on_road_updated.disconnect(_schedule_refresh)
+		
+	# Handle transforms on containers themelves
+	if auto_refresh and not road_manager.on_container_transformed.is_connected(_on_container_transform):
+		road_manager.on_container_transformed.connect(_on_container_transform)
+	elif not auto_refresh and road_manager.on_container_transformed.is_connected(_on_container_transform):
+		road_manager.on_container_transformed.disconnect(_on_container_transform)
 
 
 func do_full_refresh() -> void:
