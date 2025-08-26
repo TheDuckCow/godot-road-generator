@@ -1182,7 +1182,7 @@ func get_thickness():
 	if is_instance_valid(container) and container.underside_thickness != -1.0:
 		#print("container")
 		return container.underside_thickness
-	if is_instance_valid(container._manager) and container._manager.underside_thickness != -1.0:
+	if is_instance_valid(container.get_manager()) and container.get_manager().underside_thickness != -1.0:
 		#print("manager")
-		return container.underside_thickness
+		return container.get_manager().underside_thickness
 	return -1.0
