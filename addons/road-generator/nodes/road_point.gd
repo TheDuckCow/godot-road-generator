@@ -202,10 +202,17 @@ func _ready():
 	# across all roadpoint children. Consequence could be updating references
 	# that aren't ready.
 	container.update_edges()
+	print("_ready RoadPoint ", self.name)
+
+
+func _enter_tree() -> void:
+	print("_enter_tree RoadPoint ", self.name)
 
 
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
+	if not is_queued_for_deletion():
+		return
 	if is_instance_valid(prior_seg):
 		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
 	if is_instance_valid(next_seg):

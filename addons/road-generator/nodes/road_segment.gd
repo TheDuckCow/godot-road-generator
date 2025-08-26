@@ -22,8 +22,6 @@ const DEFAULT_DENSITY := 4.0
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
 
-signal seg_ready(road_segment)
-
 @export var start_init: NodePath: get = _init_start_get, set = _init_start_set
 @export var end_init: NodePath: get = _init_end_get, set = _init_end_set
 
@@ -54,6 +52,8 @@ var _end_flip: bool = false
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
 
+var is_ready := false
+
 ## For iteration on values related to Near(start) or Far(end) points of a segment
 enum NearFar {
 	NEAR,
@@ -80,10 +80,20 @@ func _init(_container):
 	curve = Curve3D.new()
 
 
-func _ready():
-	do_roadmesh_creation()
+func _ready() -> void:
+	print("_ready RoadSegment")
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
 		road_mesh.owner = container.get_owner()
+	is_ready = true
+
+
+func _enter_tree() -> void:
+	print("_enter_tree RoadSegment %s/%s" % [self.get_parent().name, self.name])
+	print("\tShould add mesh??? ", should_add_mesh())
+
+
+func _exit_tree() -> void:
+	print("_exit_tree RoadSegment")
 
 
 # Workaround for cyclic typing
@@ -99,6 +109,9 @@ func should_add_mesh() -> bool:
 
 	if par.create_geo == false:
 		should_add_mesh = false
+	
+	if is_instance_valid(container.get_manager()):
+		print("should_add_mesh: Manager is ", container.get_manager()._initial_ready_done)
 
 	if container.create_geo == false:
 		should_add_mesh = false

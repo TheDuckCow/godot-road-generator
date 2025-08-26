@@ -159,10 +159,25 @@ func _ready():
 	_ui_refresh_set(auto_refresh)
 
 	# setup_road_container won't work in _ready unless call_deferred is used
-	assign_default_material.call_deferred()
+	assign_default_material()
+	
+	# Because containers are designed to not auto generate on loading
+	# the scene, we must call once to rebuild them all ourselves
+	print("Rebuilding all manually")
+	rebuild_all_containers(true)
 
 	_initial_ready_done = true
+	print("_ready RoadManager ", self.name) # TODO: remove this
 
+
+func _enter_tree() -> void:
+	print("_enter_tree RoadManager ", self.name) # TODO: remove this
+	#_initial_ready_done = true
+
+
+func _exit_tree() -> void:
+	print("_exit_tree RoadManager")
+	#_initial_ready_done = false
 
 # ------------------------------------------------------------------------------
 # Public functions
