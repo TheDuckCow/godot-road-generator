@@ -864,8 +864,11 @@ func _build_geo():
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
+	# Array of structs about each loop of the segment.
+	# Used so first you can generate info, then build top side, then underside
 	var loops_info: Array[GeoLoopInfo] = []
 
+	# Generating Info
 	for loop in range(loops):
 		loops_info.append(GeoLoopInfo.create(
 			self,
@@ -874,35 +877,40 @@ func _build_geo():
 			lane_uvs_length, per_loop_uv_size, uv_width
 		))
 
+	# Generating top side
 	for loop_info in loops_info:
 		loop_info.insert_geo_loop()
 
+	# Touch ups on geometry and commiting it to mesh
 	st.index()
 	if material:
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
+	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-
+	# Generating underside
+	# Reset SurfaceTool state
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var underside_generated: bool = false
+
 	for loop_info in loops_info:
 		var result: bool = loop_info.insert_underside_geo_loop()
 		if result:
 			underside_generated = true
 
-	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
+	# Was underside generated? If so, append it to the mesh
 	if underside_generated:
 		st.index()
 
 		if material_underside:
-			#print(material_underside)
 			st.set_material(material_underside)
-		elif material:
+		elif material: # Fallback to top side material
 			st.set_material(material)
+
 		st.generate_normals()
 		st.commit(road_mesh.mesh)
+		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
@@ -948,38 +956,57 @@ func _create_collisions() -> void:
 
 		sbody.set_meta("_edit_lock_", true)
 
-
+## Struct to keep info about each loop geo.
 class GeoLoopInfo:
+	## Reference to segment that owns this loop
 	var segment: Node3D
 
+	## Surface tool that generates geometry for this segment
 	var st: SurfaceTool
+	## Current loop
 	var loop: int
+	## Total Amount of loops
 	var loops: int
+	## Array of lanes
 	var lanes: Array
+	## Length of ``lanes`` array
 	var lane_count: int
+	## Curve length
 	var clength: float
+	## Keep track of UV position over lane, to be seamless within the segment.
 	var lane_uvs_length: Array
 	var per_loop_uv_size: float
+	## 1/8 for breakdown of texture. ``= 0.125``
 	var uv_width: float
 
 	var offset: Array
 	var point: Array
 	var lane_offset: Array
 
+	# ``nf_`` arrays have value for [Near] and [Far]
+	## Vector3 Position of loop
 	var nf_loop: Array
+	## Vector3 that points towards the right on that position of the curve
 	var nf_basis: Array
 	var nf_width: Array
 	var add_width: Array
 	var rem_width: Array
+	## Vector3 that points towards the top on that position of the curve
 	var nf_top: Array
+	## Thickness of the underside
 	var nf_thickness: Array
+	## Should this loop have an underside
 	var has_thickness: bool
 	var width_offset: Array
 
+	## Gutter X [Near, Far]
 	var gutr_x: Array
+	## Gutter Y [Near, Far]
 	var gutr_y: Array
+	## Shoulder width [Near, Far]
 	var w_shoulder: Array
 
+	## Constructor for struct
 	static func create(
 		segment: Node3D,
 		st: SurfaceTool,
@@ -1008,6 +1035,7 @@ class GeoLoopInfo:
 		info._generate_geo_loop_info()
 		return info
 
+	## Fills out other parameters based on the ones passed in the constructor
 	func _generate_geo_loop_info():
 		assert (loop < loops)
 
@@ -1081,6 +1109,7 @@ class GeoLoopInfo:
 			gutr_x[nf] = lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[nf])
 			gutr_y[nf] = lerp(segment.start_point.gutter_profile.y, segment.end_point.gutter_profile.y, offset[nf])
 
+	## Generates top side geometry
 	func insert_geo_loop():
 		for i in range(lane_count):
 			# Create the contents of a single lane / quad within this quad loop.
@@ -1197,8 +1226,8 @@ class GeoLoopInfo:
 
 #region underside
 
-	## Call this under ``insert_geo_loop``. The lane width is being caclucated there so this line depends on it.
-	## Oops!
+	## Generates underside geometry [br][br]
+	## Call this after ``insert_geo_loop``. The lane width is being caclucated there so this function depends on it.
 	func insert_underside_geo_loop() -> bool:
 		# if not (nf_thickness[NearFar.NEAR] >= 0 and nf_thickness[NearFar.FAR] >= 0):
 		# ^ USE INSTEAD IF YOU WANT UNDERSIDE SLOPES INTO 0
@@ -1210,9 +1239,11 @@ class GeoLoopInfo:
 			if nf_thickness[nf] <= 0:
 				nf_thickness[nf] = min_thickness
 
+		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
+
 		segment.inverse_quad( st,
 			[
-				Vector2.ZERO,
+				Vector2.ZERO, # TODO UVs Underside
 				Vector2.ZERO,
 				Vector2.ZERO,
 				Vector2.ZERO,
@@ -1236,7 +1267,7 @@ class GeoLoopInfo:
 
 		segment.inverse_quad( st,
 			[
-				Vector2.ZERO,
+				Vector2.ZERO, # TODO UVs Underside
 				Vector2.ZERO,
 				Vector2.ZERO,
 				Vector2.ZERO,
@@ -1256,12 +1287,12 @@ class GeoLoopInfo:
 					-nf_thickness[NearFar.NEAR],
 				],
 				nf_top),
-				1
+				UNDERSIDE_GUTTER_SMOOTHING_GROUP
 			)
 
 		segment.inverse_quad( st,
 			[
-				Vector2.ZERO,
+				Vector2.ZERO, # TODO UVs Underside
 				Vector2.ZERO,
 				Vector2.ZERO,
 				Vector2.ZERO,
@@ -1281,7 +1312,7 @@ class GeoLoopInfo:
 					gutr_y[NearFar.NEAR],
 				],
 				nf_top),
-				1
+				UNDERSIDE_GUTTER_SMOOTHING_GROUP
 			)
 
 		return true
