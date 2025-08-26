@@ -1255,7 +1255,8 @@ class GeoLoopInfo:
 					gutr_y[NearFar.NEAR],
 					-nf_thickness[NearFar.NEAR],
 				],
-				nf_top)
+				nf_top),
+				1
 			)
 
 		segment.inverse_quad( st,
@@ -1279,8 +1280,10 @@ class GeoLoopInfo:
 					-nf_thickness[NearFar.NEAR],
 					gutr_y[NearFar.NEAR],
 				],
-				nf_top)
+				nf_top),
+				1
 			)
+
 		return true
 #endregion
 
@@ -1312,37 +1315,48 @@ static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_off
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
-static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[3])
 	# Add normal explicitly?
 	st.add_vertex(pts[3])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[0])
 	st.add_vertex(pts[0])
 	# Triangle 2.
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
 
