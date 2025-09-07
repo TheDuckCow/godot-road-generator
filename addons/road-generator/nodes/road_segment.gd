@@ -80,7 +80,6 @@ func _init(_container):
 	curve = Curve3D.new()
 
 
-
 func _ready():
 	do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
@@ -730,8 +729,10 @@ func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector
 
 ## Enforce consistent lane width, at the cost of overlapping geometry.
 func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
-	#var transform = curve.sample_baked_with_rotation(sample_position)
+	# Would be nice, but not producing usable tilting even after using set_point_tilt
+	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.x
+	
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -767,8 +768,10 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 
 ## Enforce consistent lane width, at the cost of overlapping geometry.
 func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
-	#var transform = curve.sample_baked_with_rotation(sample_position)
+	# Would be nice, but not producing usable tilting even after using set_point_tilt
+	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.y
+	
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -902,9 +905,8 @@ func _build_geo():
 		st.index()
 
 		if material_underside:
+			# If no underside material set, don't apply any material at all
 			st.set_material(material_underside)
-		elif material: # Fallback to top side material
-			st.set_material(material)
 
 		st.generate_normals()
 		st.commit(road_mesh.mesh)
@@ -977,8 +979,8 @@ class GeoLoopInfo:
 	## 1/8 for breakdown of texture. ``= 0.125``
 	var uv_width: float
 
-	var offset: Array
-	var point: Array
+	var offset: Array[float] # start and end offset along curve
+	var point: Array[RoadPoint] # start and end point
 	var lane_offset: Array
 
 	# ``nf_`` arrays have value for [Near] and [Far]
@@ -1238,15 +1240,58 @@ class GeoLoopInfo:
 				nf_thickness[nf] = min_thickness
 
 		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
+		
+		# Presume the underside material uses seamless textures in both directions,
+		# to avoid stretching we'll presume that 1 UV tile should correspond to
+		# two lane widths. Technically still needs to scale start to end since the
+		# size of the road width could also vary.
+		
+		var rwidth_start := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.NEAR])
+		var rwidth_end := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.FAR])
+		var uv_unit_width_start:float = width_offset[LeftRight.LEFT][NearFar.NEAR] + width_offset[LeftRight.RIGHT][NearFar.NEAR]
+		var uv_unit_width_end:float = width_offset[LeftRight.LEFT][NearFar.FAR] + width_offset[LeftRight.RIGHT][NearFar.FAR]
+		
+		const UNIT_LANE_COUNT := 4.0  # How many lanes a 0->1 U tile represents
+		# Calc U offset from middle of road (geometric, not lane)
+		var ufac_mult_start = uv_unit_width_start / UNIT_LANE_COUNT / rwidth_start / 2.0
+		var ufac_mult_end = uv_unit_width_end / UNIT_LANE_COUNT / rwidth_end / 2.0
+		
+		var uv_start_v:float = per_loop_uv_size * float(loop)
+		var uv_end_v:float = per_loop_uv_size * float(loop + 1)
+		var uvs_center = [
+			Vector2(-ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_start, uv_start_v),
+			Vector2(-ufac_mult_start, uv_start_v)
+		]
+		
+		# map width of road to be 0-1, to gutter height ratio
+		var sp:RoadPoint = point[0]
+		var ep:RoadPoint = point[1]
+		var gutter_start_len:float = Vector2(
+			lerp(sp.gutter_profile.x, ep.gutter_profile.x, offset[NearFar.NEAR]),
+			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[0])
+		).length() / UNIT_LANE_COUNT / rwidth_start
+		var gutter_end_len:float = Vector2(
+			lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[NearFar.FAR]),
+			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[1])
+		).length() / UNIT_LANE_COUNT / rwidth_end
+		
+		var uvs_right = [
+			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_start, uv_start_v),
+			Vector2(ufac_mult_start + gutter_start_len, uv_start_v)
+		]
+		var uvs_left = [
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
+			Vector2(ufac_mult_start + gutter_start_len, uv_start_v),
+			Vector2(ufac_mult_start, uv_start_v)
+		]
 
 		segment.inverse_quad( st,
-			[
-				Vector2.ZERO, # TODO UVs Underside
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-			],
-
+			uvs_center,
 			segment.pts_square(nf_loop, nf_basis,
 				[
 					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
@@ -1264,13 +1309,7 @@ class GeoLoopInfo:
 			)
 
 		segment.inverse_quad( st,
-			[
-				Vector2.ZERO, # TODO UVs Underside
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-			],
-
+			uvs_left,
 			segment.pts_square(nf_loop, nf_basis,
 				[
 					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
@@ -1289,13 +1328,7 @@ class GeoLoopInfo:
 			)
 
 		segment.inverse_quad( st,
-			[
-				Vector2.ZERO, # TODO UVs Underside
-				Vector2.ZERO,
-				Vector2.ZERO,
-				Vector2.ZERO,
-			],
-
+			uvs_right,
 			segment.pts_square(nf_loop, nf_basis,
 				[
 					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),

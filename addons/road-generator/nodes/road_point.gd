@@ -1191,12 +1191,9 @@ func _autofix_noncyclic_references(
 
 func get_thickness():
 	if underside_thickness != -1:
-		#print("point")
 		return underside_thickness
 	if is_instance_valid(container) and container.underside_thickness != -1.0:
-		#print("container")
 		return container.underside_thickness
 	if is_instance_valid(container.get_manager()) and container.get_manager().underside_thickness != -1.0:
-		#print("manager")
 		return container.get_manager().underside_thickness
 	return -1.0
