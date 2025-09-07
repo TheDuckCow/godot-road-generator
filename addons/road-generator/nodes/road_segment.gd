@@ -32,6 +32,7 @@ var end_point:RoadPoint
 var curve:Curve3D
 var road_mesh:MeshInstance3D
 var material:Material
+var material_underside: Material
 var density := 4.00 ## Distance between loops, bake_interval in m applied to curve for geo creation.
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
@@ -77,7 +78,6 @@ func _init(_container):
 		return
 	container = _container
 	curve = Curve3D.new()
-
 
 
 func _ready():
@@ -729,6 +729,10 @@ func _normal_for_offset_legacy(curve: Curve3D, sample_position: float) -> Vector
 
 ## Enforce consistent lane width, at the cost of overlapping geometry.
 func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
+	# Would be nice, but not producing usable tilting even after using set_point_tilt
+	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
+	#return transform.basis.x
+	
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -761,6 +765,49 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	#var sample_eased = ease(sample_position, smooth_amount)
 
 	return normal_l.normalized()
+
+## Enforce consistent lane width, at the cost of overlapping geometry.
+func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3:
+	# Would be nice, but not producing usable tilting even after using set_point_tilt
+	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
+	#return transform.basis.y
+	
+	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
+	var start_offset: float
+	var end_offset: float
+	if sample_position <= 0.0 + offset_amount:
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return start_point.transform.basis.y * _start_flip_mult
+	elif sample_position >= 1.0 - offset_amount * 0.5:
+		# Use exact basis of RoadPoint to ensure geometry lines up.
+		return end_point.transform.basis.y * _end_flip_mult
+	else:
+		start_offset = sample_position - offset_amount * 0.5
+		end_offset = sample_position + offset_amount * 0.5
+
+	var pt1:Vector3 = curve.sample_baked(start_offset * curve.get_baked_length())
+	var pt2:Vector3 = curve.sample_baked(end_offset * curve.get_baked_length())
+	var tangent_l:Vector3 = pt2 - pt1
+
+	# Using local transforms. Both are transforms relative to the parent RoadContainer,
+	# and the current mesh we are writing to already has the inverse of the start_point
+	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
+	var start_up = start_point.transform.basis.y
+	var end_up = end_point.transform.basis.y
+
+	var up_vec_l:Vector3 = lerp(
+		start_up.normalized(),
+		end_up.normalized(),
+		sample_position)
+
+	var curve_plane: Plane = Plane(tangent_l)
+
+	var up_vec_projected: Vector3 = curve_plane.project(up_vec_l)
+
+	#var sample_eased = ease(sample_position, smooth_amount)
+
+	return up_vec_l.normalized()
+
 
 ## @babybedbug's first code contribution! It's not functional code, but hey.
 #func build_grandparent(car):
@@ -818,18 +865,55 @@ func _build_geo():
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
 	#	self.name, loops, clength, low_poly])
 
+	# Array of structs about each loop of the segment.
+	# Used so first you can generate info, then build top side, then underside
+	var loops_info: Array[GeoLoopInfo] = []
+
+	# Generating Info
 	for loop in range(loops):
-		_insert_geo_loop(
+		loops_info.append(GeoLoopInfo.create(
+			self,
 			st, loop, loops, _matched_lanes,
 			lane_count, clength,
-			lane_uvs_length, per_loop_uv_size, uv_width)
+			lane_uvs_length, per_loop_uv_size, uv_width
+		))
 
+	# Generating top side
+	for loop_info in loops_info:
+		loop_info.insert_geo_loop()
+
+	# Touch ups on geometry and commiting it to mesh
 	st.index()
 	if material:
 		st.set_material(material)
 	st.generate_normals()
 	road_mesh.mesh = st.commit()
 	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Generating underside
+	# Reset SurfaceTool state
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var underside_generated: bool = false
+
+	for loop_info in loops_info:
+		var result: bool = loop_info.insert_underside_geo_loop()
+		if result:
+			underside_generated = true
+
+	# Was underside generated? If so, append it to the mesh
+	if underside_generated:
+		st.index()
+
+		if material_underside:
+			# If no underside material set, don't apply any material at all
+			st.set_material(material_underside)
+
+		st.generate_normals()
+		st.commit(road_mesh.mesh)
+		# Enable shadows. If it has underside then its probably in air and casting some
+		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
 	_create_collisions()
 
 
@@ -872,8 +956,59 @@ func _create_collisions() -> void:
 
 		sbody.set_meta("_edit_lock_", true)
 
+## Struct to keep info about each loop geo.
+class GeoLoopInfo:
+	## Reference to segment that owns this loop
+	var segment: Node3D
 
-func _insert_geo_loop(
+	## Surface tool that generates geometry for this segment
+	var st: SurfaceTool
+	## Current loop
+	var loop: int
+	## Total Amount of loops
+	var loops: int
+	## Array of lanes
+	var lanes: Array
+	## Length of ``lanes`` array
+	var lane_count: int
+	## Curve length
+	var clength: float
+	## Keep track of UV position over lane, to be seamless within the segment.
+	var lane_uvs_length: Array
+	var per_loop_uv_size: float
+	## 1/8 for breakdown of texture. ``= 0.125``
+	var uv_width: float
+
+	var offset: Array[float] # start and end offset along curve
+	var point: Array[RoadPoint] # start and end point
+	var lane_offset: Array
+
+	# ``nf_`` arrays have value for [Near] and [Far]
+	## Vector3 Position of loop
+	var nf_loop: Array
+	## Vector3 that points towards the right on that position of the curve
+	var nf_basis: Array
+	var nf_width: Array
+	var add_width: Array
+	var rem_width: Array
+	## Vector3 that points towards the top on that position of the curve
+	var nf_top: Array
+	## Thickness of the underside
+	var nf_thickness: Array
+	## Should this loop have an underside
+	var has_thickness: bool
+	var width_offset: Array
+
+	## Gutter X [Near, Far]
+	var gutr_x: Array
+	## Gutter Y [Near, Far]
+	var gutr_y: Array
+	## Shoulder width [Near, Far]
+	var w_shoulder: Array
+
+	## Constructor for struct
+	static func create(
+		segment: Node3D,
 		st: SurfaceTool,
 		loop: int,
 		loops: int,
@@ -882,184 +1017,337 @@ func _insert_geo_loop(
 		clength: float,
 		lane_uvs_length: Array,
 		per_loop_uv_size: float,
-		uv_width: float):
-	assert (loop < loops)
+		uv_width: float) -> GeoLoopInfo:
 
-	# One loop = row of quads left to right across the road, spanning lanes.
-	var offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
-	var point = [start_point, end_point]
+		var info = GeoLoopInfo.new()
 
-	var lane_offset = []
-	for nf in NearFar.values():
-		lane_offset.append(len(point[nf].lanes) / 2.0)
-	if start_point.alignment == RoadPoint.Alignment.DIVIDER || \
-		end_point.alignment == RoadPoint.Alignment.DIVIDER:
-		var nf_reverse = [0, 0]
-		for l in lanes:
-			if l[1] == RoadPoint.LaneDir.REVERSE:
-				if l[0] == RoadPoint.LaneType.TRANSITION_ADD:
-					nf_reverse[NearFar.FAR] += 1
-				elif l[0] == RoadPoint.LaneType.TRANSITION_REM:
-					nf_reverse[NearFar.NEAR] += 1
-				elif l[0] != RoadPoint.LaneType.SHOULDER:
-					nf_reverse[NearFar.NEAR] += 1
-					nf_reverse[NearFar.FAR] += 1
-			else:
-				assert (l[1] == RoadPoint.LaneDir.FORWARD)
+		info.segment = segment
+		info.st = st
+		info.loop = loop
+		info.loops = loops
+		info.lanes = lanes
+		info.lane_count = lane_count
+		info.clength = clength
+		info.lane_uvs_length = lane_uvs_length
+		info.per_loop_uv_size = per_loop_uv_size
+		info.uv_width = uv_width
+
+		info._generate_geo_loop_info()
+		return info
+
+	## Fills out other parameters based on the ones passed in the constructor
+	func _generate_geo_loop_info():
+		assert (loop < loops)
+
+		# One loop = row of quads left to right across the road, spanning lanes.
+		offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
+		point = [segment.start_point, segment.end_point]
+
+		lane_offset = []
 		for nf in NearFar.values():
-			if point[nf].alignment == RoadPoint.Alignment.DIVIDER:
-				lane_offset[nf] = nf_reverse[nf]
+			lane_offset.append(len(point[nf].lanes) / 2.0)
+		if segment.start_point.alignment == RoadPoint.Alignment.DIVIDER || \
+			segment.end_point.alignment == RoadPoint.Alignment.DIVIDER:
+			var nf_reverse = [0, 0]
+			for l in lanes:
+				if l[1] == RoadPoint.LaneDir.REVERSE:
+					if l[0] == RoadPoint.LaneType.TRANSITION_ADD:
+						nf_reverse[NearFar.FAR] += 1
+					elif l[0] == RoadPoint.LaneType.TRANSITION_REM:
+						nf_reverse[NearFar.NEAR] += 1
+					elif l[0] != RoadPoint.LaneType.SHOULDER:
+						nf_reverse[NearFar.NEAR] += 1
+						nf_reverse[NearFar.FAR] += 1
+				else:
+					assert (l[1] == RoadPoint.LaneDir.FORWARD)
+			for nf in NearFar.values():
+				if point[nf].alignment == RoadPoint.Alignment.DIVIDER:
+					lane_offset[nf] = nf_reverse[nf]
 
-	var nf_loop = [null, null]
-	var nf_basis = [null, null]
-	var nf_width = [null, null]
-	var add_width = [null, null]
-	var rem_width = [null, null]
+		nf_loop = [null, null]
+		nf_basis = [null, null]
+		nf_width = [null, null]
+		add_width = [null, null]
+		rem_width = [null, null]
+		nf_top = [null, null]
+		nf_thickness = [1, 1]
+		has_thickness = segment.start_point.get_thickness() >= 0 and segment.end_point.get_thickness() >= 0
 
-	var width_offset = [[null, null], [null, null]] #width_offset[LeftRight][NearFar]
+		width_offset = [[null, null], [null, null]] #width_offset[LeftRight][NearFar]
 
-	for nf in NearFar.values():
-		# Apply ease in and out across all attributes.
-		var offset_ease = ease(offset[nf], smooth_amount)
-		nf_loop[nf] = curve.sample_baked(offset[nf] * clength)
-		nf_basis[nf] = _normal_for_offset(curve, offset[nf])
-
-		# Calculate lane widths
-		nf_width[nf] = lerp(start_point.lane_width, end_point.lane_width, offset_ease)
-		add_width[nf] = lerp(0.0, end_point.lane_width, offset_ease)
-		rem_width[nf] = lerp(start_point.lane_width, 0.0, offset_ease)
-		# Sum the lane widths and get position of left edge
-		width_offset[LeftRight.LEFT][nf] = lerp(
-				lane_offset[NearFar.NEAR] * start_point.lane_width,
-				lane_offset[NearFar.FAR] * end_point.lane_width,
-				offset_ease
-		)
-		width_offset[LeftRight.RIGHT][nf] = -width_offset[LeftRight.LEFT][nf]
-
-	#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
-	#	loop, offset[NearFar.NEAR], offset[NearFar.FAR], nf_loop[NearFar.NEAR], nf_basis[NearFar.NEAR], nf_loop[NearFar.FAR], nf_basis[NearFar.FAR]
-	#])
-
-	for i in range(lane_count):
-		# Create the contents of a single lane / quad within this quad loop.
-		var lane_offset_nf = [0, 0]
-		var lane_width = [0, 0]
 		for nf in NearFar.values():
-			lane_offset_nf[nf] = width_offset[LeftRight.RIGHT][nf] * nf_basis[nf]
+			# Apply ease in and out across all attributes.
+			var offset_ease = ease(offset[nf], segment.smooth_amount)
+			nf_loop[nf] = segment.curve.sample_baked(offset[nf] * clength)
+			nf_basis[nf] = segment._normal_for_offset(segment.curve, offset[nf])
+			nf_top[nf] = segment._top_side_normal_for_offset_eased(segment.curve, offset[nf])
+			nf_thickness[nf] = lerp(segment.start_point.get_thickness(), segment.end_point.get_thickness(), offset_ease)
 
-			# Set lane width for current lane type
-			if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD:
-				lane_width[nf] = add_width[nf]
-			elif lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
-				lane_width[nf] = rem_width[nf]
-			else:
-				lane_width[nf] = nf_width[nf]
+			# Calculate lane widths
+			nf_width[nf] = lerp(segment.start_point.lane_width, segment.end_point.lane_width, offset_ease)
+			add_width[nf] = lerp(0.0, segment.end_point.lane_width, offset_ease)
+			rem_width[nf] = lerp(segment.start_point.lane_width, 0.0, offset_ease)
+			# Sum the lane widths and get position of left edge
+			width_offset[LeftRight.LEFT][nf] = lerp(
+					lane_offset[NearFar.NEAR] * segment.start_point.lane_width,
+					lane_offset[NearFar.FAR] * segment.end_point.lane_width,
+					offset_ease
+			)
+			width_offset[LeftRight.RIGHT][nf] = -width_offset[LeftRight.LEFT][nf]
+		#print("\tRunning loop %s: %s to %s; Start: %s,%s, end: %s,%s" % [
+		#	loop, offset[NearFar.NEAR], offset[NearFar.FAR], nf_loop[NearFar.NEAR], nf_basis[NearFar.NEAR], nf_loop[NearFar.FAR], nf_basis[NearFar.FAR]
+		#])
 
-		# Assume the start and end lanes are the same for now.
-		var uv_l:float # the left edge of the uv for this lane.
-		var uv_r:float
-		assert (len(uv_mul) == len(RoadPoint.LaneType.values()))
-		uv_l = uv_width * uv_mul[lanes[i][0]]
-		uv_r = uv_l + uv_width
-		if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD || lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
-			uv_r -= 0.002
-		var flipped = (lanes[i][0] == RoadPoint.LaneType.TWO_WAY || lanes[i][0] == RoadPoint.LaneType.ONE_WAY)
-		if (lanes[i][1] == RoadPoint.LaneDir.REVERSE) != flipped:
-			var tmp = uv_r
-			uv_r = uv_l
-			uv_l = tmp
-
-		# uv offset continuation for this lane.
-		var uv_y = [lane_uvs_length[i], lane_uvs_length[i] + per_loop_uv_size]
-		lane_uvs_length[i] = uv_y[NearFar.FAR] # For next loop to use.
-		#print("Seg: %s, lane:%s, uv %s-%s" % [
-		#	self.name, loop, uv_y[NearFar.NEAR], uv_y[NearFar.FAR]])
-
-		# Prepare attributes for add_vertex.
-		# Long edge towards origin, p1
-		quad( st, uv_square(uv_l, uv_r, uv_y),
-			pts_square(nf_loop, nf_basis,
-				[(width_offset[LeftRight.RIGHT][NearFar.FAR] + lane_width[NearFar.FAR]),
-				width_offset[LeftRight.RIGHT][NearFar.FAR],
-				width_offset[LeftRight.RIGHT][NearFar.NEAR],
-				(width_offset[LeftRight.RIGHT][NearFar.NEAR] + lane_width[NearFar.NEAR])
-				]) )
+		gutr_x = [null, null]
+		gutr_y = [null, null]
+		w_shoulder = [[null, null], [null, null]] #w_shoulder[LeftRight][NearFar]
 		for nf in NearFar.values():
-			width_offset[LeftRight.RIGHT][nf] += lane_width[nf]
+			w_shoulder[LeftRight.LEFT][nf]  = lerp(segment.start_point.shoulder_width_l, segment.end_point.shoulder_width_l, offset[nf])
+			w_shoulder[LeftRight.RIGHT][nf] = lerp(segment.start_point.shoulder_width_r, segment.end_point.shoulder_width_r, offset[nf])
 
-	var gutr_x = [null, null]
-	var gutr_y = [null, null]
-	var w_shoulder = [[null, null], [null, null]] #w_shoulder[LeftRight][NearFar]
-	for nf in NearFar.values():
-		w_shoulder[LeftRight.LEFT][nf]  = lerp(start_point.shoulder_width_l, end_point.shoulder_width_l, offset[nf])
-		w_shoulder[LeftRight.RIGHT][nf] = lerp(start_point.shoulder_width_r, end_point.shoulder_width_r, offset[nf])
+			# Gutter depth is the same for the left and right sides.
+			gutr_x[nf] = lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[nf])
+			gutr_y[nf] = lerp(segment.start_point.gutter_profile.y, segment.end_point.gutter_profile.y, offset[nf])
 
-		# Gutter depth is the same for the left and right sides.
-		gutr_x[nf] = lerp(start_point.gutter_profile.x, end_point.gutter_profile.x, offset[nf])
-		gutr_y[nf] = lerp(start_point.gutter_profile.y, end_point.gutter_profile.y, offset[nf])
-	# Now create the shoulder geometry, including the "bevel" geo.
-	for lr in LeftRight.values():
-		var dir = -1 if lr==0 else 1
-		var uv_y = [null, null]
-		var lane_uvx_ix = dir
-		if len(lane_uvs_length) == 1:
-			lane_uvx_ix = 0
-		uv_y = [ lane_uvs_length[lane_uvx_ix], lane_uvs_length[lane_uvx_ix] + per_loop_uv_size ]
+	## Generates top side geometry
+	func insert_geo_loop():
+		for i in range(lane_count):
+			# Create the contents of a single lane / quad within this quad loop.
+			var lane_offset_nf = [0, 0]
+			var lane_width = [0, 0]
+			for nf in NearFar.values():
+				lane_offset_nf[nf] = width_offset[LeftRight.RIGHT][nf] * nf_basis[nf]
 
-		# Account for custom left/right shoulder width.
-		var pos_l = [dir, dir]
-		var pos_r = [dir, dir]
-		for nf in NearFar.values():
-			var pos_gutter = width_offset[lr][nf] + w_shoulder[lr][nf]
+				# Set lane width for current lane type
+				if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD:
+					lane_width[nf] = add_width[nf]
+				elif lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
+					lane_width[nf] = rem_width[nf]
+				else:
+					lane_width[nf] = nf_width[nf]
+
+			# Assume the start and end lanes are the same for now.
+			var uv_l:float # the left edge of the uv for this lane.
+			var uv_r:float
+			assert (len(uv_mul) == len(RoadPoint.LaneType.values()))
+			uv_l = uv_width * uv_mul[lanes[i][0]]
+			uv_r = uv_l + uv_width
+			if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD || lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
+				uv_r -= 0.002
+			var flipped = (lanes[i][0] == RoadPoint.LaneType.TWO_WAY || lanes[i][0] == RoadPoint.LaneType.ONE_WAY)
+			if (lanes[i][1] == RoadPoint.LaneDir.REVERSE) != flipped:
+				var tmp = uv_r
+				uv_r = uv_l
+				uv_l = tmp
+
+			# uv offset continuation for this lane.
+			var uv_y = [lane_uvs_length[i], lane_uvs_length[i] + per_loop_uv_size]
+			lane_uvs_length[i] = uv_y[NearFar.FAR] # For next loop to use.
+			#print("Seg: %s, lane:%s, uv %s-%s" % [
+			#	self.name, loop, uv_y[NearFar.NEAR], uv_y[NearFar.FAR]])
+
+			# Prepare attributes for add_vertex.
+			# Long edge towards origin, p1
+			segment.quad( st, segment.uv_square(uv_l, uv_r, uv_y),
+				segment.pts_square(nf_loop, nf_basis,
+					[(width_offset[LeftRight.RIGHT][NearFar.FAR] + lane_width[NearFar.FAR]),
+					width_offset[LeftRight.RIGHT][NearFar.FAR],
+					width_offset[LeftRight.RIGHT][NearFar.NEAR],
+					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + lane_width[NearFar.NEAR])
+					]) )
+			for nf in NearFar.values():
+				width_offset[LeftRight.RIGHT][nf] += lane_width[nf]
+
+		# Now create the shoulder geometry, including the "bevel" geo.
+		for lr in LeftRight.values():
+			var dir = -1 if lr==0 else 1
+			var uv_y = [null, null]
+			var lane_uvx_ix = dir
+			if len(lane_uvs_length) == 1:
+				lane_uvx_ix = 0
+			uv_y = [ lane_uvs_length[lane_uvx_ix], lane_uvs_length[lane_uvx_ix] + per_loop_uv_size ]
+
+			# Account for custom left/right shoulder width.
+			var pos_l = [dir, dir]
+			var pos_r = [dir, dir]
+			for nf in NearFar.values():
+				var pos_gutter = width_offset[lr][nf] + w_shoulder[lr][nf]
+				if lr == LeftRight.RIGHT:
+					pos_l[nf] *= pos_gutter
+					pos_r[nf] *= width_offset[lr][nf]
+				else:
+					pos_l[nf] *= width_offset[lr][nf]
+					pos_r[nf] *= pos_gutter
+
+			# Assume the start and end lanes are the same for now.
+			var uv_mid = 0.8 # should be more like 0.9
+			var uv_m = uv_mid * uv_width # The 'middle' vert, same level as shoulder but to edge.
+			# LEFT (between pos:_s and _m, and between uv:_l and _m)
+			# The flat part of the shoulder on both sides
+
+			segment.quad( st, segment.uv_square(uv_m, uv_width, uv_y) if lr == LeftRight.RIGHT else segment.uv_square(uv_width, uv_m, uv_y),
+				segment.pts_square(nf_loop, nf_basis, [pos_l[NearFar.FAR], pos_r[NearFar.FAR], pos_r[NearFar.NEAR], pos_l[NearFar.NEAR]]) )
+
+			# The gutter, lower part of the shoulder on both sides.
 			if lr == LeftRight.RIGHT:
-				pos_l[nf] *= pos_gutter
-				pos_r[nf] *= width_offset[lr][nf]
+				segment.quad( st, segment.uv_square(0, uv_m, uv_y),
+					segment.pts_square(nf_loop, nf_basis,
+						[
+							pos_l[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
+							pos_l[NearFar.FAR],
+							pos_l[NearFar.NEAR],
+							pos_l[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir
+						],
+						[
+							gutr_y[NearFar.FAR],
+							0,
+							0,
+							gutr_y[NearFar.NEAR]
+						],
+						nf_top)
+					)
 			else:
-				pos_l[nf] *= width_offset[lr][nf]
-				pos_r[nf] *= pos_gutter
+				segment.quad( st, segment.uv_square(uv_m, 0, uv_y),
+					segment.pts_square(nf_loop, nf_basis,
+						[
+							pos_r[NearFar.FAR],
+							pos_r[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
+							pos_r[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir,
+							pos_r[NearFar.NEAR]
+						],
+						[
+							0,
+							gutr_y[NearFar.FAR],
+							gutr_y[NearFar.NEAR],
+							0
+						],
+						nf_top)
+					)
 
-		# Assume the start and end lanes are the same for now.
-		var uv_mid = 0.8 # should be more like 0.9
-		var uv_m = uv_mid * uv_width # The 'middle' vert, same level as shoulder but to edge.
-		# LEFT (between pos:_s and _m, and between uv:_l and _m)
-		# The flat part of the shoulder on both sides
+#region underside
 
-		quad( st, uv_square(uv_m, uv_width, uv_y) if lr == LeftRight.RIGHT else uv_square(uv_width, uv_m, uv_y),
-			pts_square(nf_loop, nf_basis, [pos_l[NearFar.FAR], pos_r[NearFar.FAR], pos_r[NearFar.NEAR], pos_l[NearFar.NEAR]]) )
+	## Generates underside geometry [br][br]
+	## Call this after ``insert_geo_loop``. The lane width is being caclucated there so this function depends on it.
+	func insert_underside_geo_loop() -> bool:
+		# if not (nf_thickness[NearFar.NEAR] >= 0 and nf_thickness[NearFar.FAR] >= 0):
+		# ^ USE INSTEAD IF YOU WANT UNDERSIDE SLOPES INTO 0
+		if not has_thickness:
+			return false
 
-		# The gutter, lower part of the shoulder on both sides.
-		if lr == LeftRight.RIGHT:
-			quad( st, uv_square(0, uv_m, uv_y),
-				pts_square(nf_loop, nf_basis,
-					[
-						pos_l[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
-						pos_l[NearFar.FAR],
-						pos_l[NearFar.NEAR],
-						pos_l[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir
-					],
-					[
-						gutr_y[NearFar.FAR],
-						0,
-						0,
-						gutr_y[NearFar.NEAR]
-					])
-				)
-		else:
-			quad( st, uv_square(uv_m, 0, uv_y),
-				pts_square(nf_loop, nf_basis,
-					[
-						pos_r[NearFar.FAR],
-						pos_r[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
-						pos_r[NearFar.NEAR] + gutr_x[NearFar.NEAR] * dir,
-						pos_r[NearFar.NEAR]
-					],
-					[
-						0,
-						gutr_y[NearFar.FAR],
-						gutr_y[NearFar.NEAR],
-						0
-					])
-				)
+		const min_thickness = 0.001 # Used to prevent Z-fighting
+		for nf in NearFar.values():
+			if nf_thickness[nf] <= 0:
+				nf_thickness[nf] = min_thickness
+
+		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
+		
+		# Presume the underside material uses seamless textures in both directions,
+		# to avoid stretching we'll presume that 1 UV tile should correspond to
+		# two lane widths. Technically still needs to scale start to end since the
+		# size of the road width could also vary.
+		
+		var rwidth_start := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.NEAR])
+		var rwidth_end := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.FAR])
+		var uv_unit_width_start:float = width_offset[LeftRight.LEFT][NearFar.NEAR] + width_offset[LeftRight.RIGHT][NearFar.NEAR]
+		var uv_unit_width_end:float = width_offset[LeftRight.LEFT][NearFar.FAR] + width_offset[LeftRight.RIGHT][NearFar.FAR]
+		
+		const UNIT_LANE_COUNT := 4.0  # How many lanes a 0->1 U tile represents
+		# Calc U offset from middle of road (geometric, not lane)
+		var ufac_mult_start = uv_unit_width_start / UNIT_LANE_COUNT / rwidth_start / 2.0
+		var ufac_mult_end = uv_unit_width_end / UNIT_LANE_COUNT / rwidth_end / 2.0
+		
+		var uv_start_v:float = per_loop_uv_size * float(loop)
+		var uv_end_v:float = per_loop_uv_size * float(loop + 1)
+		var uvs_center = [
+			Vector2(-ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_start, uv_start_v),
+			Vector2(-ufac_mult_start, uv_start_v)
+		]
+		
+		# map width of road to be 0-1, to gutter height ratio
+		var sp:RoadPoint = point[0]
+		var ep:RoadPoint = point[1]
+		var gutter_start_len:float = Vector2(
+			lerp(sp.gutter_profile.x, ep.gutter_profile.x, offset[NearFar.NEAR]),
+			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[0])
+		).length() / UNIT_LANE_COUNT / rwidth_start
+		var gutter_end_len:float = Vector2(
+			lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[NearFar.FAR]),
+			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[1])
+		).length() / UNIT_LANE_COUNT / rwidth_end
+		
+		var uvs_right = [
+			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_start, uv_start_v),
+			Vector2(ufac_mult_start + gutter_start_len, uv_start_v)
+		]
+		var uvs_left = [
+			Vector2(ufac_mult_end, uv_end_v),
+			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
+			Vector2(ufac_mult_start + gutter_start_len, uv_start_v),
+			Vector2(ufac_mult_start, uv_start_v)
+		]
+
+		segment.inverse_quad( st,
+			uvs_center,
+			segment.pts_square(nf_loop, nf_basis,
+				[
+					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR]),
+					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR]),
+					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR])
+				],
+				[
+					-nf_thickness[NearFar.FAR],
+					-nf_thickness[NearFar.FAR],
+					-nf_thickness[NearFar.NEAR],
+					-nf_thickness[NearFar.NEAR]
+				],
+				nf_top)
+			)
+
+		segment.inverse_quad( st,
+			uvs_left,
+			segment.pts_square(nf_loop, nf_basis,
+				[
+					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
+					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] + gutr_x[NearFar.NEAR]),
+					-(width_offset[LeftRight.LEFT][NearFar.NEAR] + w_shoulder[LeftRight.LEFT][NearFar.NEAR] )
+				],
+				[
+					-nf_thickness[NearFar.FAR],
+					gutr_y[NearFar.FAR],
+					gutr_y[NearFar.NEAR],
+					-nf_thickness[NearFar.NEAR],
+				],
+				nf_top),
+				UNDERSIDE_GUTTER_SMOOTHING_GROUP
+			)
+
+		segment.inverse_quad( st,
+			uvs_right,
+			segment.pts_square(nf_loop, nf_basis,
+				[
+					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
+					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
+					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR]),
+					(width_offset[LeftRight.RIGHT][NearFar.NEAR] + w_shoulder[LeftRight.RIGHT][NearFar.NEAR] + gutr_x[NearFar.NEAR])
+				],
+				[
+					gutr_y[NearFar.FAR],
+					-nf_thickness[NearFar.FAR],
+					-nf_thickness[NearFar.NEAR],
+					gutr_y[NearFar.NEAR],
+				],
+				nf_top),
+				UNDERSIDE_GUTTER_SMOOTHING_GROUP
+			)
+
+		return true
+#endregion
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
@@ -1070,7 +1358,7 @@ static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 			Vector2(uv_lmr1, uv_y[NearFar.NEAR]),
 			]
 
-static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset = null) -> Array:
+static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset: Array = [], nf_y_dir = [Vector3.UP, Vector3.UP]) -> Array:
 	assert( len(nf_loop) == 2 && len(nf_basis) == 2 )
 	var ret = [
 			nf_loop[NearFar.FAR] + nf_basis[NearFar.FAR] * width_offset[0],
@@ -1078,31 +1366,61 @@ static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_off
 			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[2],
 			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[3],
 			]
-	if y_offset != null:
-		for i in len(y_offset):
-			ret[i] += Vector3.UP * y_offset[i]
+	if y_offset != null and y_offset.size() == 4:
+		ret[0] += nf_y_dir[NearFar.FAR] * y_offset[0]
+		ret[1] += nf_y_dir[NearFar.FAR] * y_offset[1]
+		ret[2] += nf_y_dir[NearFar.NEAR] * y_offset[2]
+		ret[3] += nf_y_dir[NearFar.NEAR] * y_offset[3]
+
 	return ret
 
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
 # will go from bottom left to top right.
-static func quad(st:SurfaceTool, uvs:Array, pts:Array) -> void:
+static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[0])
 	# Add normal explicitly?
 	st.add_vertex(pts[0])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 	# Triangle 2.
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[2])
 	st.add_vertex(pts[2])
+	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
+static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
+	# Triangle 1.
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[3])
+	# Add normal explicitly?
+	st.add_vertex(pts[3])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[1])
+	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[0])
+	st.add_vertex(pts[0])
+	# Triangle 2.
+	st.set_uv(uvs[3])
+	st.add_vertex(pts[3])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[2])
+	st.add_vertex(pts[2])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[1])
+	st.add_vertex(pts[1])
 
 func _flip_traffic_dir(lanes: Array) -> Array:
 	var _spdir:Array = []

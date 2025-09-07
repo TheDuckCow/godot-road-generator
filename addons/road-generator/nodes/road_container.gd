@@ -43,6 +43,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## If cleared, will utilize the default specificed by the [RoadManager].
 @export var material_resource: Material: set = _set_material
 
+## Material applied to the underside of the generated meshes[br][br]
+##
+## If cleared, will utilize the default specificed by the [RoadManager].
+@export var material_underside: Material: set = _set_material_underside
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -59,6 +64,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## if a terrain connector is set up.
 ## flatten terrain underneath them if a terrain connector is used.
 @export var flatten_terrain: bool = true
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -333,8 +344,18 @@ func _set_density(value) -> void:
 	_defer_refresh_on_change()
 
 
+func _set_thickness(value) -> void:
+	underside_thickness = value
+	_defer_refresh_on_change()
+
+
 func _set_material(value) -> void:
 	material_resource = value
+	_defer_refresh_on_change()
+
+
+func _set_material_underside(value) -> void:
+	material_underside = value
 	_defer_refresh_on_change()
 
 
@@ -975,7 +996,17 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
+
+		if material_underside:
+			new_seg.material_underside = material_underside
+		elif is_instance_valid(_manager) and _manager.material_underside:
+			new_seg.material_underside = _manager.material_underside
+
 		new_seg.check_rebuild()
+
+		var segment_thickness: float
+		#if
+		# VISSA ANCHOR POINT
 
 		return [true, new_seg]
 
