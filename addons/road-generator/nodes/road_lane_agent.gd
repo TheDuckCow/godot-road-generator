@@ -317,7 +317,7 @@ func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 ## the road continues forward (move_dir == 1) or backward (move_dir == -1)
 ## Used for decision to change lanes from transition lanes (as there are no direct connection)
 func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> int:
-	assert ( move_dir != MoveDir.STOP && (lane_change_dir == LaneChangeDir.LEFT || lane_change_dir == LaneChangeDir.RIGHT) )
+	assert(move_dir != MoveDir.STOP && (lane_change_dir == LaneChangeDir.LEFT || lane_change_dir == LaneChangeDir.RIGHT))
 	var _new_lane = current_lane
 	var count:int = 0
 	while true:

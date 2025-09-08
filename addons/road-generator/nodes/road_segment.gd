@@ -922,7 +922,6 @@ func _build_geo():
 		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
-
 	_create_collisions()
 
 
@@ -1053,7 +1052,7 @@ class GeoLoopInfo:
 
 	## Fills out other parameters based on the ones passed in the constructor
 	func _generate_geo_loop_info():
-		assert (loop < loops)
+		assert(loop < loops)
 
 		# One loop = row of quads left to right across the road, spanning lanes.
 		offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
@@ -1075,7 +1074,7 @@ class GeoLoopInfo:
 						nf_reverse[NearFar.NEAR] += 1
 						nf_reverse[NearFar.FAR] += 1
 				else:
-					assert (l[1] == RoadPoint.LaneDir.FORWARD)
+					assert(l[1] == RoadPoint.LaneDir.FORWARD)
 			for nf in NearFar.values():
 				if point[nf].alignment == RoadPoint.Alignment.DIVIDER:
 					lane_offset[nf] = nf_reverse[nf]
@@ -1150,7 +1149,7 @@ class GeoLoopInfo:
 			# Assume the start and end lanes are the same for now.
 			var uv_l:float # the left edge of the uv for this lane.
 			var uv_r:float
-			assert (len(uv_mul) == len(RoadPoint.LaneType.values()))
+			assert(len(uv_mul) == len(RoadPoint.LaneType.values()))
 			uv_l = uv_width * uv_mul[lanes[i][0]]
 			uv_r = uv_l + uv_width
 			if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD || lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
@@ -1377,6 +1376,7 @@ class GeoLoopInfo:
 #region Geo utilities
 # ------------------------------------------------------------------------------
 
+
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
 	return	[
@@ -1385,6 +1385,7 @@ static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 			Vector2(uv_lmr2, uv_y[NearFar.NEAR]),
 			Vector2(uv_lmr1, uv_y[NearFar.NEAR]),
 			]
+
 
 static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset: Array = [], nf_y_dir = [Vector3.UP, Vector3.UP]) -> Array:
 	assert( len(nf_loop) == 2 && len(nf_basis) == 2 )
@@ -1401,6 +1402,7 @@ static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_off
 		ret[3] += nf_y_dir[NearFar.NEAR] * y_offset[3]
 
 	return ret
+
 
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
@@ -1428,6 +1430,7 @@ static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
+
 static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
 	st.set_smooth_group(smoothing_group)
@@ -1449,6 +1452,7 @@ static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: 
 	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+
 
 func _flip_traffic_dir(lanes: Array) -> Array:
 	var _spdir:Array = []
@@ -1658,6 +1662,7 @@ func _match_lanes() -> Array:
 				last_same_i = (i - start_flip_offset)
 
 	return lanes
+
 
 ## Evaluate the lanes of a RoadPoint and return the index of the direction flip
 ## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
