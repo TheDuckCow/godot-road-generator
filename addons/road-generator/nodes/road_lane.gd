@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_lane.png")
-
 class_name RoadLane
 extends Path3D
 ## Defines a directional lane of traffic for AI with references to adjacent lanes.
@@ -11,15 +10,26 @@ extends Path3D
 ## @tutorial(Using RoadLanes with custom meshes): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
 ## @tutorial(Procedural demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/procedural_generator
 
-const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
-const COLOR_START := Color(0.7, 0.7, 0,7)
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
+
 
 signal on_transform
 
+const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
+const COLOR_START := Color(0.7, 0.7, 0,7)
+
 
 # ------------------------------------------------------------------------------
-@export_group("Connections")
+#endregion
+#region Export vars
 # ------------------------------------------------------------------------------
+
+
+# -------------------------------------
+@export_group("Connections")
+# -------------------------------------
 
 
 ## Reference to the next left-side [RoadLane] if any, for allowed lane transitions.
@@ -53,9 +63,9 @@ signal on_transform
 @export var lane_prior_tag:String
 
 
-# ------------------------------------------------------------------------------
+# -------------------------------------
 @export_group("Behavior")
-# ------------------------------------------------------------------------------
+# -------------------------------------
 
 ## Visualize this [RoadLane] and its direction in the editor directly.
 @export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
@@ -66,9 +76,9 @@ signal on_transform
 @export var auto_free_vehicles: bool = true
 
 
-# ------------------------------------------------------------------------------
+# -------------------------------------
 @export_group("Editor tools")
-# ------------------------------------------------------------------------------
+# -------------------------------------
 
 
 # TODO: remove when moved to Godot 4.4 and changed to simple button
@@ -95,7 +105,8 @@ var _display_fins: bool = false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and builtin overrides
 # ------------------------------------------------------------------------------
 
 
@@ -110,6 +121,19 @@ func _ready():
 	connect("curve_changed", Callable(self, "curve_changed"))
 	rebuild_geom()
 	#_instantiate_geom()
+
+
+func _exit_tree() -> void:
+	if auto_free_vehicles:
+		for _vehicle in _vehicles_in_lane:
+			if is_instance_valid(_vehicle):
+				_vehicle.call_deferred("queue_free")
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Functions
+# ------------------------------------------------------------------------------
 
 
 #TODO: remove when moved to Godot 4.4 and changed to simple button
@@ -257,8 +281,5 @@ func show_fins(value: bool) -> void:
 	rebuild_geom()
 
 
-func _exit_tree() -> void:
-	if auto_free_vehicles:
-		for _vehicle in _vehicles_in_lane:
-			if is_instance_valid(_vehicle):
-				_vehicle.call_deferred("queue_free")
+#endregion
+# ------------------------------------------------------------------------------

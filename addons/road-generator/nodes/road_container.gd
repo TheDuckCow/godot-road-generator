@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_container.png")
-
 class_name RoadContainer
 extends Node3D
 ## The parent node for [RoadPoint]'s and controller of actual geo creation.
@@ -14,6 +13,11 @@ extends Node3D
 ## @tutorial(Getting started): https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
+
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
 
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -184,7 +188,8 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 
 
 # ------------------------------------------------------------------------------
-# Runtime variables
+#endregion
+#region Runtime variables
 # ------------------------------------------------------------------------------
 
 
@@ -226,7 +231,8 @@ var _is_ready := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and export setter/getters
 # ------------------------------------------------------------------------------
 
 
@@ -418,7 +424,8 @@ func _set_create_edge_curves(value: bool) -> void:
 
 
 # ------------------------------------------------------------------------------
-# Editor interactions
+#endregion
+#region Editor interactions
 # ------------------------------------------------------------------------------
 
 
@@ -433,7 +440,8 @@ func _notification(what):
 
 
 # ------------------------------------------------------------------------------
-# Container methods
+#endregion
+#region Functions
 # ------------------------------------------------------------------------------
 
 
@@ -562,7 +570,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	return closest_rp
 
 
-# Get Edge RoadPoints that are open and available for connections
+## Get Edge RoadPoints that are open and available for connections
 func get_open_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -583,8 +591,8 @@ func get_open_edges()->Array:
 	return rp_edges
 
 
-# Get Edge RoadPoints that are unavailable for connections. Returns
-# local Edges, target Edges, and target containers.
+## Get Edge RoadPoints that are unavailable for connections. Returns
+## local Edges, target Edges, and target containers.
 func get_connected_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -1011,10 +1019,10 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		return [true, new_seg]
 
 
-# Update the lane_next and lane_prior connections based on tags assigned.
-#
-# Process over each end of "connecting" Lanes, therefore best to iterate
-# over RoadPoints.
+## Update the lane_next and lane_prior connections based on tags assigned.
+##
+## Process over each end of "connecting" Lanes, therefore best to iterate
+## over RoadPoints.
 func update_lane_seg_connections():
 	for obj in get_children():
 		if not obj is RoadPoint:
@@ -1055,7 +1063,7 @@ func update_lane_seg_connections():
 						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
 
-# Triggered by adjusting RoadPoint transform in editor via signal connection.
+## Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if not _auto_refresh:
 		_needs_refresh = true
@@ -1120,7 +1128,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		emit_signal("on_road_updated", segs_updated)
 
 
-# Callback from a modification of a RoadSegment object.
+## Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
 
@@ -1184,3 +1192,6 @@ func _exit_tree():
 	#	return
 	#for seg in get_node(segments).get_children():
 	#	seg.queue_free()
+
+#endregion
+# ------------------------------------------------------------------------------

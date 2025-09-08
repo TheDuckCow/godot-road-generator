@@ -10,7 +10,26 @@ extends Node3D
 ## If necessary to reference like a class, place this in any script:
 ## const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+# Not registered as a class so users can't access from the Add Node menu
 #class_name RoadSegment, "road_segment.png"
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Export/Vars
+# ------------------------------------------------------------------------------
+
+signal seg_ready(road_segment)
+
+## For iteration on values related to Near(start) or Far(end) points of a segment
+enum NearFar {
+	NEAR,
+	FAR
+}
+
+## For iteration on values related to Left or Right sides of a segment
+enum LeftRight {
+	LEFT,
+	RIGHT
+}
 
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
@@ -20,8 +39,6 @@ const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge cur
 
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
-
-signal seg_ready(road_segment)
 
 @export var start_init: NodePath: get = _init_start_get, set = _init_start_set
 @export var end_init: NodePath: get = _init_end_get, set = _init_end_set
@@ -37,38 +54,28 @@ var density := 4.00 ## Distance between loops, bake_interval in m applied to cur
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
-var low_poly := false  # If true, then was (or will be) generated as low poly.
+var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
-var smooth_amount := -2  # Ease in/out smooth, used with ease built function
+var smooth_amount := -1.4  ## Ease in/out smooth, used with ease built function
 
-# Cache for matched lanes, result of _match_lanes() func
+## Cache for matched lanes, result of _match_lanes() func
 var _matched_lanes: Array = []
 
-# Indicator that this sequence is the connection of two "Next's" or two "Prior's"
-# and therefore we need to do some flipping around.
+## Indicator that this sequence is the connection of two "Next's" or two "Prior's"
+## and therefore we need to do some flipping around.
 var _start_flip: bool = false
 var _end_flip: bool = false
-# For easier calculation, to account for flipped directions.
+## For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
 
-## For iteration on values related to Near(start) or Far(end) points of a segment
-enum NearFar {
-	NEAR,
-	FAR
-}
-
-## For iteration on values related to Left or Right sides of a segment
-enum LeftRight {
-	LEFT,
-	RIGHT
-}
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup
 # ------------------------------------------------------------------------------
 
 
@@ -156,7 +163,8 @@ static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
 
 
 # ------------------------------------------------------------------------------
-# Export callbacks
+#endregion
+#region Export callbacks
 # ------------------------------------------------------------------------------
 
 func _init_start_set(value):
@@ -617,7 +625,8 @@ func update_lane_visibility():
 
 
 # ------------------------------------------------------------------------------
-# Geometry construction
+#endregion
+#region Geometry construction
 # ------------------------------------------------------------------------------
 
 ## Construct the geometry of this road segment.
@@ -913,7 +922,6 @@ func _build_geo():
 		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
-
 	_create_collisions()
 
 
@@ -955,6 +963,13 @@ func _create_collisions() -> void:
 		# else: will just be the godot default.
 
 		sbody.set_meta("_edit_lock_", true)
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Geoloop
+# ------------------------------------------------------------------------------
+
 
 ## Struct to keep info about each loop geo.
 class GeoLoopInfo:
@@ -1037,7 +1052,7 @@ class GeoLoopInfo:
 
 	## Fills out other parameters based on the ones passed in the constructor
 	func _generate_geo_loop_info():
-		assert (loop < loops)
+		assert(loop < loops)
 
 		# One loop = row of quads left to right across the road, spanning lanes.
 		offset = [float(loop) / float(loops), float(loop + 1) / float(loops)]
@@ -1059,7 +1074,7 @@ class GeoLoopInfo:
 						nf_reverse[NearFar.NEAR] += 1
 						nf_reverse[NearFar.FAR] += 1
 				else:
-					assert (l[1] == RoadPoint.LaneDir.FORWARD)
+					assert(l[1] == RoadPoint.LaneDir.FORWARD)
 			for nf in NearFar.values():
 				if point[nf].alignment == RoadPoint.Alignment.DIVIDER:
 					lane_offset[nf] = nf_reverse[nf]
@@ -1109,6 +1124,11 @@ class GeoLoopInfo:
 			gutr_x[nf] = lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[nf])
 			gutr_y[nf] = lerp(segment.start_point.gutter_profile.y, segment.end_point.gutter_profile.y, offset[nf])
 
+	# ---------------------------------
+	#endregion
+	#region Geoloop topside
+	# ---------------------------------
+
 	## Generates top side geometry
 	func insert_geo_loop():
 		for i in range(lane_count):
@@ -1129,7 +1149,7 @@ class GeoLoopInfo:
 			# Assume the start and end lanes are the same for now.
 			var uv_l:float # the left edge of the uv for this lane.
 			var uv_r:float
-			assert (len(uv_mul) == len(RoadPoint.LaneType.values()))
+			assert(len(uv_mul) == len(RoadPoint.LaneType.values()))
 			uv_l = uv_width * uv_mul[lanes[i][0]]
 			uv_r = uv_l + uv_width
 			if lanes[i][0] == RoadPoint.LaneType.TRANSITION_ADD || lanes[i][0] == RoadPoint.LaneType.TRANSITION_REM:
@@ -1223,8 +1243,10 @@ class GeoLoopInfo:
 						],
 						nf_top)
 					)
-
-#region underside
+	# ---------------------------------
+	#endregion
+	#region Geoloop underside
+	# ---------------------------------
 
 	## Generates underside geometry [br][br]
 	## Call this after ``insert_geo_loop``. The lane width is being caclucated there so this function depends on it.
@@ -1347,7 +1369,13 @@ class GeoLoopInfo:
 			)
 
 		return true
+
+
+# ------------------------------------------------------------------------------
 #endregion
+#region Geo utilities
+# ------------------------------------------------------------------------------
+
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
@@ -1357,6 +1385,7 @@ static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 			Vector2(uv_lmr2, uv_y[NearFar.NEAR]),
 			Vector2(uv_lmr1, uv_y[NearFar.NEAR]),
 			]
+
 
 static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset: Array = [], nf_y_dir = [Vector3.UP, Vector3.UP]) -> Array:
 	assert( len(nf_loop) == 2 && len(nf_basis) == 2 )
@@ -1373,6 +1402,7 @@ static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_off
 		ret[3] += nf_y_dir[NearFar.NEAR] * y_offset[3]
 
 	return ret
+
 
 # Generate a quad with two triangles for a list of 4 points/uvs in a row.
 # For convention, do cloclwise from top-left vert, where the diagonal
@@ -1400,6 +1430,7 @@ static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0)
 	st.set_uv(uvs[3])
 	st.add_vertex(pts[3])
 
+
 static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
 	st.set_smooth_group(smoothing_group)
@@ -1421,6 +1452,7 @@ static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: 
 	st.set_smooth_group(smoothing_group)
 	st.set_uv(uvs[1])
 	st.add_vertex(pts[1])
+
 
 func _flip_traffic_dir(lanes: Array) -> Array:
 	var _spdir:Array = []
@@ -1631,6 +1663,7 @@ func _match_lanes() -> Array:
 
 	return lanes
 
+
 ## Evaluate the lanes of a RoadPoint and return the index of the direction flip
 ## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
 ## overall traffic direction of the RoadPoint.
@@ -1665,3 +1698,6 @@ func _get_lane_flip_data(traffic_dir: Array) -> Array:
 			flip_offset = len(traffic_dir) - 1
 			return [flip_offset, RoadPoint.LaneDir.FORWARD]
 	return [flip_offset, RoadPoint.LaneDir.BOTH]
+
+#endregion
+# ------------------------------------------------------------------------------
