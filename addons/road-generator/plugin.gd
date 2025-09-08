@@ -1,6 +1,10 @@
 @tool
-## Road and Highway generator addon.
 extends EditorPlugin
+## Road and Highway generator addon.
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Vars
+# ------------------------------------------------------------------------------
 
 enum SnapState {
 	IDLE,
@@ -57,6 +61,12 @@ var _edi_debug := false
 var copy_attributes:Dictionary = {}
 
 
+# ------------------------------------------------------------------------------
+#endregion
+#region Setup and builtin overrides
+# ------------------------------------------------------------------------------
+
+
 func _enter_tree():
 	add_node_3d_gizmo_plugin(road_point_gizmo)
 	add_inspector_plugin(road_point_editor)
@@ -102,7 +112,8 @@ func _exit_tree():
 
 
 # ------------------------------------------------------------------------------
-# EditorPlugin overriden methods
+#endregion
+#region EditorPlugin overriden methods
 # ------------------------------------------------------------------------------
 
 
@@ -285,7 +296,8 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 
 
 # ------------------------------------------------------------------------------
-# Utilities
+#endregion
+#region GUI utilities
 # ------------------------------------------------------------------------------
 
 
@@ -678,7 +690,8 @@ func refresh() -> void:
 
 
 # ------------------------------------------------------------------------------
-# Selection utilities
+#endregion
+#region Selection utilities
 # ------------------------------------------------------------------------------
 
 
@@ -917,7 +930,8 @@ func _handles(object: Object):
 
 
 # ------------------------------------------------------------------------------
-# Create menu handling
+#endregion
+#region Create menu handling
 # ------------------------------------------------------------------------------
 
 
@@ -978,6 +992,12 @@ func _on_regenerate_pressed() -> void:
 	if t_container:
 		t_container.rebuild_segments(true)
 		return
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Operations
+# ------------------------------------------------------------------------------
 
 
 func _instance_custom_roadcontainer(path: String) -> void:
@@ -2058,3 +2078,6 @@ func _create_lane_agent_pressed() -> void:
 	undo_redo.add_undo_method(target_parent, "remove_child", agent)
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 	undo_redo.commit_action()
+
+#endregion
+# ------------------------------------------------------------------------------

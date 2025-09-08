@@ -10,7 +10,26 @@ extends Node3D
 ## If necessary to reference like a class, place this in any script:
 ## const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+# Not registered as a class so users can't access from the Add Node menu
 #class_name RoadSegment, "road_segment.png"
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Export/Vars
+# ------------------------------------------------------------------------------
+
+signal seg_ready(road_segment)
+
+## For iteration on values related to Near(start) or Far(end) points of a segment
+enum NearFar {
+	NEAR,
+	FAR
+}
+
+## For iteration on values related to Left or Right sides of a segment
+enum LeftRight {
+	LEFT,
+	RIGHT
+}
 
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
@@ -20,8 +39,6 @@ const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge cur
 
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
-
-signal seg_ready(road_segment)
 
 @export var start_init: NodePath: get = _init_start_get, set = _init_start_set
 @export var end_init: NodePath: get = _init_end_get, set = _init_end_set
@@ -37,38 +54,28 @@ var density := 4.00 ## Distance between loops, bake_interval in m applied to cur
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
-var low_poly := false  # If true, then was (or will be) generated as low poly.
+var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
-var smooth_amount := -2  # Ease in/out smooth, used with ease built function
+var smooth_amount := -1.4  ## Ease in/out smooth, used with ease built function
 
-# Cache for matched lanes, result of _match_lanes() func
+## Cache for matched lanes, result of _match_lanes() func
 var _matched_lanes: Array = []
 
-# Indicator that this sequence is the connection of two "Next's" or two "Prior's"
-# and therefore we need to do some flipping around.
+## Indicator that this sequence is the connection of two "Next's" or two "Prior's"
+## and therefore we need to do some flipping around.
 var _start_flip: bool = false
 var _end_flip: bool = false
-# For easier calculation, to account for flipped directions.
+## For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
 
-## For iteration on values related to Near(start) or Far(end) points of a segment
-enum NearFar {
-	NEAR,
-	FAR
-}
-
-## For iteration on values related to Left or Right sides of a segment
-enum LeftRight {
-	LEFT,
-	RIGHT
-}
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup
 # ------------------------------------------------------------------------------
 
 
@@ -156,7 +163,8 @@ static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
 
 
 # ------------------------------------------------------------------------------
-# Export callbacks
+#endregion
+#region Export callbacks
 # ------------------------------------------------------------------------------
 
 func _init_start_set(value):
@@ -617,7 +625,8 @@ func update_lane_visibility():
 
 
 # ------------------------------------------------------------------------------
-# Geometry construction
+#endregion
+#region Geometry construction
 # ------------------------------------------------------------------------------
 
 ## Construct the geometry of this road segment.
@@ -956,6 +965,13 @@ func _create_collisions() -> void:
 
 		sbody.set_meta("_edit_lock_", true)
 
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Geoloop
+# ------------------------------------------------------------------------------
+
+
 ## Struct to keep info about each loop geo.
 class GeoLoopInfo:
 	## Reference to segment that owns this loop
@@ -1109,6 +1125,11 @@ class GeoLoopInfo:
 			gutr_x[nf] = lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[nf])
 			gutr_y[nf] = lerp(segment.start_point.gutter_profile.y, segment.end_point.gutter_profile.y, offset[nf])
 
+	# ---------------------------------
+	#endregion
+	#region Geoloop topside
+	# ---------------------------------
+
 	## Generates top side geometry
 	func insert_geo_loop():
 		for i in range(lane_count):
@@ -1223,8 +1244,10 @@ class GeoLoopInfo:
 						],
 						nf_top)
 					)
-
-#region underside
+	# ---------------------------------
+	#endregion
+	#region Geoloop underside
+	# ---------------------------------
 
 	## Generates underside geometry [br][br]
 	## Call this after ``insert_geo_loop``. The lane width is being caclucated there so this function depends on it.
@@ -1347,7 +1370,12 @@ class GeoLoopInfo:
 			)
 
 		return true
+
+
+# ------------------------------------------------------------------------------
 #endregion
+#region Geo utilities
+# ------------------------------------------------------------------------------
 
 static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
 	assert( len(uv_y) == 2 )
@@ -1665,3 +1693,6 @@ func _get_lane_flip_data(traffic_dir: Array) -> Array:
 			flip_offset = len(traffic_dir) - 1
 			return [flip_offset, RoadPoint.LaneDir.FORWARD]
 	return [flip_offset, RoadPoint.LaneDir.BOTH]
+
+#endregion
+# ------------------------------------------------------------------------------

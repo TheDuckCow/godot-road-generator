@@ -1,5 +1,6 @@
 @icon("res://addons/road-generator/resources/road_lane_agent.png")
-
+class_name RoadLaneAgent
+extends Node
 ## An agent helper for navigation on [RoadLane]'s.
 ##
 ## Inspired, but does not inherit from, NavigationAgent since this does not rely
@@ -16,8 +17,12 @@
 ##
 ## @tutorial(Intersection demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/intersections
 ## @tutorial(Procedural demo with agents): https://github.com/TheDuckCow/godot-road-generator/tree/main/demo/procedural_generator
-class_name RoadLaneAgent
-extends Node
+
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Export/Vars
+# ------------------------------------------------------------------------------
+
 
 signal on_lane_changed(old_lane)
 
@@ -61,6 +66,13 @@ var _did_make_lane_visible := false
 
 const DEBUG_OUT: bool = false
 
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Setup and builtin overrides
+# ------------------------------------------------------------------------------
+
+
 func _ready() -> void:
 	var res = assign_actor()
 	assert(res == OK)
@@ -68,6 +80,13 @@ func _ready() -> void:
 	assert(res == OK)
 	if DEBUG_OUT:
 		print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
+
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Functions
+# ------------------------------------------------------------------------------
 
 
 func assign_lane(new_lane:RoadLane) -> void:
@@ -331,3 +350,7 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 ## Returns the expect target position based on the closest target pos
 #func get_fwd_tangent_for_position(position: Vector3) -> Vector3:
 #	return Vector3.ZERO
+
+
+#endregion
+# ------------------------------------------------------------------------------
