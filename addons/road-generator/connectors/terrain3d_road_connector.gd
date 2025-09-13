@@ -9,7 +9,7 @@ const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 
 # Terrain3D
 ## Reference to the Terrain3D instance, to be flattened
-@export var terrain:Node: #Terrain3D:
+@export var terrain:Node3D: #Terrain3D:
 	set(value):
 		terrain = value
 		configure_road_update_signal()
