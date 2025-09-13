@@ -34,6 +34,9 @@ var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
 var road_container_editor = RoadContainerEdit.new(self)
+
+var plugin_version: String
+
 var _road_toolbar: RoadToolbarClass
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
@@ -93,6 +96,9 @@ func _enter_tree():
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT
+	
+	# Load the plugin version, for UI and form-opening purposes
+	plugin_version = get_plugin_version()
 
 
 func _exit_tree():
@@ -688,6 +694,16 @@ func refresh() -> void:
 	get_editor_interface().get_inspector().refresh()
 
 
+func get_plugin_version() -> String:
+	var addon_path:String = get_script().resource_path
+	addon_path = addon_path.get_base_dir() + "/plugin.cfg"
+	print("Path: ", addon_path)
+	var config := ConfigFile.new()
+	if config.load(addon_path) == OK:
+		return config.get_value("plugin", "version", "")
+	return ""
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Selection utilities
@@ -957,6 +973,8 @@ func _show_road_toolbar() -> void:
 		
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
+		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
+		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
 
 
 func _hide_road_toolbar() -> void:
@@ -1995,6 +2013,31 @@ func _instance_gltf_post_export(container:RoadContainer, export_file: String) ->
 	container.add_child(glb_model)
 	glb_model.owner = container.get_owner()
 	container.create_geo = false
+
+
+## Open up the addon feedback form
+func _on_feedback_pressed() -> void:
+	const FORM_BASE_URL := "https://docs.google.com/forms/d/e/1FAIpQLSdNbtXvw0FYQGEKpnqhpJZyujxFsabTk4i3SHPXYA6UGRdG9w/viewform"
+	const GODOT_FIELD_ID := "entry.600361287"
+	const ADDON_FIELD_ID := "entry.474237825"
+	
+	var version_info := Engine.get_version_info()
+	var godot_version := "%d.%d" % [version_info["major"], version_info["minor"]]
+	if version_info["status"] != "stable":
+		godot_version += "-%s" % version_info["status"]
+
+	var url = "%s?%s=%s&%s=%s" % [
+		FORM_BASE_URL,
+		GODOT_FIELD_ID,
+		godot_version,
+		ADDON_FIELD_ID,
+		plugin_version
+	]
+	OS.shell_open(url)
+
+
+func _on_report_issue_pressed() -> void:
+	OS.shell_open("https://github.com/TheDuckCow/godot-road-generator/issues")
 
 
 ## Adds a single RoadLane to the scene.
