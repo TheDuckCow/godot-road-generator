@@ -58,7 +58,7 @@ var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
-var smooth_amount := -1.4  ## Ease in/out smooth, used with ease built function
+var smooth_amount := -2.0  ## Ease in/out smooth, used with ease built function
 
 ## Cache for matched lanes, result of _match_lanes() func
 var _matched_lanes: Array = []
@@ -764,14 +764,17 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
 	var start_up = start_point.transform.basis.y
 	var end_up = end_point.transform.basis.y
+	
+	# TODO: calculate influence based on relative lengths of handles,
+	# as this method will perform the same easing regardless of handles
+	var sample_eased = ease(sample_position, smooth_amount)
 
 	var up_vec_l:Vector3 = lerp(
 		start_up.normalized(),
 		end_up.normalized(),
-		sample_position)
+		sample_eased)
 	var normal_l = up_vec_l.cross(tangent_l)
 
-	#var sample_eased = ease(sample_position, smooth_amount)
 
 	return normal_l.normalized()
 
