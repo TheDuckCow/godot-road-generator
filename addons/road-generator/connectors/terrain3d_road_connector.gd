@@ -3,9 +3,13 @@ extends Node
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+## Workaround to avoid typing errors for people who aren't this connector
+## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
+const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
+
 # Terrain3D
 ## Reference to the Terrain3D instance, to be flattened
-@export var terrain:Terrain3D:
+@export var terrain:Node3D: #Terrain3D:
 	set(value):
 		terrain = value
 		configure_road_update_signal()
@@ -31,7 +35,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 		configure_road_update_signal()
 
 ## Immediately level the terrain to match roads
-@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+#@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
 var refresh_timer: float = 0.05
@@ -175,7 +179,7 @@ func refresh_roadsegments(segments: Array) -> void:
 
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
-	terrain.data.update_maps(Terrain3DRegion.MapType.TYPE_HEIGHT)
+	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
 
 
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
@@ -265,7 +269,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				# Smoothly interpolate height beyon shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
-				var reference_height := terrain.data.get_height(terrain_pos)
+				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := lerpf(road_y, reference_height, ease(factor, -1.5))
 				terrain.data.set_height(terrain_pos, smoothed_height)
