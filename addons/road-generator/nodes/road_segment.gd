@@ -58,7 +58,7 @@ var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
 # https://raw.githubusercontent.com/godotengine/godot-docs/3.5/img/ease_cheatsheet.png
-var smooth_amount := -1.4  ## Ease in/out smooth, used with ease built function
+var smooth_amount := -2.0  ## Ease in/out smooth, used with ease built function
 
 ## Cache for matched lanes, result of _match_lanes() func
 var _matched_lanes: Array = []
