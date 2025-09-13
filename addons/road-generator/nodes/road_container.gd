@@ -792,6 +792,11 @@ func validate_edges(autofix: bool = false) -> bool:
 				_invalidate_edge(_idx, autofix, "edge_rp_target_dirs value invalid")
 				continue
 
+			var tg_ready = is_instance_valid(tg_node.container) and tg_node.container.is_node_ready()
+			var this_ready = is_instance_valid(this_pt.container) and this_pt.container.is_node_ready()
+			if not tg_ready or not this_ready:
+				continue
+
 			# check they occupy the same position / size / etc
 			if tg_node.global_transform.origin != this_pt.global_transform.origin:
 				var loc_diff = tg_node.global_transform.origin - this_pt.global_transform.origin
