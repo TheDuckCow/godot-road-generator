@@ -997,6 +997,8 @@ func _hide_road_toolbar() -> void:
 		
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
+		_road_toolbar.create_menu.feedback_pressed.disconnect(_on_feedback_pressed)
+		_road_toolbar.create_menu.report_issue_pressed.disconnect(_on_report_issue_pressed)
 
 
 func _on_regenerate_pressed() -> void:
