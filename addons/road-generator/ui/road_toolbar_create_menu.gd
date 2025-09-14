@@ -26,7 +26,7 @@ enum CreateMenu {
 	TWO_X_TWO,
 	EXPORT_MESH,
 	LOCK_ROTATION_X,
-	LOCK_ROTATION_Y,
+	LOCK_ROTATION_Y = 90,  # for some reason, this being `9` breaks the checkbox
 	LOCK_ROTATION_Z,
 }
 
@@ -142,7 +142,7 @@ func on_toolbar_show(
 	pup.set_item_checked(idx, x_rotation_locked)
 	idx += 1
 
-	pup.add_check_item("Lock Y", CreateMenu.LOCK_ROTATION_Y2)
+	pup.add_check_item("Lock Y", CreateMenu.LOCK_ROTATION_Y)
 	pup.set_item_checked(idx, y_rotation_locked)
 	idx += 1
 
