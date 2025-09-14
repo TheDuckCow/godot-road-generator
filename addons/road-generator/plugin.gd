@@ -47,6 +47,10 @@ var _nearest_edges: Array # [Selected RP, Target RP]
 var _edge_positions: Array # [edge_from_pos, edge_to_pos]
 var _export_file_dialog: FileDialog
 
+var _lock_x_rotation := false
+var _lock_y_rotation := false
+var _lock_z_rotation := false
+
 var _press_init_pos: Vector2
 
 var _new_selection: Node # RoadPoint or RoadContainer
@@ -923,7 +927,7 @@ func _handles(object: Object):
 
 func _show_road_toolbar() -> void:
 	_road_toolbar.mode = tool_mode
-	_road_toolbar.on_show(_eds.get_selected_nodes())
+	_road_toolbar.on_show(_eds.get_selected_nodes(), _lock_x_rotation, _lock_y_rotation, _lock_z_rotation)
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
@@ -941,9 +945,20 @@ func _show_road_toolbar() -> void:
 
 		# Specials / prefabs
 		_road_toolbar.create_menu.create_2x2_road.connect(_create_2x2_road_pressed)
-		
+
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
+
+		# Locking rotations
+		_road_toolbar.create_menu.lock_rotation_x_toggled.connect(
+			func(value): _lock_x_rotation = value
+		)
+		_road_toolbar.create_menu.lock_rotation_y_toggled.connect(
+			func(value): _lock_y_rotation = value
+		)
+		_road_toolbar.create_menu.lock_rotation_z_toggled.connect(
+			func(value): _lock_z_rotation = value
+		)
 
 
 func _hide_road_toolbar() -> void:
@@ -1256,6 +1271,13 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 			else:
 				look_pos += selection.global_transform.basis.z * selection.prior_mag
 			next_rp.look_at(look_pos, nrm)
+
+			if _lock_x_rotation:
+				next_rp.global_rotation.x = 0.0
+			if _lock_y_rotation:
+				next_rp.global_rotation.y = 0.0
+			if _lock_z_rotation:
+				next_rp.global_rotation.z = 0.0
 
 	set_selection(next_rp)
 
@@ -1621,7 +1643,7 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 
 	# This just means we're cancelling the user's movement efforts, so put back without undo
 	if is_cancelling:
-		sel_rp.container = tgt_transform
+		sel_rp.container.transform = tgt_transform
 		return
 
 	undo_redo.create_action("Snap RoadContainer to RoadPoint")

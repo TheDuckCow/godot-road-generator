@@ -38,14 +38,19 @@ func update_refs():
 	create_menu = $CreateMenu
 
 
-func on_show(_selected_nodes: Array):
+func on_show(
+	_selected_nodes: Array,
+	x_rotation_locked: bool,
+	y_rotation_locked: bool,
+	z_rotation_locked: bool
+) -> void:
 	selected_nodes = _selected_nodes
 
 	var primary_sel = null
 	var is_subscene := false
 	if len(selected_nodes) > 0:
 		primary_sel = selected_nodes[0]
-	create_menu.on_toolbar_show(primary_sel)
+	create_menu.on_toolbar_show(primary_sel, x_rotation_locked, y_rotation_locked, z_rotation_locked)
 
 
 func update_icons():
