@@ -12,6 +12,9 @@ signal export_mesh
 signal lock_rotation_x_toggled(locked: bool)
 signal lock_rotation_y_toggled(locked: bool)
 signal lock_rotation_z_toggled(locked: bool)
+signal feedback_pressed
+signal report_issue_pressed
+
 
 # ripple up from children
 signal pressed_add_custom_roadcontainer(path)
@@ -28,6 +31,8 @@ enum CreateMenu {
 	LOCK_ROTATION_X,
 	LOCK_ROTATION_Y = 90,  # for some reason, this being `9` breaks the checkbox
 	LOCK_ROTATION_Z,
+	FEEDBACK,
+	REPORT_ISSUE
 }
 
 enum MenuMode {
@@ -156,6 +161,12 @@ func on_toolbar_show(
 	pup.add_item("Export RoadContainer", CreateMenu.EXPORT_MESH)
 	if not primary_sel is RoadContainer:
 		pup.set_item_disabled(idx, true)
+	
+	pup.add_separator()
+	pup.add_item("Report issue", CreateMenu.REPORT_ISSUE)
+	idx += 1
+	pup.add_item("Share feedback", CreateMenu.FEEDBACK)
+	idx += 1
 
 
 func _exit_tree() -> void:
@@ -189,6 +200,10 @@ func _create_menu_item_clicked(id: int) -> void:
 		CreateMenu.LOCK_ROTATION_Z:
 			var new_checked = _toggle_check_item(id)
 			lock_rotation_z_toggled.emit(new_checked)
+    CreateMenu.FEEDBACK:
+			feedback_pressed.emit()
+		CreateMenu.REPORT_ISSUE:
+			report_issue_pressed.emit()
 
 
 ## Toggle the given check item and return its new state
@@ -200,5 +215,6 @@ func _toggle_check_item(id: int) -> bool:
 	return new_checked
 
 
-func _on_pressed_add_custom_roadcontainer(path: String) -> void:
+func _on_pressed_add_custom_roadcontainer(path:String) -> void:
+
 	pressed_add_custom_roadcontainer.emit(path)

@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_container.png")
-
 class_name RoadContainer
 extends Node3D
 ## The parent node for [RoadPoint]'s and controller of actual geo creation.
@@ -14,6 +13,11 @@ extends Node3D
 ## @tutorial(Getting started): https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
+
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
 
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -43,6 +47,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## If cleared, will utilize the default specificed by the [RoadManager].
 @export var material_resource: Material: set = _set_material
 
+## Material applied to the underside of the generated meshes[br][br]
+##
+## If cleared, will utilize the default specificed by the [RoadManager].
+@export var material_underside: Material: set = _set_material_underside
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -55,6 +64,16 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## Use fewer loop cuts for performance during transform.
 @export var use_lowpoly_preview: bool = false
 
+## Flatten terrain when transforming this RoadContainer or child RoadPoints[br]
+## if a terrain connector is set up.
+## flatten terrain underneath them if a terrain connector is used.
+@export var flatten_terrain: bool = true
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -169,7 +188,8 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 
 
 # ------------------------------------------------------------------------------
-# Runtime variables
+#endregion
+#region Runtime variables
 # ------------------------------------------------------------------------------
 
 
@@ -211,7 +231,8 @@ var _is_ready := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and export setter/getters
 # ------------------------------------------------------------------------------
 
 
@@ -329,8 +350,18 @@ func _set_density(value) -> void:
 	_defer_refresh_on_change()
 
 
+func _set_thickness(value) -> void:
+	underside_thickness = value
+	_defer_refresh_on_change()
+
+
 func _set_material(value) -> void:
 	material_resource = value
+	_defer_refresh_on_change()
+
+
+func _set_material_underside(value) -> void:
+	material_underside = value
 	_defer_refresh_on_change()
 
 
@@ -393,7 +424,8 @@ func _set_create_edge_curves(value: bool) -> void:
 
 
 # ------------------------------------------------------------------------------
-# Editor interactions
+#endregion
+#region Editor interactions
 # ------------------------------------------------------------------------------
 
 
@@ -408,7 +440,8 @@ func _notification(what):
 
 
 # ------------------------------------------------------------------------------
-# Container methods
+#endregion
+#region Functions
 # ------------------------------------------------------------------------------
 
 
@@ -537,7 +570,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	return closest_rp
 
 
-# Get Edge RoadPoints that are open and available for connections
+## Get Edge RoadPoints that are open and available for connections
 func get_open_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -558,8 +591,8 @@ func get_open_edges()->Array:
 	return rp_edges
 
 
-# Get Edge RoadPoints that are unavailable for connections. Returns
-# local Edges, target Edges, and target containers.
+## Get Edge RoadPoints that are unavailable for connections. Returns
+## local Edges, target Edges, and target containers.
 func get_connected_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -851,7 +884,7 @@ func rebuild_segments(clear_existing := false):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
-			push_warning("Road point %s not connected to anything yet" % pt.name)
+			push_warning("Road point %s/%s not connected to anything yet" % [pt.get_parent().name, pt.name])
 			continue
 		var res
 		if prior_pt and prior_pt.visible:
@@ -872,10 +905,8 @@ func rebuild_segments(clear_existing := false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
-	# Aim to do a single signal emission across the whole container update.
-	# TODO: consider not signalling if none rebuilt,
-	# though right now returning = [] will still indicate the check was done (but not by whom)
-	emit_signal("on_road_updated", signal_rebuilt)
+	if signal_rebuilt.size() > 0:
+		emit_signal("on_road_updated", signal_rebuilt)
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -884,6 +915,7 @@ func remove_segment(seg:RoadSegment) -> void:
 		push_warning("RoadSegment is invalid, cannot remove: ")
 		#print("Did NOT signal for the removal here", seg)
 		return
+	seg.clear_lane_segments()
 	var id := seg.get_id()
 	seg.queue_free()
 	segid_map.erase(id)
@@ -967,20 +999,30 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		else:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
-		
+
 		if material_resource:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
+
+		if material_underside:
+			new_seg.material_underside = material_underside
+		elif is_instance_valid(_manager) and _manager.material_underside:
+			new_seg.material_underside = _manager.material_underside
+
 		new_seg.check_rebuild()
+
+		var segment_thickness: float
+		#if
+		# VISSA ANCHOR POINT
 
 		return [true, new_seg]
 
 
-# Update the lane_next and lane_prior connections based on tags assigned.
-#
-# Process over each end of "connecting" Lanes, therefore best to iterate
-# over RoadPoints.
+## Update the lane_next and lane_prior connections based on tags assigned.
+##
+## Process over each end of "connecting" Lanes, therefore best to iterate
+## over RoadPoints.
 func update_lane_seg_connections():
 	for obj in get_children():
 		if not obj is RoadPoint:
@@ -1021,7 +1063,7 @@ func update_lane_seg_connections():
 						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
 
-# Triggered by adjusting RoadPoint transform in editor via signal connection.
+## Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if not _auto_refresh:
 		_needs_refresh = true
@@ -1047,11 +1089,16 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if _auto_refresh:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
+	
+	# Batch updates to reduce signal emissions
+	var needs_update = false
+	
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
+		needs_update = true
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
@@ -1059,26 +1106,29 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
+		needs_update = true
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		if next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
-	if len(segs_updated) > 0:
+	if needs_update and len(segs_updated) > 0:
 		if self.debug:
 			print_debug("Road segs rebuilt: ", len(segs_updated))
 		emit_signal("on_road_updated", segs_updated)
 
 
-# Callback from a modification of a RoadSegment object.
+## Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
 
@@ -1142,3 +1192,6 @@ func _exit_tree():
 	#	return
 	#for seg in get_node(segments).get_children():
 	#	seg.queue_free()
+
+#endregion
+# ------------------------------------------------------------------------------

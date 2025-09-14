@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_manager.png")
-
 class_name RoadManager
 extends Node3D
 ## Manager for all child [RoadContainer]'s.
@@ -13,7 +12,13 @@ extends Node3D
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
 
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Exports
+# ------------------------------------------------------------------------------
+
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+
 
 # ------------------------------------------------------------------------------
 # How road meshes are generated
@@ -21,7 +26,7 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 # ------------------------------------------------------------------------------
 
 ## The material applied to generated meshes.[br][br]
-## 
+##
 ## This mateiral is expected to use a specific trimsheet UV layout.[br][br]
 ##
 ## Can be overridden by each [RoadContainer].
@@ -29,6 +34,15 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 var material_resource: Material:
 	set(value):
 		material_resource = value
+		rebuild_all_containers()
+
+## The material applied to the underside of the generated meshes.[br][br]
+##
+## Can be overridden by each [RoadContainer].
+@export
+var material_underside: Material:
+	set(value):
+		material_underside = value
 		rebuild_all_containers()
 
 ## Defines the distance in meters between road loop cuts.[br][br]
@@ -41,6 +55,15 @@ var material_resource: Material:
 var density: float = 4.0:
 	set(value):
 		density = value
+		rebuild_all_containers()
+
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the underside will not be generated at all.
+@export var underside_thickness: float = -1.0:
+	set(value):
+		underside_thickness = value
 		rebuild_all_containers()
 
 # ------------------------------------------------------------------------------
@@ -131,22 +154,19 @@ var _skip_warn_found_rc_child := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and builtin overrides
 # ------------------------------------------------------------------------------
+
 
 func _ready():
 	# Without this line, child RoadContainers initialize after
 	# the manager initializes (different from _ready), meaning
 	# it would default to true even if auto refresh is false here.
 	_ui_refresh_set(auto_refresh)
-	
+
 	# setup_road_container won't work in _ready unless call_deferred is used
 	assign_default_material.call_deferred()
-	
-
-func assign_default_material() -> void:
-	if not material_resource:
-		material_resource = RoadMaterial
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -169,17 +189,9 @@ func is_road_manager() -> bool:
 	return true
 
 
-func _ui_refresh_set(value: bool) -> void:
-	if value:
-		call_deferred("rebuild_all_containers")
-	auto_refresh = value
-	for ch in get_containers():
-		# Not an exposed setting on child.
-		ch._auto_refresh = value
-
-
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Functions
 # ------------------------------------------------------------------------------
 
 
@@ -202,3 +214,27 @@ func rebuild_all_containers_deferred() -> void:
 	for ch in get_containers():
 		ch._dirty = true
 		ch._dirty_rebuild_deferred()
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Internal functions
+# ------------------------------------------------------------------------------
+
+
+func assign_default_material() -> void:
+	if not material_resource:
+		material_resource = RoadMaterial
+
+
+func _ui_refresh_set(value: bool) -> void:
+	if value:
+		call_deferred("rebuild_all_containers")
+	auto_refresh = value
+	for ch in get_containers():
+		# Not an exposed setting on child.
+		ch._auto_refresh = value
+
+
+#endregion
+# ------------------------------------------------------------------------------
