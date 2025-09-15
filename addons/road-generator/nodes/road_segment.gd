@@ -92,7 +92,6 @@ func _ready() -> void:
 	print("_ready RoadSegment")
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
 		road_mesh.owner = container.get_owner()
-	is_ready = true
 
 
 func _enter_tree() -> void:

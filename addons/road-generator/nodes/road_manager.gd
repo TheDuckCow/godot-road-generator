@@ -204,11 +204,6 @@ func _exit_tree() -> void:
 	print("_exit_tree RoadManager")
 	#_initial_ready_done = false
 
-	if any_containers:
-		return []
-	else:
-		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
-
 
 func _get_configuration_warnings() -> PackedStringArray:
 	if _skip_warn_found_rc_child:
@@ -288,4 +283,3 @@ func _ui_refresh_set(value: bool) -> void:
 
 #endregion
 # ------------------------------------------------------------------------------
-

@@ -331,7 +331,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _defer_refresh_on_change() -> void:
 	if _dirty:
 		return
-	elif not _is_ready:
+	elif not is_node_ready():
 		return # assume it'll be called by the main ready function once, well, ready
 	elif _auto_refresh:
 		_dirty = true
@@ -388,7 +388,7 @@ func _set_material_underside(value) -> void:
 
 
 func _dirty_rebuild_deferred() -> void:
-	if not _is_ready:
+	if not is_node_ready():
 		return
 	if _dirty:
 		_dirty = false
@@ -873,7 +873,7 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 
 
 func rebuild_segments(clear_existing := false):
-	if not is_inside_tree() or not _is_ready:
+	if not is_inside_tree() or not is_node_ready():
 		# This most commonly happens in the editor on project restart, where
 		# each opened scene tab is quickly loaded and then apparently unloaded,
 		# so tab one last saved as not active will defer call rebuild, and by
@@ -1222,21 +1222,6 @@ func _check_migrate_points():
 		moved_pts, self.name
 	])
 
-
-## Cleanup the road segments specifically, in case they aren't children.
-func _exit_tree():
-	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
-	# freed instances.
-	segid_map = {}
-	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()
 
 #endregion
 # ------------------------------------------------------------------------------
