@@ -21,9 +21,8 @@ extends Node3D
 
 
 ## Emitted when a road segment has been (re)generated, returning the list
-## of updated segments of type Array. Will also trigger on segments deleted,
-## which will contain a list of nothing.
-signal on_road_updated(updated_segments)
+## of updated segments of type Array.
+signal on_road_updated(updated_segments: Array)
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_transform(node)
@@ -495,6 +494,8 @@ func get_segments() -> Array:
 		for pt_ch in ch.get_children():
 			if not pt_ch is RoadSegment:
 				continue
+			if pt_ch.is_queued_for_deletion():
+				continue
 			segs.append(pt_ch)
 	return segs
 
@@ -911,7 +912,7 @@ func rebuild_segments(clear_existing := false):
 		print_debug("Road segs rebuilt: ", rebuilt)
 
 	if signal_rebuilt.size() > 0:
-		emit_signal("on_road_updated", signal_rebuilt)
+		_emit_road_updated(signal_rebuilt)
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -1128,9 +1129,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 				needs_update = true
 
 	if needs_update and len(segs_updated) > 0:
-		if self.debug:
-			print_debug("Road segs rebuilt: ", len(segs_updated))
-		emit_signal("on_road_updated", segs_updated)
+		_emit_road_updated(segs_updated)
 
 
 ## Callback from a modification of a RoadSegment object.
@@ -1156,6 +1155,15 @@ func setup_road_container():
 	if not is_instance_valid(get_manager()):
 		# Assign a road material by default if there's no parent RoadManager
 		material_resource = RoadMaterial
+
+
+## Signals the segments whichhave been just (re)built
+func _emit_road_updated(segments: Array) -> void:
+	if self.debug:
+		print_debug("Road segs rebuilt: ", len(segments))
+	on_road_updated.emit(segments)
+	if is_instance_valid(_manager):
+		_manager.on_container_update(segments)
 
 
 ## Detect and move legacy node hierharcy layout.
