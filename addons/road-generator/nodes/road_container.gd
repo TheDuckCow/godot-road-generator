@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_container.png")
-
 class_name RoadContainer
 extends Node3D
 ## The parent node for [RoadPoint]'s and controller of actual geo creation.
@@ -14,6 +13,11 @@ extends Node3D
 ## @tutorial(Getting started): https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
+
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
 
 
 ## Emitted when a road segment has been (re)generated, returning the list
@@ -42,6 +46,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## If cleared, will utilize the default specificed by the [RoadManager].
 @export var material_resource: Material: set = _set_material
 
+## Material applied to the underside of the generated meshes[br][br]
+##
+## If cleared, will utilize the default specificed by the [RoadManager].
+@export var material_underside: Material: set = _set_material_underside
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -58,6 +67,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## if a terrain connector is set up.
 ## flatten terrain underneath them if a terrain connector is used.
 @export var flatten_terrain: bool = true
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -172,7 +187,8 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 
 
 # ------------------------------------------------------------------------------
-# Runtime variables
+#endregion
+#region Runtime variables
 # ------------------------------------------------------------------------------
 
 
@@ -214,7 +230,8 @@ var _is_ready := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and export setter/getters
 # ------------------------------------------------------------------------------
 
 
@@ -355,8 +372,18 @@ func _set_density(value) -> void:
 	_defer_refresh_on_change()
 
 
+func _set_thickness(value) -> void:
+	underside_thickness = value
+	_defer_refresh_on_change()
+
+
 func _set_material(value) -> void:
 	material_resource = value
+	_defer_refresh_on_change()
+
+
+func _set_material_underside(value) -> void:
+	material_underside = value
 	_defer_refresh_on_change()
 
 
@@ -419,7 +446,8 @@ func _set_create_edge_curves(value: bool) -> void:
 
 
 # ------------------------------------------------------------------------------
-# Editor interactions
+#endregion
+#region Editor interactions
 # ------------------------------------------------------------------------------
 
 
@@ -437,7 +465,8 @@ func _notification(what):
 
 
 # ------------------------------------------------------------------------------
-# Container methods
+#endregion
+#region Functions
 # ------------------------------------------------------------------------------
 
 
@@ -568,7 +597,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	return closest_rp
 
 
-# Get Edge RoadPoints that are open and available for connections
+## Get Edge RoadPoints that are open and available for connections
 func get_open_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -589,8 +618,8 @@ func get_open_edges()->Array:
 	return rp_edges
 
 
-# Get Edge RoadPoints that are unavailable for connections. Returns
-# local Edges, target Edges, and target containers.
+## Get Edge RoadPoints that are unavailable for connections. Returns
+## local Edges, target Edges, and target containers.
 func get_connected_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -788,6 +817,11 @@ func validate_edges(autofix: bool = false) -> bool:
 			if not target_dir in [tg_node.PointInit.NEXT, tg_node.PointInit.PRIOR]:
 				is_valid = false
 				_invalidate_edge(_idx, autofix, "edge_rp_target_dirs value invalid")
+				continue
+
+			var tg_ready = is_instance_valid(tg_node.container) and tg_node.container.is_node_ready()
+			var this_ready = is_instance_valid(this_pt.container) and this_pt.container.is_node_ready()
+			if not tg_ready or not this_ready:
 				continue
 
 			# check they occupy the same position / size / etc
@@ -1005,15 +1039,25 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
+
+		if material_underside:
+			new_seg.material_underside = material_underside
+		elif is_instance_valid(_manager) and _manager.material_underside:
+			new_seg.material_underside = _manager.material_underside
+
 		new_seg.check_rebuild()
+
+		var segment_thickness: float
+		#if
+		# VISSA ANCHOR POINT
 
 		return [true, new_seg]
 
 
-# Update the lane_next and lane_prior connections based on tags assigned.
-#
-# Process over each end of "connecting" Lanes, therefore best to iterate
-# over RoadPoints.
+## Update the lane_next and lane_prior connections based on tags assigned.
+##
+## Process over each end of "connecting" Lanes, therefore best to iterate
+## over RoadPoints.
 func update_lane_seg_connections():
 	for obj in get_children():
 		if not obj is RoadPoint:
@@ -1054,7 +1098,7 @@ func update_lane_seg_connections():
 						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
 
-# Triggered by adjusting RoadPoint transform in editor via signal connection.
+## Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	#if is_instance_valid(get_manager()) and not get_manager()._initial_ready_done:
 		#print("Skipping on_point_update due to manager not ready done")
@@ -1120,7 +1164,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 		_emit_road_updated(segs_updated)
 
 
-# Callback from a modification of a RoadSegment object.
+## Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
 
@@ -1177,3 +1221,22 @@ func _check_migrate_points():
 	push_warning("Perofrmed a one-time move of %s point(s) from points to RoadContainer parent %s" % [
 		moved_pts, self.name
 	])
+
+
+## Cleanup the road segments specifically, in case they aren't children.
+func _exit_tree():
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	segid_map = {}
+	return
+
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
+
+#endregion
+# ------------------------------------------------------------------------------

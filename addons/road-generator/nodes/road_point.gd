@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_point.png")
-
 class_name RoadPoint
 extends Node3D
 ## Definition for a single point handle, which 2+ road segments connect to.
@@ -8,9 +7,12 @@ extends Node3D
 ## Functionally equivalent to a point along a curve, it defines the cross section
 ## of the road at a particular slice.
 
-signal on_transform(node, low_poly)
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
 
-const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
+signal on_transform(node, low_poly)
 
 enum LaneType {
 	NO_MARKING, # Default no marking placed first, but is last texture UV column.
@@ -52,15 +54,20 @@ enum Alignment {
 	DIVIDER,  ## Ensures the lane direction dividing line is aligned to the RoadPoint
 }
 
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 
+# ------------------------------------------------------------------------------
+#endregion
+#region Export vars
+# ------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------
+# -------------------------------------
 @export_group("Lanes")
-# ------------------------------------------------------------------------------
+# -------------------------------------
 
 
 # TODO: decide whether to do this
@@ -96,9 +103,9 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 @export var terminated := false: set = _set_terminated
 
 
-# ------------------------------------------------------------------------------
+# -------------------------------------
 @export_group("Road Generation")
-# ------------------------------------------------------------------------------
+# -------------------------------------
 
 
 ## Defines size of the bezier output leading to the prior [RoadPoint].
@@ -133,9 +140,15 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## Determines how the geometry will center itself around the RoadPoint origin
 @export var alignment: Alignment: get = _get_alignment, set = _set_alignment
 
-# ------------------------------------------------------------------------------
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadContainer will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
+
+# -------------------------------------
 @export_group("Internal data")
-# ------------------------------------------------------------------------------
+# -------------------------------------
 
 # TODO: convert these into direct node reference export vars instead of nodepaths
 ## Considered private, not meant for editor or script interaction.[br][br]
@@ -164,7 +177,8 @@ var _is_internal_updating: bool = false # Very special cases to bypass autofix c
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and builtin overrides
 # ------------------------------------------------------------------------------
 
 
@@ -243,7 +257,8 @@ func is_road_point() -> bool:
 
 
 # ------------------------------------------------------------------------------
-# Editor visualizing
+#endregion
+#region Export var callbacks
 # ------------------------------------------------------------------------------
 
 
@@ -395,9 +410,18 @@ func _set_alignment(value: Alignment) -> void:
 		return  # Might not be initialized yet.
 	emit_transform()
 
+func _set_thickness(value: float) -> void:
+	underside_thickness = value
+	if not is_instance_valid(container):
+		return  # Might not be initialized yet.
+	emit_transform()
+
+
 # ------------------------------------------------------------------------------
-# Editor interactions
+#endregion
+#region Editor interactions
 # ------------------------------------------------------------------------------
+
 
 func _notification(what):
 	if not is_instance_valid(container):
@@ -422,8 +446,10 @@ func emit_transform(low_poly=false):
 
 
 # ------------------------------------------------------------------------------
-# Utilities
+#endregion
+#region Utilities
 # ------------------------------------------------------------------------------
+
 
 ## Checks if this RoadPoint is an open edge connection for its parent container.
 func is_on_edge() -> bool:
@@ -1182,3 +1208,17 @@ func _autofix_noncyclic_references(
 
 	# In the event of change in edges, update all references.
 	container.update_edges()
+
+
+func get_thickness():
+	if underside_thickness != -1:
+		return underside_thickness
+	if is_instance_valid(container) and container.underside_thickness != -1.0:
+		return container.underside_thickness
+	if is_instance_valid(container.get_manager()) and container.get_manager().underside_thickness != -1.0:
+		return container.get_manager().underside_thickness
+	return -1.0
+
+
+#endregion
+# ------------------------------------------------------------------------------

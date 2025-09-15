@@ -8,16 +8,19 @@
 
 <p align="center">
 	<a href="https://discord.com/invite/gttJWznb4a">
-	  <img src="https://img.shields.io/discord/802981313203798017.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2" alt="Join our discord" />
+	  <img src="https://img.shields.io/discord/802981313203798017.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2" alt="Join our discord"/>
 	</a>
 	<a href="https://www.patreon.com/WheelStealGame">
-	  <img src="https://img.shields.io/badge/Patreon-Support%20Us!-orange.svg" alt="Patreon" />
+	  <img src="https://img.shields.io/badge/Patreon-Support%20Us!-orange.svg" alt="Patreon"/>
 	</a>
 	<a href="https://github.com/TheDuckCow/godot-road-generator/blob/main/LICENSE">
-	  <img src="https://img.shields.io/github/license/theduckcow/godot-road-generator" alt="GitHub License" />
+	  <img src="https://img.shields.io/github/license/theduckcow/godot-road-generator" alt="GitHub License"/>
 	</a>
 	<a href="https://github.com/TheDuckCow/godot-road-generator/releases">
-	  <img src="https://img.shields.io/github/commits-since/theduckcow/godot-road-generator/latest" alt="GitHub commits since latest release" />
+	  <img alt="Latest Release" src="https://img.shields.io/github/v/release/theduckcow/godot-road-generator">
+	</a>
+	<a href="https://github.com/TheDuckCow/godot-road-generator/compare/main...dev">
+	  <img alt="GitHub commits since latest release (dev)" src="https://img.shields.io/github/commits-since/theduckcow/godot-road-generator/latest/dev">
 	</a>
 </p>
 
