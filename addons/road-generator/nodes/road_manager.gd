@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_manager.png")
-
 class_name RoadManager
 extends Node3D
 ## Manager for all child [RoadContainer]'s.
@@ -12,6 +11,12 @@ extends Node3D
 ## @tutorial(Getting started): https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial
 ## @tutorial(Custom Materials Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/Creating-custom-materials
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
+
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Exports
+# ------------------------------------------------------------------------------
+
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array.
@@ -38,6 +43,15 @@ var material_resource: Material:
 		if auto_refresh:
 			rebuild_all_containers(true)
 
+## The material applied to the underside of the generated meshes.[br][br]
+##
+## Can be overridden by each [RoadContainer].
+@export
+var material_underside: Material:
+	set(value):
+		material_underside = value
+		rebuild_all_containers()
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -50,6 +64,15 @@ var density: float = RoadSegment.DEFAULT_DENSITY:
 		density = value
 		if auto_refresh:
 			rebuild_all_containers(true)
+
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the underside will not be generated at all.
+@export var underside_thickness: float = -1.0:
+	set(value):
+		underside_thickness = value
+		rebuild_all_containers()
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -146,8 +169,10 @@ var _initial_ready_done := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and builtin overrides
 # ------------------------------------------------------------------------------
+
 
 func _ready():
 	# Without this line, child RoadContainers initialize after
@@ -160,10 +185,19 @@ func _ready():
 
 	_initial_ready_done = true
 
+func _get_configuration_warnings() -> PackedStringArray:
+	if _skip_warn_found_rc_child:
+		return []
+	var any_containers := false
+	for ch in get_children():
+		if ch.has_method("is_road_container"):
+			any_containers = true
+			break
 
-# ------------------------------------------------------------------------------
-# Public functions
-# ------------------------------------------------------------------------------
+	if any_containers:
+		return []
+	else:
+		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
 
 
 # Workaround for cyclic typing
@@ -171,9 +205,10 @@ func is_road_manager() -> bool:
 	return true
 
 
-func assign_default_material() -> void:
-	if not material_resource:
-		material_resource = RoadMaterial
+# ------------------------------------------------------------------------------
+#endregion
+#region Functions
+# ------------------------------------------------------------------------------
 
 
 func get_containers() -> Array[RoadContainer]:
@@ -198,7 +233,8 @@ func rebuild_all_containers_deferred() -> void:
 
 
 # ------------------------------------------------------------------------------
-# Internal functions
+#endregion
+#region Internal functions
 # ------------------------------------------------------------------------------
 
 
@@ -210,25 +246,21 @@ func on_container_update(updated_segments: Array) -> void:
 	on_road_updated.emit(updated_segments)
 
 
-func _get_configuration_warnings() -> PackedStringArray:
-	if _skip_warn_found_rc_child:
-		return []
-	var any_containers := false
-	for ch in get_children():
-		if ch.has_method("is_road_container"):
-			any_containers = true
-			break
 
-	if any_containers:
-		return []
-	else:
-		return ["No RoadContainer children. Start creating a road by activating the + mode and clicking in the 3D view"]
+func assign_default_material() -> void:
+	if not material_resource:
+		material_resource = RoadMaterial
 
 
 func _ui_refresh_set(value: bool) -> void:
+	if value:
+		call_deferred("rebuild_all_containers") # Call with true?
 	auto_refresh = value
 	for ch in get_containers():
 		# Not an exposed setting on child.
 		ch._auto_refresh = value
-	if value:
-		rebuild_all_containers(true)
+
+
+#endregion
+# ------------------------------------------------------------------------------
+
