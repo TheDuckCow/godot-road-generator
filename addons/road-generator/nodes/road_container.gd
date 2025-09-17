@@ -254,18 +254,12 @@ func _ready():
 	rebuild_segments(true)
 
 
-func _enter_tree() -> void:
-	print("_enter_tree RoadContainer ", self.name) # TODO: remove this
-
-
 ## Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
-	print("_exit_tree RoadContainer")
 	# TODO: Verify we don't get orphans below.
 	# However, at the time of this early exit, doing this prevented roads
 	# from being drawn on scene load due to errors unloading against
 	# freed instances.
-	#if is_queued_for_deletion():
 	segid_map = {}
 	return
 
@@ -882,9 +876,6 @@ func rebuild_segments(clear_existing := false):
 		# Cannot get path of node as it is not in a scene tree.
 		# scene/3d/spatial.cpp:407 - Condition "!is_inside_tree()" is true. Returned: Transform()
 		return
-	#if is_instance_valid(get_manager()) and not get_manager()._initial_ready_done:
-		#print("Skipping rebuild segments due to manager not ready done")
-		#return
 	update_edges()
 	validate_edges(clear_existing)
 	_needs_refresh = false
@@ -1100,9 +1091,6 @@ func update_lane_seg_connections():
 
 ## Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
-	#if is_instance_valid(get_manager()) and not get_manager()._initial_ready_done:
-		#print("Skipping on_point_update due to manager not ready done")
-		#return
 	if not _auto_refresh:
 		_needs_refresh = true
 		return
