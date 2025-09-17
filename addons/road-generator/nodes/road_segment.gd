@@ -41,8 +41,6 @@ const DEFAULT_DENSITY := 4.0
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
 
-signal seg_ready(road_segment)
-
 @export var start_init: NodePath: get = _init_start_get, set = _init_start_set
 @export var end_init: NodePath: get = _init_end_get, set = _init_end_set
 
@@ -95,9 +93,26 @@ func _ready():
 		road_mesh.owner = container.get_owner()
 
 
+func _enter_tree() -> void:
+	pass
+
+
+func _exit_tree() -> void:
+	pass
+	
+
 # Workaround for cyclic typing
 func is_road_segment() -> bool:
 	return true
+
+
+func _is_mesh_generated() -> bool:
+	if not is_instance_valid(road_mesh):
+		return false
+	if not road_mesh.mesh:
+		return false
+	var ref = road_mesh.mesh.get_faces()
+	return len(ref) > 0
 
 
 func should_add_mesh() -> bool:

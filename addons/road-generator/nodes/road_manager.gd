@@ -168,7 +168,6 @@ var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 var _skip_warn_found_rc_child := false
-var _initial_ready_done := false
 
 
 # ------------------------------------------------------------------------------
@@ -184,19 +183,15 @@ func _ready():
 	_ui_refresh_set(auto_refresh)
 
 	# setup_road_container won't work in _ready unless call_deferred is used
-	assign_default_material.call_deferred()
-
-	_initial_ready_done = true
+	rebuild_all_containers(true)
 
 
 func _enter_tree() -> void:
-	print("_enter_tree RoadManager ", self.name) # TODO: remove this
-	#_initial_ready_done = true
+	pass
 
 
 func _exit_tree() -> void:
-	print("_exit_tree RoadManager")
-	#_initial_ready_done = false
+	pass
 
 
 func _get_configuration_warnings() -> PackedStringArray:

@@ -218,12 +218,17 @@ func _ready():
 	container.update_edges()
 
 
+func _enter_tree() -> void:
+	pass
+
+
 func _exit_tree():
 	# Proactively disconnected any connected road segments, no longer valid.
-	if is_instance_valid(prior_seg):
-		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
-	if is_instance_valid(next_seg):
-		next_seg.queue_free()
+	if is_queued_for_deletion():
+		if is_instance_valid(prior_seg):
+			prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+		if is_instance_valid(next_seg):
+			next_seg.queue_free()
 
 
 func _to_string():

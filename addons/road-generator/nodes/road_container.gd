@@ -254,6 +254,10 @@ func _ready():
 	rebuild_segments(true)
 
 
+func _enter_tree() -> void:
+	pass
+
+
 ## Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
 	# TODO: Verify we don't get orphans below.
@@ -268,21 +272,6 @@ func _exit_tree():
 	#	return
 	#for seg in get_node(segments).get_children():
 	#	seg.queue_free()
-
-
-
-# Workaround for cyclic typing
-func is_road_container() -> bool:
-	return true
-
-
-## Temp added
-func get_owner() -> Node:
-	return self.owner if is_instance_valid(self.owner) else self
-
-
-func is_subscene() -> bool:
-	return scene_file_path and self != get_tree().edited_scene_root
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -320,6 +309,20 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnstr = "Refresh roads to clear invalid connections:\n%s" % _edge_error
 		return [warnstr]
 	return []
+
+
+## Workaround for cyclic typing
+func is_road_container() -> bool:
+	return true
+
+
+## Temp added
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
+
+
+func is_subscene() -> bool:
+	return scene_file_path and self != get_tree().edited_scene_root
 
 
 func _defer_refresh_on_change() -> void:
@@ -876,6 +879,11 @@ func rebuild_segments(clear_existing := false):
 		# Cannot get path of node as it is not in a scene tree.
 		# scene/3d/spatial.cpp:407 - Condition "!is_inside_tree()" is true. Returned: Transform()
 		return
+	var manager = get_manager()
+	if is_instance_valid(manager):
+		if not manager.is_node_ready():
+			# Defer segment building
+			return
 	update_edges()
 	validate_edges(clear_existing)
 	_needs_refresh = false
