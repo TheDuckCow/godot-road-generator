@@ -40,7 +40,7 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ##
 ## Can be overridden by each [RoadContainer].
 @export
-var material_resource: Material:
+var material_resource: Material = RoadMaterial:
 	set(value):
 		material_resource = value
 		if auto_refresh:
@@ -182,7 +182,6 @@ func _ready():
 	# it would default to true even if auto refresh is false here.
 	_ui_refresh_set(auto_refresh)
 
-	# setup_road_container won't work in _ready unless call_deferred is used
 	rebuild_all_containers(true)
 
 
@@ -253,12 +252,6 @@ func rebuild_all_containers_deferred() -> void:
 ## are not accumulated across multiple updates but rather one at a time.
 func on_container_update(updated_segments: Array) -> void:
 	on_road_updated.emit(updated_segments)
-
-
-
-func assign_default_material() -> void:
-	if not material_resource:
-		material_resource = RoadMaterial
 
 
 func _ui_refresh_set(value: bool) -> void:
