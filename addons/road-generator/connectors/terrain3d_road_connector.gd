@@ -1,4 +1,5 @@
 @tool
+class_name RoadTerrain3DConnector
 extends Node
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
