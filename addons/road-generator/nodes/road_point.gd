@@ -168,13 +168,13 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var container:RoadContainer # The managing container node for this road segment (direct parent).
-var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
+var container:RoadContainer ## The managing container node for this road segment (direct parent).
+var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
-var _last_update_ms # To calculate min updates.
-var _is_internal_updating: bool = false # Very special cases to bypass autofix cyclic
-
+var _last_update_ms ## To calculate min updates.
+var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
+var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -425,6 +425,9 @@ func _notification(what):
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if _skip_next_on_transform:
+			_skip_next_on_transform = false
+			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
 		emit_transform(low_poly)
 
