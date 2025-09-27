@@ -21,9 +21,8 @@ extends Node3D
 
 
 ## Emitted when a road segment has been (re)generated, returning the list
-## of updated segments of type Array. Will also trigger on segments deleted,
-## which will contain a list of nothing.
-signal on_road_updated(updated_segments)
+## of updated segments of type Array.
+signal on_road_updated(updated_segments: Array)
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_transform(node)
@@ -255,18 +254,24 @@ func _ready():
 	rebuild_segments(true)
 
 
-# Workaround for cyclic typing
-func is_road_container() -> bool:
-	return true
+func _enter_tree() -> void:
+	pass
 
 
-## Temp added
-func get_owner() -> Node:
-	return self.owner if is_instance_valid(self.owner) else self
+## Cleanup the road segments specifically, in case they aren't children.
+func _exit_tree():
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	segid_map = {}
+	return
 
-
-func is_subscene() -> bool:
-	return scene_file_path and self != get_tree().edited_scene_root
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -306,10 +311,24 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return []
 
 
+## Workaround for cyclic typing
+func is_road_container() -> bool:
+	return true
+
+
+## Temp added
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
+
+
+func is_subscene() -> bool:
+	return scene_file_path and self != get_tree().edited_scene_root
+
+
 func _defer_refresh_on_change() -> void:
 	if _dirty:
 		return
-	elif not _is_ready:
+	elif not is_node_ready():
 		return # assume it'll be called by the main ready function once, well, ready
 	elif _auto_refresh:
 		_dirty = true
@@ -366,7 +385,7 @@ func _set_material_underside(value) -> void:
 
 
 func _dirty_rebuild_deferred() -> void:
-	if not _is_ready:
+	if not is_node_ready():
 		return
 	if _dirty:
 		_dirty = false
@@ -435,7 +454,10 @@ func _notification(what):
 		if lmb_down and not _drag_init_transform:
 			self._drag_init_transform = global_transform
 		elif not lmb_down:
-			emit_signal("on_transform", self)
+			on_transform.emit(self)
+			var manager = get_manager()
+			if is_instance_valid(manager):
+				manager.on_container_transformed.emit(self)
 			_drag_init_transform = null
 
 
@@ -494,6 +516,8 @@ func get_segments() -> Array:
 			continue
 		for pt_ch in ch.get_children():
 			if not pt_ch is RoadSegment:
+				continue
+			if pt_ch.is_queued_for_deletion():
 				continue
 			segs.append(pt_ch)
 	return segs
@@ -846,7 +870,7 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 
 
 func rebuild_segments(clear_existing := false):
-	if not is_inside_tree() or not _is_ready:
+	if not is_inside_tree() or not is_node_ready():
 		# This most commonly happens in the editor on project restart, where
 		# each opened scene tab is quickly loaded and then apparently unloaded,
 		# so tab one last saved as not active will defer call rebuild, and by
@@ -855,6 +879,11 @@ func rebuild_segments(clear_existing := false):
 		# Cannot get path of node as it is not in a scene tree.
 		# scene/3d/spatial.cpp:407 - Condition "!is_inside_tree()" is true. Returned: Transform()
 		return
+	var manager = get_manager()
+	if is_instance_valid(manager):
+		if not manager.is_node_ready():
+			# Defer segment building
+			return
 	update_edges()
 	validate_edges(clear_existing)
 	_needs_refresh = false
@@ -911,7 +940,7 @@ func rebuild_segments(clear_existing := false):
 		print_debug("Road segs rebuilt: ", rebuilt)
 
 	if signal_rebuilt.size() > 0:
-		emit_signal("on_road_updated", signal_rebuilt)
+		_emit_road_updated(signal_rebuilt)
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -1128,9 +1157,7 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 				needs_update = true
 
 	if needs_update and len(segs_updated) > 0:
-		if self.debug:
-			print_debug("Road segs rebuilt: ", len(segs_updated))
-		emit_signal("on_road_updated", segs_updated)
+		_emit_road_updated(segs_updated)
 
 
 ## Callback from a modification of a RoadSegment object.
@@ -1158,6 +1185,15 @@ func setup_road_container():
 		material_resource = RoadMaterial
 
 
+## Signals the segments whichhave been just (re)built
+func _emit_road_updated(segments: Array) -> void:
+	if self.debug:
+		print_debug("Road segs rebuilt: ", len(segments))
+	on_road_updated.emit(segments)
+	if is_instance_valid(_manager):
+		_manager.on_container_update(segments)
+
+
 ## Detect and move legacy node hierharcy layout.
 ##
 ## With addon v0.3.4 and earlier, RoadPoints were parented to an intermediate
@@ -1182,21 +1218,6 @@ func _check_migrate_points():
 		moved_pts, self.name
 	])
 
-
-## Cleanup the road segments specifically, in case they aren't children.
-func _exit_tree():
-	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
-	# freed instances.
-	segid_map = {}
-	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()
 
 #endregion
 # ------------------------------------------------------------------------------
