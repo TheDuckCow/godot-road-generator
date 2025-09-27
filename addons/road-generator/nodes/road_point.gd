@@ -736,6 +736,8 @@ func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) 
 	create_geo = ref_road_point.create_geo
 	_last_update_ms = ref_road_point._last_update_ms
 	alignment = ref_road_point.alignment
+	underside_thickness = ref_road_point.underside_thickness
+	flatten_terrain = ref_road_point.flatten_terrain
 
 	if copy_transform:
 		prior_mag = ref_road_point.prior_mag
