@@ -200,6 +200,11 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
+	
+	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
+	# making all roads have the same lane setup
+	traffic_dir = traffic_dir.duplicate(true)
+	lanes = lanes.duplicate(true)
 
 	if not container or not is_instance_valid(container):
 		var par = get_parent()
