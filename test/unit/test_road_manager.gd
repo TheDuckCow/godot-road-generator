@@ -55,9 +55,11 @@ func test_auto_refresh():
 	
 	# This will call updates in a deferred way, so we must make our own deferred call to run after.
 	manager.auto_refresh = true
+	var res:bool = await wait_for_signal(manager.on_road_updated, 1.0, "Signal should come after refresh")
+	assert_true(res, "Should have received signal")
 	
-	assert_signal_emit_count(manager, "on_road_updated", 1, "Should have no segment updates")
-	assert_signal_emit_count(container, "on_road_updated", 1, "Should have no segment updates")
+	assert_signal_emit_count(manager, "on_road_updated", 1, "Should have a single segment update")
+	assert_signal_emit_count(container, "on_road_updated", 1, "Should have a single segment update")
 
 
 func test_set_density():
