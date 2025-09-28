@@ -534,12 +534,29 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 
 	# Set points in the destination curve
 	dst.clear_points()
+	var start_pt_trans: Transform3D
+	var end_pt_trans: Transform3D
 	if reverse:
 		dst.add_point(out_pos, out_pt_out, out_pt_in)
 		dst.add_point(in_pos, in_pt_out, in_pt_in)
+		start_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
+		end_pt_trans = dst.sample_baked_with_rotation(0)
 	else:
 		dst.add_point(in_pos, in_pt_in, in_pt_out)
 		dst.add_point(out_pos, out_pt_in, out_pt_out)
+		start_pt_trans = dst.sample_baked_with_rotation(0)
+		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
+	
+	# Now apply a corrected tilt to account for interpolating the up vector
+	# if the tilts of both roadpoints are not the same.
+	var start_ang = start_pt_trans.basis.y.angle_to(a_gbasis.y)
+	var end_ang = end_pt_trans.basis.y.angle_to(d_gbasis.y)
+	if abs(start_ang) > 0.001:
+		var res = -1.0 if start_pt_trans.basis.x.dot(a_gbasis.y) > 0 else 1.0
+		dst.set_point_tilt(0, start_ang*res)
+	if abs(end_ang) > 0.001:
+		var res = 1.0 if end_pt_trans.basis.x.dot(d_gbasis.y) > 0 else -1.0
+		dst.set_point_tilt(1, end_ang*res)
 
 
 ## Offset the curve in/out points based on lane index.
