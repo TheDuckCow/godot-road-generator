@@ -36,6 +36,7 @@ const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algori
 const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
 const EDGE_F_NAME = "edge_F" ## Name of forward lane edge curve
 const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge curve
+const DEFAULT_DENSITY := 4.0
 
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
@@ -50,7 +51,7 @@ var curve:Curve3D
 var road_mesh:MeshInstance3D
 var material:Material
 var material_underside: Material
-var density := 4.00 ## Distance between loops, bake_interval in m applied to curve for geo creation.
+var density := DEFAULT_DENSITY ## Distance between loops, bake_interval in m applied to curve for geo creation.
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
@@ -70,7 +71,6 @@ var _end_flip: bool = false
 ## For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
-
 
 
 # ------------------------------------------------------------------------------
@@ -93,9 +93,26 @@ func _ready():
 		road_mesh.owner = container.get_owner()
 
 
+func _enter_tree() -> void:
+	pass
+
+
+func _exit_tree() -> void:
+	pass
+	
+
 # Workaround for cyclic typing
 func is_road_segment() -> bool:
 	return true
+
+
+func _is_mesh_generated() -> bool:
+	if not is_instance_valid(road_mesh):
+		return false
+	if not road_mesh.mesh:
+		return false
+	var ref = road_mesh.mesh.get_faces()
+	return len(ref) > 0
 
 
 func should_add_mesh() -> bool:
@@ -635,11 +652,12 @@ func _rebuild():
 		return
 
 	get_id()
+	var manager:RoadManager = container.get_manager()
 	if not container or not is_instance_valid(container):
 		pass
-	elif container.density > 0:
+	elif container.density > 0.0:
 		density = container.density
-	elif is_instance_valid(container.get_manager()):
+	elif is_instance_valid(manager) and manager.density > 0.0:
 		density = container.get_manager().density
 	else:
 		pass

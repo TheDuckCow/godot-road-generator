@@ -168,13 +168,13 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var container:RoadContainer # The managing container node for this road segment (direct parent).
-var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
+var container:RoadContainer ## The managing container node for this road segment (direct parent).
+var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
-var _last_update_ms # To calculate min updates.
-var _is_internal_updating: bool = false # Very special cases to bypass autofix cyclic
-
+var _last_update_ms ## To calculate min updates.
+var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
+var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -209,13 +209,26 @@ func _ready():
 			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
 		container = par
 
-	connect("on_transform", Callable(container, "on_point_update"))
+	on_transform.connect(container.on_point_update)
 
 	# TODO: If a new roadpoint is just added, we need to trigger this. But,
 	# if this is just a scene startup, would be better to call it once only
 	# across all roadpoint children. Consequence could be updating references
 	# that aren't ready.
 	container.update_edges()
+
+
+func _enter_tree() -> void:
+	pass
+
+
+func _exit_tree():
+	# Proactively disconnected any connected road segments, no longer valid.
+	if is_queued_for_deletion():
+		if is_instance_valid(prior_seg):
+			prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+		if is_instance_valid(next_seg):
+			next_seg.queue_free()
 
 
 func _to_string():
@@ -412,6 +425,9 @@ func _notification(what):
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if _skip_next_on_transform:
+			_skip_next_on_transform = false
+			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
 		emit_transform(low_poly)
 
@@ -720,6 +736,8 @@ func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) 
 	create_geo = ref_road_point.create_geo
 	_last_update_ms = ref_road_point._last_update_ms
 	alignment = ref_road_point.alignment
+	underside_thickness = ref_road_point.underside_thickness
+	flatten_terrain = ref_road_point.flatten_terrain
 
 	if copy_transform:
 		prior_mag = ref_road_point.prior_mag
@@ -1046,14 +1064,6 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 func set_internal_updating(state: bool) -> void:
 	self._is_internal_updating = state
 	container._auto_refresh = not state
-
-
-func _exit_tree():
-	# Proactively disconnected any connected road segments, no longer valid.
-	if is_instance_valid(prior_seg):
-		prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
-	if is_instance_valid(next_seg):
-		next_seg.queue_free()
 
 
 ## Evaluates THIS RoadPoint's prior/next_pt_inits and verifies that they
