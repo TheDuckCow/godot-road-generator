@@ -474,7 +474,7 @@ func get_manager(): # -> Optional[RoadManager]
 	var _this_manager = null
 	var _last_par = get_parent()
 	while true:
-		if _last_par == null:
+		if _last_par == null or not _last_par.is_inside_tree():
 			break
 		if _last_par.get_path() == ^"/root":
 			break
