@@ -296,6 +296,8 @@ func generate_edge_curves():
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
 	edge_R.curve = Curve3D.new()
+	# Though this is the reverse edge, we want CSG goemetry to be "positive" going along x,
+	# which means however we have this now needs to be this way around.
 	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point, false)
 
 	if edge_F == null or not is_instance_valid(edge_F):
@@ -305,6 +307,8 @@ func generate_edge_curves():
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
 	edge_F.curve = Curve3D.new()
+	# Per comment above, this one needs to be flipped to make +x CSG cross section go outwards
+	# TODO(#293): Set the last arg to true, once flickering issue is resolved.
 	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point, false)
 
 	# Add center curve
@@ -470,11 +474,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 ##  For more details and context: https://github.com/TheDuckCow/godot-road-generator/issues/46
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
-	var dst: Curve3D = road_lane.curve
+	var dst: Curve3D = Curve3D.new()
 
 	# Transformations in local space relative to the road_lane
-	var a_transform := road_lane.global_transform.affine_inverse() * start_point.global_transform
-	var d_transform := road_lane.global_transform.affine_inverse() * end_point.global_transform
+	var a_transform := road_lane.global_transform.inverse() * start_point.global_transform
+	var d_transform := road_lane.global_transform.inverse() * end_point.global_transform
 
 	var a_gbasis := a_transform.basis
 	var d_gbasis := d_transform.basis
@@ -532,14 +536,47 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	else:
 		out_pt_in = pt_g
 
-	# Set points in the destination curve
-	dst.clear_points()
+	# Set points onto the destination curve, and calculate aligmnet tilts
+	var start_pt_trans: Transform3D
+	var end_pt_trans: Transform3D
+	var start_ang: float
+	var end_ang: float
+	
 	if reverse:
 		dst.add_point(out_pos, out_pt_out, out_pt_in)
 		dst.add_point(in_pos, in_pt_out, in_pt_in)
+
+		start_pt_trans = dst.sample_baked_with_rotation(0)
+		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
+		end_ang = start_pt_trans.basis.y.angle_to(d_gbasis.y)
+		start_ang = end_pt_trans.basis.y.angle_to(a_gbasis.y)
+		
+		# TOOD: Somehow here, there's slight jitter when applying the reverse logic,
+		# some rotation/tilts match exactly, others are off by like a degree or so
+		# (not substantial, so seems like a floating point issue, seems
+		# deterministic for specific rotation values).
+		var tilt_dir:float = 1.0 if start_pt_trans.basis.x.dot(a_gbasis.y) > 0 else -1.0
+		dst.set_point_tilt(1, start_ang*tilt_dir)
+		tilt_dir = 1.0 if end_pt_trans.basis.x.dot(d_gbasis.y) > 0 else -1.0
+		dst.set_point_tilt(0, end_ang*tilt_dir)
 	else:
 		dst.add_point(in_pos, in_pt_in, in_pt_out)
 		dst.add_point(out_pos, out_pt_in, out_pt_out)
+
+		start_pt_trans = dst.sample_baked_with_rotation(0)
+		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
+		start_ang = start_pt_trans.basis.y.angle_to(a_gbasis.y)
+		end_ang = end_pt_trans.basis.y.angle_to(d_gbasis.y)
+	
+		# Now apply a corrected tilt to account for interpolating the up vector
+		# if the tilts of both roadpoints are not the same.
+		var tilt_dir:float = 1.0 if start_pt_trans.basis.x.dot(a_gbasis.y) > 0 else -1.0
+		dst.set_point_tilt(0, start_ang*tilt_dir)
+		tilt_dir = 1.0 if end_pt_trans.basis.x.dot(d_gbasis.y) > 0 else -1.0
+		dst.set_point_tilt(1, end_ang*tilt_dir)
+	
+	# One assignment at the end, to avoid duplicate curve modified calls
+	road_lane.curve = dst
 
 
 ## Offset the curve in/out points based on lane index.
