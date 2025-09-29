@@ -190,9 +190,12 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	#TODO: for a case with a lot of lanes/agents, some spatial map would be beneficial for search
 	var all_lanes:Array = []
 	var groups_checked:Array = [] # Technically, each container could have its own group name
-	var containers = road_manager.get_containers()
-	containers.push_front(road_manager)
-
+	var containers := road_manager.get_containers() as Array
+	
+	if not road_manager.ai_lane_group in groups_checked:
+		var new_lanes = get_tree().get_nodes_in_group(road_manager.ai_lane_group)
+		all_lanes.append_array(new_lanes)
+		groups_checked.append(road_manager.ai_lane_group)
 	for _cont in containers:
 		if _cont.ai_lane_group in groups_checked:
 			continue
