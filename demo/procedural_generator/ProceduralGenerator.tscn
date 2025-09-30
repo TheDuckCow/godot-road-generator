@@ -1,11 +1,13 @@
-[gd_scene load_steps=8 format=3 uid="uid://c57yq8evxe3w3"]
+[gd_scene load_steps=10 format=3 uid="uid://c57yq8evxe3w3"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
 [ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
+[ext_resource type="Script" path="res://demo/procedural_generator/road_actor_manager.gd" id="4_jhbve"]
 [ext_resource type="Script" path="res://demo/procedural_generator/procedural_generator.gd" id="5"]
 [ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="7"]
+[ext_resource type="Script" path="res://demo/procedural_generator/road_actor_spawner.gd" id="7_2hqjq"]
 
 [sub_resource type="Environment" id="Environment_v4pga"]
 background_mode = 1
@@ -17,8 +19,11 @@ target_node = NodePath("RoadManager/vehicles/Player/Camera3D")
 
 [node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource("3")
+material_resource = ExtResource("2")
 
 [node name="vehicles" type="Node3D" parent="RoadManager"]
+script = ExtResource("4_jhbve")
+road_actor_scenes = Array[PackedScene]([ExtResource("7")])
 
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281)
@@ -36,6 +41,7 @@ script = ExtResource("1")
 material_resource = ExtResource("2")
 use_lowpoly_preview = true
 generate_ai_lanes = true
+auto_free_vehicles = false
 draw_lanes_editor = true
 edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
@@ -53,6 +59,10 @@ next_mag = 15.0
 alignment = 1
 prior_pt_init = NodePath("../RP_002")
 
+[node name="ActorSpawner" type="Node3D" parent="RoadManager/Road_001/RP_001"]
+script = ExtResource("7_2hqjq")
+actor_manager_path = NodePath("../../../vehicles")
+
 [node name="RP_002" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496)
 script = ExtResource("4")
@@ -62,6 +72,10 @@ prior_mag = 15.0
 next_mag = 15.0
 alignment = 1
 next_pt_init = NodePath("../RP_001")
+
+[node name="ActorSpawner" type="Node3D" parent="RoadManager/Road_001/RP_002"]
+script = ExtResource("7_2hqjq")
+actor_manager_path = NodePath("../../../vehicles")
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 3
@@ -75,7 +89,7 @@ offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="car_count" type="Label" parent="UI"]
+[node name="info_label" type="Label" parent="UI"]
 unique_name_in_owner = true
 layout_mode = 0
 offset_right = 40.0

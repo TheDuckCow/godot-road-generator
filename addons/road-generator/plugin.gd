@@ -1,6 +1,10 @@
 @tool
-## Road and Highway generator addon.
 extends EditorPlugin
+## Road and Highway generator addon.
+
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Vars
+# ------------------------------------------------------------------------------
 
 enum SnapState {
 	IDLE,
@@ -30,6 +34,9 @@ var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 var road_point_gizmo = RoadPointGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
 var road_container_editor = RoadContainerEdit.new(self)
+
+var plugin_version: String
+
 var _road_toolbar: RoadToolbarClass
 var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
@@ -55,6 +62,12 @@ var _edi_debug := false
 
 # For use by road_point_edit and panel, keys are props on RoadPoint
 var copy_attributes:Dictionary = {}
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Setup and builtin overrides
+# ------------------------------------------------------------------------------
 
 
 func _enter_tree():
@@ -83,6 +96,9 @@ func _enter_tree():
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT
+	
+	# Load the plugin version, for UI and form-opening purposes
+	plugin_version = get_plugin_version()
 
 
 func _exit_tree():
@@ -102,7 +118,8 @@ func _exit_tree():
 
 
 # ------------------------------------------------------------------------------
-# EditorPlugin overriden methods
+#endregion
+#region EditorPlugin overriden methods
 # ------------------------------------------------------------------------------
 
 
@@ -285,7 +302,8 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 
 
 # ------------------------------------------------------------------------------
-# Utilities
+#endregion
+#region GUI utilities
 # ------------------------------------------------------------------------------
 
 
@@ -294,8 +312,7 @@ func is_road_node(node: Node) -> bool:
 	# Not counting RoadLane, since they are just native curves with extra draws
 	return (node is RoadPoint
 		or node is RoadContainer
-		or node is RoadManager
-		or node is RoadIntersection)
+		or node is RoadManager)
 
 
 func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
@@ -677,8 +694,19 @@ func refresh() -> void:
 	get_editor_interface().get_inspector().refresh()
 
 
+func get_plugin_version() -> String:
+	var addon_path:String = get_script().resource_path
+	addon_path = addon_path.get_base_dir() + "/plugin.cfg"
+	print("Path: ", addon_path)
+	var config := ConfigFile.new()
+	if config.load(addon_path) == OK:
+		return config.get_value("plugin", "version", "")
+	return ""
+
+
 # ------------------------------------------------------------------------------
-# Selection utilities
+#endregion
+#region Selection utilities
 # ------------------------------------------------------------------------------
 
 
@@ -917,7 +945,8 @@ func _handles(object: Object):
 
 
 # ------------------------------------------------------------------------------
-# Create menu handling
+#endregion
+#region Create menu handling
 # ------------------------------------------------------------------------------
 
 
@@ -944,6 +973,8 @@ func _show_road_toolbar() -> void:
 		
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
+		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
+		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
 
 
 func _hide_road_toolbar() -> void:
@@ -966,6 +997,8 @@ func _hide_road_toolbar() -> void:
 		
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
+		_road_toolbar.create_menu.feedback_pressed.disconnect(_on_feedback_pressed)
+		_road_toolbar.create_menu.report_issue_pressed.disconnect(_on_report_issue_pressed)
 
 
 func _on_regenerate_pressed() -> void:
@@ -978,6 +1011,12 @@ func _on_regenerate_pressed() -> void:
 	if t_container:
 		t_container.rebuild_segments(true)
 		return
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Operations
+# ------------------------------------------------------------------------------
 
 
 func _instance_custom_roadcontainer(path: String) -> void:
@@ -1621,7 +1660,7 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 
 	# This just means we're cancelling the user's movement efforts, so put back without undo
 	if is_cancelling:
-		sel_rp.container = tgt_transform
+		sel_rp.container.transform = tgt_transform
 		return
 
 	undo_redo.create_action("Snap RoadContainer to RoadPoint")
@@ -1978,6 +2017,31 @@ func _instance_gltf_post_export(container:RoadContainer, export_file: String) ->
 	container.create_geo = false
 
 
+## Open up the addon feedback form
+func _on_feedback_pressed() -> void:
+	const FORM_BASE_URL := "https://docs.google.com/forms/d/e/1FAIpQLSdNbtXvw0FYQGEKpnqhpJZyujxFsabTk4i3SHPXYA6UGRdG9w/viewform"
+	const GODOT_FIELD_ID := "entry.600361287"
+	const ADDON_FIELD_ID := "entry.474237825"
+	
+	var version_info := Engine.get_version_info()
+	var godot_version := "%d.%d" % [version_info["major"], version_info["minor"]]
+	if version_info["status"] != "stable":
+		godot_version += "-%s" % version_info["status"]
+
+	var url = "%s?%s=%s&%s=%s" % [
+		FORM_BASE_URL,
+		GODOT_FIELD_ID,
+		godot_version,
+		ADDON_FIELD_ID,
+		plugin_version
+	]
+	OS.shell_open(url)
+
+
+func _on_report_issue_pressed() -> void:
+	OS.shell_open("https://github.com/TheDuckCow/godot-road-generator/issues")
+
+
 ## Adds a single RoadLane to the scene.
 func _create_lane_pressed() -> void:
 	var undo_redo = get_undo_redo()
@@ -2058,3 +2122,6 @@ func _create_lane_agent_pressed() -> void:
 	undo_redo.add_undo_method(target_parent, "remove_child", agent)
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 	undo_redo.commit_action()
+
+#endregion
+# ------------------------------------------------------------------------------

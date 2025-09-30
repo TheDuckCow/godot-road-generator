@@ -16,6 +16,8 @@ signal create_lane
 signal create_lane_agent
 signal create_2x2_road
 signal export_mesh
+signal feedback_pressed
+signal report_issue_pressed
 
 # ripple up from children
 signal pressed_add_custom_roadcontainer(path)
@@ -29,7 +31,9 @@ enum CreateMenu {
 	LANE,
 	LANEAGENT,
 	TWO_X_TWO,
-	EXPORT_MESH
+	EXPORT_MESH,
+	FEEDBACK,
+	REPORT_ISSUE
 }
 
 enum MenuMode {
@@ -120,6 +124,12 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	idx += 1
 	if not primary_sel is RoadContainer:
 		pup.set_item_disabled(idx, true)
+	
+	pup.add_separator()
+	pup.add_item("Report issue", CreateMenu.REPORT_ISSUE)
+	idx += 1
+	pup.add_item("Share feedback", CreateMenu.FEEDBACK)
+	idx += 1
 		
 
 
@@ -130,21 +140,25 @@ func _exit_tree() -> void:
 func _create_menu_item_clicked(id: int) -> void:
 	match id:
 		CreateMenu.REGENERATE:
-			emit_signal("regenerate_pressed")
+			regenerate_pressed.emit()
 		CreateMenu.SELECT_CONTAINER:
-			emit_signal("select_container_pressed")
+			select_container_pressed.emit()
 		CreateMenu.CONTAINER:
-			emit_signal("create_container")
+			create_container.emit()
 		CreateMenu.POINT:
-			emit_signal("create_roadpoint")
+			create_roadpoint.emit()
 		CreateMenu.LANE:
-			emit_signal("create_lane")
+			create_lane.emit()
 		CreateMenu.LANEAGENT:
-			emit_signal("create_lane_agent")
+			create_lane_agent.emit()
 		CreateMenu.TWO_X_TWO:
-			emit_signal("create_2x2_road")
+			create_2x2_road.emit()
 		CreateMenu.EXPORT_MESH:
-			emit_signal("export_mesh")
+			export_mesh.emit()
+		CreateMenu.FEEDBACK:
+			feedback_pressed.emit()
+		CreateMenu.REPORT_ISSUE:
+			report_issue_pressed.emit()
 
 
 func _on_pressed_add_custom_roadcontainer(path:String) -> void:

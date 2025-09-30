@@ -1,6 +1,5 @@
 @tool
 @icon("res://addons/road-generator/resources/road_container.png")
-
 class_name RoadContainer
 extends Node3D
 ## The parent node for [RoadPoint]'s and controller of actual geo creation.
@@ -16,10 +15,14 @@ extends Node3D
 ## @tutorial(Custom Mesh Tutorial): https://github.com/TheDuckCow/godot-road-generator/wiki/User-guide:-Custom-road-meshes
 
 
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const
+# ------------------------------------------------------------------------------
+
+
 ## Emitted when a road segment has been (re)generated, returning the list
-## of updated segments of type Array. Will also trigger on segments deleted,
-## which will contain a list of nothing.
-signal on_road_updated(updated_segments)
+## of updated segments of type Array.
+signal on_road_updated(updated_segments: Array)
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_transform(node)
@@ -43,6 +46,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## If cleared, will utilize the default specificed by the [RoadManager].
 @export var material_resource: Material: set = _set_material
 
+## Material applied to the underside of the generated meshes[br][br]
+##
+## If cleared, will utilize the default specificed by the [RoadManager].
+@export var material_underside: Material: set = _set_material_underside
+
 ## Defines the distance in meters between road loop cuts.[br][br]
 ##
 ## This mirrors the same term used in native Curve3D objects where a higher
@@ -55,6 +63,16 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## Use fewer loop cuts for performance during transform.
 @export var use_lowpoly_preview: bool = false
 
+## Flatten terrain when transforming this RoadContainer or child RoadPoints[br]
+## if a terrain connector is set up.
+## flatten terrain underneath them if a terrain connector is used.
+@export var flatten_terrain: bool = true
+
+## Defines the thickness in meters of the underside part of the road.[br][br]
+##
+## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
+## underside will not be generated at all.
+@export var underside_thickness: float = -1.0: set = _set_thickness
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -169,7 +187,8 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 
 
 # ------------------------------------------------------------------------------
-# Runtime variables
+#endregion
+#region Runtime variables
 # ------------------------------------------------------------------------------
 
 
@@ -211,7 +230,8 @@ var _is_ready := false
 
 
 # ------------------------------------------------------------------------------
-# Setup and export setter/getters
+#endregion
+#region Setup and export setter/getters
 # ------------------------------------------------------------------------------
 
 
@@ -234,18 +254,24 @@ func _ready():
 	rebuild_segments(true)
 
 
-# Workaround for cyclic typing
-func is_road_container() -> bool:
-	return true
+func _enter_tree() -> void:
+	pass
 
 
-## Temp added
-func get_owner() -> Node:
-	return self.owner if is_instance_valid(self.owner) else self
+## Cleanup the road segments specifically, in case they aren't children.
+func _exit_tree():
+	# TODO: Verify we don't get orphans below.
+	# However, at the time of this early exit, doing this prevented roads
+	# from being drawn on scene load due to errors unloading against
+	# freed instances.
+	segid_map = {}
+	return
 
-
-func is_subscene() -> bool:
-	return scene_file_path and self != get_tree().edited_scene_root
+	#segid_map = {}
+	#if not segments or not is_instance_valid(get_node(segments)):
+	#	return
+	#for seg in get_node(segments).get_children():
+	#	seg.queue_free()
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -285,10 +311,24 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return []
 
 
+## Workaround for cyclic typing
+func is_road_container() -> bool:
+	return true
+
+
+## Temp added
+func get_owner() -> Node:
+	return self.owner if is_instance_valid(self.owner) else self
+
+
+func is_subscene() -> bool:
+	return scene_file_path and self != get_tree().edited_scene_root
+
+
 func _defer_refresh_on_change() -> void:
 	if _dirty:
 		return
-	elif not _is_ready:
+	elif not is_node_ready():
 		return # assume it'll be called by the main ready function once, well, ready
 	elif _auto_refresh:
 		_dirty = true
@@ -329,13 +369,23 @@ func _set_density(value) -> void:
 	_defer_refresh_on_change()
 
 
+func _set_thickness(value) -> void:
+	underside_thickness = value
+	_defer_refresh_on_change()
+
+
 func _set_material(value) -> void:
 	material_resource = value
 	_defer_refresh_on_change()
 
 
+func _set_material_underside(value) -> void:
+	material_underside = value
+	_defer_refresh_on_change()
+
+
 func _dirty_rebuild_deferred() -> void:
-	if not _is_ready:
+	if not is_node_ready():
 		return
 	if _dirty:
 		_dirty = false
@@ -393,7 +443,8 @@ func _set_create_edge_curves(value: bool) -> void:
 
 
 # ------------------------------------------------------------------------------
-# Editor interactions
+#endregion
+#region Editor interactions
 # ------------------------------------------------------------------------------
 
 
@@ -403,12 +454,16 @@ func _notification(what):
 		if lmb_down and not _drag_init_transform:
 			self._drag_init_transform = global_transform
 		elif not lmb_down:
-			emit_signal("on_transform", self)
+			on_transform.emit(self)
+			var manager = get_manager()
+			if is_instance_valid(manager):
+				manager.on_container_transformed.emit(self)
 			_drag_init_transform = null
 
 
 # ------------------------------------------------------------------------------
-# Container methods
+#endregion
+#region Functions
 # ------------------------------------------------------------------------------
 
 
@@ -419,7 +474,7 @@ func get_manager(): # -> Optional[RoadManager]
 	var _this_manager = null
 	var _last_par = get_parent()
 	while true:
-		if _last_par == null:
+		if _last_par == null or not _last_par.is_inside_tree():
 			break
 		if _last_par.get_path() == ^"/root":
 			break
@@ -461,6 +516,8 @@ func get_segments() -> Array:
 			continue
 		for pt_ch in ch.get_children():
 			if not pt_ch is RoadSegment:
+				continue
+			if pt_ch.is_queued_for_deletion():
 				continue
 			segs.append(pt_ch)
 	return segs
@@ -537,7 +594,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 	return closest_rp
 
 
-# Get Edge RoadPoints that are open and available for connections
+## Get Edge RoadPoints that are open and available for connections
 func get_open_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -558,8 +615,8 @@ func get_open_edges()->Array:
 	return rp_edges
 
 
-# Get Edge RoadPoints that are unavailable for connections. Returns
-# local Edges, target Edges, and target containers.
+## Get Edge RoadPoints that are unavailable for connections. Returns
+## local Edges, target Edges, and target containers.
 func get_connected_edges()->Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -759,6 +816,11 @@ func validate_edges(autofix: bool = false) -> bool:
 				_invalidate_edge(_idx, autofix, "edge_rp_target_dirs value invalid")
 				continue
 
+			var tg_ready = is_instance_valid(tg_node.container) and tg_node.container.is_node_ready()
+			var this_ready = is_instance_valid(this_pt.container) and this_pt.container.is_node_ready()
+			if not tg_ready or not this_ready:
+				continue
+
 			# check they occupy the same position / size / etc
 			if tg_node.global_transform.origin != this_pt.global_transform.origin:
 				var loc_diff = tg_node.global_transform.origin - this_pt.global_transform.origin
@@ -808,7 +870,7 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 
 
 func rebuild_segments(clear_existing := false):
-	if not is_inside_tree() or not _is_ready:
+	if not is_inside_tree() or not is_node_ready():
 		# This most commonly happens in the editor on project restart, where
 		# each opened scene tab is quickly loaded and then apparently unloaded,
 		# so tab one last saved as not active will defer call rebuild, and by
@@ -817,6 +879,11 @@ func rebuild_segments(clear_existing := false):
 		# Cannot get path of node as it is not in a scene tree.
 		# scene/3d/spatial.cpp:407 - Condition "!is_inside_tree()" is true. Returned: Transform()
 		return
+	var manager = get_manager()
+	if is_instance_valid(manager):
+		if not manager.is_node_ready():
+			# Defer segment building
+			return
 	update_edges()
 	validate_edges(clear_existing)
 	_needs_refresh = false
@@ -851,7 +918,7 @@ func rebuild_segments(clear_existing := false):
 				next_pt = null
 
 		if not prior_pt and not next_pt:
-			push_warning("Road point %s not connected to anything yet" % pt.name)
+			push_warning("Road point %s/%s not connected to anything yet" % [pt.get_parent().name, pt.name])
 			continue
 		var res
 		if prior_pt and prior_pt.visible:
@@ -872,10 +939,8 @@ func rebuild_segments(clear_existing := false):
 	if debug:
 		print_debug("Road segs rebuilt: ", rebuilt)
 
-	# Aim to do a single signal emission across the whole container update.
-	# TODO: consider not signalling if none rebuilt,
-	# though right now returning = [] will still indicate the check was done (but not by whom)
-	emit_signal("on_road_updated", signal_rebuilt)
+	if signal_rebuilt.size() > 0:
+		_emit_road_updated(signal_rebuilt)
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -884,6 +949,7 @@ func remove_segment(seg:RoadSegment) -> void:
 		push_warning("RoadSegment is invalid, cannot remove: ")
 		#print("Did NOT signal for the removal here", seg)
 		return
+	seg.clear_lane_segments()
 	var id := seg.get_id()
 	seg.queue_free()
 	segid_map.erase(id)
@@ -967,20 +1033,30 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 		else:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
-		
+
 		if material_resource:
 			new_seg.material = material_resource
 		elif is_instance_valid(_manager) and _manager.material_resource:
 			new_seg.material = _manager.material_resource
+
+		if material_underside:
+			new_seg.material_underside = material_underside
+		elif is_instance_valid(_manager) and _manager.material_underside:
+			new_seg.material_underside = _manager.material_underside
+
 		new_seg.check_rebuild()
+
+		var segment_thickness: float
+		#if
+		# VISSA ANCHOR POINT
 
 		return [true, new_seg]
 
 
-# Update the lane_next and lane_prior connections based on tags assigned.
-#
-# Process over each end of "connecting" Lanes, therefore best to iterate
-# over RoadPoints.
+## Update the lane_next and lane_prior connections based on tags assigned.
+##
+## Process over each end of "connecting" Lanes, therefore best to iterate
+## over RoadPoints.
 func update_lane_seg_connections():
 	for obj in get_children():
 		if not obj is RoadPoint:
@@ -1021,7 +1097,7 @@ func update_lane_seg_connections():
 						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
 
 
-# Triggered by adjusting RoadPoint transform in editor via signal connection.
+## Triggered by adjusting RoadPoint transform in editor via signal connection.
 func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if not _auto_refresh:
 		_needs_refresh = true
@@ -1047,11 +1123,16 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 	if _auto_refresh:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
+	
+	# Batch updates to reduce signal emissions
+	var needs_update = false
+	
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
+		needs_update = true
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
@@ -1059,26 +1140,27 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
+		needs_update = true
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		if next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
+				needs_update = true
 
-	if len(segs_updated) > 0:
-		if self.debug:
-			print_debug("Road segs rebuilt: ", len(segs_updated))
-		emit_signal("on_road_updated", segs_updated)
+	if needs_update and len(segs_updated) > 0:
+		_emit_road_updated(segs_updated)
 
 
-# Callback from a modification of a RoadSegment object.
+## Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
 
@@ -1101,6 +1183,15 @@ func setup_road_container():
 	if not is_instance_valid(get_manager()):
 		# Assign a road material by default if there's no parent RoadManager
 		material_resource = RoadMaterial
+
+
+## Signals the segments whichhave been just (re)built
+func _emit_road_updated(segments: Array) -> void:
+	if self.debug:
+		print_debug("Road segs rebuilt: ", len(segments))
+	on_road_updated.emit(segments)
+	if is_instance_valid(_manager):
+		_manager.on_container_update(segments)
 
 
 ## Detect and move legacy node hierharcy layout.
@@ -1128,17 +1219,5 @@ func _check_migrate_points():
 	])
 
 
-## Cleanup the road segments specifically, in case they aren't children.
-func _exit_tree():
-	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
-	# freed instances.
-	segid_map = {}
-	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()
+#endregion
+# ------------------------------------------------------------------------------
