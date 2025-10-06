@@ -201,7 +201,7 @@ func _physics_process(delta: float) -> void:
 			do_pair_side[dir] = agent.find_obstacle_on_side_lane(lane_change, looking_forward, dir, self)
 			var obstacle_dist_side: float = do_pair_side[dir][0]
 			if obstacle_dist_side == 0:
-				lane_change = 0;
+				#lane_change = 0;
 				break
 		agent.change_lane(lane_change)
 		if lane_change:
@@ -222,7 +222,7 @@ func _physics_process(delta: float) -> void:
 
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
-	assert(agent.agent_move.block != RoadLaneAgent.MoveAlongLane.MoveBlock.OBSTACLE)
+	#assert(agent.agent_move.block != RoadLaneAgent.MoveAlongLane.MoveBlock.OBSTACLE)
 	if agent.agent_move.block == RoadLaneAgent.MoveAlongLane.MoveBlock.NO_LANE:
 		assert(!collided)
 		_move_to_next_lane()
