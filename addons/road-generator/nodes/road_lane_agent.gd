@@ -106,38 +106,23 @@ func assign_lane(new_lane: RoadLane, new_offset := NAN) -> void:
 						actor.global_transform.origin)))
 		if DEBUG_OUT:
 			print("Found new offset ", new_offset," for ", self )
-	var old_shared_parts: Array[RoadLane.SharedPart] = [null, null]
-	if _initial_lane:
-		for dir in MoveDir.values():
-			var shared_part := _initial_lane.shared_parts[dir]
-			if shared_part && shared_part.is_relevant(agent_pos):
-				old_shared_parts[dir] = shared_part
 	agent_pos.lane = new_lane
 	agent_pos.offset = new_offset
 	if new_lane != _initial_lane:
 		if _initial_lane:
 			for dir in MoveDir.values():
-				if old_shared_parts[dir]:
-					old_shared_parts[dir].remove_blocks(agent_pos)
+				var old_shared_part := _initial_lane.shared_parts[dir]
+				if old_shared_part:
+					old_shared_part.remove_blocks(agent_pos)
 			_unassign_lane(_initial_lane)
 		new_lane.register_obstacle(agent_pos)
-		for dir in MoveDir.values():
-			var shared_part := new_lane.shared_parts[dir]
-			if shared_part && shared_part.is_relevant(agent_pos):
-				shared_part.make_blocks(agent_pos)
 		if not new_lane.draw_in_game and visualize_lane:
 			new_lane.draw_in_game = true
 			_did_make_lane_visible = true
-	else:
-		for dir in MoveDir.values():
-			var shared_part := new_lane.shared_parts[dir]
-			if shared_part && shared_part.is_relevant(agent_pos):
-				if old_shared_parts[dir] == shared_part:
-					old_shared_parts[dir] = null
-				shared_part.make_blocks(agent_pos)
-		for dir in MoveDir.values():
-			if old_shared_parts[dir]:
-				old_shared_parts[dir].remove_blocks(agent_pos)
+	for dir in MoveDir.values():
+		var shared_part := new_lane.shared_parts[dir]
+		if shared_part:
+			shared_part.update_blocks(agent_pos)
 	assert(new_lane.is_obstacle_list_correct())
 	emit_signal("on_lane_changed", _initial_lane)
 
@@ -255,6 +240,15 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 ## Finds the poistion this many many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
+	if ! is_lane_position_valid():
+		return actor.global_transform.origin
+	agent_move.set_by_agent_pos(agent_pos, move_distance)
+	agent_move.along_lane_ignore_obstacles()
+	assign_lane(agent_move.lane, agent_move.offset)
+	return agent_move.get_position()
+
+
+func move_along_lane_check_obstacles(move_distance: float) -> Vector3:
 	if ! is_lane_position_valid():
 		return actor.global_transform.origin
 	agent_move.set_by_agent_pos(agent_pos, move_distance)
@@ -398,6 +392,7 @@ class MoveAlongLane:
 		if DEBUG_OUT:
 			print(self.agent_pos, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
 
+	#TODO remove
 	func along_lane() -> void:
 		var dir := move_dir()
 		if DEBUG_OUT:
@@ -456,20 +451,19 @@ class MoveAlongLane:
 		# Find how much space is left along the RoadLane in this direction
 		if self.distance_left == 0:
 			return
-		var dir_back := RoadLane.reverse_move_dir(dir)
 		var lane_length = agent_pos.distance_to_end(dir)
-		while distance_left > lane_length:
+		while distance_left >= lane_length:
 			var lane_check := lane.get_sequential_lane(dir)
 			if lane_check == null:
-				return lane.to_global( lane.curve.get_point_position((lane.curve.point_count -1) if dir == MoveDir.FORWARD else 0) )
 				block = MoveBlock.NO_LANE
-			offset = 0
+				break
 			distance_left -= lane_length
 			lane = lane_check
 			lane_length = lane.curve.get_baked_length()
+			offset = 0 if dir == MoveDir.FORWARD else lane_length
 		var dist_to_end := min(distance_left, lane_length)
 		distance_left -= dist_to_end
-		offset += lane.offset_from_end(dist_to_end, dir_back)
+		offset += dist_to_end if dir == MoveDir.FORWARD else -dist_to_end
 
 
 ## Returns the expect target position based on the closest target pos

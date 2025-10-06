@@ -475,7 +475,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 					if last_ln.flags == RoadLane.LaneFlags.NORMAL:
 						assert(! new_shared_parts[RoadLane.MoveDir.BACKWARD])
 						last_ln.flags = RoadLane.LaneFlags.MERGE_INTO if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
-						new_shared_parts[RoadLane.MoveDir.BACKWARD] = RoadLane.SharedPart.new(last_ln, shared_part_dir, start_point.lane_width)
+						new_shared_parts[RoadLane.MoveDir.BACKWARD] = RoadLane.SharedPart.new(last_ln, shared_part_dir)
 						last_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
 						new_shared_parts[RoadLane.MoveDir.BACKWARD].add_lane(new_ln)
 						new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
@@ -491,7 +491,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 					assert(! new_shared_parts[RoadLane.MoveDir.FORWARD])
 					var shared_part_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
 					new_ln.flags = RoadLane.LaneFlags.MERGE_INTO if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
-					new_shared_parts[RoadLane.MoveDir.FORWARD] = RoadLane.SharedPart.new(new_ln, shared_part_dir, end_point.lane_width)
+					new_shared_parts[RoadLane.MoveDir.FORWARD] = RoadLane.SharedPart.new(new_ln, shared_part_dir)
 					new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.FORWARD]
 					var transition_ln := last_ln
 					while transition_ln:
