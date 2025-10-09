@@ -1,7 +1,7 @@
 @tool
 @icon("res://addons/road-generator/resources/road_point.png")
 class_name RoadPoint
-extends Node3D
+extends RoadGraphNode
 ## Definition for a single point handle, which 2+ road segments connect to.
 ##
 ## Functionally equivalent to a point along a curve, it defines the cross section
