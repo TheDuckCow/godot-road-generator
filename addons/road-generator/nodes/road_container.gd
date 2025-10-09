@@ -74,6 +74,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## underside will not be generated at all.
 @export var underside_thickness: float = -1.0: set = _set_thickness
 
+## Render layer to set for the generated road meshes.
+@export_flags_3d_render var render_layers: int = 1:
+	set(value):
+		render_layers = value
+		_defer_refresh_on_change()
+
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
 @export_group("Collision")
