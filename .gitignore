@@ -25,3 +25,6 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 local_dev
+
+# IDE specific ignores
+.vscode/
