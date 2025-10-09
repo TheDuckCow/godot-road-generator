@@ -1,0 +1,85 @@
+[gd_scene load_steps=8 format=3 uid="uid://c2wr51dph5751"]
+
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_7bqj5"]
+[ext_resource type="Script" path="res://demo/intersections/temp_hardcoding.gd" id="1_er4ss"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2_5r4g7"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="3_3xvxs"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_intersection.gd" id="5_ggulu"]
+[ext_resource type="Script" path="res://addons/road-generator/resources/intersection_settings/road_meshgen_ngon.gd" id="6_ppyw7"]
+
+[sub_resource type="Resource" id="Resource_01na1"]
+script = ExtResource("6_ppyw7")
+
+[node name="IntersectionsPlayground" type="Node3D"]
+script = ExtResource("1_er4ss")
+
+[node name="RoadManager" type="Node3D" parent="."]
+script = ExtResource("1_7bqj5")
+
+[node name="RoadTempHardcoding" type="Node3D" parent="RoadManager"]
+script = ExtResource("2_5r4g7")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_004"), NodePath("RP_005"), NodePath("RP_006")])
+edge_rp_local_dirs = Array[int]([0, 1, 0, 1])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(-0.964111, 5.68735e-09, 0.265501, 0, 1, -2.14212e-08, -0.265501, -2.06524e-08, -0.964111, 2.68758, 0.332846, -1.62913)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 27.8251
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(-0.964111, -0.00131045, 0.265498, 0, 0.999988, 0.00493574, -0.265501, 0.0047586, -0.964099, -12.0876, 0.582848, 52.0237)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 56.2775
+next_mag = 27.8251
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(0.689586, -0.002729, 0.724198, 0.00434985, 0.99999, -0.000373686, -0.72419, 0.00340784, 0.689592, -119.462, 0.852765, 18.2683)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 58.6029
+next_mag = 56.2775
+prior_pt_init = NodePath("../RP_004")
+next_pt_init = NodePath("../RP_002")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(0.339887, -0.631779, -0.696658, -0.0444199, 0.729147, -0.682914, 0.939417, 0.263059, 0.219764, -26.988, 1.60054, -53.7409)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 58.6029
+next_mag = 58.6029
+next_pt_init = NodePath("../RP_003")
+
+[node name="RoadIntersection" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, -45)
+script = ExtResource("5_ggulu")
+settings = SubResource("Resource_01na1")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(-0.282346, 0, 0.959313, 0, 1, 0, -0.959313, 0, -0.282346, 76.0932, 5.08442, -78.3354)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 19.5413
+prior_pt_init = NodePath("../RP_006")
+
+[node name="RP_006" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(-0.282346, -0.00703649, 0.959287, 0, 0.999973, 0.00733493, -0.959313, 0.00207099, -0.282338, 38.6008, 7.15606, -67.3006)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 19.5413
+next_mag = 19.5413
+next_pt_init = NodePath("../RP_005")

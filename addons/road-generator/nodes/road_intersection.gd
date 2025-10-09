@@ -37,6 +37,10 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 var container:RoadContainer ## The managing container node for this road intersection (direct parent).
 
+# internal:
+
+var _mesh: MeshInstance3D = MeshInstance3D.new() # mesh sibling used to display the intersection
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Export var callbacks
@@ -68,7 +72,8 @@ func _set_settings(value: IntersectionSettings) -> void:
 
 func _init() -> void:
 	# TODO ensure unique
-	settings = IntersectionSettings.new()
+	settings = RoadMeshGenNgon.new()
+	self.add_child(_mesh)
 
 func _ready() -> void:
 	if not container or not is_instance_valid(container):
@@ -78,7 +83,6 @@ func _ready() -> void:
 		if not par.has_method("is_road_container"):
 			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
 		container = par
-
 	on_transform.connect(container.on_point_update)
 
 
@@ -102,8 +106,20 @@ func is_road_intersection() -> bool:
 # ------------------------------------------------------------------------------
 
 func emit_transform(low_poly: bool = false) -> void:
-	emit_signal("on_transform", self, low_poly)
+	pass
+	# emit_signal("on_transform", self, low_poly) #FIXME
 
 # ------------------------------------------------------------------------------
 #endregion
+#region Utilities
 # ------------------------------------------------------------------------------
+
+func refresh_intersection_mesh() -> void:
+	if not is_instance_valid(settings) or not is_instance_valid(container):
+		return
+	if not container.create_geo:
+		return
+	
+	var mesh: Mesh = settings.generate_mesh(self.global_position, edge_points)
+	_mesh.mesh = mesh
+		
