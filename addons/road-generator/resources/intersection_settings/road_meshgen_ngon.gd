@@ -42,7 +42,9 @@ func _generate_debug_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mes
     var surface_tool: SurfaceTool = SurfaceTool.new()
     surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
     
-    #FIXME too tired to understand why
+    # FIXME too tired to understand why
+    # Note: likely due to not checking the "direction" of the edges.
+    # Edge 0 is the only one that is going away and not towards the intersection.
     # swap only at index zero
     var temp = edge_shoulders[0][0]
     edge_shoulders[0][0] = edge_shoulders[0][1]
