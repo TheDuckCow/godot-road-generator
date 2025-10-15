@@ -35,7 +35,12 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 @export_group("Internal")
 
+@export var force_mesh_refresh_toggle: bool = true:
+	set(v):
+		force_mesh_refresh_toggle = v
+		refresh_intersection_mesh()
 @export var edge_points: Array[RoadPoint] = []: get = _get_edge_points, set = _set_edge_points
+
 
 var container:RoadContainer ## The managing container node for this road intersection (direct parent).
 
