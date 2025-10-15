@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2_5r4g7"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="3_3xvxs"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_intersection.gd" id="5_ggulu"]
-[ext_resource type="Script" path="res://addons/road-generator/resources/intersection_settings/road_meshgen_ngon.gd" id="6_ppyw7"]
+[ext_resource type="Script" path="res://addons/road-generator/procgen/intersection_ngon.gd" id="6_ppyw7"]
 
 [sub_resource type="Resource" id="Resource_01na1"]
 script = ExtResource("6_ppyw7")
@@ -62,10 +62,11 @@ prior_mag = 58.6029
 next_mag = 58.6029
 next_pt_init = NodePath("../RP_003")
 
-[node name="RoadIntersection" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+[node name="RoadIntersection" type="Node3D" parent="RoadManager/RoadTempHardcoding" node_paths=PackedStringArray("edge_points")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, -45)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_01na1")
+edge_points = [NodePath("../RP_001"), NodePath("../RP_004"), NodePath("../RP_006")]
 
 [node name="RP_005" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
 transform = Transform3D(-0.282346, 0, 0.959313, 0, 1, 0, -0.959313, 0, -0.282346, 76.0932, 5.08442, -78.3354)
