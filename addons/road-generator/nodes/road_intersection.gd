@@ -84,6 +84,7 @@ func _ready() -> void:
 			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
 		container = par
 	on_transform.connect(container.on_point_update)
+	refresh_intersection_mesh()
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -106,7 +107,7 @@ func is_road_intersection() -> bool:
 # ------------------------------------------------------------------------------
 
 func emit_transform(low_poly: bool = false) -> void:
-	pass
+	refresh_intersection_mesh()
 	# emit_signal("on_transform", self, low_poly) #FIXME
 
 # ------------------------------------------------------------------------------

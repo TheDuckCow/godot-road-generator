@@ -12,7 +12,6 @@ func _ready() -> void:
 	var intersection: RoadIntersection = $RoadManager/RoadTempHardcoding/RoadIntersection
 	intersection.container = $RoadManager/RoadTempHardcoding
 	intersection.edge_points = edges
-	intersection.refresh_intersection_mesh()
 
 	print("Temp hardcoding done.")
 

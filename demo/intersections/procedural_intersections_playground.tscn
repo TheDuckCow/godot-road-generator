@@ -54,7 +54,7 @@ prior_pt_init = NodePath("../RP_004")
 next_pt_init = NodePath("../RP_002")
 
 [node name="RP_004" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
-transform = Transform3D(0.339887, -0.631779, -0.696658, -0.0444199, 0.729147, -0.682914, 0.939417, 0.263059, 0.219764, -26.988, 1.60054, -53.7409)
+transform = Transform3D(0.339887, -0.631779, -0.696658, -0.0444199, 0.729147, -0.682914, 0.939417, 0.263059, 0.219764, -26.988, 12.4185, -53.7409)
 script = ExtResource("3_3xvxs")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
@@ -63,7 +63,7 @@ next_mag = 58.6029
 next_pt_init = NodePath("../RP_003")
 
 [node name="RoadIntersection" type="Node3D" parent="RoadManager/RoadTempHardcoding" node_paths=PackedStringArray("edge_points")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, -45)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0.24057, -45)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_01na1")
 edge_points = [NodePath("../RP_001"), NodePath("../RP_004"), NodePath("../RP_006")]
