@@ -26,6 +26,8 @@ extends Resource
 ##
 ## The override should return an empty mesh if arrays are empty
 ## (i.e. the intersection has no points).
+##
+## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
 func generate_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mesh:
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
 	return null
