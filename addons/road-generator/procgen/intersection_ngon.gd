@@ -6,6 +6,20 @@ extends IntersectionSettings
 ## Defines an intersection where each edge is connected
 ## to its siblings with curve shoulders, forming a filled n-gon.
 
+# ------------------------------------------------------------------------------
+#region Signals/Enums/Const/Export/Vars
+# ------------------------------------------------------------------------------
+
+enum _IntersectNGonFacing {
+	ORIGIN,
+	AWAY,
+	OTHER
+}
+
+# ------------------------------------------------------------------------------
+#endregion
+# ------------------------------------------------------------------------------
+
 func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	print("mesh?")
 	if not can_generate_mesh(intersection, edges):
@@ -27,6 +41,20 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 	## Array[Array[Vector3[2]]]
 	var edge_shoulders: Array[Array] = []
 	for edge in edges:
+		var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
+		print(edge.next_pt_init)
+		print(edge.prior_pt_init)
+		if edge.next_pt_init.is_empty():
+			facing = _IntersectNGonFacing.AWAY
+		elif edge.prior_pt_init.is_empty():
+			facing = _IntersectNGonFacing.ORIGIN
+		else:
+			facing = _IntersectNGonFacing.OTHER
+		
+		if facing == _IntersectNGonFacing.OTHER:
+			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
+			return ArrayMesh.new() # Empty mesh.
+
 		var edge_road_width: float = edge.get_width()
 		# assuming the point is the center, and shoulders are
 		# at equal distances to it.
@@ -35,20 +63,16 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 		var perpendicular_vector: Vector3 = (edge.global_transform.basis.x).normalized()
 		left_shoulder -= perpendicular_vector * (edge_road_width / 2.0)
 		right_shoulder += perpendicular_vector * (edge_road_width / 2.0)
-		edge_shoulders.append([left_shoulder, right_shoulder])
+		if facing == _IntersectNGonFacing.ORIGIN:	
+			edge_shoulders.append([left_shoulder, right_shoulder])
+		else: # facing == _IntersectNGonFacing.AWAY
+			edge_shoulders.append([right_shoulder, left_shoulder])
+
 
 	# mesh indices: [[1,2], [3,4], ...] with 0 for the center point
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	
-	# FIXME too tired to understand why
-	# Note: likely due to not checking the "direction" of the edges.
-	# Edge 0 is the only one that is going away and not towards the intersection.
-	# swap only at index zero
-	var temp = edge_shoulders[0][0]
-	edge_shoulders[0][0] = edge_shoulders[0][1]
-	edge_shoulders[0][1] = temp
 
 	var iteration_i = 0
 	for shoulders in edge_shoulders:
@@ -60,11 +84,6 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 		# add vertices
 
 		# add "edge" triangle
-		# if iteration_i == 0: # too tired to figure out why.
-		#     surface_tool.add_vertex(Vector3.ZERO)
-		#     surface_tool.add_vertex(left_shoulder - intersection)
-		#     surface_tool.add_vertex(right_shoulder - intersection)
-		# else:
 		surface_tool.add_vertex(Vector3.ZERO)
 		surface_tool.add_vertex(right_shoulder - intersection.origin)
 		surface_tool.add_vertex(left_shoulder - intersection.origin)
