@@ -144,6 +144,7 @@ func add_road_mesh() -> void:
 	road_mesh = MeshInstance3D.new()
 	add_child(road_mesh)
 	road_mesh.name = "road_mesh"
+	road_mesh.layers = container.render_layers
 	if container.debug_scene_visible and is_instance_valid(road_mesh):
 		road_mesh.owner = container.get_owner()
 
