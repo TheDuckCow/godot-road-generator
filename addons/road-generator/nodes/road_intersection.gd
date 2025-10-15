@@ -33,6 +33,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 @export var settings: IntersectionSettings = null: get = _get_settings, set = _set_settings 
 
+@export_group("Internal")
+
 @export var edge_points: Array[RoadPoint] = []: get = _get_edge_points, set = _set_edge_points
 
 var container:RoadContainer ## The managing container node for this road intersection (direct parent).
