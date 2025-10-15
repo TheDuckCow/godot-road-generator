@@ -87,6 +87,8 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 		surface_tool.add_vertex(left_shoulder - intersection.origin)
 
 		# add "sibling" triangle
+		# FIXME: only support nodes in a very specific order
+		# (sort edges by angle from intersection and given axis?)
 		if (edge_shoulders.size() > 1):
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
 
