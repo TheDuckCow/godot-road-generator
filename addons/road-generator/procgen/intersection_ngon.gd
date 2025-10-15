@@ -21,12 +21,12 @@ enum _IntersectNGonFacing {
 # ------------------------------------------------------------------------------
 
 func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
-	print("mesh?")
 	if not can_generate_mesh(intersection, edges):
+		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
 		return ArrayMesh.new() # Empty mesh.
 	if edges.size() == 0:
+		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
 		return ArrayMesh.new() # Empty mesh.
-	print("mesh.")
 	return _generate_debug_mesh(intersection, edges)
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
@@ -42,8 +42,6 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 	var edge_shoulders: Array[Array] = []
 	for edge in edges:
 		var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
-		print(edge.next_pt_init)
-		print(edge.prior_pt_init)
 		if edge.next_pt_init.is_empty():
 			facing = _IntersectNGonFacing.AWAY
 		elif edge.prior_pt_init.is_empty():
@@ -102,5 +100,4 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 	surface_tool.generate_normals()
 	surface_tool.set_material(StandardMaterial3D.new())
 	var mesh: ArrayMesh = surface_tool.commit()
-	print("meh")
 	return mesh
