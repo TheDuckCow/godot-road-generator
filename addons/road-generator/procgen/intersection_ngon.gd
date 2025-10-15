@@ -1,12 +1,12 @@
 @tool
 @icon("res://addons/road-generator/resources/road_intersection.png")
 
-class_name RoadMeshGenNgon
+class_name IntersectionNGon
 extends IntersectionSettings
 ## Defines an intersection where each edge is connected
 ## to its siblings with curve shoulders, forming a filled n-gon.
 
-func generate_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mesh:
+func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	print("mesh?")
 	if not can_generate_mesh(intersection, edges):
 		return ArrayMesh.new() # Empty mesh.
@@ -23,7 +23,7 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 ## Generates a triangles from shoulders to intersection point,
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.
-func _generate_debug_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mesh:
+func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	## Array[Array[Vector3[2]]]
 	var edge_shoulders: Array[Array] = []
 	for edge in edges:
@@ -66,16 +66,16 @@ func _generate_debug_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mes
 		#     surface_tool.add_vertex(right_shoulder - intersection)
 		# else:
 		surface_tool.add_vertex(Vector3.ZERO)
-		surface_tool.add_vertex(right_shoulder - intersection)
-		surface_tool.add_vertex(left_shoulder - intersection)
+		surface_tool.add_vertex(right_shoulder - intersection.origin)
+		surface_tool.add_vertex(left_shoulder - intersection.origin)
 
 		# add "sibling" triangle
 		if (edge_shoulders.size() > 1):
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
 
 			surface_tool.add_vertex(Vector3.ZERO)
-			surface_tool.add_vertex(left_shoulder - intersection)
-			surface_tool.add_vertex(edge_shoulders[next_iteration_i][1] - intersection)
+			surface_tool.add_vertex(left_shoulder - intersection.origin)
+			surface_tool.add_vertex(edge_shoulders[next_iteration_i][1] - intersection.origin)
 
 		iteration_i += 1
 	

@@ -72,7 +72,7 @@ func _set_settings(value: IntersectionSettings) -> void:
 
 func _init() -> void:
 	# TODO ensure unique
-	settings = RoadMeshGenNgon.new()
+	settings = IntersectionNGon.new()
 	self.add_child(_mesh)
 
 func _ready() -> void:
@@ -120,6 +120,6 @@ func refresh_intersection_mesh() -> void:
 	if not container.create_geo:
 		return
 	
-	var mesh: Mesh = settings.generate_mesh(self.global_position, edge_points)
+	var mesh: Mesh = settings.generate_mesh(self.transform, edge_points)
 	_mesh.mesh = mesh
 		

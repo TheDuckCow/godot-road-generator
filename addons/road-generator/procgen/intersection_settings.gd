@@ -28,7 +28,7 @@ extends Resource
 ## (i.e. the intersection has no points).
 ##
 ## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
-func generate_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mesh:
+func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
 	return null
 
@@ -38,9 +38,9 @@ func generate_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> Mesh:
 ## To customize the minimum distance, override [get_min_distance_from_intersection_point].
 ##
 ## This should be called in the implemented class's [generate_mesh] override.
-func can_generate_mesh(intersection: Vector3, edges: Array[RoadPoint]) -> bool:
+func can_generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> bool:
 	for edge in edges:
-		if edge.global_position.distance_to(intersection) < get_min_distance_from_intersection_point(edge):
+		if edge.position.distance_to(intersection.origin) < get_min_distance_from_intersection_point(edge):
 			return false
 	return true
 
