@@ -63,9 +63,9 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## Use fewer loop cuts for performance during transform.
 @export var use_lowpoly_preview: bool = false
 
-## Flatten terrain when transforming this RoadContainer or child RoadPoints[br]
-## if a terrain connector is set up.
-## flatten terrain underneath them if a terrain connector is used.
+## Flattens terrain underneath when transforming this RoadContainer[br]
+## or child RoadPoints if a terrain connector is set up.
+## See RoadTerrain3DConnector node to configure the connection.
 @export var flatten_terrain: bool = true
 
 ## Defines the thickness in meters of the underside part of the road.[br][br]
