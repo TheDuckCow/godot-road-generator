@@ -64,8 +64,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 @export var use_lowpoly_preview: bool = false
 
 ## Flattens terrain underneath when transforming this RoadContainer[br]
-## or child RoadPoints if a terrain connector is set up.
+## or child RoadPoints if a terrain connector is set up.[br][br]
+##
 ## See RoadTerrain3DConnector node to configure the connection.
+## or see this tutorial:[br]
+## https://github.com/TheDuckCow/godot-road-generator/wiki/Using-the-Terrain3D-Connector
 @export var flatten_terrain: bool = true
 
 ## Defines the thickness in meters of the underside part of the road.[br][br]
