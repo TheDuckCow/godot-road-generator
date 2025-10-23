@@ -8,7 +8,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
-@export var road_collision_layer = 2
+@export var raycast_layer = 2
 
 # Terrain3D
 ## Reference to the Terrain3D instance, to be flattened
@@ -92,7 +92,6 @@ func configure_road_update_signal() -> void:
 		road_manager.on_container_transformed.connect(_on_container_transform)
 	elif not auto_refresh and road_manager.on_container_transformed.is_connected(_on_container_transform):
 		road_manager.on_container_transformed.disconnect(_on_container_transform)
-
 
 func do_full_refresh() -> void:
 	if not is_configured():
@@ -211,7 +210,6 @@ func refresh_roadsegments(segments: Array) -> void:
 
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		
-		print(str(flatten_terrain_method))
 		match flatten_terrain_method:
 			Flatten_terrain_option.CURVED:
 				flatten_terrain_via_roadsegment(_seg)
@@ -219,7 +217,6 @@ func refresh_roadsegments(segments: Array) -> void:
 				flatten_terrain_via_roadsegment_raycast(_seg)
 			_:
 				flatten_terrain_via_roadsegment(_seg)
-		
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
 
 
@@ -247,15 +244,15 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	for ch in segment.road_mesh.get_children():
 		ch.queue_free()  # Prior collision meshes
 	
-	# create new colission mesh for eventual raycasting
+	# create new collision mesh for eventual raycasting
 	segment.road_mesh.create_trimesh_collision()
 	var space_states: Array[PhysicsDirectSpaceState3D] = []
 	for ch in segment.road_mesh.get_children():
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
-		sbody.collision_layer = road_collision_layer
-		sbody.collision_mask = road_collision_layer
+		sbody.collision_layer = raycast_layer
+		sbody.collision_mask = raycast_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 
 	# Create a 2D Mask for segment to reduce 3D raycasts	
@@ -278,7 +275,12 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
 	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
 
-	# itterate over the xz plane of the curve
+
+	# Cache the raycasts for missed hits to reduce the number of raycasts
+	var recorded: Dictionary[Vector2,float] = {}
+	var missed: Dictionary[Vector2, bool] = {}
+	
+	# iterate over the xz plane of the curve
 	var x = min.x
 	while x <= max.x:
 		var z = min.z
@@ -291,10 +293,25 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 			var height := get_road_height(x,z,aabb_min.y,aabb_max.y,space_states)
 			if height.size() > 0:
 				terrain.data.set_height(Vector3(x, height[0], z), height[0] + offset)
-			
+				recorded[Vector2(x,z)] = height[0]
+			else:
+				missed[Vector2(x,z)] = true
 			z += vertex_spacing
 		x += vertex_spacing
 		
+	for _m in missed:
+		var heights: Array[float] = []
+		var neighbour = Vector2(_m.x+vertex_spacing,_m.y)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x-vertex_spacing,_m.y)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x,_m.y+vertex_spacing)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x,_m.y-vertex_spacing)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		if heights.size() > 0:
+			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
+
 	# free the temporary collision meshs we created
 	for ch in segment.road_mesh.get_children():
 		ch.queue_free()
@@ -413,8 +430,8 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
-		sbody.collision_layer = road_collision_layer
-		sbody.collision_mask = road_collision_layer
+		sbody.collision_layer = raycast_layer
+		sbody.collision_mask = raycast_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 	
 	# Create a 2D Mask for segment to reduce 3D raycasts	
@@ -450,7 +467,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				z+= vertex_spacing
 				continue
 			# check that the road does infact cover the terrain on (x,z)
-			if get_road_height(x,z,aabb_min.y,aabb_max.y,space_states,0).size() > 0:
+			if get_road_height(x,z,aabb_min.y,aabb_max.y,space_states).size() > 0:
 				intersect_coords[Vector2(x,z)] = true
 			z += vertex_spacing
 		x += vertex_spacing
@@ -554,9 +571,9 @@ func validate_segment(segment: RoadSegment) -> bool:
 	return is_instance_valid(segment.road_mesh)
 
 # can't be nullable so an empty array indicates null (failed to find a height)
-func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D], order: int = 1) -> Array[float]:
+func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D]) -> Array[float]:
 	var ray := PhysicsRayQueryParameters3D.create(Vector3(x, max_y, z),Vector3(x, min_y, z))
-	ray.collision_mask = road_collision_layer
+	ray.collision_mask = raycast_layer
 	var set_height := false
 	var height:float = 0.0 
 	for state in space_states:
@@ -569,14 +586,4 @@ func get_road_height(x: float, z: float, min_y: float, max_y: float, space_state
 				height = max(height, result["position"].y)
 	if set_height:
 		return [height]
-	elif order == 0:
-		return []
-	var vertex_spacing = terrain.vertex_spacing
-	var approx = []
-	approx.append_array(get_road_height(x+vertex_spacing,z,min_y,max_y,space_states, order - 1))
-	approx.append_array(get_road_height(x-vertex_spacing,z,min_y,max_y,space_states, order - 1))
-	approx.append_array(get_road_height(x,z+vertex_spacing,min_y,max_y,space_states, order - 1))
-	approx.append_array(get_road_height(x,z-vertex_spacing,min_y,max_y,space_states, order - 1))
-	if approx.size() > 0:
-		return [approx.min()]
 	return []
