@@ -8,6 +8,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
+@export var road_collision_layer = 1
 
 # Terrain3D
 ## Reference to the Terrain3D instance, to be flattened
@@ -253,6 +254,8 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
+		sbody.collision_layer = road_collision_layer
+		sbody.collision_mask = road_collision_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 
 	# Create a 2D Mask for segment to reduce 3D raycasts	
@@ -410,6 +413,8 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
+		sbody.collision_layer = road_collision_layer
+		sbody.collision_mask = road_collision_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 	
 	# Create a 2D Mask for segment to reduce 3D raycasts	
@@ -551,6 +556,7 @@ func validate_segment(segment: RoadSegment) -> bool:
 # can't be nullable so an empty array indicates null (failed to find a height)
 func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D], order: int = 1) -> Array[float]:
 	var ray := PhysicsRayQueryParameters3D.create(Vector3(x, max_y, z),Vector3(x, min_y, z))
+	ray.collision_mask = road_collision_layer
 	var set_height := false
 	var height:float = 0.0 
 	for state in space_states:
