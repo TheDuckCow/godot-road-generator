@@ -47,7 +47,7 @@ enum Flatten_terrain_option {CURVED, RAYCAST}
 
 ## Immediately level the terrain to match roads
 ## Only supported in Godot 4.4+, re-enable if that applies to you
-@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+#@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 #@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
