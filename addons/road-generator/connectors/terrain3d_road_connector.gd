@@ -8,7 +8,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
-@export var road_collision_layer = 1
+@export var road_collision_layer = 2
 
 # Terrain3D
 ## Reference to the Terrain3D instance, to be flattened
@@ -47,7 +47,7 @@ enum Flatten_terrain_option {CURVED, RAYCAST}
 
 ## Immediately level the terrain to match roads
 ## Only supported in Godot 4.4+, re-enable if that applies to you
-#@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 #@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
@@ -237,7 +237,7 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	segment.start_point.shoulder_width_r += buffer
 	segment.end_point.shoulder_width_l += buffer
 	segment.end_point.shoulder_width_r += buffer
-	segment.container.rebuild_segments(true)
+	segment.container.rebuild_segments()
 	
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
@@ -304,7 +304,7 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	segment.start_point.shoulder_width_r -= buffer
 	segment.end_point.shoulder_width_l -= buffer
 	segment.end_point.shoulder_width_r -= buffer
-	segment.container.rebuild_segments(true)
+	segment.container.rebuild_segments()
 	
 	#re-enable the signal for road updates since they were turned off prior
 	configure_road_update_signal()
