@@ -1,10 +1,10 @@
 @tool
 extends MenuButton
 
-const ICN_CT = preload("../resources/road_container.png")
-const ICN_RP = preload("../resources/road_point.png")
-const ICN_LN = preload("../resources/road_lane.png")
-const ICN_AG = preload("../resources/road_lane_agent.png")
+const ICN_CT = preload("../assets/road_container.png")
+const ICN_RP = preload("../assets/road_point.png")
+const ICN_LN = preload("../assets/road_lane.png")
+const ICN_AG = preload("../assets/road_lane_agent.png")
 const RcSubMenu = preload("./rc_submenu.gd")
 
 

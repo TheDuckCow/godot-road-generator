@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://b63rq4jeigte2" path="res://addons/road-generator/custom_containers/4way_2x2.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://cbw5410mk0wgq" path="res://addons/road-generator/custom_containers/highway_offramp.tscn" id="3"]
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="4"]
+[ext_resource type="Material" path="res://addons/road-generator/assets/road_texture.material" id="4"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://dfggtpn3gyrn0" path="res://addons/road-generator/custom_containers/3way_2x2.tscn" id="7"]

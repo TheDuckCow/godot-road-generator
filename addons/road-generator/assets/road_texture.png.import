@@ -2,26 +2,27 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqktiqrjlduur"
-path="res://.godot/imported/road_manager.png-53eed839b5dd2c61d2d0acfe2f3c28b6.ctex"
+uid="uid://cj2kmej1ufqf0"
+path.s3tc="res://.godot/imported/road_texture.png-4a28053ce58f385f44518697b3790d3f.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
-source_file="res://addons/road-generator/resources/road_manager.png"
-dest_files=["res://.godot/imported/road_manager.png-53eed839b5dd2c61d2d0acfe2f3c28b6.ctex"]
+source_file="res://addons/road-generator/assets/road_texture.png"
+dest_files=["res://.godot/imported/road_texture.png-4a28053ce58f385f44518697b3790d3f.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -31,4 +32,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/resources/road_intersection.png")
+@icon("res://addons/road-generator/assets/road_intersection.png")
 ## Center point of an intersection.
 ##
 ## Should be contained within a [RoadContainer] and a sibling to 1+ [RoadPoints].

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bu4537m4ecm5d"
-path="res://.godot/imported/road_point.png-af89fef173f818f1c8153e4769b5749f.ctex"
+uid="uid://cnoa21p4e1ipv"
+path="res://.godot/imported/road_container.png-1147df388ac22fe25cdfd46afa33f42b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/road-generator/resources/road_point.png"
-dest_files=["res://.godot/imported/road_point.png-af89fef173f818f1c8153e4769b5749f.ctex"]
+source_file="res://addons/road-generator/assets/road_container.png"
+dest_files=["res://.godot/imported/road_container.png-1147df388ac22fe25cdfd46afa33f42b.ctex"]
 
 [params]
 

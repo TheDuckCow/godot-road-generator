@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3 uid="uid://crx2pjy5t6xpn"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="2"]
+[ext_resource type="Material" path="res://addons/road-generator/assets/road_texture.material" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
 [ext_resource type="Script" path="res://demo/performance_stress_test.gd" id="5"]

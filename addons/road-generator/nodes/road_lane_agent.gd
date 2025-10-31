@@ -1,4 +1,4 @@
-@icon("res://addons/road-generator/resources/road_lane_agent.png")
+@icon("res://addons/road-generator/assets/road_lane_agent.png")
 class_name RoadLaneAgent
 extends Node
 ## An agent helper for navigation on [RoadLane]'s.

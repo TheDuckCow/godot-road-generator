@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
-[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="3"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/assets/road_texture.material" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nbxyo"]

@@ -2,7 +2,7 @@
 
 [ext_resource path="res://addons/road-generator/nodes/road_point.gd" type="Script" id=1]
 [ext_resource path="res://addons/road-generator/nodes/road_container.gd" type="Script" id=2]
-[ext_resource path="res://addons/road-generator/resources/road_texture.material" type="Material" id=3]
+[ext_resource path="res://addons/road-generator/assets/road_texture.material" type="Material" id=3]
 [ext_resource path="res://addons/road-generator/nodes/road_manager.gd" type="Script" id=4]
 
 [sub_resource type="PlaneMesh" id=1]
