@@ -722,6 +722,16 @@ func _rebuild():
 		generate_lane_segments()
 	else:
 		clear_lane_segments()
+	
+	# Setup decorations on both RoadPoints
+	for point in [start_point, end_point]:
+		if self.get_parent() == point:
+			for deco in point.decorations:
+				if not container.create_edge_curves:
+					push_warning("Decoration setup skipped as edge curves disabled: %s" % deco)
+					continue
+				print(deco)
+				deco.setup(self)
 
 
 func _update_curve():

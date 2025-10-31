@@ -146,6 +146,14 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 ## underside will not be generated at all.
 @export var underside_thickness: float = -1.0: set = _set_thickness
 
+# ------------------------------------------------------------------------------
+# Properties which assist with further decorating of roads, such as sidewalks
+# and railings
+@export_group("Decoration")
+# ------------------------------------------------------------------------------
+@export var decorations: Array[RoadDecoration] = []
+
+
 # -------------------------------------
 @export_group("Internal data")
 # -------------------------------------
