@@ -145,9 +145,9 @@ const RoadMaterial = preload("res://addons/road-generator/assets/road_texture.ma
 
 
 # ------------------------------------------------------------------------------
-# Properties which assist with further decorating of roads, such as sidewalks
-# and railings
-@export_group("Decoration")
+# Props like sidewalks, trees, signs, railings, curbs can be placed along the 
+# road.
+@export_group("Road Props")
 # ------------------------------------------------------------------------------
 
 
