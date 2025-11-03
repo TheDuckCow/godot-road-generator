@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dyq75dsafsy0g"
-path="res://.godot/imported/road_lane_agent.png-4b72752029f22c6dc83a099cb3d069c1.ctex"
+uid="uid://bbi2gdwj0if66"
+path="res://.godot/imported/road_lane.png-917c7eb44545aac4e1ff6072e31bbd58.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/road-generator/assets/road_lane_agent.png"
-dest_files=["res://.godot/imported/road_lane_agent.png-4b72752029f22c6dc83a099cb3d069c1.ctex"]
+source_file="res://addons/road-generator/resources/road_lane.png"
+dest_files=["res://.godot/imported/road_lane.png-917c7eb44545aac4e1ff6072e31bbd58.ctex"]
 
 [params]
 

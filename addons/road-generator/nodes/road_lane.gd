@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/assets/road_lane.png")
+@icon("res://addons/road-generator/resources/road_lane.png")
 class_name RoadLane
 extends Path3D
 ## Defines a directional lane of traffic for AI with references to adjacent lanes.

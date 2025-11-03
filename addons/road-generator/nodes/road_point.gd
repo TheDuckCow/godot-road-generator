@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/assets/road_point.png")
+@icon("res://addons/road-generator/resources/road_point.png")
 class_name RoadPoint
 extends Node3D
 ## Definition for a single point handle, which 2+ road segments connect to.

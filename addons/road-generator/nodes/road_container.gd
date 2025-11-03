@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/assets/road_container.png")
+@icon("res://addons/road-generator/resources/road_container.png")
 class_name RoadContainer
 extends Node3D
 ## The parent node for [RoadPoint]'s and controller of actual geo creation.
@@ -28,7 +28,7 @@ signal on_road_updated(updated_segments: Array)
 signal on_transform(node)
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-const RoadMaterial = preload("res://addons/road-generator/assets/road_texture.material")
+const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 
 # ------------------------------------------------------------------------------
 # How road meshes are generated

@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://cbw5410mk0wgq"]
 
-[ext_resource type="Material" path="res://addons/road-generator/assets/road_texture.material" id="1"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="4"]
 [ext_resource type="PackedScene" uid="uid://dqpky0vcyau4a" path="res://addons/road-generator/custom_containers/highway_offramp.glb" id="4_avn42"]

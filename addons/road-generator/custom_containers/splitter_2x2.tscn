@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
-[ext_resource type="Material" path="res://addons/road-generator/assets/road_texture.material" id="3"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="3"]
 [ext_resource type="PackedScene" uid="uid://cyjpoeddap1se" path="res://addons/road-generator/custom_containers/splitter_2x2.glb" id="4_7ogup"]
 
 [sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_21yqs"]

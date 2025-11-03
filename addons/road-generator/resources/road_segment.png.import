@@ -9,7 +9,7 @@ metadata={
 
 [deps]
 
-source_file="res://addons/road-generator/assets/road_segment.png"
+source_file="res://addons/road-generator/resources/road_segment.png"
 dest_files=[ "res://.import/road_segment.png-d5c13ecc147050f979689970bb990388.stex" ]
 
 [params]
