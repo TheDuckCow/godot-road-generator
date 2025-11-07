@@ -23,10 +23,10 @@ enum _IntersectNGonFacing {
 func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	if not can_generate_mesh(parent_transform, edges):
 		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
-		return ArrayMesh.new() # Empty mesh.
+		return Mesh.new() # Empty mesh.
 	if edges.size() == 0:
 		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
-		return ArrayMesh.new() # Empty mesh.
+		return Mesh.new() # Empty mesh.
 	return _generate_debug_mesh(parent_transform, edges)
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
@@ -51,7 +51,7 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		
 		if facing == _IntersectNGonFacing.OTHER:
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
-			return ArrayMesh.new() # Empty mesh.
+			return Mesh.new() # Empty mesh.
 
 		var edge_road_width: float = edge.get_width()
 		# assuming the point is the center, and shoulders are
