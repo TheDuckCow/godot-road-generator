@@ -69,8 +69,8 @@ next_pt_init = NodePath("../RP_003")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 31.0693, -45)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_01na1")
-force_mesh_refresh_toggle = false
-edge_points = [NodePath("../RP_001"), NodePath("../RP_004"), NodePath("../RP_006")]
+edge_points = [NodePath("../RP_006"), NodePath("../RP_001"), NodePath("../RP_004")]
+force_edges_sort_toggle = false
 
 [node name="RP_005" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
 transform = Transform3D(-0.282346, 0, 0.959313, 0, 1, 0, -0.959313, 0, -0.282346, 76.0932, 5.08442, -78.3354)
@@ -180,4 +180,4 @@ next_pt_init = NodePath("../_Node3D_26022")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.7261, -41.367, -237.399)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_xh6hw")
-edge_points = [NodePath("../E1"), NodePath("../E2"), NodePath("../E3"), NodePath("../E4")]
+edge_points = [NodePath("../E2"), NodePath("../E1"), NodePath("../E4"), NodePath("../E3")]

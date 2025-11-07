@@ -33,6 +33,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 @export var settings: IntersectionSettings = null: get = _get_settings, set = _set_settings 
 
+# internal:
+
 @export_group("Internal")
 
 @export var force_mesh_refresh_toggle: bool = true:
@@ -40,11 +42,12 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		force_mesh_refresh_toggle = v
 		refresh_intersection_mesh()
 @export var edge_points: Array[RoadPoint] = []: get = _get_edge_points, set = _set_edge_points
-
+@export var force_edges_sort_toggle: bool = true:
+	set(v):
+		force_edges_sort_toggle = v
+		sort_edges_clockwise()
 
 var container:RoadContainer ## The managing container node for this road intersection (direct parent).
-
-# internal:
 
 var _mesh: MeshInstance3D = MeshInstance3D.new() # mesh sibling used to display the intersection
 
@@ -123,6 +126,7 @@ func emit_transform(low_poly: bool = false) -> void:
 # ------------------------------------------------------------------------------
 
 func refresh_intersection_mesh() -> void:
+	print("debug - refreshing intersection mesh")
 	if not is_instance_valid(settings) or not is_instance_valid(container):
 		return
 	if not container.create_geo:
@@ -130,4 +134,31 @@ func refresh_intersection_mesh() -> void:
 	
 	var mesh: Mesh = settings.generate_mesh(self.transform, edge_points)
 	_mesh.mesh = mesh
-		
+
+## Given the intersection transform's Y axis as
+## the rotation reference and plane normal,
+## O the intersection origin, OX the transform's X axis representing 0°,
+## sorts the edges with position E clockwise,
+## based on its angle from OX to OE, where OX and OE
+## are projected on the plane defined by the intersection's Y axis.
+func sort_edges_clockwise() -> void:
+	print("debug - sorting")
+	if edge_points.size() <= 1:
+		return
+	var axis: Vector3 = self.transform.basis.y.normalized()
+	var plane = Plane(axis)
+	var origin = plane.project(self.position)
+	var angle_zero: Vector3 = plane.project(self.position + self.transform.basis.x) - origin
+	angle_zero = angle_zero.normalized()
+	edge_points.sort_custom(func (a,b):
+		var projected_oa = plane.project(a.position) - origin
+		var projected_ob = plane.project(b.position) - origin
+		projected_oa = projected_oa.normalized()
+		projected_ob = projected_ob.normalized()
+		var angle_a = angle_zero.angle_to(projected_oa)
+		var angle_b = angle_zero.angle_to(projected_ob)
+		print("debug - angles: %f / %f" % [angle_a, angle_b])
+		print("debug - vectors: %s / %s" % [projected_oa, projected_ob])
+		print("debug - positions: %s / %s" % [a.position, b.position])
+		return angle_a - angle_b < 0 # must be a bool
+	)
