@@ -27,8 +27,10 @@ extends Resource
 ## The override should return an empty mesh if arrays are empty
 ## (i.e. the intersection has no points).
 ##
+## Parent transform refers to the [RoadIntersection]'s local transform.
+##
 ## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
-func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
+func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
 	return null
 

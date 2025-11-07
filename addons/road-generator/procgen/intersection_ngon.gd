@@ -20,14 +20,14 @@ enum _IntersectNGonFacing {
 #endregion
 # ------------------------------------------------------------------------------
 
-func generate_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
-	if not can_generate_mesh(intersection, edges):
+func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
+	if not can_generate_mesh(parent_transform, edges):
 		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
 		return ArrayMesh.new() # Empty mesh.
 	if edges.size() == 0:
 		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
 		return ArrayMesh.new() # Empty mesh.
-	return _generate_debug_mesh(intersection, edges)
+	return _generate_debug_mesh(parent_transform, edges)
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 	# TODO TBD when mesh generation is implemented.
@@ -37,7 +37,7 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 ## Generates a triangles from shoulders to intersection point,
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.
-func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) -> Mesh:
+func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
 	## Array[Array[Vector3[2]]]
 	var edge_shoulders: Array[Array] = []
 	for edge in edges:
@@ -83,8 +83,8 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 
 		# add "edge" triangle
 		surface_tool.add_vertex(Vector3.ZERO)
-		surface_tool.add_vertex(right_shoulder - intersection.origin)
-		surface_tool.add_vertex(left_shoulder - intersection.origin)
+		surface_tool.add_vertex(right_shoulder - parent_transform.origin)
+		surface_tool.add_vertex(left_shoulder - parent_transform.origin)
 
 		# add "sibling" triangle
 		# FIXME: only support nodes in a very specific order
@@ -93,8 +93,8 @@ func _generate_debug_mesh(intersection: Transform3D, edges: Array[RoadPoint]) ->
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
 
 			surface_tool.add_vertex(Vector3.ZERO)
-			surface_tool.add_vertex(left_shoulder - intersection.origin)
-			surface_tool.add_vertex(edge_shoulders[next_iteration_i][1] - intersection.origin)
+			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(edge_shoulders[next_iteration_i][1] - parent_transform.origin)
 
 		iteration_i += 1
 	
