@@ -45,7 +45,7 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 @export var force_edges_sort_toggle: bool = true:
 	set(v):
 		force_edges_sort_toggle = v
-		sort_edges_clockwise()
+		_sort_edges_clockwise()
 
 var container:RoadContainer ## The managing container node for this road intersection (direct parent).
 
@@ -120,6 +120,31 @@ func emit_transform(low_poly: bool = false) -> void:
 	refresh_intersection_mesh()
 	# emit_signal("on_transform", self, low_poly) #FIXME
 
+## Add an edge to the intersection, sorting edges and updating the mesh afterwards.
+## Pushes an error for trying to add an intersection point.
+## Does nothing if the edge is already present.
+func add_branch(road_point: RoadPoint) -> void:
+	if is_instance_of(road_point, RoadIntersection):
+		push_error("RoadIntersection %s cannot directly connect to another RoadIntersection %s. Use an intermediate RoadPoint." % [self.name, road_point.name])
+		return
+	if edge_points.has(road_point):
+		return
+	edge_points.append(road_point)
+	_sort_edges_clockwise()
+	emit_transform()
+
+## Remove an edge from the intersection, sorting edges and updating the mesh afterwards.
+## Does nothing if the edge is not present.
+func remove_branch(road_point: RoadPoint) -> void:
+	edge_points.erase(road_point)
+	_sort_edges_clockwise()
+	emit_transform()
+
+## Sort edges, then refresh the mesh.
+func sort_branches() -> void:
+	_sort_edges_clockwise()
+	emit_transform()
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Utilities
@@ -141,7 +166,7 @@ func refresh_intersection_mesh() -> void:
 ## sorts the edges with position E clockwise,
 ## based on its angle from OX to OE, where OX and OE
 ## are projected on the plane defined by the intersection's Y axis.
-func sort_edges_clockwise() -> void:
+func _sort_edges_clockwise() -> void:
 	print("debug - sorting")
 	if edge_points.size() <= 1:
 		return

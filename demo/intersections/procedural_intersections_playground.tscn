@@ -15,6 +15,8 @@ script = ExtResource("6_ppyw7")
 
 [node name="IntersectionsPlayground" type="Node3D"]
 script = ExtResource("1_er4ss")
+add_interactive_rp_toggle = true
+remove_interactive_rp_toggle = true
 
 [node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource("1_7bqj5")
@@ -22,11 +24,11 @@ script = ExtResource("1_7bqj5")
 [node name="RoadTempHardcoding" type="Node3D" parent="RoadManager"]
 script = ExtResource("2_5r4g7")
 use_lowpoly_preview = true
-edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
-edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_004"), NodePath("RP_005"), NodePath("RP_006")])
-edge_rp_local_dirs = Array[int]([0, 1, 0, 1])
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_004"), NodePath("RP_005"), NodePath("RP_006"), NodePath("InteractiveRoadPoint"), NodePath("InteractiveRoadPoint")])
+edge_rp_local_dirs = Array[int]([0, 1, 0, 1, 0, 1])
 
 [node name="RP_001" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
 transform = Transform3D(-0.964111, 5.68735e-09, 0.265501, 0, 1, -2.14212e-08, -0.265501, -2.06524e-08, -0.964111, 2.68758, 0.332846, -1.62913)
@@ -88,6 +90,12 @@ lanes = Array[int]([2, 4, 4, 2])
 prior_mag = 19.5413
 next_mag = 19.5413
 next_pt_init = NodePath("../RP_005")
+
+[node name="InteractiveRoadPoint" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.83168, 31.9562, -115.086)
+script = ExtResource("3_3xvxs")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]
 script = ExtResource("2_5r4g7")
