@@ -444,9 +444,9 @@ func _ready():
 
 func _exit_tree() -> void:
 	if auto_free_vehicles:
-		for _vehicle in _vehicles_in_lane:
-			if is_instance_valid(_vehicle):
-				_vehicle.call_deferred("queue_free")
+		for obstable in obstacles:
+			if is_instance_valid(obstable):
+				obstable.node.call_deferred("queue_free")
 
 
 # ------------------------------------------------------------------------------
@@ -672,13 +672,6 @@ func _get_draw_in_editor() -> bool:
 func show_fins(value: bool) -> void:
 	_draw_override = value
 	rebuild_geom()
-
-
-func _exit_tree() -> void:
-	if auto_free_vehicles:
-		for obstable in obstacles:
-			if is_instance_valid(obstable):
-				obstable.node.call_deferred("queue_free")
 
 
 ## finding obstacle at the front or at the back and distance to it
