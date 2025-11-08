@@ -180,10 +180,10 @@ func _sort_edges_clockwise() -> void:
 		var projected_ob = plane.project(b.position) - origin
 		projected_oa = projected_oa.normalized()
 		projected_ob = projected_ob.normalized()
-		var angle_a = angle_zero.angle_to(projected_oa)
-		var angle_b = angle_zero.angle_to(projected_ob)
+		var angle_a = angle_zero.signed_angle_to(projected_oa, axis)
+		var angle_b = angle_zero.signed_angle_to(projected_ob, axis)
 		print("debug - angles: %f / %f" % [angle_a, angle_b])
 		print("debug - vectors: %s / %s" % [projected_oa, projected_ob])
 		print("debug - positions: %s / %s" % [a.position, b.position])
-		return angle_a - angle_b < 0 # must be a bool
+		return angle_a - angle_b > 0 # must be a bool
 	)
