@@ -2,6 +2,7 @@ extends Node3D
 
 ## simple RoadLane with override to despawn anyone assigned to it
 class DespawnRoadLane extends RoadLane:
+	#TODO should be @tool?
 	var _actor_manager = null
 	var _despawn_obstacle: RoadLane.Obstacle = null
 

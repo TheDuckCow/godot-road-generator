@@ -100,8 +100,7 @@ func _get_auto_input(obstacle: RoadLane.Obstacle, obstacle_dist: float)-> Vector
 			lane_move += 1
 	var dyn_accel := _compute_idm_acceleration(obstacle, obstacle_dist)
 
-	#return Vector3(lane_move, 0, dyn_accel)
-	return Vector3(0, 0, dyn_accel)
+	return Vector3(lane_move, 0, dyn_accel)
 
 func _compute_player_acceleration(target_speed: float, accel: float) -> float:
 	const delta_exp := 4.0 # constant emulating acceleration/braking profile
@@ -151,9 +150,9 @@ func _process_collision(other) -> void:
 
 func _move_to_next_lane() -> void:
 	var dir := agent.agent_move.move_dir()
-	var shared_part := agent.agent_pos.lane.shared_parts[dir]
-	if shared_part && shared_part._primary_lane != agent.agent_pos.lane:
-		var next_pos = agent.continue_along_new_lane(shared_part._primary_lane)
+	var primary_lane := agent.agent_pos.lane.get_primary_lane(dir)
+	if primary_lane:
+		var next_pos = agent.continue_along_new_lane(primary_lane)
 		global_transform.origin = next_pos
 	#else:
 		#workaround for missing connections
@@ -170,14 +169,11 @@ func _physics_process(delta: float) -> void:
 			queue_free()
 			return
 
-	var do_pair_seq = [[], []]
-	for dir in RoadLane.MoveDir.values():
-		do_pair_seq[dir] = agent.find_obstacle(looking_forward, dir)
 	velocity.y = 0
 	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
-	var do_pair = do_pair_seq[RoadLane.MoveDir.FORWARD]
-	var obstacle_dist: float = do_pair[0]
-	var obstacle: RoadLane.Obstacle = do_pair[1]
+	
+	var obstacle:RoadLane.Obstacle = null  #TODO actual obstacle
+	var obstacle_dist = self.global_position.distance_to(obstacle.node.position) if obstacle else INF
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
@@ -188,25 +184,20 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0
 
 	move_dir = RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
-	do_pair = do_pair_seq[move_dir]
-	obstacle_dist = do_pair[0]
-	obstacle = do_pair[1]
 
 	agent.agent_pos.speed = self.get_signed_speed()
 
 	var lane_change := int(target_dir.x)
 	if lane_change:
-		var do_pair_side = [[], []]
-		for dir in RoadLane.MoveDir.values():
-			do_pair_side[dir] = agent.find_obstacle_on_side_lane(lane_change, looking_forward, dir, self)
-			var obstacle_dist_side: float = do_pair_side[dir][0]
-			if obstacle_dist_side == 0:
-				#lane_change = 0;
-				break
+		var next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
+		var obstacle_dist_side = self.global_position.distance_to(next_obstacle_side.node.position) if next_obstacle_side else INF
+		#TODO var prev_obstacle_side = next_obstacle_side.prev_obstacle
+		if obstacle_dist_side == 0:
+			lane_change = 0;
 		agent.change_lane(lane_change)
 		if lane_change:
-			obstacle_dist = do_pair_side[move_dir][0]
-			obstacle = do_pair_side[move_dir][1]
+			#TODO
+			pass
 
 	# Find the next position to jump to; note that the car's forward is the
 	# negative Z direction (conventional with Vector3.FORWARD), and thus
@@ -222,8 +213,7 @@ func _physics_process(delta: float) -> void:
 
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
-	#assert(agent.agent_move.block != RoadLaneAgent.MoveAlongLane.MoveBlock.OBSTACLE)
-	if agent.agent_move.block == RoadLaneAgent.MoveAlongLane.MoveBlock.NO_LANE:
+	if agent.agent_move.lane_sequence_end:
 		assert(!collided)
 		_move_to_next_lane()
 	elif collided:
