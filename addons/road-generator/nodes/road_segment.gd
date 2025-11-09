@@ -381,8 +381,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
 
-	var old_shared_parts: Array[RoadLane.SharedPart] = [null, null]
-	var new_shared_parts: Array[RoadLane.SharedPart] = [null, null]
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
@@ -462,60 +460,33 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			new_ln.flags = RoadLane.LaneFlags.DIVERGING if new_ln_reverse else RoadLane.LaneFlags.MERGING
 		else:
 			new_ln.flags = RoadLane.LaneFlags.NORMAL
-			var shared_part_dir := RoadLane.MoveDir.FORWARD if ! new_ln_reverse else RoadLane.MoveDir.BACKWARD
-			if ! old_shared_parts[shared_part_dir]:
-				assert(!(new_ln.shared_parts[RoadLane.MoveDir.FORWARD] && new_ln.shared_parts[RoadLane.MoveDir.BACKWARD]))
-				old_shared_parts[shared_part_dir] = new_ln.shared_parts[RoadLane.MoveDir.FORWARD] if new_ln.shared_parts[RoadLane.MoveDir.FORWARD] else new_ln.shared_parts[RoadLane.MoveDir.BACKWARD]
-			new_ln.shared_parts = [null, null]
 		if last_ln && new_ln_reverse == last_ln_reverse:
 			if new_ln_reverse:
 				if new_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]:
 					assert(last_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
-					var shared_part_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
 					if last_ln.flags == RoadLane.LaneFlags.NORMAL:
-						assert(! new_shared_parts[RoadLane.MoveDir.BACKWARD])
 						last_ln.flags = RoadLane.LaneFlags.MERGE_INTO if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
-						new_shared_parts[RoadLane.MoveDir.BACKWARD] = RoadLane.SharedPart.new(last_ln, shared_part_dir)
-						last_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
-						new_shared_parts[RoadLane.MoveDir.BACKWARD].add_lane(new_ln)
-						new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
+						new_ln.primary_lanes[primary_lane_dir] = new_ln.get_path_to(last_ln)
 					else:
 						assert(last_ln.flags == new_ln.flags)
-						assert(new_shared_parts[RoadLane.MoveDir.BACKWARD])
-						new_shared_parts[RoadLane.MoveDir.BACKWARD].add_lane(new_ln)
-						new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.BACKWARD]
+						new_ln.primary_lanes[primary_lane_dir] = new_ln.get_path_to(last_ln)
 			else:
 				assert(new_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
 				if (new_ln.flags == RoadLane.LaneFlags.NORMAL
 					&& last_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]):
-					assert(! new_shared_parts[RoadLane.MoveDir.FORWARD])
-					var shared_part_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
 					new_ln.flags = RoadLane.LaneFlags.MERGE_INTO if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
-					new_shared_parts[RoadLane.MoveDir.FORWARD] = RoadLane.SharedPart.new(new_ln, shared_part_dir)
-					new_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.FORWARD]
 					var transition_ln := last_ln
 					while transition_ln:
 						assert(transition_ln.flags == last_ln.flags)
-						new_shared_parts[RoadLane.MoveDir.FORWARD].add_lane(transition_ln)
-						transition_ln.shared_parts[shared_part_dir] = new_shared_parts[RoadLane.MoveDir.FORWARD]
+						transition_ln.primary_lanes[primary_lane_dir] = transition_ln.get_path_to(new_ln)
 						transition_ln = transition_ln.get_side_lane(RoadLane.SideDir.RIGHT)
 
 		# Assign that it was a success.
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
 		last_ln_reverse = new_ln_reverse
-	for dir in RoadLane.MoveDir.values():
-		if new_shared_parts[dir]:
-			if old_shared_parts[dir]:
-				if new_shared_parts[dir].is_compatible(old_shared_parts[dir]):
-					new_shared_parts[dir].get_obstacles_from(old_shared_parts[dir])
-				else:
-					old_shared_parts[dir].clear_blocks()
-					new_shared_parts[dir].init_offset()
-			else:
-				new_shared_parts[dir].init_offset()
-		elif old_shared_parts[dir]:
-			old_shared_parts[dir].clear_blocks()
 	clear_lane_segments(active_lanes)
 
 	return lanes_added > 0

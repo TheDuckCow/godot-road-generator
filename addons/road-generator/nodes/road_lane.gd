@@ -83,205 +83,6 @@ class Obstacle:
 				all_good = false
 		return all_good
 
-
-class SharedPart:
-	var end_offset := 0.0 :
-		get: return end_offset
-		set(val): assert(end_offset == 0); end_offset = val
-
-	var _end_dir: MoveDir
-	var _primary_lane: RoadLane
-	var _lanes: Array[RoadLane]
-
-	const _MAX_VEHICLE_WIDTH := 3.0
-	const _STEP := 0.25
-	var _obstacle_blocks: Dictionary # Dictionary from real obstacle to the virtual ones. end_offsets of block obstacles is shared
-
-	const DEBUG_OUT := false
-
-	func _init(lane: RoadLane, dir: MoveDir) -> void:
-		assert(dir in [MoveDir.FORWARD, MoveDir.BACKWARD])
-		_end_dir = dir
-		_lanes = [lane]
-		_primary_lane = lane
-		if DEBUG_OUT:
-			print(self, " ShP. created for primary ", lane, " in direction ", MoveDir.find_key(dir))
-
-	func is_compatible(other: SharedPart) -> bool:
-		if self._end_dir != other._end_dir:
-			return false
-		if self._lanes.size() != other._lanes.size():
-			return false
-		for idx in _lanes.size():
-			if self._lanes[idx] != other._lanes[idx]:
-				return false
-		return true
-
-	func get_obstacles_from(other: SharedPart) -> void:
-		assert(is_compatible(other))
-		assert(self._obstacle_blocks.is_empty())
-		self.end_offset = other.end_offset #TODO: it's actually unsafe if lane geometry is changed
-		self._obstacle_blocks = other._obstacle_blocks
-		if DEBUG_OUT:
-			print(self, " ShP. get obstacles from ShP ", other)
-		assert(check_valid())
-
-	func check_valid() -> bool:
-		if RoadLane.DISABLE_HEAVY_CKECKS:
-			return true
-		var all_good := true
-		if _lanes.size() <= 1:
-			print(self, " ShP. has only ", _lanes.size(), " lanes")
-			all_good = false
-		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
-		if end_offset == 0:
-			print(self, " ShP. offset is not initialized")
-			all_good = false
-		if min_length < end_offset:
-			print(self, " ShP. offset is too big ", min_length, " > ", end_offset)
-			all_good = false
-		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
-			if obstacle.lane not in _lanes:
-				print(self, " ShP. has ", obstacle, " assigned to a lane that is not a part of the shared part ", obstacle.lane)
-				all_good = false
-			if _obstacle_blocks[obstacle].size() != _lanes.size() -1:
-				print(self, " ShP. has ", obstacle, " with incorrect amount of blocks ", _obstacle_blocks[obstacle].size())
-				all_good = false
-			var lane_check_arr: Array[int] = []
-			for i in _lanes.size():
-				lane_check_arr.append(0)
-			lane_check_arr[_lanes.find(obstacle.lane)] += 1
-			for block in _obstacle_blocks[obstacle]:
-				lane_check_arr[_lanes.find(block.lane)] += 1
-			for idx in lane_check_arr.size() -1:
-				if lane_check_arr[idx] != 1:
-					print(self, " ShP. obstacles/blocks for ", obstacle, " in lane ", _lanes[idx], " found ", lane_check_arr[idx], " times ")
-					all_good = false
-		return all_good
-
-	func add_lane(lane: RoadLane) -> void:
-		assert(lane not in _lanes)
-		assert(lane.curve.point_count == 2)
-		assert(end_offset == 0)
-		var point_id = 1 if _end_dir == MoveDir.FORWARD else 0
-		assert(lane.curve.get_point_position(point_id) == _primary_lane.curve.get_point_position(point_id))
-		_lanes.push_back(lane)
-		if DEBUG_OUT:
-			print(self, " ShP. added ", lane)
-
-	func init_offset() -> void:
-		assert(_obstacle_blocks.is_empty())
-		assert(end_offset == 0)
-		var min_length: float = _lanes.map(func(lane): return lane.curve.get_baked_length()).min()
-		var end_offset_tmp = _MAX_VEHICLE_WIDTH + _STEP
-		while end_offset_tmp < min_length:
-			var points := _lanes.map(func(lane): return lane.curve.sample_baked(lane.offset_from_end(end_offset_tmp, _end_dir)))
-			if ! _are_points_close(points):
-				break
-			end_offset_tmp += _STEP
-		end_offset = end_offset_tmp
-		assert(check_valid())
-
-	func _are_points_close(points: Array) -> bool:
-		for idx1 in range(points.size() -1):
-			for idx2 in range(idx1 + 1, points.size()):
-				var point1: Vector3 = points[idx1]
-				var point2: Vector3 = points[idx2]
-				if point1.distance_to(point2) < _MAX_VEHICLE_WIDTH + _STEP:
-					return true
-		return false
-
-	func _is_relevant(obstacle: RoadLane.Obstacle) -> bool:
-		var offset_from_end := obstacle.distance_to_end(_end_dir)
-		if end_offset > offset_from_end:
-			return true
-		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
-		if end_offset > offset_from_end - obstacle.end_offsets[_end_dir]:
-			return true
-		return false
-
-	func update_blocks(obstacle: RoadLane.Obstacle) -> void:
-		assert(check_valid())
-		assert(obstacle.lane in _lanes)
-		var relevant := _is_relevant(obstacle)
-		var exist := obstacle in _obstacle_blocks
-		if ! relevant:
-			if exist:
-				remove_blocks(obstacle)
-			return
-		if ! exist:
-			_create_blocks(obstacle)
-			_move_blocks(obstacle, false)
-			for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
-				block.lane.register_obstacle(block)
-		else:
-			_move_blocks(obstacle, true)
-		assert(check_valid())
-
-	func _create_blocks(obstacle: RoadLane.Obstacle) -> void:
-			if DEBUG_OUT:
-				print(self, " ShP. creating blocks for ", obstacle)
-			var new_blocks: Array[RoadLane.Obstacle] = []
-			_obstacle_blocks[obstacle] = new_blocks
-			var block_end_offsets := obstacle.end_offsets.duplicate()
-			for lane in _lanes:
-				if lane == obstacle.lane:
-					continue
-				var block = RoadLane.Obstacle.new()
-				if DEBUG_OUT:
-					print(self, " ShP. creating block ", block, " on lane ", lane)
-				block.flags = obstacle.flags | RoadLane.Obstacle.ObstacleFlags.PARTIAL
-				block.end_offsets = block_end_offsets
-				block.lane = lane
-				block.node = obstacle.node
-				new_blocks.push_back(block)
-
-	func _move_blocks(obstacle: RoadLane.Obstacle, check_jump_over: bool) -> void:
-		if DEBUG_OUT:
-			print(self, " ShP. updating blocks for ", obstacle)
-		var offset_from_end := obstacle.distance_to_end(_end_dir)
-		var clipped_from_end := min(end_offset, offset_from_end)
-		for block: Obstacle in _obstacle_blocks[obstacle]:
-			block.speed = obstacle.speed
-			var new_offset := block.lane.offset_from_end(clipped_from_end, _end_dir)
-			if check_jump_over:
-				#probably not more than a couple. just swap in a loop
-				var idx := block.lane.find_existing_obstacle_index(block)
-				while idx != block.lane.obstacles.size() -1 && new_offset > block.lane.obstacles[idx+1].offset:
-					block.lane.obstacles[idx] = block.lane.obstacles[idx +1]
-					block.lane.obstacles[idx +1] = block
-				while idx != 0 && new_offset < block.lane.obstacles[idx -1].offset:
-					block.lane.obstacles[idx] = block.lane.obstacles[idx -1]
-					block.lane.obstacles[idx -1] = block
-			block.offset = new_offset
-		var block0 = _obstacle_blocks[obstacle][0]
-		var other_dir_end = RoadLane.reverse_move_dir(_end_dir)
-		block0.end_offsets[_end_dir] = min(end_offset, offset_from_end + obstacle.end_offsets[_end_dir]) - clipped_from_end
-		block0.end_offsets[other_dir_end] = -(min(end_offset, offset_from_end - obstacle.end_offsets[other_dir_end]) - clipped_from_end)
-
-
-	func remove_blocks(obstacle: RoadLane.Obstacle) -> void:
-		if obstacle in _obstacle_blocks:
-			if DEBUG_OUT:
-				print(self, " ShP. removing blocks for ", obstacle)
-			_remove_blocks(obstacle)
-			_obstacle_blocks.erase(obstacle)
-		assert(check_valid())
-
-	func _remove_blocks(obstacle: RoadLane.Obstacle) -> void:
-		for block: RoadLane.Obstacle in _obstacle_blocks[obstacle]:
-			block.lane.unregister_obstacle(block)
-			if DEBUG_OUT:
-				print(self, " ShP. removing block ", block)
-
-	func clear_blocks() -> void:
-		for obstacle: RoadLane.Obstacle in _obstacle_blocks:
-			_remove_blocks(obstacle)
-		_obstacle_blocks.clear()
-		if DEBUG_OUT:
-			print(self, " ShP. cleaning up shared part")
-
-
 enum MoveDir
 {
 	FORWARD,
@@ -355,6 +156,16 @@ var sequential_lane_tags: Array[String] = ["", ""]
 	get: return sequential_lane_tags[MoveDir.BACKWARD]
 	set(val): sequential_lane_tags[MoveDir.BACKWARD] = val
 
+
+## lanes to which this lane merges and diverges from
+var primary_lanes : Array[NodePath] = ["", ""]
+@export var lane_merge_to: NodePath:
+	get: return primary_lanes[MoveDir.FORWARD]
+	set(val): assert(get_node_or_null(val) != self); primary_lanes[MoveDir.FORWARD] = val
+@export var lane_diverge_from: NodePath:
+	get: return primary_lanes[MoveDir.BACKWARD]
+	set(val): assert(get_node_or_null(val) != self); primary_lanes[MoveDir.BACKWARD] = val
+
 # -------------------------------------
 @export_group("Behavior")
 # -------------------------------------
@@ -413,14 +224,13 @@ var flags: RoadLane.LaneFlags = LaneFlags.NORMAL
 # also offsets are expected but not enforced to be unique
 var obstacles: Array[RoadLane.Obstacle] = [] # Registration
 
-var shared_parts: Array[SharedPart] = [null, null]
-
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
 
 const DEBUG_OUT := false
+const TRAFFIC_CHUNK_LENGTH := 5.0
 
 
 # ------------------------------------------------------------------------------
@@ -481,60 +291,14 @@ func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
-func is_obstacle_list_correct() -> bool:
-	if RoadLane.DISABLE_HEAVY_CKECKS:
-		return true
-	var all_good := true
-	if RoadLane.Obstacle.END_OFFSET_MAX > self.curve.get_baked_length():
-		print(self, " is shorter than maximum obstacle end offset")
-		return false
-	for obstacle in self.obstacles:
-		if not is_instance_valid(obstacle):
-			print("invalid obstacle ", obstacle, " on lane ", self)
-			return false
-		if obstacle.is_queued_for_deletion():
-			print("obstacle ", obstacle, " on lane ", self, " is queued to be freed")
-			all_good = false
-		if obstacle.lane != self:
-			print("on lane ", self, " wrong lane (", obstacle.lane, ") assigned to ", obstacle)
-			all_good = false
-		if ! obstacle.check_valid():
-			all_good = false
-	for i in range(self.obstacles.size() - 1):
-		var prior_obst := obstacles[i]
-		var next_obst := obstacles[i +1]
-		if prior_obst.offset > next_obst.offset:
-			print("on lane ", self, " offset ", prior_obst.offset, " (prior ", prior_obst,") > ",  next_obst.offset, " (next ", next_obst, ")")
-			all_good = false
-	#TODO check sequential lanes?
-	return all_good
-
-
-func find_existing_obstacle_index(obstacle: RoadLane.Obstacle) -> int:
-	assert(obstacle in self.obstacles)
-	var idx = self.obstacles.bsearch_custom(obstacle, RoadLane.Obstacle.compare_offset)
-	while self.obstacles[idx] != obstacle: idx += 1
-	return idx
-
-func find_closest_obstacle_index(obstacle: RoadLane.Obstacle, forward := true) -> int:
-	assert(self.is_obstacle_list_correct())
-	assert(obstacle not in self.obstacles)
-	var idx: int = self.obstacles.bsearch_custom(obstacle, RoadLane.Obstacle.compare_offset)
-	if ! forward:
-		idx -= 1
-	return idx
-
-static var _tmp_seek_obstacle_ := RoadLane.Obstacle.new() # obstacle that is going to be used only to search in bsearch_custom
-
-func find_offset_index(offset: float, dir: MoveDir) -> int:
-	assert(self.is_obstacle_list_correct())
-	_tmp_seek_obstacle_.offset = offset
-	var before := (dir == MoveDir.FORWARD)
-	return self.find_closest_obstacle_index(_tmp_seek_obstacle_, before);
-
-
 func get_sequential_lane(dir : MoveDir) -> RoadLane:
 	var lane: RoadLane = get_node_or_null(self.sequential_lanes[dir])
+	assert(lane != self)
+	return lane
+
+
+func get_primary_lane(dir : MoveDir) -> RoadLane:
+	var lane: RoadLane = get_node_or_null(self.primary_lanes[dir])
 	assert(lane != self)
 	return lane
 
@@ -549,13 +313,9 @@ func get_side_lane(dir : SideDir) -> RoadLane:
 func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
 	if DEBUG_OUT:
 		print("Registering ", obstacle, " on lane ", self, " with lanes connected FORWARD ", self.get_sequential_lane(MoveDir.FORWARD), " and BACKWARD ", self.get_sequential_lane(MoveDir.BACKWARD))
-	assert(self.is_obstacle_list_correct())
+
 	assert(obstacle not in obstacles)
-	var idx = find_closest_obstacle_index(obstacle)
-	assert(idx == obstacles.size() || obstacles[idx].offset >= obstacle.offset)
-	assert(idx == 0 || obstacles[idx -1].offset <= obstacle.offset)
-	obstacles.insert(idx, obstacle)
-	assert(self.is_obstacle_list_correct())
+	obstacles.append(obstacle)
 
 
 ## Optional but good cleanup of references.
@@ -674,54 +434,9 @@ func show_fins(value: bool) -> void:
 	rebuild_geom()
 
 
-## finding obstacle at the front or at the back and distance to it
-## lookup_distance the function can find agents that are farther than that
-##   but it's guaranteed that the obstacle closer than lookup_distance will be found
-## returns distance[float] and obstacle[RoadLane.Obstacle] in position 0 and 1 of the array
-## distance is >= 0 even if there is an overlap
-func find_next_obstacle_from_index(idx: int, lookup_distance: float, dir: MoveDir, initial_distance := 0.0) -> Array:
-	var dir_back := RoadLane.reverse_move_dir(dir)
-	assert(idx >= 0 && idx < self.obstacles.size())
-	var idx_offset := self.obstacles[idx].offset
-	if idx != ((self.obstacles.size() -1) if dir == MoveDir.FORWARD else 0):
-		var obstacle := self.obstacles[idx + (1 if dir == MoveDir.FORWARD else -1)]
-		var distance: float = abs(obstacle.offset - idx_offset) + initial_distance - obstacle.end_offsets[dir_back]
-		return [ max(0, distance), obstacle ]
-	return _find_first_obstacle_on_sequential_lanes(self.offset_from_end(idx_offset, dir) + initial_distance, lookup_distance, dir)
-
-
-func find_next_obstacle_from_offset(start_offset: float, lookup_distance: float, dir: MoveDir, initial_distance := 0.0, node_ignore = null) -> Array:
-	assert(start_offset <= curve.get_baked_length())
-	var idx = self.find_offset_index(start_offset, dir)
-	if node_ignore && idx != (self.obstacles.size() if dir == MoveDir.FORWARD else -1) && self.obstacles[idx].node == node_ignore:
-		idx += (1 if dir == MoveDir.FORWARD else -1)
-	if idx != (self.obstacles.size() if dir == MoveDir.FORWARD else -1):
-		var dir_back := RoadLane.reverse_move_dir(dir)
-		var obstacle := self.obstacles[idx]
-		var distance: float = abs(obstacle.offset - start_offset) + initial_distance - obstacle.end_offsets[dir_back]
-		return [ max(0, distance), obstacle ]
-	return _find_first_obstacle_on_sequential_lanes(self.offset_from_end(start_offset, dir) + initial_distance, lookup_distance, dir)
-
-
-func _find_first_obstacle_on_sequential_lanes(start_distance: float, lookup_distance: float, dir: MoveDir) -> Array:
-	var distance_tmp = start_distance
-	var dir_back := RoadLane.reverse_move_dir(dir)
-	var lane := self
-	while distance_tmp < lookup_distance:
-		var lane_next := lane.get_sequential_lane(dir)
-		if ! lane_next:
-			var shared_part := lane.shared_parts[dir]
-			if shared_part && shared_part._primary_lane != lane:
-				lane_next = shared_part._primary_lane.get_sequential_lane(dir)
-			if ! lane_next:
-				break
-		lane = lane_next
-		if ! lane.obstacles.is_empty():
-			var obstacle := lane.obstacles[0 if dir == MoveDir.FORWARD else -1]
-			var distance: float = distance_tmp + obstacle.distance_to_end(dir_back) - obstacle.end_offsets[dir_back]
-			return [ max(0, distance), obstacle ]
-		distance_tmp += lane.curve.get_baked_length()
-	return [ NAN, null ]
+func find_next_obstacle(start_offset: float) -> RoadLane.Obstacle:
+	#TODO
+	return null
 
 
 #endregion
