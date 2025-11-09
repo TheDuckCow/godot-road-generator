@@ -38,9 +38,11 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.
 func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
-	## Array[Array[Vector3[2]]]
+	## Array[Array[Vector3][2]]
 	var edge_shoulders: Array[Array] = []
-	for edge in edges:
+	## Array[Array[Vector3][2]]
+	var edge_gutters: Array[Array] = []
+	for edge: RoadPoint in edges:
 		var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
 		if edge.next_pt_init.is_empty():
 			facing = _IntersectNGonFacing.AWAY
@@ -59,12 +61,20 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		var left_shoulder: Vector3 = edge.global_position
 		var right_shoulder: Vector3 = edge.global_position
 		var perpendicular_vector: Vector3 = (edge.global_transform.basis.x).normalized()
+		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
 		left_shoulder -= perpendicular_vector * (edge_road_width / 2.0)
 		right_shoulder += perpendicular_vector * (edge_road_width / 2.0)
 		if facing == _IntersectNGonFacing.ORIGIN:	
 			edge_shoulders.append([left_shoulder, right_shoulder])
 		else: # facing == _IntersectNGonFacing.AWAY
 			edge_shoulders.append([right_shoulder, left_shoulder])
+		var gutter = edge.gutter_profile
+		var gutter_left = left_shoulder + (gutter[0] * -perpendicular_vector + gutter[1] * up_vector)
+		var gutter_right = right_shoulder + (gutter[0] * perpendicular_vector + gutter[1] * up_vector)
+		if facing == _IntersectNGonFacing.ORIGIN:
+			edge_gutters.append([gutter_left, gutter_right])
+		else: # facing == _IntersectNGonFacing.AWAY
+			edge_gutters.append([gutter_right, gutter_left])
 
 
 	# mesh indices: [[1,2], [3,4], ...] with 0 for the center point
@@ -91,10 +101,24 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		# (sort edges by angle from intersection and given axis?)
 		if (edge_shoulders.size() > 1):
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
+			var next_right_shoulder: Vector3 = edge_shoulders[next_iteration_i][1]
+			var current_left_gutter: Vector3 = edge_gutters[iteration_i][0]
+			var next_right_gutter: Vector3 = edge_gutters[next_iteration_i][1]
 
 			surface_tool.add_vertex(Vector3.ZERO)
 			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
-			surface_tool.add_vertex(edge_shoulders[next_iteration_i][1] - parent_transform.origin)
+			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+
+			# also add the gutter profile on the intersection exterior border
+			# (rectangle from one edge's shoulder and gutter to the next edge's
+			# shoulder and gutter)
+			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+
+			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.add_vertex(next_right_gutter - parent_transform.origin)
 
 		iteration_i += 1
 	
