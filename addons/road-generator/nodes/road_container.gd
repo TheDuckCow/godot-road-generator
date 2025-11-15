@@ -63,9 +63,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## Use fewer loop cuts for performance during transform.
 @export var use_lowpoly_preview: bool = false
 
-## Flatten terrain when transforming this RoadContainer or child RoadPoints[br]
-## if a terrain connector is set up.
-## flatten terrain underneath them if a terrain connector is used.
+## Flattens terrain underneath when transforming this RoadContainer[br]
+## or child RoadPoints if a terrain connector is set up.[br][br]
+##
+## See RoadTerrain3DConnector node to configure the connection.
+## or see this tutorial:[br]
+## https://github.com/TheDuckCow/godot-road-generator/wiki/Using-the-Terrain3D-Connector
 @export var flatten_terrain: bool = true
 
 ## Defines the thickness in meters of the underside part of the road.[br][br]
@@ -73,6 +76,12 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ## A value of -1 indicates the thickness of the RoadRoadManager will be used, or the
 ## underside will not be generated at all.
 @export var underside_thickness: float = -1.0: set = _set_thickness
+
+## Render layer to set for the generated road meshes.
+@export_flags_3d_render var render_layers: int = 1:
+	set(value):
+		render_layers = value
+		_defer_refresh_on_change()
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
