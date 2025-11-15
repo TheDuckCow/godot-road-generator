@@ -1558,7 +1558,7 @@ func _match_lanes() -> Array:
 			or (sp_traffic_dir[0] == RoadPoint.LaneDir.FORWARD
 			and ep_traffic_dir[0] == RoadPoint.LaneDir.REVERSE)
 	):
-		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
+		push_warning("Warning: Unable to match lanes on start_point %s (parent: %s)" % [start_point, start_point.get_parent()])
 		return []
 
 	var start_flip_data = _get_lane_flip_data(sp_traffic_dir)
@@ -1584,7 +1584,7 @@ func _match_lanes() -> Array:
 		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
 			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
 	):
-		push_warning("Warning: Unable to match lanes on start_point %s" % start_point)
+		push_warning("Warning: Unable to match lanes on start_point %s (parent: %s)" % [start_point, start_point.get_parent()])
 		return []
 
 	# Build lanes list.

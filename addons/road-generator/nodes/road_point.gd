@@ -1,7 +1,7 @@
 @tool
 @icon("res://addons/road-generator/resources/road_point.png")
 class_name RoadPoint
-extends Node3D
+extends RoadGraphNode
 ## Definition for a single point handle, which 2+ road segments connect to.
 ##
 ## Functionally equivalent to a point along a curve, it defines the cross section
@@ -1227,6 +1227,13 @@ func get_thickness():
 		return container.get_manager().underside_thickness
 	return -1.0
 
+## Get the distance from shoulder to shoulder
+func get_width():
+	# TODO should use get_road_width() instead?
+	var total_width = lane_width * len(lanes)
+	total_width += shoulder_width_l + shoulder_width_r
+	return total_width
 
+# ------------------------------------------------------------------------------
 #endregion
 # ------------------------------------------------------------------------------
