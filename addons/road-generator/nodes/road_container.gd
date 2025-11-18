@@ -519,6 +519,20 @@ func get_roadpoints(skip_edge_connected=false) -> Array:
 	return rps
 
 
+func get_intersections() -> Array[RoadIntersection]:
+	var results: Array[RoadIntersection] = []
+	for obj in get_children():
+		if not obj is RoadIntersection:
+			continue
+		if not obj.visible:
+			continue # Assume local chunk has dealt with the geo visibility.
+		if obj.is_queued_for_deletion():
+			continue # To be cleaned up anyways
+		var inters:RoadIntersection = obj
+		results.append(inters)
+	return results
+
+
 ## Returns all RoadSegments which are directly children of RoadPoints.
 ##
 ## Will not return RoadSegmetns of nested scenes, presumed to be static.
@@ -534,6 +548,27 @@ func get_segments() -> Array:
 				continue
 			segs.append(pt_ch)
 	return segs
+
+## Returns the effective material to apply to a child mesh of this container
+##
+## If no override is set on this container, will use the RoadManager's
+func effective_surface_material() -> Material:
+	if material_resource:
+		return material_resource
+	elif is_instance_valid(_manager) and _manager.material_resource:
+		return _manager.material_resource
+	return null
+
+
+## Returns the effective material to apply to a child mesh of this container
+##
+## If no override is set on this container, will use the RoadManager's
+func effective_underside_material() -> Material:
+	if material_underside:
+		return material_underside
+	elif is_instance_valid(_manager) and _manager.material_underside:
+		return _manager.material_underside
+	return null
 
 
 ## Recursively gets all RoadContainers within a root node
@@ -944,6 +979,9 @@ func rebuild_segments(clear_existing := false):
 			if res[0] == true:
 				rebuilt += 1
 				signal_rebuilt.append(res[1])
+	
+	for _intersec in get_intersections():
+		_intersec.refresh_intersection_mesh()
 
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	if generate_ai_lanes:
@@ -1047,15 +1085,8 @@ func _process_seg(pt1:RoadPoint, pt2:RoadPoint, low_poly:bool=false) -> Array:
 			new_seg._end_flip = false
 		segid_map[sid] = new_seg
 
-		if material_resource:
-			new_seg.material = material_resource
-		elif is_instance_valid(_manager) and _manager.material_resource:
-			new_seg.material = _manager.material_resource
-
-		if material_underside:
-			new_seg.material_underside = material_underside
-		elif is_instance_valid(_manager) and _manager.material_underside:
-			new_seg.material_underside = _manager.material_underside
+		new_seg.material = effective_surface_material()
+		new_seg.material_underside = effective_underside_material()
 
 		new_seg.check_rebuild()
 
@@ -1176,6 +1207,46 @@ func on_point_update(point:RoadPoint, low_poly:bool) -> void:
 ## Callback from a modification of a RoadSegment object.
 func segment_rebuild(road_segment:RoadSegment):
 	road_segment.check_rebuild()
+
+
+func _create_collisions(road_mesh: MeshInstance3D) -> void:
+	for ch in road_mesh.get_children():
+		ch.queue_free()  # Prior collision meshes
+
+	var manager = get_manager()
+
+	# Could also manually create with Mesh.create_trimesh_shape(),
+	# but this is still advertised as a non-cheap solution.
+	road_mesh.create_trimesh_collision()
+	for ch in road_mesh.get_children():
+		var sbody := ch as StaticBody3D # Set to null if casting fails
+		if not sbody:
+			continue
+
+		if collider_group_name != "":
+			sbody.add_to_group(collider_group_name)
+		elif is_instance_valid(manager) and manager.collider_group_name != "":
+			sbody.add_to_group(manager.collider_group_name)
+
+		if collider_meta_name != "":
+			sbody.set_meta(collider_meta_name, true)
+		elif is_instance_valid(manager) and manager.collider_meta_name != "":
+			sbody.set_meta(manager.collider_meta_name, true)
+
+		if physics_material != null:
+			sbody.physics_material_override = physics_material
+		elif is_instance_valid(manager) and manager.physics_material != null:
+			sbody.physics_material_override = manager.physics_material
+
+		if override_collision_layers:
+			sbody.collision_layer = collision_layer
+			sbody.collision_mask = collision_mask
+		elif is_instance_valid(manager):
+			sbody.collision_layer = manager.collision_layer
+			sbody.collision_mask = manager.collision_mask
+		# else: will just be the godot default.
+
+		sbody.set_meta("_edit_lock_", true)
 
 
 ## Adds points, segments, and material if they're unassigned

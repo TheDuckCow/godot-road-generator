@@ -20,14 +20,15 @@ enum _IntersectNGonFacing {
 #endregion
 # ------------------------------------------------------------------------------
 
-func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
+func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
 	if not can_generate_mesh(parent_transform, edges):
 		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
 	if edges.size() == 0:
 		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
-	return _generate_debug_mesh(parent_transform, edges)
+	return _generate_debug_mesh(parent_transform, edges, container)
+
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 	# TODO TBD when mesh generation is implemented.
@@ -37,7 +38,7 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 ## Generates a triangles from shoulders to intersection point,
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.
-func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]) -> Mesh:
+func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
 	## Array[Array[Vector3][2]]
 	var edge_shoulders: Array[Array] = []
 	## Array[Array[Vector3][2]]
@@ -81,6 +82,8 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const TOPSIDE_SMOOTHING_GROUP = 1
+	surface_tool.set_smooth_group(TOPSIDE_SMOOTHING_GROUP)
 
 	var iteration_i = 0
 	for shoulders in edge_shoulders:
@@ -92,8 +95,11 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		# add vertices
 
 		# add "edge" triangle
+		surface_tool.set_uv(Vector2(0.0, 0.0))
 		surface_tool.add_vertex(Vector3.ZERO)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
 		surface_tool.add_vertex(right_shoulder - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
 		surface_tool.add_vertex(left_shoulder - parent_transform.origin)
 
 		# add "sibling" triangle
@@ -105,25 +111,37 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 			var current_left_gutter: Vector3 = edge_gutters[iteration_i][0]
 			var next_right_gutter: Vector3 = edge_gutters[next_iteration_i][1]
 
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(Vector3.ZERO)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
 
 			# also add the gutter profile on the intersection exterior border
 			# (rectangle from one edge's shoulder and gutter to the next edge's
 			# shoulder and gutter)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
-
+			
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(next_right_gutter - parent_transform.origin)
 
 		iteration_i += 1
 	
-	# surface_tool.index()
+	surface_tool.index()
+	var material: Material = container.effective_surface_material()
+	if material:
+		surface_tool.set_material(material)
 	surface_tool.generate_normals()
-	surface_tool.set_material(StandardMaterial3D.new())
-	var mesh: ArrayMesh = surface_tool.commit()
+	var mesh: ArrayMesh = surface_tool.commit()  # should be MeshInstance3D?
+	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh

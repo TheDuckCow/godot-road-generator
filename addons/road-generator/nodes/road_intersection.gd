@@ -28,6 +28,7 @@ extends RoadGraphNode
 signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 # ------------------------------------------------------------------------------
+#endregion
 #region Export vars
 # ------------------------------------------------------------------------------
 
@@ -85,6 +86,7 @@ func _init() -> void:
 	settings = IntersectionNGon.new()
 	self.add_child(_mesh)
 
+
 func _ready() -> void:
 	if not container or not is_instance_valid(container):
 		var par = get_parent()
@@ -111,14 +113,17 @@ func _get_configuration_warnings() -> PackedStringArray:
 func is_road_intersection() -> bool:
 	return true
 
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Editor interactions
 # ------------------------------------------------------------------------------
 
+
 func emit_transform(low_poly: bool = false) -> void:
 	refresh_intersection_mesh()
 	# emit_signal("on_transform", self, low_poly) #FIXME
+
 
 ## Add an edge to the intersection, sorting edges and updating the mesh afterwards.
 ## Pushes an error for trying to add an intersection point.
@@ -133,6 +138,7 @@ func add_branch(road_point: RoadPoint) -> void:
 	_sort_edges_clockwise()
 	emit_transform()
 
+
 ## Remove an edge from the intersection, sorting edges and updating the mesh afterwards.
 ## Does nothing if the edge is not present.
 func remove_branch(road_point: RoadPoint) -> void:
@@ -140,15 +146,18 @@ func remove_branch(road_point: RoadPoint) -> void:
 	_sort_edges_clockwise()
 	emit_transform()
 
+
 ## Sort edges, then refresh the mesh.
 func sort_branches() -> void:
 	_sort_edges_clockwise()
 	emit_transform()
 
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Utilities
 # ------------------------------------------------------------------------------
+
 
 func refresh_intersection_mesh() -> void:
 	print("debug - refreshing intersection mesh")
@@ -157,8 +166,10 @@ func refresh_intersection_mesh() -> void:
 	if not container.create_geo:
 		return
 	
-	var mesh: Mesh = settings.generate_mesh(self.transform, edge_points)
+	var mesh: Mesh = settings.generate_mesh(self.transform, edge_points, container)
 	_mesh.mesh = mesh
+	container._create_collisions(_mesh)
+
 
 ## Given the intersection transform's Y axis as
 ## the rotation reference and plane normal,
@@ -187,3 +198,6 @@ func _sort_edges_clockwise() -> void:
 		print("debug - positions: %s / %s" % [a.position, b.position])
 		return angle_a - angle_b > 0 # must be a bool
 	)
+
+#endregion
+# ------------------------------------------------------------------------------

@@ -981,47 +981,7 @@ func _build_geo():
 		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
-	_create_collisions()
-
-
-func _create_collisions() -> void:
-	for ch in road_mesh.get_children():
-		ch.queue_free()  # Prior collision meshes
-
-	var manager:RoadManager = container.get_manager()
-
-	# Could also manually create with Mesh.create_trimesh_shape(),
-	# but this is still advertised as a non-cheap solution.
-	road_mesh.create_trimesh_collision()
-	for ch in road_mesh.get_children():
-		var sbody := ch as StaticBody3D # Set to null if casting fails
-		if not sbody:
-			continue
-
-		if container.collider_group_name != "":
-			sbody.add_to_group(container.collider_group_name)
-		elif is_instance_valid(manager) and manager.collider_group_name != "":
-			sbody.add_to_group(manager.collider_group_name)
-
-		if container.collider_meta_name != "":
-			sbody.set_meta(container.collider_meta_name, true)
-		elif is_instance_valid(manager) and manager.collider_meta_name != "":
-			sbody.set_meta(manager.collider_meta_name, true)
-
-		if container.physics_material != null:
-			sbody.physics_material_override = container.physics_material
-		elif is_instance_valid(manager) and manager.physics_material != null:
-			sbody.physics_material_override = manager.physics_material
-
-		if container.override_collision_layers:
-			sbody.collision_layer = container.collision_layer
-			sbody.collision_mask = container.collision_mask
-		elif is_instance_valid(manager):
-			sbody.collision_layer = manager.collision_layer
-			sbody.collision_mask = manager.collision_mask
-		# else: will just be the godot default.
-
-		sbody.set_meta("_edit_lock_", true)
+	container._create_collisions(road_mesh)
 
 
 # ------------------------------------------------------------------------------

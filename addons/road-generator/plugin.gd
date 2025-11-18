@@ -1953,7 +1953,6 @@ func _export_gltf(path: String) -> void:
 	var meshes: Array[Mesh] = []
 	var unset_owners:Array[Array] = []
 	for _seg in container.get_segments():
-		_seg as RoadSegment
 		var seg := _seg as RoadSegment 
 		unset_owners.append([_seg, _seg.owner])
 		_seg.owner = container.get_owner()
@@ -1961,6 +1960,15 @@ func _export_gltf(path: String) -> void:
 			meshes.append(seg.road_mesh.mesh)
 			unset_owners.append([seg.road_mesh, seg.road_mesh.owner])
 			seg.road_mesh.owner = container.get_owner()
+	for _intersec in container.get_intersections():
+		var intersec := _intersec as RoadIntersection
+		unset_owners.append([intersec, intersec.owner])
+		intersec.owner = container.get_owner()
+		if is_instance_valid(intersec._mesh):
+			meshes.append(intersec._mesh.mesh)
+			unset_owners.append([intersec._mesh, intersec._mesh.owner])
+			intersec._mesh.owner = container.get_owner()
+		
 	
 	var gltf_document_save := GLTFDocument.new()
 	var gltf_state_save := GLTFState.new()
