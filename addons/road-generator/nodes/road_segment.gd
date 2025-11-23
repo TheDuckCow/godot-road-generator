@@ -32,6 +32,7 @@ enum LeftRight {
 }
 
 const SegGeo := preload("res://addons/road-generator/procgen/segment_geo.gd")
+const DEBUG_OUT := false
 
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
@@ -76,8 +77,6 @@ var _end_flip: bool = false
 ## For easier calculation, to account for flipped directions.
 var _start_flip_mult: int = 1
 var _end_flip_mult: int = 1
-
-const DEBUG_OUT := false
 
 
 # ------------------------------------------------------------------------------
@@ -396,7 +395,6 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		suffix = "_other"  # Shouldn't occur in practice
 		push_warning("Lane parent unexpected for segment %s" % get_id())
 
-	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p%s_n%s%s" % [this_match[2], this_match[3], suffix]
@@ -491,10 +489,10 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 					var primary_lane_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
 					if last_ln.flags == RoadLane.LaneFlags.NORMAL:
 						last_ln.flags = RoadLane.LaneFlags.MERGE_INTO if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
-						new_ln.primary_lanes[primary_lane_dir] = new_ln.get_path_to(last_ln)
+						new_ln.set_primary_lane(primary_lane_dir, last_ln)
 					else:
 						assert(last_ln.flags == new_ln.flags)
-						new_ln.primary_lanes[primary_lane_dir] = new_ln.get_path_to(last_ln)
+						new_ln.set_primary_lane(primary_lane_dir, last_ln)
 			else:
 				assert(new_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
 				if (new_ln.flags == RoadLane.LaneFlags.NORMAL
@@ -504,7 +502,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 					var transition_ln := last_ln
 					while transition_ln:
 						assert(transition_ln.flags == last_ln.flags)
-						transition_ln.primary_lanes[primary_lane_dir] = transition_ln.get_path_to(new_ln)
+						transition_ln.set_primary_lane(primary_lane_dir, new_ln)
 						transition_ln = transition_ln.get_side_lane(RoadLane.SideDir.RIGHT)
 
 		# Assign that it was a success.
@@ -706,7 +704,7 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 			var dir_back := RoadLane.reverse_move_dir(dir)
 			var lane_next := lane.get_sequential_lane(dir)
 			if lane_next && lane_next.sequential_lanes[dir_back] == lane_next.get_path_to(lane):
-				lane_next.sequential_lanes[dir_back] = NodePath("")
+				lane_next.connect_sequential(dir_back, null)
 		for dir in RoadLane.LaneSideways.values():
 			var dir_back := RoadLane.flip_side(dir)
 			var lane_side := lane.get_side_lane(dir)

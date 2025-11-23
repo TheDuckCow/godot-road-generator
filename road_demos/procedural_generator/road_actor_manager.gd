@@ -8,7 +8,7 @@ extends Node3D
 ## restored process_mode is PROCESS_MODE_INHERIT
 
 ## How many vehicles are allowed to be created, -1 is unlimited
-@export var vehicles_max: int = -1
+@export var vehicles_max: int = 0
 ## Actor scenes that will be spawned randomly
 @export var road_actor_scenes: Array[PackedScene]
 ## Don't free actors right away. Instead reuse them when spawned
@@ -51,7 +51,9 @@ func add_actor(pos: Vector3, lane: RoadLane = null, offset: float = NAN) -> Node
 	var agent = new_actor.get_node_or_null("road_lane_agent")
 	if lane != null:
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.assign_lane(lane, offset)
+			agent.assign_lane_position(lane, offset)
+			var next_obstacle := lane.find_next_obstacle(offset)
+			#TODO check distance to next_obstacle to not spawn too close
 		else:
 			push_error("Trying to assign actor ", new_actor, " to lane ", lane, " but it doesn't have immediate child agent:RoadLaneAgent")
 	return new_actor
