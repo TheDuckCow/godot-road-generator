@@ -100,8 +100,6 @@ func _ready() -> void:
 
 
 func _get_configuration_warnings() -> PackedStringArray:
-	# return ["Intersections not yet implemented"]
-
 	var par = get_parent()
 	if par.has_method("is_road_container"):
 		return []
