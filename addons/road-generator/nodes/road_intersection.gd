@@ -36,6 +36,23 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 # internal:
 
+
+# -------------------------------------
+@export_group("Road Generation")
+# -------------------------------------
+
+## Generate the procedural road geometry.[br][br]
+##
+## Turn this off if you want to swap in your own road mesh geometry and colliders.
+@export var create_geo := true:
+	set(value):
+		if value == create_geo:
+			return
+		create_geo = value
+		do_roadmesh_creation()
+		if value == true:
+			emit_transform()
+
 @export_group("Internal")
 
 @export var force_mesh_refresh_toggle: bool = true:
@@ -48,9 +65,9 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		force_edges_sort_toggle = v
 		_sort_edges_clockwise()
 
-var container:RoadContainer ## The managing container node for this road intersection (direct parent).
 
-var _mesh: MeshInstance3D = MeshInstance3D.new() # mesh sibling used to display the intersection
+var _mesh: MeshInstance3D
+var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -76,27 +93,33 @@ func _set_settings(value: IntersectionSettings) -> void:
 	settings = value
 	# TODO emit transform?
 
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Setup and builtin overrides
 # ------------------------------------------------------------------------------
 
+
 func _init() -> void:
 	# TODO ensure unique
 	settings = IntersectionNGon.new()
-	self.add_child(_mesh)
 
 
 func _ready() -> void:
+	set_notify_transform(true) # TODO: Validate if both are necessary
+	set_notify_local_transform(true)
 	if not container or not is_instance_valid(container):
 		var par = get_parent()
 		# Can't type check, circular dependency -____-
 		#if not par is RoadContainer:
 		if not par.has_method("is_road_container"):
-			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
+			push_warning("Parent of RoadIntersection %s is not a RoadContainer" % self.name)
 		container = par
 	on_transform.connect(container.on_point_update)
-	refresh_intersection_mesh()
+	
+	do_roadmesh_creation()
+	if container.debug_scene_visible and is_instance_valid(_mesh):
+		_mesh.owner = container.get_owner()
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -118,9 +141,21 @@ func is_road_intersection() -> bool:
 # ------------------------------------------------------------------------------
 
 
+func _notification(what):
+	if not is_instance_valid(container):
+		return  # Might not be initialized yet.
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if _skip_next_on_transform:
+			_skip_next_on_transform = false
+			return
+		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		emit_transform(low_poly)
+
+
 func emit_transform(low_poly: bool = false) -> void:
+	print("RoadIntersection: emit_transform")
 	refresh_intersection_mesh()
-	# emit_signal("on_transform", self, low_poly) #FIXME
+	emit_signal("on_transform", self, low_poly) #FIXME
 
 
 ## Add an edge to the intersection, sorting edges and updating the mesh afterwards.
@@ -155,6 +190,40 @@ func sort_branches() -> void:
 #endregion
 #region Utilities
 # ------------------------------------------------------------------------------
+
+func should_add_mesh() -> bool:
+	var should_add_mesh = true
+	if create_geo == false:
+		should_add_mesh = false
+	if container.create_geo == false:
+		should_add_mesh = false
+	return should_add_mesh
+
+
+func do_roadmesh_creation():
+	var do_create := should_add_mesh()
+	if do_create:
+		add_road_mesh()
+	else:
+		remove_road_mesh()
+
+
+func add_road_mesh() -> void:
+	if is_instance_valid(_mesh):
+		return
+	_mesh = MeshInstance3D.new()
+	add_child(_mesh)
+	_mesh.name = "intersection_mesh"
+	_mesh.layers = container.render_layers
+	if container.debug_scene_visible and is_instance_valid(_mesh):
+		_mesh.owner = container.get_owner()
+	refresh_intersection_mesh()
+
+
+func remove_road_mesh():
+	if _mesh == null:
+		return
+	_mesh.queue_free()
 
 
 func refresh_intersection_mesh() -> void:

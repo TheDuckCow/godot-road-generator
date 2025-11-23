@@ -1138,13 +1138,18 @@ func update_lane_seg_connections():
 
 
 ## Triggered by adjusting RoadPoint transform in editor via signal connection.
-func on_point_update(point:RoadPoint, low_poly:bool) -> void:
+func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 	if not _auto_refresh:
 		_needs_refresh = true
 		return
-	elif not is_instance_valid(point):
+	elif not is_instance_valid(node):
+		# TODO: update this
 		return
 	# Update warnings for this or connected containers
+	if node is RoadIntersection:
+		# TODO: split into own function
+		return
+	var point: RoadPoint = node as RoadPoint
 	if point.is_on_edge():
 		#var prior = point.get_prior_rp()
 		#var next = point.get_next_rp()
