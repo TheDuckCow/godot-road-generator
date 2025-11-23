@@ -430,10 +430,6 @@ func _set_create_geo(value: bool) -> void:
 	create_geo = value
 	for ch in get_children():
 		# Cyclic loading, have to use workaround
-		# if ch.has_method("is_road_intersection"):
-		# 	ch.refresh_intersection_mesh() #FIXME
-		# 	continue
-		# Cyclic loading, have to use workaround
 		if not ch.has_method("is_road_point"):
 			continue
 		for rp_ch in ch.get_children():

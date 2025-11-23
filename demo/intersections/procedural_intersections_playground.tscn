@@ -112,6 +112,7 @@ script = ExtResource("3_3xvxs")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_mag = 88.0948
+shoulder_width_l = 5.0
 prior_pt_init = NodePath("../RP_002")
 
 [node name="RP_002" type="Node3D" parent="RoadManager/Road_001"]
@@ -188,5 +189,6 @@ next_pt_init = NodePath("../_Node3D_26022")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.7261, -41.367, -237.399)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_xh6hw")
+force_mesh_refresh_toggle = false
 edge_points = [NodePath("../E3"), NodePath("../E2"), NodePath("../E1"), NodePath("../E4")]
 force_edges_sort_toggle = false
