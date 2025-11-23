@@ -202,7 +202,7 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
-	
+
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
 	traffic_dir = traffic_dir.duplicate(true)
@@ -1294,12 +1294,12 @@ func connect_segment_lanes() -> void:
 					# TODO: When directionality is made consistent, we should no longer
 					# need to invert the direction assignment here.
 					if prior_ln.lane_next_tag[0] == "F":
-						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
-						next_ln.lane_next = next_ln.get_path_to(prior_ln)
+						prior_ln.connect_sequential(RoadLane.MoveDir.BACKWARD, next_ln)
+						next_ln.connect_sequential(RoadLane.MoveDir.FORWARD, prior_ln)
 					else:
 						assert(prior_ln.lane_next_tag[0] == "R")
-						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
-						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
+						prior_ln.connect_sequential(RoadLane.MoveDir.FORWARD, next_ln)
+						next_ln.connect_sequential(RoadLane.MoveDir.BACKWARD, prior_ln)
 
 # ------------------------------------------------------------------------------
 #endregion

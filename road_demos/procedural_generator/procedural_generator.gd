@@ -156,7 +156,7 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 			continue
 		var rand_offset = randf_range(start, end)
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
-		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
+		vehicles.add_actor(_lane.to_global(rand_pos), _lane, rand_offset)
 
 
 ## Manual way to remove all vehicles registered to lanes of this RoadPoint,

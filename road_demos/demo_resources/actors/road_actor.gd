@@ -21,6 +21,7 @@ enum DriveState {
 @export var keep_distance := 0.5
 @export var safe_headway := 1.5 # (secs)
 @export var looking_forward := 50.0
+@export var sleep_velocity := 0.025
 
 @onready var agent:RoadLaneAgent = get_node("%road_lane_agent")
 
@@ -152,7 +153,7 @@ func _move_to_next_lane() -> void:
 	var dir := agent.agent_move.move_dir()
 	var primary_lane := agent.agent_pos.lane.get_primary_lane(dir)
 	if primary_lane:
-		var next_pos = agent.continue_along_new_lane(primary_lane)
+		var next_pos = agent.continue_along_side_lane(primary_lane)
 		global_transform.origin = next_pos
 	#else:
 		#workaround for missing connections
@@ -171,16 +172,18 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = 0
 	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
-	
-	var obstacle:RoadLane.Obstacle = null  #TODO actual obstacle
-	var obstacle_dist = self.global_position.distance_to(obstacle.node.position) if obstacle else INF
+
+	var obstacle:RoadLane.Obstacle = self.agent.agent_pos.sequential_obstacles[move_dir]
+	var obstacle_dist = self.agent.agent_pos.distance_to(obstacle) if obstacle else INF
+	#if self.agent.agent_pos_secondary.check_valid():
+	#	assert(false) #TODO if closer on seconary
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
 	if old_velocity && sign(old_velocity) != sign(velocity.z):
 		velocity.z = 0
 	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
-	if abs(velocity.z) < 0.025:
+	if abs(velocity.z) < sleep_velocity:
 		velocity.z = 0
 
 	move_dir = RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
