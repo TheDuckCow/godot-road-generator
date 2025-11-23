@@ -15,6 +15,7 @@ enum SnapState {
 }
 
 const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
+const RoadIntersectionGizmo = preload("res://addons/road-generator/ui/road_intersection_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 const RoadContainerEdit = preload("res://addons/road-generator/ui/road_container_edit.gd")
 const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
@@ -32,6 +33,7 @@ const ROADPOINT_SNAP_THRESHOLD := 25.0
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
 var road_point_gizmo = RoadPointGizmo.new(self)
+var road_intersection_gizmo = RoadIntersectionGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
 var road_container_editor = RoadContainerEdit.new(self)
 
@@ -72,12 +74,15 @@ var copy_attributes:Dictionary = {}
 
 func _enter_tree():
 	add_node_3d_gizmo_plugin(road_point_gizmo)
+	add_node_3d_gizmo_plugin(road_intersection_gizmo)
 	add_inspector_plugin(road_point_editor)
 	road_point_editor.call("set_edi", _edi)
 	add_inspector_plugin(road_container_editor)
 	road_container_editor.call("set_edi", _edi)
-	_eds.connect("selection_changed", Callable(self, "_on_selection_changed"))
-	_eds.connect("selection_changed", Callable(road_point_gizmo, "on_selection_changed"))
+	_eds.connect("selection_changed", self._on_selection_changed)
+	_eds.connect("selection_changed", road_point_gizmo.on_selection_changed)
+	_eds.connect("selection_changed", road_intersection_gizmo.on_selection_changed)
+	
 	connect("scene_changed", Callable(self, "_on_scene_changed"))
 	connect("scene_closed", Callable(self, "_on_scene_closed"))
 
@@ -102,12 +107,14 @@ func _enter_tree():
 
 
 func _exit_tree():
-	_eds.disconnect("selection_changed", Callable(self, "_on_selection_changed"))
-	_eds.disconnect("selection_changed", Callable(road_point_gizmo, "on_selection_changed"))
-	disconnect("scene_changed", Callable(self, "_on_scene_changed"))
-	disconnect("scene_closed", Callable(self, "_on_scene_closed"))
+	_eds.disconnect("selection_changed", self._on_selection_changed)
+	_eds.disconnect("selection_changed", road_point_gizmo.on_selection_changed)
+	_eds.disconnect("selection_changed", road_intersection_gizmo.on_selection_changed)
+	disconnect("scene_changed", self._on_scene_changed)
+	disconnect("scene_closed", self._on_scene_closed)
 	_road_toolbar.queue_free()
 	remove_node_3d_gizmo_plugin(road_point_gizmo)
+	remove_node_3d_gizmo_plugin(road_intersection_gizmo)
 	remove_inspector_plugin(road_container_editor)
 	remove_inspector_plugin(road_point_editor)
 
@@ -356,7 +363,7 @@ func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 			return INPUT_PASS  # Is a drag even
 
 		# Shoot a ray and see if it hits anything
-		var point = get_nearest_road_point(camera, event.position)
+		var point:RoadGraphNode = get_nearest_road_point(camera, event.position)
 		if point and not event.pressed:
 			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
 			#set_selection(point)
@@ -467,11 +474,11 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		# Pressed state not available here, need to track state separately.
 		# Handle visualizing which connections are free to make
 		# trigger overlay updates to draw/update indicators
-		var point = get_nearest_road_point(camera, event.position)
+		var point:RoadGraphNode = get_nearest_road_point(camera, event.position)
 		var hover_point = point # logical workaround to duplicate
 		var selection = get_selected_node()
 		var src_is_contianer := false
-		var target:RoadPoint
+		var target:RoadGraphNode
 
 		if selection is RoadContainer:
 			src_is_contianer = true
@@ -486,6 +493,10 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 			target = null
 		elif selection is RoadPoint:
 			target = selection
+		elif selection is RoadIntersection:
+			# TODO: Update to act the same as target selection once functional
+			point = null
+			target = null
 		else:
 			point = null
 			target = null
@@ -752,7 +763,7 @@ func get_container_from_selection(): # -> Optional[RoadContainer]
 		return
 	if selected_node is RoadContainer:
 		return selected_node
-	elif selected_node is RoadPoint:
+	elif selected_node is RoadGraphNode:
 		if is_instance_valid(selected_node.container):
 			return selected_node.container
 		else:
@@ -787,7 +798,8 @@ func set_selection_list(nodes: Array) -> void:
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
+# TODO: Nearest GraphNode
+func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
@@ -801,7 +813,24 @@ func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
 
 	var collider = intersect["collider"]
 	var position = intersect["position"]
-	if not collider.name.begins_with("road_mesh_col"):
+	if collider.name.begins_with("road_mesh_col"):
+		# Native RoadSegment - so there's just two RP's to choose between
+		# Return the closest RoadPoint
+		var road_segment: RoadSegment = collider.get_parent().get_parent()
+		var start_point: RoadPoint = road_segment.start_point
+		var end_point: RoadPoint = road_segment.end_point
+		var nearest_point: RoadPoint
+		var dist_to_start = start_point.global_position.distance_to(position)
+		var dist_to_end = end_point.global_position.distance_to(position)
+		if dist_to_start > dist_to_end:
+			nearest_point = end_point
+		else:
+			nearest_point = start_point
+		return nearest_point
+	elif collider.name.begins_with("intersection_mesh_col"):
+		var intersection: RoadIntersection = collider.get_parent().get_parent()
+		return intersection
+	else:
 		# Might be a custom RoadContainer.
 		# static body collider could be child or grandchild
 		var check_par = collider.get_parent()
@@ -825,20 +854,6 @@ func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadPoint:
 				nearest_dist = edge_dist
 		if not is_instance_valid(nearest_point):
 			return null
-		return nearest_point
-	else:
-		# Native RoadSegment - so there's just two RP's to choose between
-		# Return the closest RoadPoint
-		var road_segment: RoadSegment = collider.get_parent().get_parent()
-		var start_point: RoadPoint = road_segment.start_point
-		var end_point: RoadPoint = road_segment.end_point
-		var nearest_point: RoadPoint
-		var dist_to_start = start_point.global_position.distance_to(position)
-		var dist_to_end = end_point.global_position.distance_to(position)
-		if dist_to_start > dist_to_end:
-			nearest_point = end_point
-		else:
-			nearest_point = start_point
 		return nearest_point
 
 

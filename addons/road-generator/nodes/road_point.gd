@@ -59,6 +59,7 @@ const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
+const DEFAULT_LANE_WIDTH: float = 4.0
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -125,7 +126,7 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 @export var flatten_terrain: bool = true
 
 ## Width of each lane in meters in meters.
-@export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
+@export var lane_width := DEFAULT_LANE_WIDTH: get = _get_lane_width, set = _set_lane_width
 ## Width of the left shoulder in meters.
 @export var shoulder_width_l := 2.0: get = _get_shoulder_width_l, set = _set_shoulder_width_l
 ## Width of the right shoulder in meters.
@@ -153,11 +154,11 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 # TODO: convert these into direct node reference export vars instead of nodepaths
 ## Considered private, not meant for editor or script interaction.[br][br]
 ##
-## Path to prior [RoadPoint], relative to this [RoadPoint] itself.
+## Path to prior [RoadPoint] or [RoadIntersection], relative to this [RoadPoint] itself.
 @export var prior_pt_init: NodePath: get = _get_prior_pt_init, set = _set_prior_pt_init
 ## Considered private, not meant for editor or script interaction.[br][br]
 ##
-## Path to next [RoadPoint], relative to this [RoadPoint] itself.
+## Path to next [RoadPoint] or [RoadIntersection], relative to this [RoadPoint] itself.
 @export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
 
 var rev_width_mag := -8.0
@@ -168,7 +169,6 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var container:RoadContainer ## The managing container node for this road segment (direct parent).
 var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
@@ -366,6 +366,7 @@ func _set_terminated(value: bool) -> void:
 	terminated = value
 	if is_instance_valid(container):
 		container.update_edges()
+
 
 func _get_next_pt_init():
 	return next_pt_init
@@ -1160,6 +1161,8 @@ func _autofix_noncyclic_references(
 		var connection = get_node(new_point_path)
 		if connection.has_method("is_road_container"):
 			return # Nothing further to update now.
+		elif connection.has_method("is_road_intersection"):
+			return # Nothing further to update now.
 		else:
 			point = connection
 	else:
@@ -1168,6 +1171,8 @@ func _autofix_noncyclic_references(
 		var connection = get_node(old_point_path)
 		if connection.has_method("is_road_container"):
 			return # Nothing further to update now.
+		elif connection.has_method("is_road_intersection"):
+			return  # Nothing further to update now.
 		point = connection
 
 	if not is_instance_valid(point):

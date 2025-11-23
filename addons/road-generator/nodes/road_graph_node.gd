@@ -10,3 +10,4 @@ extends Node3D
 ## for typing reasons. As such, logic should remain to the strict minimum.
 
 #TODO: minimum contract? shared props?
+var container:RoadContainer ## The managing container node for this node (direct parent).

@@ -45,8 +45,10 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 	var edge_gutters: Array[Array] = []
 	for edge: RoadPoint in edges:
 		var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
+		# TODO: needs to be if edge.get_node(edge.prior_pt_init) == self.intersection
 		if edge.next_pt_init.is_empty():
 			facing = _IntersectNGonFacing.AWAY
+		# TODO: needs to be if edge.get_node(edge.next_pt_init) == self.intersection
 		elif edge.prior_pt_init.is_empty():
 			facing = _IntersectNGonFacing.ORIGIN
 		else:
