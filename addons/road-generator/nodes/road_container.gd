@@ -1393,7 +1393,6 @@ func _create_collisions(road_mesh: MeshInstance3D) -> void:
 
 		sbody.set_meta("_edit_lock_", true)
 
-
 ## Signals the segments whichhave been just (re)built
 func _emit_road_updated(segments: Array) -> void:
 	if self.debug:

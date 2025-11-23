@@ -229,11 +229,11 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
 	if lane.lane_next_tag[0] == dir:
 		if not lane.get_node_or_null(lane.lane_prior):
-			lane.lane_prior = lane.get_path_to(_despawn_lane)
+			lane.connect_sequential(RoadLane.MoveDir.BACKWARD, _despawn_lane)
 			linked = true
 	else:
 		if not lane.get_node_or_null(lane.lane_next):
-			lane.lane_next = lane.get_path_to(_despawn_lane)
+			lane.connect_sequential(RoadLane.MoveDir.FORWARD, _despawn_lane)
 			linked = true
 	if linked:
 		if DEBUG_OUT:
