@@ -1228,10 +1228,9 @@ func get_thickness():
 	return -1.0
 
 ## Get the distance from shoulder to shoulder
-func get_width():
+func get_width_without_shoulders():
 	# TODO should use get_road_width() instead?
 	var total_width = lane_width * len(lanes)
-	total_width += shoulder_width_l + shoulder_width_r
 	return total_width
 
 # ------------------------------------------------------------------------------

@@ -56,15 +56,16 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
 			return Mesh.new() # Empty mesh.
 
-		var edge_road_width: float = edge.get_width()
-		# assuming the point is the center, and shoulders are
-		# at equal distances to it.
+		var edge_road_width: float = edge.get_width_without_shoulders()
+		var left_shoulder_width: float = edge.shoulder_width_l
+		var right_shoulder_width: float = edge.shoulder_width_r
+
 		var left_shoulder: Vector3 = edge.global_position
 		var right_shoulder: Vector3 = edge.global_position
 		var perpendicular_vector: Vector3 = (edge.global_transform.basis.x).normalized()
 		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
-		left_shoulder -= perpendicular_vector * (edge_road_width / 2.0)
-		right_shoulder += perpendicular_vector * (edge_road_width / 2.0)
+		left_shoulder -= perpendicular_vector * (edge_road_width / 2.0) + left_shoulder_width * perpendicular_vector
+		right_shoulder += perpendicular_vector * (edge_road_width / 2.0) + right_shoulder_width * perpendicular_vector
 		if facing == _IntersectNGonFacing.ORIGIN:	
 			edge_shoulders.append([left_shoulder, right_shoulder])
 		else: # facing == _IntersectNGonFacing.AWAY
