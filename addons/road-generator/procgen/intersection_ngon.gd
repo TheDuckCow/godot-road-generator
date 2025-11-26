@@ -34,66 +34,187 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 	# TODO TBD when mesh generation is implemented.
 	return 0.0
 
+func _get_edge_facing(edge: RoadPoint) -> _IntersectNGonFacing:
+	var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
+	# TODO have a way to access the intersection node (we only have the transform)
+	# TODO: needs to be if edge.get_node(edge.prior_pt_init) == self.intersection
+	if edge.next_pt_init.is_empty():
+		facing = _IntersectNGonFacing.AWAY
+	# TODO: needs to be if edge.get_node(edge.next_pt_init) == self.intersection
+	elif edge.prior_pt_init.is_empty():
+		facing = _IntersectNGonFacing.ORIGIN
+	else:
+		facing = _IntersectNGonFacing.OTHER
+	return facing
+
 
 ## Generates a triangles from shoulders to intersection point,
 ## and triangles from an edge's shoulders to the intersection point.
-## The end result is a very low-poly n-gon.
+## The end result is a very low-poly n-gon.[br][br]
+## Edges MUST have been sorted by angle from intersection beforehand.
 func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
-	## Array[Array[Vector3][2]]
-	var edge_shoulders: Array[Array] = []
-	## Array[Array[Vector3][2]]
-	var edge_gutters: Array[Array] = []
-	for edge: RoadPoint in edges:
-		var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
-		# TODO: needs to be if edge.get_node(edge.prior_pt_init) == self.intersection
-		if edge.next_pt_init.is_empty():
-			facing = _IntersectNGonFacing.AWAY
-		# TODO: needs to be if edge.get_node(edge.next_pt_init) == self.intersection
-		elif edge.prior_pt_init.is_empty():
-			facing = _IntersectNGonFacing.ORIGIN
-		else:
-			facing = _IntersectNGonFacing.OTHER
-		
-		if facing == _IntersectNGonFacing.OTHER:
-			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
-			return Mesh.new() # Empty mesh.
-
-		var edge_road_width: float = edge.get_width_without_shoulders()
-		var left_shoulder_width: float = edge.shoulder_width_l
-		var right_shoulder_width: float = edge.shoulder_width_r
-
-		var left_shoulder: Vector3 = edge.global_position
-		var right_shoulder: Vector3 = edge.global_position
-		var perpendicular_vector: Vector3 = (edge.global_transform.basis.x).normalized()
-		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
-		left_shoulder -= perpendicular_vector * (edge_road_width / 2.0) + left_shoulder_width * perpendicular_vector
-		right_shoulder += perpendicular_vector * (edge_road_width / 2.0) + right_shoulder_width * perpendicular_vector
-		if facing == _IntersectNGonFacing.ORIGIN:	
-			edge_shoulders.append([left_shoulder, right_shoulder])
-		else: # facing == _IntersectNGonFacing.AWAY
-			edge_shoulders.append([right_shoulder, left_shoulder])
-		var gutter = edge.gutter_profile
-		var gutter_left = left_shoulder + (gutter[0] * -perpendicular_vector + gutter[1] * up_vector)
-		var gutter_right = right_shoulder + (gutter[0] * perpendicular_vector + gutter[1] * up_vector)
-		if facing == _IntersectNGonFacing.ORIGIN:
-			edge_gutters.append([gutter_left, gutter_right])
-		else: # facing == _IntersectNGonFacing.AWAY
-			edge_gutters.append([gutter_right, gutter_left])
-
-
-	# mesh indices: [[1,2], [3,4], ...] with 0 for the center point
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	const TOPSIDE_SMOOTHING_GROUP = 1
 	surface_tool.set_smooth_group(TOPSIDE_SMOOTHING_GROUP)
 
+	const STOP_ROW_SIZE: float = 2.0
+	
+	# First, add an additional row of quads to each edge,
+	# to give a UV space for stop marks or other markings.
+	# We also prepare the intersection by storing appropriate
+	# shoulder and gutter positions.
+
+	## Array[Array[Vector3][2]]
+	var edge_shoulders: Array[Array] = []
+	## Array[Array[Vector3][2]]
+	var edge_gutters: Array[Array] = []
+	## Array[Array[Vector3][2]]
+	var edge_road_sides: Array[Array] = []
+
+	for edge: RoadPoint in edges:
+		var facing: _IntersectNGonFacing = _get_edge_facing(edge)
+		if facing == _IntersectNGonFacing.OTHER:
+			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
+			return Mesh.new() # Empty mesh.
+		
+		var lane_width: float = edge.lane_width
+		var lanes_count = edge.lanes.size()
+		var lanes_tot_width: float = lane_width * lanes_count
+		var shoulder_offset_l: float = edge.shoulder_width_l
+		var shoulder_offset_r: float = edge.shoulder_width_r
+		var gutter: Vector2 = edge.gutter_profile
+
+		var perpendicular_v: Vector3 = (edge.global_transform.basis.x).normalized()
+		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
+		var parallel_v: Vector3 = (edge.global_transform.basis.z).normalized()
+
+		var road_side_l: Vector3 = edge.global_position
+		var road_side_r: Vector3 = edge.global_position
+		road_side_l -= perpendicular_v * (lanes_tot_width / 2.0)
+		road_side_r += perpendicular_v * (lanes_tot_width / 2.0)
+	
+
+		var shoulder_l: Vector3 = road_side_l
+		var shoulder_r: Vector3 = road_side_r
+		shoulder_l -= shoulder_offset_l * perpendicular_v
+		shoulder_r += shoulder_offset_r * perpendicular_v
+
+
+
+		var gutter_l: Vector3 = shoulder_l + (gutter[0] * -perpendicular_v + gutter[1] * up_vector)
+		var gutter_r: Vector3 = shoulder_r + (gutter[0] * perpendicular_v + gutter[1] * up_vector)
+
+
+
+
+		var shoulder_l_stop: Vector3 = shoulder_l + parallel_v * STOP_ROW_SIZE
+		var shoulder_r_stop: Vector3 = shoulder_r + parallel_v * STOP_ROW_SIZE
+		var gutter_l_stop: Vector3 = gutter_l + parallel_v * STOP_ROW_SIZE
+		var gutter_r_stop: Vector3 = gutter_r + parallel_v * STOP_ROW_SIZE
+		var road_side_l_stop: Vector3 = road_side_l + parallel_v * STOP_ROW_SIZE
+		var road_side_r_stop: Vector3 = road_side_r + parallel_v * STOP_ROW_SIZE
+
+		if facing == _IntersectNGonFacing.ORIGIN:	
+			edge_shoulders.append([shoulder_l_stop, shoulder_r_stop])
+			edge_gutters.append([gutter_l_stop, gutter_r_stop])
+			edge_road_sides.append([road_side_l_stop, road_side_r_stop])
+		else: # facing == _IntersectNGonFacing.AWAY
+			edge_shoulders.append([shoulder_r_stop, shoulder_l_stop])
+			edge_gutters.append([gutter_r_stop, gutter_l_stop])
+			edge_road_sides.append([road_side_r_stop, road_side_l_stop])
+
+
+		# Left gutter quad
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_l - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+
+		# Left shoulder quad
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_l - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_l_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+
+		# Lanes quads
+		for i in range(lanes_count):
+			var lane_left_side: Vector3 = road_side_l + perpendicular_v * (lane_width * i)
+			var lane_right_side: Vector3 = road_side_l + perpendicular_v * (lane_width * (i + 1))
+			var lane_left_side_stop: Vector3 = lane_left_side + parallel_v * STOP_ROW_SIZE
+			var lane_right_side_stop: Vector3 = lane_right_side + parallel_v * STOP_ROW_SIZE
+
+			# Lane quad
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_left_side - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_right_side - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_right_side_stop - parent_transform.origin)
+
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_left_side - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_right_side_stop - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(lane_left_side_stop - parent_transform.origin)
+
+		# Right shoulder quad
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_r - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r - parent_transform.origin)
+
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(road_side_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r - parent_transform.origin)
+
+		# Right gutter quad
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_r - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r - parent_transform.origin)
+
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(gutter_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r_stop - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(shoulder_r - parent_transform.origin)
+
+
+
+
 	var iteration_i = 0
 	for shoulders in edge_shoulders:
 		var left_shoulder: Vector3 = shoulders[0]
 		var right_shoulder: Vector3 = shoulders[1]
-		var left_index: int = iteration_i * 2 + 1
-		var right_index: int = iteration_i * 2 + 2
 
 		# add vertices
 
@@ -106,8 +227,8 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		surface_tool.add_vertex(left_shoulder - parent_transform.origin)
 
 		# add "sibling" triangle
-		# FIXME: only support nodes in a very specific order
-		# (sort edges by angle from intersection and given axis?)
+		# /!\ /!\ /!\ only support nodes in a very specific order
+		# (edges should be sorted by the caller)
 		if (edge_shoulders.size() > 1):
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
 			var next_right_shoulder: Vector3 = edge_shoulders[next_iteration_i][1]

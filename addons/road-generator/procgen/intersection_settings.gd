@@ -29,6 +29,8 @@ extends Resource
 ##
 ## Parent transform refers to the [RoadIntersection]'s local transform.
 ##
+## Edges MUST have been sorted by angle from intersection beforehand.
+##
 ## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
 func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
