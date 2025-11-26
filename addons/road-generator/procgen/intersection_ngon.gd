@@ -107,7 +107,8 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 		var gutter_r: Vector3 = shoulder_r + (gutter[0] * perpendicular_v + gutter[1] * up_vector)
 
 
-
+		if facing == _IntersectNGonFacing.ORIGIN:	
+			parallel_v = -parallel_v
 
 		var shoulder_l_stop: Vector3 = shoulder_l + parallel_v * STOP_ROW_SIZE
 		var shoulder_r_stop: Vector3 = shoulder_r + parallel_v * STOP_ROW_SIZE
@@ -125,6 +126,26 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 			edge_gutters.append([gutter_r_stop, gutter_l_stop])
 			edge_road_sides.append([road_side_r_stop, road_side_l_stop])
 
+		# swap sides if needed
+		if facing == _IntersectNGonFacing.ORIGIN:
+			var temp: Vector3 = shoulder_l
+			shoulder_l = shoulder_r
+			shoulder_r = temp
+			temp = shoulder_l_stop
+			shoulder_l_stop = shoulder_r_stop
+			shoulder_r_stop = temp
+			temp = gutter_l
+			gutter_l = gutter_r
+			gutter_r = temp
+			temp = gutter_l_stop
+			gutter_l_stop = gutter_r_stop
+			gutter_r_stop = temp
+			temp = road_side_l
+			road_side_l = road_side_r
+			road_side_r = temp
+			temp = road_side_l_stop
+			road_side_l_stop = road_side_r_stop
+			road_side_r_stop = temp
 
 		# Left gutter quad
 		surface_tool.set_uv(Vector2(0.0, 0.0))
@@ -158,10 +179,14 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 
 		# Lanes quads
 		for i in range(lanes_count):
-			var lane_left_side: Vector3 = road_side_l + perpendicular_v * (lane_width * i)
-			var lane_right_side: Vector3 = road_side_l + perpendicular_v * (lane_width * (i + 1))
+			var current_perpendicular_v: Vector3 = perpendicular_v
+			if facing == _IntersectNGonFacing.ORIGIN:
+				current_perpendicular_v = -perpendicular_v
+			var lane_left_side: Vector3 = road_side_l + current_perpendicular_v * (lane_width * i)
+			var lane_right_side: Vector3 = road_side_l + current_perpendicular_v * (lane_width * (i + 1))
 			var lane_left_side_stop: Vector3 = lane_left_side + parallel_v * STOP_ROW_SIZE
 			var lane_right_side_stop: Vector3 = lane_right_side + parallel_v * STOP_ROW_SIZE
+
 
 			# Lane quad
 			surface_tool.set_uv(Vector2(0.0, 0.0))
@@ -210,54 +235,77 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 
 
 
+	# Then, connect edges with its siblings (gutters and shoulders quads).
+	# At the same time, create triangles from shoulders to intersection point;
+	# to form a triangle fan filling the intersection.
 
 	var iteration_i = 0
-	for shoulders in edge_shoulders:
-		var left_shoulder: Vector3 = shoulders[0]
-		var right_shoulder: Vector3 = shoulders[1]
+	for sides in edge_road_sides:
+		var side_l: Vector3 = sides[0]
+		var side_r: Vector3 = sides[1]
 
 		# add vertices
 
 		# add "edge" triangle
 		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(side_r - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
+		surface_tool.add_vertex(side_l - parent_transform.origin)
+		surface_tool.set_uv(Vector2(0.0, 0.0))
 		surface_tool.add_vertex(Vector3.ZERO)
-		surface_tool.set_uv(Vector2(0.0, 0.0))
-		surface_tool.add_vertex(right_shoulder - parent_transform.origin)
-		surface_tool.set_uv(Vector2(0.0, 0.0))
-		surface_tool.add_vertex(left_shoulder - parent_transform.origin)
 
 		# add "sibling" triangle
 		# /!\ /!\ /!\ only support nodes in a very specific order
 		# (edges should be sorted by the caller)
 		if (edge_shoulders.size() > 1):
 			var next_iteration_i: int = (iteration_i + 1) % edge_shoulders.size()
-			var next_right_shoulder: Vector3 = edge_shoulders[next_iteration_i][1]
-			var current_left_gutter: Vector3 = edge_gutters[iteration_i][0]
-			var next_right_gutter: Vector3 = edge_gutters[next_iteration_i][1]
+			var next_side_r: Vector3 = edge_road_sides[next_iteration_i][1]
 
 			surface_tool.set_uv(Vector2(0.0, 0.0))
 			surface_tool.add_vertex(Vector3.ZERO)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(side_l - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(next_side_r - parent_transform.origin)
 
-			# also add the gutter profile on the intersection exterior border
-			# (rectangle from one edge's shoulder and gutter to the next edge's
-			# shoulder and gutter)
+			# also add the gutter profile and the shoulder offset
+			# on the intersection exterior border
+			# (quad from one edge's gutter to the next edge's gutter, same for shoulders).
+
+			# shoulder quad
+			var shoulder_l: Vector3 = edge_shoulders[iteration_i][0]
+			var next_shoulder_r: Vector3 = edge_shoulders[next_iteration_i][1]
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(left_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(shoulder_l - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.add_vertex(next_shoulder_r - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(next_side_r - parent_transform.origin)
+
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(side_l - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(next_side_r - parent_transform.origin)
+
+			# gutter quad
+			var current_gutter_l: Vector3 = edge_gutters[iteration_i][0]
+			var next_gutter_r: Vector3 = edge_gutters[next_iteration_i][1]
+
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(shoulder_l - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(current_gutter_l - parent_transform.origin)
+			surface_tool.set_uv(Vector2(0.0, 0.0))
+			surface_tool.add_vertex(next_shoulder_r - parent_transform.origin)
 			
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(next_right_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(next_shoulder_r - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(current_left_gutter - parent_transform.origin)
+			surface_tool.add_vertex(current_gutter_l - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
-			surface_tool.add_vertex(next_right_gutter - parent_transform.origin)
+			surface_tool.add_vertex(next_gutter_r - parent_transform.origin)
 
 		iteration_i += 1
 	
