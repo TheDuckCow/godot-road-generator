@@ -8,8 +8,8 @@ enum Side {
 	BOTH
 }
 
-# @export var offset_start: float = 0.0
-# @export var offset_end: float = -0.0
+@export var offset_start: float = 0.0
+@export var offset_end: float = 0.0
 @export var side: RoadCurb.Side = RoadCurb.Side.REVERSE
 @export var primary_color: Color = Color.RED
 @export var use_stripes: bool = false
@@ -39,17 +39,47 @@ func _remove_all_curbs(segment: RoadSegment) -> void:
 			segment.remove_child(child)
 			child.queue_free()
 
+func _get_curve_with_applied_offsets(edge: Path3D, offset_start: float, offset_end: float) -> Curve3D:
+	# Returns a new Curve3D with the specified start and end offsets applied
+	var original_curve: Curve3D = edge.curve
+	var new_curve: Curve3D = Curve3D.new()
+
+	var total_length: float = original_curve.get_baked_length()
+
+	# so this might be confusing, but curves go from e.g. RP_002 to RP_001,
+	# so basically go reverse, therefore start and end are swapped
+	var start_distance: float = offset_end
+	var end_distance: float = total_length - offset_start
+
+	var num_points: int = int((end_distance - start_distance) / 0.1) + 1
+	for i in range(num_points):
+		var distance: float = lerp(start_distance, end_distance, float(i) / float(num_points - 1))
+		var position: Vector3 = original_curve.sample_baked(distance)
+		new_curve.add_point(position)
+
+	return new_curve
 
 func _create_curb_on_edge(segment: RoadSegment, edge: Path3D, curb_name: String):
 	"""Create a curb CSGPolygon3D on the specified edge curve."""
 	if not edge or not is_instance_valid(edge):
 		push_error("Invalid edge provided to _create_curb_on_edge")
 		return
+	
+	# we create a new path3d and curve3d for every curb to allow for offsets and independency in case multiple curbs are created
+	var curve_with_offsets: Curve3D = _get_curve_with_applied_offsets(edge, offset_start, offset_end)
+	var curb_path: Path3D = Path3D.new()
+	curb_path.name = edge.name + "_curb_path"
+	curb_path.curve = curve_with_offsets
+	segment.add_child(curb_path)
+	curb_path.set_owner(segment.get_tree().get_edited_scene_root())
+	# go to global coordinates and then into edge local coordinates
+	curb_path.transform = curb_path.transform * curb_path.global_transform.inverse() * edge.global_transform
 
+	# create curb
 	var curb = CSGPolygon3D.new()
 	curb.name = curb_name
 	curb.mode = CSGPolygon3D.MODE_PATH
-	curb.path_node = edge.get_path()
+	curb.path_node = curb_path.get_path()
 	curb.path_local = true
 
 	var material = StandardMaterial3D.new()
@@ -88,11 +118,8 @@ func _create_curb_on_edge(segment: RoadSegment, edge: Path3D, curb_name: String)
 		])
 	curb.polygon = polygon
 
-	segment.add_child(curb)
+	curb_path.add_child(curb)
 	curb.set_owner(segment.get_tree().get_edited_scene_root())
-	# go to global coordinates and then into edge local coordinates
-	curb.transform = curb.transform * curb.global_transform.inverse() * edge.global_transform
-
 
 
 func _create_stripe_texture(color1: Color, color2: Color) -> ImageTexture:
@@ -109,5 +136,3 @@ func _create_stripe_texture(color1: Color, color2: Color) -> ImageTexture:
 
 	var texture = ImageTexture.create_from_image(image)
 	return texture
-
-
