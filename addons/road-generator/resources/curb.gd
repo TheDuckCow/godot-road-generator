@@ -2,18 +2,9 @@
 extends RoadDecoration
 class_name RoadCurb
 
-enum Side {
-	FORWARD,
-	REVERSE,
-	BOTH
-}
-
-@export var offset_start: float = 0.0
-@export var offset_end: float = 0.0
-@export var side: RoadCurb.Side = RoadCurb.Side.REVERSE
-@export var primary_color: Color = Color.RED
+@export var primary_color: Color = Color("#FF2400")
 @export var use_stripes: bool = false
-@export var secondary_color: Color = Color.WHITE
+@export var secondary_color: Color = Color("#F9F6EE")
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_length: float = 3.0
 
 func setup(segment: RoadSegment) -> void:
@@ -106,15 +97,15 @@ func _create_curb_on_edge(segment: RoadSegment, edge: Path3D, curb_name: String)
 	var polygon: PackedVector2Array
 	if curb_name == "curb_R":
 		polygon = PackedVector2Array([
-			Vector2(0, 0),
-			Vector2(2, 0.15),
-			Vector2(2, 0)
+			Vector2(0+offset_lateral, 0),
+			Vector2(2+offset_lateral, 0.15),
+			Vector2(2+offset_lateral, 0)
 		])
 	else: # curb_F
 		polygon = PackedVector2Array([
-			Vector2(0, 0),
-			Vector2(-2, 0.15),
-			Vector2(-2, 0)
+			Vector2(0-offset_lateral, 0),
+			Vector2(-2-offset_lateral, 0.15),
+			Vector2(-2-offset_lateral, 0)
 		])
 	curb.polygon = polygon
 
