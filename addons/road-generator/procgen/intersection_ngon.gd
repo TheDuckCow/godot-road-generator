@@ -20,28 +20,32 @@ enum _IntersectNGonFacing {
 #endregion
 # ------------------------------------------------------------------------------
 
-func generate_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
-	if not can_generate_mesh(parent_transform, edges):
+func generate_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+	if not can_generate_mesh(parent_intersection.transform, edges):
 		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
 	if edges.size() == 0:
 		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
-	return _generate_debug_mesh(parent_transform, edges, container)
+	if not parent_intersection.has_method("is_road_intersection"):
+		push_error("parent_intersection is not an intersection node. Returning an empty mesh.")
+		return Mesh.new() # Empty mesh.
+	return _generate_debug_mesh(parent_intersection, edges, container)
 
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 	# TODO TBD when mesh generation is implemented.
 	return 0.0
 
-func _get_edge_facing(edge: RoadPoint) -> _IntersectNGonFacing:
+func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFacing:
+	if not intersection.has_method("is_road_intersection"):
+		push_error("intersection is not an intersection node. Returning OTHER facing.")
+		return _IntersectNGonFacing.OTHER
+
 	var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
-	# TODO have a way to access the intersection node (we only have the transform)
-	# TODO: needs to be if edge.get_node(edge.prior_pt_init) == self.intersection
-	if edge.next_pt_init.is_empty():
+	if edge.get_node(edge.prior_pt_init) == intersection:
 		facing = _IntersectNGonFacing.AWAY
-	# TODO: needs to be if edge.get_node(edge.next_pt_init) == self.intersection
-	elif edge.prior_pt_init.is_empty():
+	elif edge.get_node(edge.next_pt_init) == intersection:
 		facing = _IntersectNGonFacing.ORIGIN
 	else:
 		facing = _IntersectNGonFacing.OTHER
@@ -52,7 +56,13 @@ func _get_edge_facing(edge: RoadPoint) -> _IntersectNGonFacing:
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.[br][br]
 ## Edges MUST have been sorted by angle from intersection beforehand.
-func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+func _generate_debug_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+	if not parent_intersection.has_method("is_road_intersection"):
+		push_error("parent_intersection is not an intersection node. Returning an empty mesh.")
+		return Mesh.new() # Empty mesh.
+
+	var parent_transform: Transform3D = parent_intersection.transform
+	
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -74,7 +84,7 @@ func _generate_debug_mesh(parent_transform: Transform3D, edges: Array[RoadPoint]
 	var edge_road_sides: Array[Array] = []
 
 	for edge: RoadPoint in edges:
-		var facing: _IntersectNGonFacing = _get_edge_facing(edge)
+		var facing: _IntersectNGonFacing = _get_edge_facing(edge, parent_intersection)
 		if facing == _IntersectNGonFacing.OTHER:
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
 			return Mesh.new() # Empty mesh.

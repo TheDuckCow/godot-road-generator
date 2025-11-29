@@ -168,6 +168,7 @@ func add_branch(road_point: RoadPoint) -> void:
 	if edge_points.has(road_point):
 		return
 	edge_points.append(road_point)
+	#TODO set prior/next pt init?
 	_sort_edges_clockwise()
 	emit_transform()
 
@@ -233,7 +234,7 @@ func refresh_intersection_mesh() -> void:
 	if not container.create_geo:
 		return
 	
-	var mesh: Mesh = settings.generate_mesh(self.transform, edge_points, container)
+	var mesh: Mesh = settings.generate_mesh(self, edge_points, container)
 	_mesh.mesh = mesh
 	container._create_collisions(_mesh)
 
