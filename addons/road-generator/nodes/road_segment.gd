@@ -724,14 +724,35 @@ func _rebuild():
 		clear_lane_segments()
 	
 	# Setup decorations on both RoadPoints
-	for point in [start_point, end_point]:
+	for point in [start_point]:#, end_point]:
 		if self.get_parent() == point:
+			# get rid of previous decorations
+			for child in point.get_children():
+				if child.name.begins_with("decoration_"):
+					point.remove_child(child)
+					child.queue_free()
+
+			# counter allows unique naming of decorations under the RoadSegment
+			var decoration_number: int = 1
+
 			for deco in point.decorations:
 				if not container.create_edge_curves:
 					push_warning("Decoration setup skipped as edge curves disabled: %s" % deco)
 					continue
-				print(deco)
-				deco.setup(self)
+				
+				# check if deco has setup function
+				# should be replaced when ported to Godot 4.5 with abstract classes
+				if not deco.has_method("setup"):
+					push_error("Decoration missing setup function: %s" % deco)
+					continue
+
+				var decoration_node_wrapper = Node3D.new()
+				decoration_node_wrapper.name = "decoration_%d_%s" % [decoration_number, deco.desc]
+				point.add_child(decoration_node_wrapper)
+				decoration_node_wrapper.set_owner(point.get_tree().get_edited_scene_root())
+				
+				deco.setup(self, decoration_node_wrapper)
+				decoration_number += 1
 
 
 func _update_curve():

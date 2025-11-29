@@ -2,10 +2,11 @@
 extends RoadDecoration
 class_name InstanceAlongCurve
 
+@export var desc: String = "scene"
 @export_file("*.tscn") var source_scene: String
 
 
-func setup(segment: RoadSegment) -> void:
+func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 	print("Instancing as child")
 	
 	var reverse = segment.get_parent().get_node(segment.EDGE_R_NAME)

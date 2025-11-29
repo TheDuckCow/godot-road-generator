@@ -7,28 +7,21 @@ class_name RoadCurb
 @export var secondary_color: Color = Color("#F9F6EE")
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_length: float = 3.0
 
-func setup(segment: RoadSegment) -> void:
-	print("Setup curb for ", segment.start_point.name, " to ", segment.end_point.name)
+func _init() -> void:
+	desc = "curbs"
 
-	# first clear curbs on this segment
-	_remove_all_curbs(segment)
+func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
+	print("Setup curb for ", segment.start_point.name, " to ", segment.end_point.name)
 
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
-		_create_curb_on_edge(segment, edge, "curb_R")
+		_create_curb_on_edge(decoration_node_wrapper, segment, edge, "curb_R")
 	
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.FORWARD:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_F_NAME)
-		_create_curb_on_edge(segment, edge, "curb_F")
+		_create_curb_on_edge(decoration_node_wrapper, segment, edge, "curb_F")
 
-
-func _remove_all_curbs(segment: RoadSegment) -> void:
-	# Remove all children that are CSGPolygon3D curb nodes
-	for child in segment.get_children():
-		if child is CSGPolygon3D and child.name.begins_with("curb_"):
-			segment.remove_child(child)
-			child.queue_free()
 
 func _get_curve_with_applied_offsets(edge: Path3D, offset_start: float, offset_end: float) -> Curve3D:
 	# Returns a new Curve3D with the specified start and end offsets applied
@@ -50,7 +43,7 @@ func _get_curve_with_applied_offsets(edge: Path3D, offset_start: float, offset_e
 
 	return new_curve
 
-func _create_curb_on_edge(segment: RoadSegment, edge: Path3D, curb_name: String):
+func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment, edge: Path3D, curb_name: String):
 	"""Create a curb CSGPolygon3D on the specified edge curve."""
 	if not edge or not is_instance_valid(edge):
 		push_error("Invalid edge provided to _create_curb_on_edge")
@@ -61,7 +54,7 @@ func _create_curb_on_edge(segment: RoadSegment, edge: Path3D, curb_name: String)
 	var curb_path: Path3D = Path3D.new()
 	curb_path.name = edge.name + "_curb_path"
 	curb_path.curve = curve_with_offsets
-	segment.add_child(curb_path)
+	decoration_node_wrapper.add_child(curb_path)
 	curb_path.set_owner(segment.get_tree().get_edited_scene_root())
 	# go to global coordinates and then into edge local coordinates
 	curb_path.transform = curb_path.transform * curb_path.global_transform.inverse() * edge.global_transform
