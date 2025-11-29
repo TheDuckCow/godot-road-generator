@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dw2fxo5lrwyag"
-path.s3tc="res://.godot/imported/road_texture@2x.png-5d1323915934918a4f49ec78b48606af.s3tc.ctex"
+uid="uid://b6654f6106htx"
+path.s3tc="res://.godot/imported/road_texture@4x.png-eea1f46d022311663af4e95d50502ec5.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://addons/road-generator/assets/road_texture@2x.png"
-dest_files=["res://.godot/imported/road_texture@2x.png-5d1323915934918a4f49ec78b48606af.s3tc.ctex"]
+source_file="res://addons/road-generator/resources/road_texture@4x.png"
+dest_files=["res://.godot/imported/road_texture@4x.png-eea1f46d022311663af4e95d50502ec5.s3tc.ctex"]
 
 [params]
 

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
-[ext_resource type="Material" path="res://addons/road-generator/assets/road_texture.material" id="3"]
+[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="4"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="6"]

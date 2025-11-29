@@ -285,10 +285,10 @@ func generate_edge_curves():
 	var edge_R: Path3D = _par.get_node_or_null(EDGE_R_NAME)
 	var edge_F: Path3D = _par.get_node_or_null(EDGE_F_NAME)
 	var extra_offset: float = 0.0
-	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
-	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
-	end_offset_R += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
-	end_offset_F += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
+	start_offset_R += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
+	start_offset_F += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
+	end_offset_R += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
+	end_offset_F += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
 
 	if edge_R == null or not is_instance_valid(edge_R):
 		edge_R = Path3D.new()
