@@ -32,7 +32,7 @@ extends Resource
 ## Edges MUST have been sorted by angle from intersection beforehand.
 ##
 ## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
-func generate_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
 	return null
 

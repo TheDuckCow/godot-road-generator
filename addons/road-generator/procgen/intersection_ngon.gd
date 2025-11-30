@@ -20,17 +20,17 @@ enum _IntersectNGonFacing {
 #endregion
 # ------------------------------------------------------------------------------
 
-func generate_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
-	if not can_generate_mesh(parent_intersection.transform, edges):
+func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+	if not can_generate_mesh(intersection.transform, edges):
 		push_error("Conditions for NGon mesh generation not met. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
 	if edges.size() == 0:
 		push_error("No edges provided for NGon mesh generation. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
-	if not parent_intersection.has_method("is_road_intersection"):
-		push_error("parent_intersection is not an intersection node. Returning an empty mesh.")
+	if not intersection.has_method("is_road_intersection"):
+		push_error("intersection is not an intersection node. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
-	return _generate_debug_mesh(parent_intersection, edges, container)
+	return _generate_debug_mesh(intersection, edges, container)
 
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
@@ -56,12 +56,12 @@ func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFa
 ## and triangles from an edge's shoulders to the intersection point.
 ## The end result is a very low-poly n-gon.[br][br]
 ## Edges MUST have been sorted by angle from intersection beforehand.
-func _generate_debug_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
-	if not parent_intersection.has_method("is_road_intersection"):
-		push_error("parent_intersection is not an intersection node. Returning an empty mesh.")
+func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+	if not intersection.has_method("is_road_intersection"):
+		push_error("intersection is not an intersection node. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
 
-	var parent_transform: Transform3D = parent_intersection.transform
+	var parent_transform: Transform3D = intersection.transform
 	
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
@@ -84,7 +84,7 @@ func _generate_debug_mesh(parent_intersection: Node3D, edges: Array[RoadPoint], 
 	var edge_road_sides: Array[Array] = []
 
 	for edge: RoadPoint in edges:
-		var facing: _IntersectNGonFacing = _get_edge_facing(edge, parent_intersection)
+		var facing: _IntersectNGonFacing = _get_edge_facing(edge, intersection)
 		if facing == _IntersectNGonFacing.OTHER:
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
 			return Mesh.new() # Empty mesh.
