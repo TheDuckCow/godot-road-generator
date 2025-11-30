@@ -595,7 +595,7 @@ func get_all_road_containers(root: Node)->Array:
 
 ## Transforms sel_rp's parent road container such that sel_rp is perfectly
 ## aligned (or flip-aligned) with tgt_rp
-func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
+func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint) -> void:
 	var res := get_transform_for_snap_rp(sel_rp, tgt_rp)
 	global_transform = res[0]
 	var sel_dir:int = res[1]
@@ -636,7 +636,7 @@ func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
 
 
 ## Get edge RoadPoint closest to input 3D position.
-func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
+func get_closest_edge_road_point(g_search_pos: Vector3) -> RoadPoint:
 	var closest_rp: RoadPoint
 	var closest_dist: float
 
@@ -780,6 +780,8 @@ func update_edges():
 			# Lookup pre-existing connections to apply, match of name + dir
 			var idx = -1
 			for _find_idx in len(edge_rp_locals):
+				if _find_idx >= len(edge_rp_locals) or _find_idx >= len(edge_rp_local_dirs):
+					break
 				if edge_rp_locals[_find_idx] != self.get_path_to(pt):
 					continue
 				if edge_rp_local_dirs[_find_idx] != this_dir:
@@ -1196,6 +1198,8 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
 				needs_update = true
+		elif prior is RoadIntersection:
+			prior.refresh_intersection_mesh()
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
@@ -1210,6 +1214,8 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
 				needs_update = true
+		elif next is RoadIntersection:
+			next.refresh_intersection_mesh()
 
 	if needs_update and len(segs_updated) > 0:
 		_emit_road_updated(segs_updated)

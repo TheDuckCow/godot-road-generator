@@ -79,6 +79,7 @@ func _set_edge_points(value: Array[RoadPoint]) -> void:
 		if is_instance_of(point, RoadIntersection):
 			push_error("RoadIntersection %s cannot directly connect to another RoadIntersection %s. Use an intermediate RoadPoint." % [self.name, point.name])
 	edge_points = value
+	_sort_edges_clockwise()
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 	emit_transform()
@@ -234,7 +235,18 @@ func refresh_intersection_mesh() -> void:
 	if not container.create_geo:
 		return
 	
-	var mesh: Mesh = settings.generate_mesh(self, edge_points, container)
+	# To support debugging in editor now, allow for temporary invalid paths
+	# while manually populating. In the future, this shoudl auto-correct and
+	# clear invalid edges or empty ids in array.
+	var valid_edges: Array[RoadPoint] = []
+	for _pt in edge_points:
+		if not is_instance_valid(_pt):
+			continue
+		if not _pt is RoadPoint:
+			continue
+		valid_edges.append(_pt)
+	
+	var mesh: Mesh = settings.generate_mesh(self, valid_edges, container)
 	_mesh.mesh = mesh
 	container._create_collisions(_mesh)
 
