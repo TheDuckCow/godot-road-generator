@@ -378,6 +378,16 @@ func _set_density(value) -> void:
 	_defer_refresh_on_change()
 
 
+func effective_density() -> float:
+	if density > 0.0:
+		return density
+	var manager = get_manager()
+	if is_instance_valid(manager) and manager.density > 0.0:
+		return manager.density
+	else:
+		return RoadSegment.DEFAULT_DENSITY
+
+
 func _set_thickness(value) -> void:
 	underside_thickness = value
 	_defer_refresh_on_change()
