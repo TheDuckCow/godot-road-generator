@@ -151,6 +151,8 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 # and railings
 @export_group("Decoration")
 # ------------------------------------------------------------------------------
+## Place objects or curbs along the edges of the road segments connected to this RoadPoint.
+## Do not use "RoadDecoration" directly, use derived types such as "Curb" or "InstanceAlongCurve".
 @export var decorations: Array[RoadDecoration] = []
 
 
