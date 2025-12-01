@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgwwiu4pu5uc7"]
+
+[ext_resource type="PackedScene" uid="uid://eteda547ydcj" path="res://sm_prop_barrier_tyres_01.tscn" id="1_th04y"]
+
+[node name="SM_Prop_Barrier_Tyres_01" type="Node3D"]
+
+[node name="SM_Prop_Barrier_Tyres_01" parent="." instance=ExtResource("1_th04y")]
