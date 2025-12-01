@@ -4,6 +4,8 @@ class_name InstanceAlongCurve
 
 ## Scene with Mesh to instance along the curve
 @export var source_scene: PackedScene
+## Space between objects when placing along curve
+@export var spacing_along_curve: float = 0
 ## Move object by this much when placing in local coords.
 ## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
 ## This is just included to offer maximum flexibility.
@@ -18,8 +20,8 @@ class_name InstanceAlongCurve
 ## Manual scaling of object. Not used if automatic_scaling is true.
 @export var manual_scaling_object: Vector3 = Vector3.ONE
 ## Rotation of object in degrees when placed along curve
-## If your mesh points along X axis, you might want to set Y to 270 degrees.
-@export var rotation_object_degree: Vector3 = Vector3(0, 270, 0)
+## If your mesh points along X axis, you might want to set Y to 90 degrees.
+@export var rotation_object_degree: Vector3 = Vector3(0, 90, 0)
 
 
 func _init() -> void:
@@ -38,9 +40,6 @@ func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 
 	print("Setup InstanceAlongCurve for ", segment.start_point.name, " to ", segment.end_point.name)
 	print("Source scene: ", source_scene)
-	
-	# reverse.add_child(decomesh)
-	# decomesh.set_owner(segment.get_tree().get_edited_scene_root())
 
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
@@ -59,11 +58,7 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		return
 
 	var decomesh = source_scene.instantiate()
-	decomesh.rotation = Vector3(
-		deg_to_rad(rotation_object_degree.x),
-		deg_to_rad(rotation_object_degree.y),
-		deg_to_rad(rotation_object_degree.z)
-	)
+
 
 	# smallest box size to fit the mesh
 	var aabb = decomesh.mesh.get_aabb()
@@ -78,10 +73,10 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 	var curve_length: float = curve_with_offsets.get_baked_length()
 
 	if automatic_scaling:
-		var num_fit: float = curve_length / object_length
+		var num_fit: float = (curve_length-spacing_along_curve) / (object_length+spacing_along_curve)
 		var num_fit_rounded: int = int(round(num_fit))
-		var scale_factor_x: float = (curve_length / num_fit_rounded) / object_length
-
+		var scale_factor_x: float = (curve_length - spacing_along_curve * num_fit_rounded) / (object_length*num_fit_rounded)
+		
 		var scale_factor_y: float
 		var scale_factor_z: float
 
@@ -102,14 +97,26 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		decomesh.scale = manual_scaling_object
 
 	var current_length_covered: float = 0.0
+	var number_objects_placed: int = 0
+
 	while current_length_covered < curve_length:
 		var position: Vector3 = curve_with_offsets.sample_baked(current_length_covered)
+		
+		# we take the rotation from the center of the object
+		var transform: Transform3D = curve_with_offsets.sample_baked_with_rotation(current_length_covered+object_length*0.5)
+		var rotation: Vector3 = transform.basis.get_euler()
 
 		var new_deco_mesh = decomesh.duplicate()
 		new_deco_mesh.name = curb_name + "_instance_" + str(int(current_length_covered / object_length))
-		new_deco_mesh.position = position+offset_object
+		new_deco_mesh.position = position + offset_object
+		new_deco_mesh.rotation = rotation + Vector3(
+			deg_to_rad(rotation_object_degree.x),
+			deg_to_rad(rotation_object_degree.y),
+			deg_to_rad(rotation_object_degree.z)
+		)
 
 		decoration_node_wrapper.add_child(new_deco_mesh)
 		new_deco_mesh.set_owner(segment.get_tree().get_edited_scene_root())
 
-		current_length_covered += object_length
+		current_length_covered += object_length + spacing_along_curve
+		number_objects_placed += 1
