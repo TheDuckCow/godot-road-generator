@@ -121,12 +121,12 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		# but then the hight of 1 full UV is half the with across all lanes, so another 2x
 		var uv_height := STOP_ROW_SIZE / lane_width / 8.0 # ratio of 1/4th down vs width of image to be square
 
-		var perpendicular_v: Vector3 = (edge.global_transform.basis.x).normalized()
-		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
-		var parallel_v: Vector3 = (edge.global_transform.basis.z).normalized()
+		var perpendicular_v: Vector3 = (edge.transform.basis.x).normalized()
+		var up_vector: Vector3 = (edge.transform.basis.y).normalized()
+		var parallel_v: Vector3 = (edge.transform.basis.z).normalized()
 
-		var road_side_l: Vector3 = edge.global_position
-		var road_side_r: Vector3 = edge.global_position
+		var road_side_l: Vector3 = edge.position
+		var road_side_r: Vector3 = edge.position
 		road_side_l -= perpendicular_v * (lanes_tot_width / 2.0)
 		road_side_r += perpendicular_v * (lanes_tot_width / 2.0)
 

@@ -229,7 +229,6 @@ func remove_road_mesh():
 
 
 func refresh_intersection_mesh() -> void:
-	print("debug - refreshing intersection mesh")
 	if not is_instance_valid(settings) or not is_instance_valid(container):
 		return
 	if not container.create_geo:
