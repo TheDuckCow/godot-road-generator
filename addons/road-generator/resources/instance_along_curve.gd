@@ -44,13 +44,13 @@ func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
-		_instance_scene_on_edge(decoration_node_wrapper, segment, edge, "curb_R")
+		_instance_scene_on_edge(decoration_node_wrapper, segment, edge, "R")
 	
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.FORWARD:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_F_NAME)
-		_instance_scene_on_edge(decoration_node_wrapper, segment, edge, "curb_F")
+		_instance_scene_on_edge(decoration_node_wrapper, segment, edge, "F")
 
-func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment, edge: Path3D, curb_name: String):
+func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment, edge: Path3D, side: String):
 	"""Instance the scene along the edge curve."""
 
 	if not edge or not is_instance_valid(edge):
@@ -97,19 +97,34 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		decomesh.scale = manual_scaling_object
 
 	var current_length_covered: float = 0.0
-	var number_objects_placed: int = 0
 
 	while current_length_covered < curve_length:
+		# position to place object
 		var position: Vector3 = curve_with_offsets.sample_baked(current_length_covered)
 		
 		# we take the rotation from the center of the object
 		var transform: Transform3D = curve_with_offsets.sample_baked_with_rotation(current_length_covered+object_length*0.5)
 		var rotation: Vector3 = transform.basis.get_euler()
 
+		# get new mesh object
 		var new_deco_mesh = decomesh.duplicate()
-		new_deco_mesh.name = curb_name + "_instance_" + str(int(current_length_covered / object_length))
+		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / object_length))
+		
+		# add user defined position offset to position on curve
 		new_deco_mesh.position = position + offset_object
-		new_deco_mesh.rotation = rotation + Vector3(
+		
+		# apply offset_lateral
+		if side == "R":
+			new_deco_mesh.position.x += -offset_lateral
+		else: # F
+			new_deco_mesh.position.x += offset_lateral
+
+
+		# set mesh rotation to rotation on curve 
+		new_deco_mesh.rotation = rotation
+
+		# add user defined rotation
+		new_deco_mesh.rotation += Vector3(
 			deg_to_rad(rotation_object_degree.x),
 			deg_to_rad(rotation_object_degree.y),
 			deg_to_rad(rotation_object_degree.z)
@@ -119,4 +134,3 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		new_deco_mesh.set_owner(segment.get_tree().get_edited_scene_root())
 
 		current_length_covered += object_length + spacing_along_curve
-		number_objects_placed += 1
