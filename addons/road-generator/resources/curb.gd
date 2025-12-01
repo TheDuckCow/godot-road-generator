@@ -2,7 +2,7 @@
 extends RoadDecoration
 class_name RoadCurb
 
-## Define profile (geometry) of curb. Only points will be used - not tangents - when drawing curb, linearity is assumed
+## Define profile (geometry) of curb. Left is inside of track. Only points will be used - not tangents - when drawing curb, linearity is assumed
 @export var profile: Curve
 @export var primary_color: Color = Color("#FF2400")
 @export var use_stripes: bool = false
