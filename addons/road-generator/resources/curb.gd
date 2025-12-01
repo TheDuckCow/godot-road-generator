@@ -2,13 +2,25 @@
 extends RoadDecoration
 class_name RoadCurb
 
+## Define profile (geometry) of curb. Only points will be used - not tangents - when drawing curb, linearity is assumed
+@export var profile: Curve
 @export var primary_color: Color = Color("#FF2400")
 @export var use_stripes: bool = false
+## Secondary color for stripes (if enabled)
 @export var secondary_color: Color = Color("#F9F6EE")
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_length: float = 3.0
 
 func _init() -> void:
 	desc = "curbs"
+	# basic linear curb shape
+	profile = Curve.new()
+	profile.bake_resolution = 5
+	profile.max_domain = 2.0
+	profile.max_value = 0.5
+	profile.add_point(Vector2(0, 0),0,0,1,1)
+	profile.add_point(Vector2(1.7, 0.15),0,0,1,1)
+	profile.add_point(Vector2(2.0, 0),0,0,1,1)
+
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 	print("Setup curb for ", segment.start_point.name, " to ", segment.end_point.name)
@@ -88,18 +100,18 @@ func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment,
 
 	# Set a simple curb polygon profile
 	var polygon: PackedVector2Array
+
+	var points_curb_profile = profile.get_point_count()
+
 	if curb_name == "curb_R":
-		polygon = PackedVector2Array([
-			Vector2(0+offset_lateral, 0),
-			Vector2(2+offset_lateral, 0.15),
-			Vector2(2+offset_lateral, 0)
-		])
+		for i in range(points_curb_profile):
+			var point: Vector2 = profile.get_point_position(i)
+			polygon.append(Vector2(point.x + offset_lateral, point.y))
 	else: # curb_F
-		polygon = PackedVector2Array([
-			Vector2(0-offset_lateral, 0),
-			Vector2(-2-offset_lateral, 0.15),
-			Vector2(-2-offset_lateral, 0)
-		])
+		for i in range(points_curb_profile):
+			var point: Vector2 = profile.get_point_position(i)
+			polygon.append(Vector2(-point.x - offset_lateral, point.y))
+
 	curb.polygon = polygon
 
 	curb_path.add_child(curb)
