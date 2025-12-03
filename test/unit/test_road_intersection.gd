@@ -11,6 +11,13 @@ func before_each():
 	road_util.gut = gut
 
 
+func _validate_edges(container: RoadContainer) -> void:
+	var edges = container.get_open_edges()
+	assert_eq(len(edges), 2, "Should have 2 RP edges")
+	for _edge in edges:
+		assert_is(_edge, RoadPoint, "Should only have roadpoint edges")
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -28,8 +35,70 @@ func test_intersection_creation():
 	assert_eq(ints[0].container, container, "Container should be assigned")
 
 
-func test_on_intersection_updated_single_signal():
-	pass
+func test_on_road_updated_signal_after_container_refresh():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	road_util.create_intersection_two_branch(container)
+	watch_signals(container)
+
+	container.rebuild_segments()
+
+	var res = get_signal_parameters(container, 'on_road_updated')
+	assert_not_null(res, "Should have on_road_updated emitted")
+	if res == null:
+		return
+	var segments_updated = res[0]
+	assert_eq(len(segments_updated), 1, "Should have single segment created")
+	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
+	
+	_validate_edges(container)
+
+
+func test_on_road_updated_signal_after_inter_moved():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	road_util.create_intersection_two_branch(container)
+	watch_signals(container)
+	
+	var inter:RoadIntersection = container.get_child(0)
+	inter.global_position += Vector3(0, 1, 0)
+
+	var res = get_signal_parameters(container, 'on_road_updated')
+	print("What is? ", res, " and ", res == null, " vs null ", null)
+	assert_not_null(res, "Should have on_road_updated emitted")
+	if res == null:
+		return
+	var segments_updated = res[0]
+	assert_eq(len(segments_updated), 1, "Should have single segment created")
+	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
+	
+	_validate_edges(container)
+
+
+func test_on_road_updated_signal_after_rp_moved():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	road_util.create_intersection_two_branch(container)
+	watch_signals(container)
+	
+	var rp:RoadPoint = container.get_child(1)
+	rp.global_position += Vector3(0, 1, 0)
+
+	var res = get_signal_parameters(container, 'on_road_updated')
+	assert_not_null(res, "Should have on_road_updated emitted")
+	if res == null:
+		return
+	var segments_updated = res[0]
+	assert_eq(len(segments_updated), 1, "Should have single segment created")
+	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
+	
+	_validate_edges(container)
 
 
 func test_intersection_add_branch():

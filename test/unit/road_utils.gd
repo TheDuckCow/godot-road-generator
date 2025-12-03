@@ -32,13 +32,13 @@ func create_intersection_two_branch(container):
 	
 	assert_eq(container.get_child_count(), 0, "No initial point children")
 
+	var i1 = autoqfree(RoadIntersection.new())
 	var p1 = autoqfree(RoadPoint.new())
 	var p2 = autoqfree(RoadPoint.new())
-	var i1 = autoqfree(RoadIntersection.new())
 
+	container.add_child(i1)
 	container.add_child(p1)
 	container.add_child(p2)
-	container.add_child(i1)
 	assert_eq(container.get_child_count(), 3, "All graph nodes added")
 	
 	var edges: Array[RoadPoint] = [p1, p2]

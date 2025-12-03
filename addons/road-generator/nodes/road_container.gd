@@ -22,7 +22,10 @@ extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array.
-signal on_road_updated(updated_segments: Array)
+##
+## Elements can be either RoadSegments or RoadIntersections. These always have
+## a child node which is the mesh of the road itself.
+signal on_road_updated(updated_segments: Array[Node3D])
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_transform(node)
@@ -651,7 +654,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3) -> RoadPoint:
 
 
 ## Get Edge RoadPoints that are open and available for connections
-func get_open_edges()->Array:
+func get_open_edges() -> Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
@@ -673,7 +676,7 @@ func get_open_edges()->Array:
 
 ## Get Edge RoadPoints that are unavailable for connections. Returns
 ## local Edges, target Edges, and target containers.
-func get_connected_edges()->Array:
+func get_connected_edges() -> Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
@@ -702,7 +705,7 @@ func get_connected_edges()->Array:
 	return rp_edges
 
 ## Returns array of connected Edges that are not in a nested scene.
-func get_moving_edges()->Array:
+func get_moving_edges() -> Array:
 	var rp_edges: Array = []
 	for rp in get_connected_edges():
 		var edge: RoadPoint = rp[0]
@@ -992,6 +995,7 @@ func rebuild_segments(clear_existing := false):
 	
 	for _intersec in get_intersections():
 		_intersec.refresh_intersection_mesh()
+		signal_rebuilt.append(_intersec)
 
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	if generate_ai_lanes:
@@ -1202,6 +1206,7 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 				needs_update = true
 		elif prior is RoadIntersection:
 			prior.refresh_intersection_mesh()
+			segs_updated.append(prior)
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
@@ -1218,6 +1223,7 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 				needs_update = true
 		elif next is RoadIntersection:
 			next.refresh_intersection_mesh()
+			segs_updated.append(next)
 
 	if needs_update and len(segs_updated) > 0:
 		_emit_road_updated(segs_updated)
