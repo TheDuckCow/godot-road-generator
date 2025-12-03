@@ -122,7 +122,7 @@ func test_on_road_updated_single_segment():
 
 
 ## Ensure that users can manually assign two points to connect with auto_refresh
-func test_RoadContainer_validations_with_autorefresh():
+func test_roadcontainer_validations_with_autorefresh():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = true  # Will kick in validation
 

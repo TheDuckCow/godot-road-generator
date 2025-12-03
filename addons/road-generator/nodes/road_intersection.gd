@@ -154,7 +154,6 @@ func _notification(what):
 
 
 func emit_transform(low_poly: bool = false) -> void:
-	print("RoadIntersection: emit_transform")
 	refresh_intersection_mesh()
 	emit_signal("on_transform", self, low_poly) #FIXME
 

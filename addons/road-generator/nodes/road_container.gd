@@ -504,8 +504,8 @@ func get_manager(): # -> Optional[RoadManager]
 	return _manager
 
 
-func get_roadpoints(skip_edge_connected=false) -> Array:
-	var rps = []
+func get_roadpoints(skip_edge_connected=false) -> Array[RoadPoint]:
+	var rps: Array[RoadPoint] = []
 	for obj in get_children():
 		if not obj is RoadPoint:
 			continue
@@ -578,18 +578,20 @@ func effective_underside_material() -> Material:
 
 
 ## Recursively gets all RoadContainers within a root node
-func get_all_road_containers(root: Node)->Array:
-	var nodes: Array = []
+func get_all_road_containers(root: Node) -> Array[RoadContainer]:
+	var nodes: Array[RoadContainer] = []
 	var dist: float
 
 	for n in root.get_children():
 		if n.get_child_count() > 0:
 			if n.has_method("is_road_container"):
-				nodes.append(n)
+				var pt: RoadContainer = n
+				nodes.append(pt)
 			nodes.append_array(get_all_road_containers(n))
 		else:
 			if n.has_method("is_road_container"):
-				nodes.append(n)
+				var pt: RoadContainer = n
+				nodes.append(pt)
 	return nodes
 
 
