@@ -6,10 +6,7 @@ class_name InstanceAlongCurve
 @export var source_scene: PackedScene
 ## Space between objects when placing along curve
 @export var spacing_along_curve: float = 0
-## Move object by this much when placing in local coords.
-## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
-## This is just included to offer maximum flexibility.
-@export var offset_object: Vector3 = Vector3.ZERO
+
 ## Automatically scale object to fit curve length (considers offsets below).
 ## This overrides manual scaling.
 ## Works best if the mesh is short. This checks how often mesh would fit along curve.
@@ -22,7 +19,10 @@ class_name InstanceAlongCurve
 ## Rotation of object in degrees when placed along curve
 ## If your mesh points along X axis, you might want to set Y to 90 degrees.
 @export var rotation_object_degree: Vector3 = Vector3(0, 90, 0)
-
+## Move object by this much when placing in local coords.
+## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
+## This is just included to offer maximum flexibility.
+@export var manual_offset_object: Vector3 = Vector3.ZERO
 
 func _init() -> void:
 	desc = "objects_along_curve"
@@ -58,7 +58,7 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		return
 
 	var decomesh = source_scene.instantiate()
-	
+
 	# smallest box size to fit the mesh
 	var aabb = decomesh.mesh.get_aabb()
 	var box_size = aabb.size
@@ -66,7 +66,7 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 	var object_length: float = box_size.x
 
 	# we create a new path3d and curve3d for every curb to allow for offsets and independency in case multiple curbs are created
-	var curve_with_offsets: Curve3D = _get_curve_with_applied_offsets(edge, offset_start, offset_end)
+	var curve_with_offsets: Curve3D = _get_curve_with_offsets(segment, edge)
 
 	var curve_length: float = curve_with_offsets.get_baked_length()
 
@@ -111,13 +111,13 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / object_length*decomesh.scale.x))
 		
 		# add user defined position offset to position on curve
-		new_deco_mesh.position = position + offset_object
+		new_deco_mesh.position = position + transform.basis * manual_offset_object
 		
-		# apply offset_lateral
-		if side == "R":
-			new_deco_mesh.position.x += -offset_lateral
-		else: # F
-			new_deco_mesh.position.x += offset_lateral
+		# apply offset_lateral relative to curve sideways direction
+		# var lateral_dir: Vector3 = transform.basis.x.normalized()
+		# var lateral_sign = -1.0 if side == "R" else 1.0
+		# var offset_lateral = offset_profile.sample(current_length_covered/curve_length)
+		# new_deco_mesh.position += lateral_dir * offset_lateral * lateral_sign
 
 
 		# set mesh rotation to rotation on curve 

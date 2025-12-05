@@ -3,6 +3,7 @@ extends RoadDecoration
 class_name RoadCurb
 
 ## Define profile (geometry) of curb. Left is inside of track. Only points will be used - not tangents - when drawing curb, linearity is assumed
+## Profile needs at least 2 points.
 @export var profile: Curve
 @export var primary_color: Color = Color("#FF2400")
 @export var use_stripes: bool = false
@@ -42,7 +43,7 @@ func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment,
 		return
 	
 	# we create a new path3d and curve3d for every curb to allow for offsets and independency in case multiple curbs are created
-	var curve_with_offsets: Curve3D = _get_curve_with_applied_offsets(edge, offset_start, offset_end)
+	var curve_with_offsets: Curve3D = _get_curve_with_offsets(segment, edge)
 	var curb_path: Path3D = Path3D.new()
 	curb_path.name = edge.name + "_curb_path"
 	curb_path.curve = curve_with_offsets
@@ -86,11 +87,13 @@ func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment,
 	if curb_name == "curb_R":
 		for i in range(points_curb_profile):
 			var point: Vector2 = profile.get_point_position(i)
-			polygon.append(Vector2(point.x + offset_lateral, point.y))
+			
+			polygon.append(Vector2(point.x, point.y))
 	else: # curb_F
 		for i in range(points_curb_profile):
 			var point: Vector2 = profile.get_point_position(i)
-			polygon.append(Vector2(-point.x - offset_lateral, point.y))
+			
+			polygon.append(Vector2(-point.x, point.y))
 
 	curb.polygon = polygon
 
