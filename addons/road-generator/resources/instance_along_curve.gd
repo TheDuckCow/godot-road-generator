@@ -58,12 +58,10 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		return
 
 	var decomesh = source_scene.instantiate()
-
-
+	
 	# smallest box size to fit the mesh
 	var aabb = decomesh.mesh.get_aabb()
 	var box_size = aabb.size
-	print("Box size: ", box_size)
 
 	var object_length: float = box_size.x
 
@@ -72,9 +70,10 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 
 	var curve_length: float = curve_with_offsets.get_baked_length()
 
+	var num_fit: float = (curve_length-spacing_along_curve) / (object_length+spacing_along_curve)
+	var num_fit_rounded: int = int(round(num_fit))
+
 	if automatic_scaling:
-		var num_fit: float = (curve_length-spacing_along_curve) / (object_length+spacing_along_curve)
-		var num_fit_rounded: int = int(round(num_fit))
 		var scale_factor_x: float = (curve_length - spacing_along_curve * num_fit_rounded) / (object_length*num_fit_rounded)
 		
 		var scale_factor_y: float
@@ -96,19 +95,20 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 	else:
 		decomesh.scale = manual_scaling_object
 
+	var number_objects_placed: int = 0
 	var current_length_covered: float = 0.0
 
-	while current_length_covered < curve_length:
+	while number_objects_placed < num_fit_rounded:
 		# position to place object
 		var position: Vector3 = curve_with_offsets.sample_baked(current_length_covered)
 		
 		# we take the rotation from the center of the object
-		var transform: Transform3D = curve_with_offsets.sample_baked_with_rotation(current_length_covered+object_length*0.5)
+		var transform: Transform3D = curve_with_offsets.sample_baked_with_rotation(current_length_covered+object_length*decomesh.scale.x*0.5)
 		var rotation: Vector3 = transform.basis.get_euler()
 
 		# get new mesh object
 		var new_deco_mesh = decomesh.duplicate()
-		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / object_length))
+		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / object_length*decomesh.scale.x))
 		
 		# add user defined position offset to position on curve
 		new_deco_mesh.position = position + offset_object
@@ -133,4 +133,5 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		decoration_node_wrapper.add_child(new_deco_mesh)
 		new_deco_mesh.set_owner(segment.get_tree().get_edited_scene_root())
 
-		current_length_covered += object_length + spacing_along_curve
+		current_length_covered += object_length*decomesh.scale.x + spacing_along_curve
+		number_objects_placed += 1
