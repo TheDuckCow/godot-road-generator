@@ -22,7 +22,7 @@ class_name InstanceAlongCurve
 @export var manual_scaling_object: Vector3 = Vector3.ONE
 ## Rotation of object in degrees when placed along curve
 ## If your mesh points along X axis, you might want to set Y to 90 degrees.
-@export var rotation_object_degree: Vector3 = Vector3(0, 90, 0)
+@export var rotation_object_degree: Vector3 = Vector3(0, -90, 0)
 ## Move object by this much when placing in local coords.
 ## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
 ## This is just included to offer maximum flexibility.
@@ -68,9 +68,46 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 
 	# we create a new path3d and curve3d for every curb to allow for offsets and independency in case multiple curbs are created
 	var curve_with_offsets: Curve3D = _get_curve_with_offsets(segment, edge)
+	if curve_with_offsets == null:
+		push_error("curve_with_offsets is null in _instance_scene_on_edge")
+		return
 
 	var curve_length: float = curve_with_offsets.get_baked_length()
+	if curve_length <= 0.0:
+		push_error("curve_with_offsets has zero length.")
+		return
+	
+	# compute same start/end distances as in _get_curve_with_offsets
+	var original_curve: Curve3D = edge.curve
+	var total_length: float = original_curve.get_baked_length()
 
+	# same logic as in _get_curve_with_offsets
+	var start_distance: float = offset_end * total_length
+	var end_distance: float = total_length - offset_start * total_length
+	var trimmed_length: float = end_distance - start_distance
+	if trimmed_length <= 0.0:
+		push_error("Trimmed length <= 0 in _instance_scene_on_edge")
+		return
+
+	# Find opposite edge to compute outward direction
+	var other_edge: Path3D = null
+	if edge.name == segment.EDGE_R_NAME and segment.get_parent().has_node(segment.EDGE_F_NAME):
+		other_edge = segment.get_parent().get_node(segment.EDGE_F_NAME)
+	elif edge.name == segment.EDGE_F_NAME and segment.get_parent().has_node(segment.EDGE_R_NAME):
+		other_edge = segment.get_parent().get_node(segment.EDGE_R_NAME)
+
+	var other_curve: Curve3D = null
+	var ratio_curve_lengths: float = 1.0
+	if other_edge:
+		other_curve = other_edge.curve
+		var other_curve_total_length: float = other_curve.get_baked_length()
+		if total_length > 0.0:
+			ratio_curve_lengths = other_curve_total_length / total_length
+	else:
+		push_warning("No opposite edge found. Banking may be wrong.")
+		# We can still fall back to world up later.
+
+	# How many objects fit along the (offset) curve
 	var num_fit: float = (curve_length-spacing_along_curve) / (object_length+spacing_along_curve)
 	var num_fit_rounded: int = int(round(num_fit))
 
@@ -100,32 +137,81 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 	var current_length_covered: float = 0.0
 
 	while number_objects_placed < num_fit_rounded:
-		# position to place object
-		var position: Vector3 = curve_with_offsets.sample_baked(current_length_covered)
-		
-		# we take the rotation from the center of the object
-		var transform: Transform3D = curve_with_offsets.sample_baked_with_rotation(current_length_covered+object_length*decomesh.scale.x*0.5)
-		var rotation: Vector3 = transform.basis.get_euler()
+		# 1) Position from curve_with_offsets (already trimmed + lateral offset)
+		var position_on_offset_curve: Vector3 = curve_with_offsets.sample_baked(current_length_covered)
 
-		# get new mesh object
-		var new_deco_mesh = decomesh.duplicate()
-		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / object_length*decomesh.scale.x))
-		
-		# add user defined position offset to position on curve
-		new_deco_mesh.position = position + transform.basis * manual_offset_object
-		
-		# set mesh rotation to rotation on curve 
-		new_deco_mesh.rotation = rotation
+		# 2) Normalized 0..1 along offset curve
+		var s_along_offset: float = current_length_covered / curve_length
+		s_along_offset = clampf(s_along_offset, 0.0, 1.0)
 
-		# add user defined rotation
-		new_deco_mesh.rotation += Vector3(
+		# 3) Map to distance along original trimmed curve
+		var distance_on_original: float = lerp(start_distance, end_distance, s_along_offset)
+		distance_on_original = clampf(distance_on_original, 0.0, total_length)
+
+		# --- Build orientation frame from geometry (no sample_baked_with_rotation) ---
+
+		# Edge position at this distance
+		var pos_edge: Vector3 = original_curve.sample_baked(distance_on_original)
+
+		# Slightly ahead along the edge to compute forward direction
+		var delta_d: float = 0.1
+		var distance_ahead: float = min(distance_on_original + delta_d, total_length)
+		var pos_ahead: Vector3 = original_curve.sample_baked(distance_ahead)
+
+		var forward_dir: Vector3 = (pos_ahead - pos_edge).normalized()
+		if forward_dir == Vector3.ZERO:
+			# fallback: look backwards
+			var distance_back: float = max(distance_on_original - delta_d, 0.0)
+			var pos_back: Vector3 = original_curve.sample_baked(distance_back)
+			forward_dir = (pos_edge - pos_back).normalized()
+
+		# Outward direction from opposite edge (if available)
+		var outward_dir: Vector3 = Vector3.RIGHT
+		if other_curve:
+			var other_pos: Vector3 = other_curve.sample_baked(distance_on_original * ratio_curve_lengths)
+			outward_dir = (pos_edge - other_pos).normalized()
+			if outward_dir == Vector3.ZERO:
+				outward_dir = Vector3.RIGHT
+
+		# Up direction as cross product (this encodes banking!)
+		var up_dir: Vector3 = forward_dir.cross(outward_dir).normalized()
+		if up_dir == Vector3.ZERO:
+			up_dir = Vector3.UP
+
+		# Ensure up is not upside down compared to global up
+		# If it points more downward than upward, flip both up and outward
+		if up_dir.dot(Vector3.UP) < 0.0:
+			up_dir = -up_dir
+			outward_dir = -outward_dir		
+
+		# Recompute lateral/right to ensure orthonormal basis
+		var right_dir: Vector3 = up_dir.cross(forward_dir).normalized()
+		if right_dir == Vector3.ZERO:
+			right_dir = outward_dir
+
+		# Build basis: X = right, Y = up, Z = forward
+		var basis: Basis = Basis(right_dir, up_dir, forward_dir)
+
+		# Add user-defined extra rotation (in local space of the path frame)
+		var extra_rot: Basis = Basis.from_euler(Vector3(
 			deg_to_rad(rotation_object_degree.x),
 			deg_to_rad(rotation_object_degree.y),
 			deg_to_rad(rotation_object_degree.z)
-		)
+		))
+		basis = basis * extra_rot
+
+		# Create mesh instance
+		var new_deco_mesh: Node3D = decomesh.duplicate()
+		new_deco_mesh.name = side + "_instance_" + str(int(current_length_covered / (object_length * decomesh.scale.x)))
+
+		# Set basis first (orientation)
+		new_deco_mesh.basis = basis
+
+		# Apply position and manual offset in the local frame of the basis
+		new_deco_mesh.position = position_on_offset_curve + basis * manual_offset_object
 
 		decoration_node_wrapper.add_child(new_deco_mesh)
 		new_deco_mesh.set_owner(segment.get_tree().get_edited_scene_root())
 
-		current_length_covered += object_length*decomesh.scale.x + spacing_along_curve
+		current_length_covered += object_length * decomesh.scale.x + spacing_along_curve
 		number_objects_placed += 1
