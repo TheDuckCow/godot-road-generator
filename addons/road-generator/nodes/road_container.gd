@@ -831,7 +831,7 @@ func validate_edges(autofix: bool = false) -> bool:
 				_invalidate_edge(_idx, autofix, "next_pt_init should be empty for this edge's next pt")
 				continue
 			else:
-				target = this_pt.get_next_rp()
+				target = this_pt.get_next_road_node()
 		elif this_dir == this_pt.PointInit.PRIOR:
 			if this_pt.prior_pt_init != ^"":
 				# Shouldn't be marked as connecting to another local pt, "" indicates edge pt.
@@ -839,7 +839,7 @@ func validate_edges(autofix: bool = false) -> bool:
 				_invalidate_edge(_idx, autofix, "prior_pt_init should be empty for this edge's prior pt")
 				continue
 			else:
-				target = this_pt.get_prior_rp()
+				target = this_pt.get_prior_road_node()
 		elif this_dir == -1:
 			# The local dir should never be -1, since it's defined locally.
 			is_valid = false
@@ -1169,8 +1169,8 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		return
 	var point: RoadPoint = node as RoadPoint
 	if point.is_on_edge():
-		#var prior = point.get_prior_rp()
-		#var next = point.get_next_rp()
+		#var prior = point.get_prior_road_node()
+		#var next = point.get_next_road_node()
 		# TODO: Need to trigger transform updates on these nodes,
 		# without triggering emit_transform etc, these turn into infinite loops or godot crashes
 		#if is_instance_valid(prior) and prior.container != self:

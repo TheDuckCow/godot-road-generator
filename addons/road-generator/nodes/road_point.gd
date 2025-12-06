@@ -472,10 +472,10 @@ func is_on_edge() -> bool:
 func cross_container_connected() -> bool:
 	if not is_on_edge():
 		return false
-	var _pr = get_prior_rp()
+	var _pr = get_prior_road_node()
 	if is_instance_valid(_pr) and _pr.container != self.container:
 		return true
-	var _nt = get_next_rp()
+	var _nt = get_next_road_node()
 	if is_instance_valid(_nt) and _nt.container != self.container:
 		return true
 	return false
@@ -513,8 +513,13 @@ func is_next_connected() -> bool:
 	return false
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_prior_rp():
+	return get_prior_road_node()
+
+
+## Returns prior RP direct reference, accounting for cross-container connections
+func get_prior_road_node() -> RoadGraphNode:
 	if self.prior_pt_init:
 		return get_node(prior_pt_init)
 	# If no sibling point, could still have a cross-container connection
@@ -528,12 +533,17 @@ func get_prior_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_prior_rp)")
+		push_warning("RP should have been present in container edge list (get_prior_road_node)")
 	return null
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_next_rp():
+	return get_next_road_node()
+
+
+## Returns next RP direct reference, accounting for cross-container connections
+func get_next_road_node() -> RoadGraphNode:
 	if self.next_pt_init:
 		return get_node(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
@@ -547,7 +557,7 @@ func get_next_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_next_rp)")
+		push_warning("RP should have been present in container edge list (get_next_road_node)")
 	return null
 
 
