@@ -42,9 +42,6 @@ func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 		push_error("The mesh_source_scene does not have a mesh or is invalid.")
 		return
 
-	print("Setup InstanceAlongCurve for ", segment.start_point.name, " to ", segment.end_point.name)
-	print("Source scene: ", mesh_source_scene)
-
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
@@ -117,13 +114,6 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		# add user defined position offset to position on curve
 		new_deco_mesh.position = position + transform.basis * manual_offset_object
 		
-		# apply offset_lateral relative to curve sideways direction
-		# var lateral_dir: Vector3 = transform.basis.x.normalized()
-		# var lateral_sign = -1.0 if side == "R" else 1.0
-		# var offset_lateral = offset_profile.sample(current_length_covered/curve_length)
-		# new_deco_mesh.position += lateral_dir * offset_lateral * lateral_sign
-
-
 		# set mesh rotation to rotation on curve 
 		new_deco_mesh.rotation = rotation
 

@@ -60,7 +60,7 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 
 	if not other_edge:
 		return null
-	print(edge.name)
+	
 	var other_curve: Curve3D = other_edge.curve
 	var other_curve_total_length: float = other_curve.get_baked_length()
 	var ratio_curve_lengths: float = other_curve_total_length / total_length
@@ -84,7 +84,7 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 			# Use the direction from the opposite edge to this edge as "outwards"
 			var other_pos: Vector3 = other_curve.sample_baked(distance*ratio_curve_lengths)
 			var outward_dir: Vector3 = (pos - other_pos).normalized()
-			print(outward_dir * extra_offset)
+			
 			if outward_dir != Vector3.ZERO:
 				pos += outward_dir * extra_offset
 

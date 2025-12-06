@@ -26,8 +26,6 @@ func _init() -> void:
 
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
-	print("Setup curb for ", segment.start_point.name, " to ", segment.end_point.name)
-
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
