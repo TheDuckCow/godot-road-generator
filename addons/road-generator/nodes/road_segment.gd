@@ -740,6 +740,10 @@ func _rebuild():
 					push_warning("Decoration setup skipped as edge curves disabled: %s" % deco)
 					continue
 				
+				if not deco:
+					push_warning("Invalid decoration %s in RoadPoint: %s" % [deco, point])
+					continue
+				
 				# check if deco has setup function
 				# should be replaced when ported to Godot 4.5 with abstract classes
 				if not deco.has_method("setup"):
