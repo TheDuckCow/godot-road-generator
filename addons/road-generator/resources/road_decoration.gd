@@ -44,26 +44,26 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 
 	# so this might be confusing, but curves go from e.g. RP_002 to RP_001,
 	# so basically go reverse, therefore start and end are swapped
-	var start_distance: float = offset_end*total_length
-	var end_distance: float = total_length - offset_start*total_length
+	var start_distance: float = offset_end * total_length
+	var end_distance: float = total_length - offset_start * total_length
+	var trimmed_length: float = end_distance - start_distance
+	if trimmed_length <= 0.0:
+		return null
 
-	var num_points: int = int((end_distance - start_distance) / 0.1) + 1
+	var num_points: int = int(trimmed_length / 0.1) + 1
 	if num_points < 2:
 		num_points = 2
 
 	# Find the opposite edge to know which way "outwards" is
-	var other_edge: Path3D = null
-	if edge.name == segment.EDGE_R_NAME and segment.get_parent().has_node(segment.EDGE_F_NAME):
-		other_edge = segment.get_parent().get_node(segment.EDGE_F_NAME)
-	elif edge.name == segment.EDGE_F_NAME and segment.get_parent().has_node(segment.EDGE_R_NAME):
-		other_edge = segment.get_parent().get_node(segment.EDGE_R_NAME)
-
+	var other_edge: Path3D = _get_other_edge(segment, edge)
 	if not other_edge:
 		return null
 	
 	var other_curve: Curve3D = other_edge.curve
 	var other_curve_total_length: float = other_curve.get_baked_length()
-	var ratio_curve_lengths: float = other_curve_total_length / total_length
+	var ratio_curve_lengths: float = 1.0
+	if total_length > 0.0:
+		ratio_curve_lengths = other_curve_total_length / total_length
 
 	for i in range(num_points):
 		var t_along: float = float(i) / float(num_points - 1)  # 0..1 along the curb
@@ -76,13 +76,13 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 		if offset_lateral_profile:
 			# x axis of the Curve is 0..1 along the curb
 			# as for start and end distance, we go reverse along the edge curve for intuitive reasons
-			extra_offset = offset_lateral_profile.sample(1-t_along)
+			extra_offset = offset_lateral_profile.sample(1.0 - t_along)
 		else:
 			extra_offset = offset_lateral
 
 		if extra_offset != 0.0:
 			# Use the direction from the opposite edge to this edge as "outwards"
-			var other_pos: Vector3 = other_curve.sample_baked(distance*ratio_curve_lengths)
+			var other_pos: Vector3 = other_curve.sample_baked(distance * ratio_curve_lengths)
 			var outward_dir: Vector3 = (pos - other_pos).normalized()
 			
 			if outward_dir != Vector3.ZERO:
@@ -91,3 +91,110 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 		new_curve.add_point(pos)
 
 	return new_curve
+
+
+
+func _get_other_edge(segment: RoadSegment, edge: Path3D) -> Path3D:
+	# Returns the opposite edge of the road (R <-> F)
+	var parent := segment.get_parent()
+	if edge.name == segment.EDGE_R_NAME and parent.has_node(segment.EDGE_F_NAME):
+		return parent.get_node(segment.EDGE_F_NAME)
+	elif edge.name == segment.EDGE_F_NAME and parent.has_node(segment.EDGE_R_NAME):
+		return parent.get_node(segment.EDGE_R_NAME)
+	return null
+
+
+func _get_trim_parameters(curve: Curve3D) -> Dictionary:
+	# Returns total_length, start_distance, end_distance, trimmed_length
+	var total_length: float = curve.get_baked_length()
+	var start_distance: float = offset_end * total_length
+	var end_distance: float = total_length - offset_start * total_length
+	return {
+		"total_length": total_length,
+		"start_distance": start_distance,
+		"end_distance": end_distance,
+		"trimmed_length": end_distance - start_distance,
+	}
+
+
+func _compute_bank_frame(segment: RoadSegment, edge: Path3D, distance_on_original: float) -> Dictionary:
+	# Compute a banked local frame on the original edge at a given distance.
+	# Returns:
+	# {
+	#   "position": Vector3,
+	#   "basis": Basis,
+	#   "forward_dir": Vector3,
+	#   "up_dir": Vector3,
+	#   "outward_dir": Vector3,
+	# }
+
+	var original_curve: Curve3D = edge.curve
+	var trim := _get_trim_parameters(original_curve)
+	var total_length: float = trim.total_length
+
+	if total_length <= 0.0:
+		return {
+			"position": Vector3.ZERO,
+			"basis": Basis(),
+			"forward_dir": Vector3.FORWARD,
+			"up_dir": Vector3.UP,
+			"outward_dir": Vector3.RIGHT,
+		}
+
+	distance_on_original = clampf(distance_on_original, 0.0, total_length)
+
+	var pos_edge: Vector3 = original_curve.sample_baked(distance_on_original)
+
+	# Forward direction along the edge
+	var delta_d: float = 0.1
+	var distance_ahead: float = min(distance_on_original + delta_d, total_length)
+	var pos_ahead: Vector3 = original_curve.sample_baked(distance_ahead)
+
+	var forward_dir: Vector3 = (pos_ahead - pos_edge).normalized()
+	if forward_dir == Vector3.ZERO:
+		var distance_back: float = max(distance_on_original - delta_d, 0.0)
+		var pos_back: Vector3 = original_curve.sample_baked(distance_back)
+		forward_dir = (pos_edge - pos_back).normalized()
+	if forward_dir == Vector3.ZERO:
+		forward_dir = Vector3.FORWARD
+
+	# Outward direction using opposite edge
+	var other_edge: Path3D = _get_other_edge(segment, edge)
+	var outward_dir: Vector3 = Vector3.RIGHT
+
+	if other_edge:
+		var other_curve: Curve3D = other_edge.curve
+		var other_len: float = other_curve.get_baked_length()
+		var ratio_curve_lengths: float = 1.0
+		if total_length > 0.0:
+			ratio_curve_lengths = other_len / total_length
+
+		var other_pos: Vector3 = other_curve.sample_baked(distance_on_original * ratio_curve_lengths)
+		outward_dir = (pos_edge - other_pos).normalized()
+		if outward_dir == Vector3.ZERO:
+			outward_dir = Vector3.RIGHT
+
+	# Up direction encodes banking
+	var up_dir: Vector3 = forward_dir.cross(outward_dir).normalized()
+	if up_dir == Vector3.ZERO:
+		up_dir = Vector3.UP
+
+	# Ensure up is not upside down relative to world up
+	if up_dir.dot(Vector3.UP) < 0.0:
+		up_dir = -up_dir
+		outward_dir = -outward_dir
+
+	# Right dir – orthonormal basis
+	var right_dir: Vector3 = up_dir.cross(forward_dir).normalized()
+	if right_dir == Vector3.ZERO:
+		right_dir = outward_dir
+
+	var basis: Basis = Basis(right_dir, up_dir, forward_dir)
+
+	return {
+		"position": pos_edge,
+		"basis": basis,
+		"forward_dir": forward_dir,
+		"up_dir": up_dir,
+		"outward_dir": outward_dir,
+	}
