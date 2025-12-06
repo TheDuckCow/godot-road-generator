@@ -22,7 +22,10 @@ extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array.
-signal on_road_updated(updated_segments: Array)
+##
+## Elements can be either RoadSegments or RoadIntersections. These always have
+## a child node which is the mesh of the road itself.
+signal on_road_updated(updated_segments: Array[Node3D])
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_transform(node)
@@ -234,9 +237,6 @@ var _drag_init_transform # : Transform3D can't type as it needs to be nullable
 var _drag_source_rp: RoadPoint
 var _drag_target_rp: RoadPoint
 
-# Flag used internally during initial setup to avoid repeat generation
-var _is_ready := false
-
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -255,11 +255,6 @@ func _ready():
 	update_edges()
 	validate_edges()
 
-	# Waiting to mark _is_ready = true is the way we prevent each property
-	# value change from re-triggering rebuilds during scene setup. It's because
-	# each property value functionally gets "assigned" the value loaded from
-	# the tscn file, and thus triggers its set(get) functions which perform work
-	_is_ready = true
 	rebuild_segments(true)
 
 
@@ -504,8 +499,8 @@ func get_manager(): # -> Optional[RoadManager]
 	return _manager
 
 
-func get_roadpoints(skip_edge_connected=false) -> Array:
-	var rps = []
+func get_roadpoints(skip_edge_connected=false) -> Array[RoadPoint]:
+	var rps: Array[RoadPoint] = []
 	for obj in get_children():
 		if not obj is RoadPoint:
 			continue
@@ -578,24 +573,26 @@ func effective_underside_material() -> Material:
 
 
 ## Recursively gets all RoadContainers within a root node
-func get_all_road_containers(root: Node)->Array:
-	var nodes: Array = []
+func get_all_road_containers(root: Node) -> Array[RoadContainer]:
+	var nodes: Array[RoadContainer] = []
 	var dist: float
 
 	for n in root.get_children():
 		if n.get_child_count() > 0:
 			if n.has_method("is_road_container"):
-				nodes.append(n)
+				var pt: RoadContainer = n
+				nodes.append(pt)
 			nodes.append_array(get_all_road_containers(n))
 		else:
 			if n.has_method("is_road_container"):
-				nodes.append(n)
+				var pt: RoadContainer = n
+				nodes.append(pt)
 	return nodes
 
 
 ## Transforms sel_rp's parent road container such that sel_rp is perfectly
 ## aligned (or flip-aligned) with tgt_rp
-func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint):
+func snap_to_road_point(sel_rp: RoadPoint, tgt_rp: RoadPoint) -> void:
 	var res := get_transform_for_snap_rp(sel_rp, tgt_rp)
 	global_transform = res[0]
 	var sel_dir:int = res[1]
@@ -636,7 +633,7 @@ func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
 
 
 ## Get edge RoadPoint closest to input 3D position.
-func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
+func get_closest_edge_road_point(g_search_pos: Vector3) -> RoadPoint:
 	var closest_rp: RoadPoint
 	var closest_dist: float
 
@@ -649,7 +646,7 @@ func get_closest_edge_road_point(g_search_pos: Vector3)->RoadPoint:
 
 
 ## Get Edge RoadPoints that are open and available for connections
-func get_open_edges()->Array:
+func get_open_edges() -> Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
@@ -671,7 +668,7 @@ func get_open_edges()->Array:
 
 ## Get Edge RoadPoints that are unavailable for connections. Returns
 ## local Edges, target Edges, and target containers.
-func get_connected_edges()->Array:
+func get_connected_edges() -> Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
@@ -700,7 +697,7 @@ func get_connected_edges()->Array:
 	return rp_edges
 
 ## Returns array of connected Edges that are not in a nested scene.
-func get_moving_edges()->Array:
+func get_moving_edges() -> Array:
 	var rp_edges: Array = []
 	for rp in get_connected_edges():
 		var edge: RoadPoint = rp[0]
@@ -780,6 +777,8 @@ func update_edges():
 			# Lookup pre-existing connections to apply, match of name + dir
 			var idx = -1
 			for _find_idx in len(edge_rp_locals):
+				if _find_idx >= len(edge_rp_locals) or _find_idx >= len(edge_rp_local_dirs):
+					break
 				if edge_rp_locals[_find_idx] != self.get_path_to(pt):
 					continue
 				if edge_rp_local_dirs[_find_idx] != this_dir:
@@ -985,9 +984,14 @@ func rebuild_segments(clear_existing := false):
 			if res[0] == true:
 				rebuilt += 1
 				signal_rebuilt.append(res[1])
-	
-	for _intersec in get_intersections():
-		_intersec.refresh_intersection_mesh()
+
+	for _inter in get_intersections():
+		var inter:RoadIntersection = _inter
+		if clear_existing:
+			inter.is_dirty = true
+		var was_rebuilt := inter.check_rebuild()
+		if was_rebuilt:
+			signal_rebuilt.append(inter)
 
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	if generate_ai_lanes:
@@ -1157,7 +1161,11 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		return
 	# Update warnings for this or connected containers
 	if node is RoadIntersection:
-		# TODO: split into own function
+		var inter:RoadIntersection = node
+		inter.is_dirty = true
+		var was_rebuilt := inter.check_rebuild()
+		if was_rebuilt:
+			_emit_road_updated([inter])
 		return
 	var point: RoadPoint = node as RoadPoint
 	if point.is_on_edge():
@@ -1179,15 +1187,11 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	
-	# Batch updates to reduce signal emissions
-	var needs_update = false
-	
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
-		needs_update = true
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
@@ -1195,23 +1199,32 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
-				needs_update = true
+		elif prior is RoadIntersection:
+			var inter:RoadIntersection = prior
+			inter.is_dirty = true
+			var was_rebuilt := inter.check_rebuild()
+			if was_rebuilt:
+				segs_updated.append(inter)
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
-		needs_update = true
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		if next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
-				needs_update = true
+		elif next is RoadIntersection:
+			var inter:RoadIntersection = next
+			inter.is_dirty = true
+			var was_rebuilt := inter.check_rebuild()
+			if was_rebuilt:
+				segs_updated.append(inter)
 
-	if needs_update and len(segs_updated) > 0:
+	if len(segs_updated) > 0:
 		_emit_road_updated(segs_updated)
 
 

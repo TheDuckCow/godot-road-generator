@@ -21,6 +21,7 @@ const SegGeo := preload("res://addons/road-generator/procgen/segment_geo.gd")
 
 # ------------------------------------------------------------------------------
 #endregion
+#region Abstract overrides
 # ------------------------------------------------------------------------------
 
 func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
@@ -41,6 +42,13 @@ func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
 	return 0.0
 
 
+# ------------------------------------------------------------------------------
+#endregion
+#region Generation functions
+# ------------------------------------------------------------------------------
+
+
+
 func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFacing:
 	if not intersection.has_method("is_road_intersection"):
 		push_error("intersection is not an intersection node. Returning OTHER facing.")
@@ -51,11 +59,11 @@ func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFa
 	# The above todo (related to the two below) can only be done once
 	# intersections are properly linked to road points.
 	# TODO should be: if edge.get_node(edge.prior_pt_init) == intersection:
-	if edge.next_pt_init.is_empty():
-		facing = _IntersectNGonFacing.AWAY
-	# TODO should be: elif edge.get_node(edge.next_pt_init) == intersection:
-	elif edge.prior_pt_init.is_empty():
+	if edge.get_node_or_null(edge.prior_pt_init) == intersection:
 		facing = _IntersectNGonFacing.ORIGIN
+	# TODO should be: elif edge.get_node(edge.next_pt_init) == intersection:
+	elif edge.get_node_or_null(edge.next_pt_init) == intersection:
+		facing = _IntersectNGonFacing.AWAY
 	else:
 		facing = _IntersectNGonFacing.OTHER
 	return facing
@@ -113,12 +121,12 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		# but then the hight of 1 full UV is half the with across all lanes, so another 2x
 		var uv_height := STOP_ROW_SIZE / lane_width / 8.0 # ratio of 1/4th down vs width of image to be square
 
-		var perpendicular_v: Vector3 = (edge.global_transform.basis.x).normalized()
-		var up_vector: Vector3 = (edge.global_transform.basis.y).normalized()
-		var parallel_v: Vector3 = (edge.global_transform.basis.z).normalized()
+		var perpendicular_v: Vector3 = (edge.transform.basis.x).normalized()
+		var up_vector: Vector3 = (edge.transform.basis.y).normalized()
+		var parallel_v: Vector3 = (edge.transform.basis.z).normalized()
 
-		var road_side_l: Vector3 = edge.global_position
-		var road_side_r: Vector3 = edge.global_position
+		var road_side_l: Vector3 = edge.position
+		var road_side_r: Vector3 = edge.position
 		road_side_l -= perpendicular_v * (lanes_tot_width / 2.0)
 		road_side_r += perpendicular_v * (lanes_tot_width / 2.0)
 
@@ -355,3 +363,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 	var mesh: ArrayMesh = surface_tool.commit()  # should be MeshInstance3D?
 	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh
+
+
+#endregion
+# ------------------------------------------------------------------------------

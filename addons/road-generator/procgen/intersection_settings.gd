@@ -21,6 +21,7 @@ extends Resource
 #region Mesh generation
 # ------------------------------------------------------------------------------
 
+
 ## @abstract
 ## returns a Mesh for the intersection based on the input parameters.
 ##
@@ -36,6 +37,7 @@ func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: Roa
 	push_error("IntersectionSettings.generate_mesh() not implemented by child class.")
 	return null
 
+
 ## Returns true if all the provided edges have sufficient distance
 ## from the intersection point to have proper mesh generation.
 ##
@@ -44,6 +46,9 @@ func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: Roa
 ## This should be called in the implemented class's [generate_mesh] override.
 func can_generate_mesh(intersection_transform: Transform3D, edges: Array[RoadPoint]) -> bool:
 	for edge in edges:
+		if not is_instance_valid(edge):
+			push_warning("Invalid edge, cannot create intersection")
+			return false
 		if edge.position.distance_to(intersection_transform.origin) < get_min_distance_from_intersection_point(edge):
 			return false
 	return true

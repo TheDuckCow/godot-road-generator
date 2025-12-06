@@ -449,7 +449,7 @@ func emit_transform(low_poly=false):
 		var _gizmo:Node3DGizmo = _gizmos[0]
 		if is_instance_valid(_gizmo):
 			_gizmo.get_plugin().refresh_gizmo(_gizmo)
-	emit_signal("on_transform", self, low_poly)
+	on_transform.emit(self, low_poly)
 
 
 # ------------------------------------------------------------------------------
@@ -1106,14 +1106,10 @@ func validate_junctions():
 ## Returns true if at least one of them references THIS RoadPoint, or if both
 ## are empty. Otherwise, returns false.
 func _is_junction_valid(point: RoadPoint)->bool:
-	var prior_point: RoadPoint
-	var next_point: RoadPoint
 
 	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
-	if not point.prior_pt_init.is_empty():
-		prior_point = get_node(point.prior_pt_init)
-	if not point.next_pt_init.is_empty():
-		next_point = get_node(point.next_pt_init)
+	var prior_point:RoadGraphNode = get_node_or_null(point.prior_pt_init)
+	var next_point:RoadGraphNode = get_node_or_null(point.next_pt_init)
 
 	# Verify THIS RoadPoint is identified as Prior or Next
 	if is_instance_valid(prior_point):
@@ -1231,6 +1227,7 @@ func get_thickness():
 	if is_instance_valid(container.get_manager()) and container.get_manager().underside_thickness != -1.0:
 		return container.get_manager().underside_thickness
 	return -1.0
+
 
 ## Get the distance from shoulder to shoulder
 func get_width_without_shoulders():
