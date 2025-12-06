@@ -44,8 +44,8 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 
 	# so this might be confusing, but curves go from e.g. RP_002 to RP_001,
 	# so basically go reverse, therefore start and end are swapped
-	var start_distance: float = offset_end
-	var end_distance: float = total_length - offset_start
+	var start_distance: float = offset_end*total_length
+	var end_distance: float = total_length - offset_start*total_length
 
 	var num_points: int = int((end_distance - start_distance) / 0.1) + 1
 	if num_points < 2:
