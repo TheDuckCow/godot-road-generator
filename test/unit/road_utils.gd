@@ -29,7 +29,7 @@ func create_two_containers(container_a, container_b):
 
 func create_intersection_two_branch(container):
 	container.setup_road_container()
-	
+
 	assert_eq(container.get_child_count(), 0, "No initial point children")
 
 	var i1 = autoqfree(RoadIntersection.new())
@@ -40,10 +40,12 @@ func create_intersection_two_branch(container):
 	container.add_child(p1)
 	container.add_child(p2)
 	assert_eq(container.get_child_count(), 3, "All graph nodes added")
-	
+
 	var edges: Array[RoadPoint] = [p1, p2]
 	i1.edge_points = edges
+
+	p1.next_pt_init = p1.get_path_to(i1) # will trigger a rebuild on inter'
+	p2.prior_pt_init = p2.get_path_to(i1) # will trigger a rebuild on inter'
 	
-	p1.next_pt_init = p1.get_path_to(i1)
-	p2.prior_pt_init = p2.get_path_to(i1)
-	
+	# Due to manual assignment, must call this manually
+	container.update_edges()

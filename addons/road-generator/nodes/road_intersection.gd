@@ -34,8 +34,6 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 @export var settings: IntersectionSettings = null: get = _get_settings, set = _set_settings 
 
-# internal:
-
 
 # -------------------------------------
 @export_group("Road Generation")
@@ -49,7 +47,6 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		if value == create_geo:
 			return
 		create_geo = value
-		do_roadmesh_creation()
 		if value == true:
 			emit_transform()
 
@@ -64,10 +61,12 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 	set(v):
 		force_edges_sort_toggle = v
 		_sort_edges_clockwise()
+		
 
 
 var _mesh: MeshInstance3D
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
+var is_dirty := true ## Flag used to know if prior changes means the mesh needs refreshing.
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -118,7 +117,7 @@ func _ready() -> void:
 		container = par
 	on_transform.connect(container.on_point_update)
 	
-	do_roadmesh_creation()
+	_do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(_mesh):
 		_mesh.owner = container.get_owner()
 
@@ -129,17 +128,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 		return []
 	else:
 		return ["Intersection should be a direct child of a RoadContainer"]
-
-
-# Workaround for cyclic typing
-func is_road_intersection() -> bool:
-	return true
-
-
-# ------------------------------------------------------------------------------
-#endregion
-#region Editor interactions
-# ------------------------------------------------------------------------------
 
 
 func _notification(what):
@@ -153,9 +141,24 @@ func _notification(what):
 		emit_transform(low_poly)
 
 
+# Workaround for cyclic typing
+func is_road_intersection() -> bool:
+	return true
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Public functions
+# ------------------------------------------------------------------------------
+
+
+## Primary way trigger refresh geometry while respecting editor interactions.[br][br]
+##
+## Geometry refreshing is ontrolled at the RoadContainer level instead of
+## directly by the RoadIntersection itself.
 func emit_transform(low_poly: bool = false) -> void:
-	refresh_intersection_mesh()
-	emit_signal("on_transform", self, low_poly) #FIXME
+	is_dirty = true
+	on_transform.emit(self, low_poly)
 
 
 ## Add an edge to the intersection, sorting edges and updating the mesh afterwards.
@@ -187,47 +190,36 @@ func sort_branches() -> void:
 	emit_transform()
 
 
+## Check if mesh needs to be rebuilt.[br][br]
+##
+## Returns true if rebuild was done, else (including if invalid) false.
+func check_rebuild() -> bool:
+	if is_queued_for_deletion():
+		return false
+	if not is_instance_valid(container):
+		return false
+	if is_dirty:
+		_rebuild()
+		is_dirty = false
+		return true
+	return false
+
+
+## Actually generates or updates the intersection geometry.[br][br]
+##
+## Generally should only be called by via the RoadContainer to avoid duplicate
+## calls to generation.
+func refresh_intersection_mesh() -> void:
+	_rebuild()
+
+
 # ------------------------------------------------------------------------------
 #endregion
-#region Utilities
+#region Internal utilities
 # ------------------------------------------------------------------------------
 
-func should_add_mesh() -> bool:
-	var should_add_mesh = true
-	if create_geo == false:
-		should_add_mesh = false
-	if container.create_geo == false:
-		should_add_mesh = false
-	return should_add_mesh
 
-
-func do_roadmesh_creation():
-	var do_create := should_add_mesh()
-	if do_create:
-		add_road_mesh()
-	else:
-		remove_road_mesh()
-
-
-func add_road_mesh() -> void:
-	if is_instance_valid(_mesh):
-		return
-	_mesh = MeshInstance3D.new()
-	add_child(_mesh)
-	_mesh.name = "intersection_mesh"
-	_mesh.layers = container.render_layers
-	if container.debug_scene_visible and is_instance_valid(_mesh):
-		_mesh.owner = container.get_owner()
-	refresh_intersection_mesh()
-
-
-func remove_road_mesh():
-	if _mesh == null:
-		return
-	_mesh.queue_free()
-
-
-func refresh_intersection_mesh() -> void:
+func _rebuild() -> void:
 	if not is_instance_valid(settings) or not is_instance_valid(container):
 		return
 	if not container.create_geo:
@@ -249,6 +241,40 @@ func refresh_intersection_mesh() -> void:
 	container._create_collisions(_mesh)
 
 
+func _do_roadmesh_creation():
+	var do_create := _should_add_mesh()
+	if do_create:
+		_add_road_mesh()
+	else:
+		_remove_road_mesh()
+
+
+func _should_add_mesh() -> bool:
+	var should_add_mesh = true
+	if create_geo == false:
+		should_add_mesh = false
+	if container.create_geo == false:
+		should_add_mesh = false
+	return should_add_mesh
+
+
+func _add_road_mesh() -> void:
+	if is_instance_valid(_mesh):
+		return
+	_mesh = MeshInstance3D.new()
+	add_child(_mesh)
+	_mesh.name = "intersection_mesh"
+	_mesh.layers = container.render_layers
+	if container.debug_scene_visible and is_instance_valid(_mesh):
+		_mesh.owner = container.get_owner()
+
+
+func _remove_road_mesh():
+	if _mesh == null:
+		return
+	_mesh.queue_free()
+
+
 ## Given the intersection transform's Y axis as
 ## the rotation reference and plane normal,
 ## O the intersection origin, OX the transform's X axis representing 0°,
@@ -256,7 +282,7 @@ func refresh_intersection_mesh() -> void:
 ## based on its angle from OX to OE, where OX and OE
 ## are projected on the plane defined by the intersection's Y axis.
 func _sort_edges_clockwise() -> void:
-	print("debug - sorting")
+	#print("debug - sorting")
 	if edge_points.size() <= 1:
 		return
 	var axis: Vector3 = self.transform.basis.y.normalized()
@@ -271,9 +297,9 @@ func _sort_edges_clockwise() -> void:
 		projected_ob = projected_ob.normalized()
 		var angle_a = angle_zero.signed_angle_to(projected_oa, axis)
 		var angle_b = angle_zero.signed_angle_to(projected_ob, axis)
-		print("debug - angles: %f / %f" % [angle_a, angle_b])
-		print("debug - vectors: %s / %s" % [projected_oa, projected_ob])
-		print("debug - positions: %s / %s" % [a.position, b.position])
+		#print("debug - angles: %f / %f" % [angle_a, angle_b])
+		#print("debug - vectors: %s / %s" % [projected_oa, projected_ob])
+		#print("debug - positions: %s / %s" % [a.position, b.position])
 		return angle_a - angle_b > 0 # must be a bool
 	)
 

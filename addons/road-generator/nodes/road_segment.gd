@@ -117,7 +117,7 @@ func _is_mesh_generated() -> bool:
 	return len(ref) > 0
 
 
-func should_add_mesh() -> bool:
+func _should_add_mesh() -> bool:
 	var should_add_mesh = true
 	var par = get_parent()
 	if not is_instance_valid(par) or not par is RoadPoint:
@@ -133,14 +133,14 @@ func should_add_mesh() -> bool:
 
 
 func do_roadmesh_creation():
-	var do_create := should_add_mesh()
+	var do_create := _should_add_mesh()
 	if do_create:
-		add_road_mesh()
+		_add_road_mesh()
 	else:
-		remove_road_mesh()
+		_remove_road_mesh()
 
 
-func add_road_mesh() -> void:
+func _add_road_mesh() -> void:
 	if is_instance_valid(road_mesh):
 		return
 	road_mesh = MeshInstance3D.new()
@@ -151,7 +151,7 @@ func add_road_mesh() -> void:
 		road_mesh.owner = container.get_owner()
 
 
-func remove_road_mesh():
+func _remove_road_mesh():
 	if road_mesh == null:
 		return
 	road_mesh.queue_free()
@@ -190,8 +190,6 @@ static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
-	if not is_instance_valid(container):
-		return
 func _init_start_get():
 	return start_init
 
@@ -199,8 +197,6 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
-	if not is_instance_valid(container):
-		return
 func _init_end_get():
 	return end_init
 

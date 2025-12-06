@@ -449,7 +449,7 @@ func emit_transform(low_poly=false):
 		var _gizmo:Node3DGizmo = _gizmos[0]
 		if is_instance_valid(_gizmo):
 			_gizmo.get_plugin().refresh_gizmo(_gizmo)
-	emit_signal("on_transform", self, low_poly)
+	on_transform.emit(self, low_poly)
 
 
 # ------------------------------------------------------------------------------

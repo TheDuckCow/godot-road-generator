@@ -237,9 +237,6 @@ var _drag_init_transform # : Transform3D can't type as it needs to be nullable
 var _drag_source_rp: RoadPoint
 var _drag_target_rp: RoadPoint
 
-# Flag used internally during initial setup to avoid repeat generation
-var _is_ready := false
-
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -258,11 +255,6 @@ func _ready():
 	update_edges()
 	validate_edges()
 
-	# Waiting to mark _is_ready = true is the way we prevent each property
-	# value change from re-triggering rebuilds during scene setup. It's because
-	# each property value functionally gets "assigned" the value loaded from
-	# the tscn file, and thus triggers its set(get) functions which perform work
-	_is_ready = true
 	rebuild_segments(true)
 
 
@@ -992,10 +984,14 @@ func rebuild_segments(clear_existing := false):
 			if res[0] == true:
 				rebuilt += 1
 				signal_rebuilt.append(res[1])
-	
-	for _intersec in get_intersections():
-		_intersec.refresh_intersection_mesh()
-		signal_rebuilt.append(_intersec)
+
+	for _inter in get_intersections():
+		var inter:RoadIntersection = _inter
+		if clear_existing:
+			inter.is_dirty = true
+		var was_rebuilt := inter.check_rebuild()
+		if was_rebuilt:
+			signal_rebuilt.append(inter)
 
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	if generate_ai_lanes:
@@ -1165,7 +1161,11 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		return
 	# Update warnings for this or connected containers
 	if node is RoadIntersection:
-		# TODO: split into own function
+		var inter:RoadIntersection = node
+		inter.is_dirty = true
+		var was_rebuilt := inter.check_rebuild()
+		if was_rebuilt:
+			_emit_road_updated([inter])
 		return
 	var point: RoadPoint = node as RoadPoint
 	if point.is_on_edge():
@@ -1187,15 +1187,11 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
 	
-	# Batch updates to reduce signal emissions
-	var needs_update = false
-	
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
-		needs_update = true
 
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
@@ -1203,29 +1199,32 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
-				needs_update = true
 		elif prior is RoadIntersection:
-			prior.refresh_intersection_mesh()
-			segs_updated.append(prior)
+			var inter:RoadIntersection = prior
+			inter.is_dirty = true
+			var was_rebuilt := inter.check_rebuild()
+			if was_rebuilt:
+				segs_updated.append(inter)
 
 	if is_instance_valid(point.next_seg):
 		point.next_seg.low_poly = use_lowpoly
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
-		needs_update = true
 	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
 		var next = point.get_node(point.next_pt_init)
 		if next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
-				needs_update = true
 		elif next is RoadIntersection:
-			next.refresh_intersection_mesh()
-			segs_updated.append(next)
+			var inter:RoadIntersection = next
+			inter.is_dirty = true
+			var was_rebuilt := inter.check_rebuild()
+			if was_rebuilt:
+				segs_updated.append(inter)
 
-	if needs_update and len(segs_updated) > 0:
+	if len(segs_updated) > 0:
 		_emit_road_updated(segs_updated)
 
 

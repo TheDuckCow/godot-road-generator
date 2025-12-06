@@ -42,7 +42,7 @@ func test_on_road_updated_signal_after_container_refresh():
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
 
-	container.rebuild_segments()
+	container.rebuild_segments(true)
 
 	var res = get_signal_parameters(container, 'on_road_updated')
 	assert_not_null(res, "Should have on_road_updated emitted")
@@ -64,7 +64,10 @@ func test_on_road_updated_signal_after_inter_moved():
 	watch_signals(container)
 	
 	var inter:RoadIntersection = container.get_child(0)
-	inter.global_position += Vector3(0, 1, 0)
+	# Trigger a transform equivalent to moving the point in the viewport.
+	# Changing global_transform doesn't work since it checks for editor,
+	# so we need to directly call the on_transform function.
+	inter.emit_transform()
 
 	var res = get_signal_parameters(container, 'on_road_updated')
 	print("What is? ", res, " and ", res == null, " vs null ", null)
@@ -85,10 +88,13 @@ func test_on_road_updated_signal_after_rp_moved():
 	container.setup_road_container()
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
+	_validate_edges(container)
 	
 	var rp:RoadPoint = container.get_child(1)
-	rp.global_position += Vector3(0, 1, 0)
-
+	# Trigger a transform equivalent to moving the point in the viewport.
+	# Changing global_transform doesn't work since it checks for editor,
+	# so we need to directly call the on_transform function.
+	rp.emit_transform()
 	var res = get_signal_parameters(container, 'on_road_updated')
 	assert_not_null(res, "Should have on_road_updated emitted")
 	if res == null:
