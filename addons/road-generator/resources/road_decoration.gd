@@ -75,7 +75,8 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 		var extra_offset: float = 0.0
 		if offset_lateral_profile:
 			# x axis of the Curve is 0..1 along the curb
-			extra_offset = offset_lateral_profile.sample(t_along)
+			# as for start and end distance, we go reverse along the edge curve for intuitive reasons
+			extra_offset = offset_lateral_profile.sample(1-t_along)
 		else:
 			extra_offset = offset_lateral
 
