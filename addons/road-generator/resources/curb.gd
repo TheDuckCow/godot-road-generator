@@ -2,6 +2,7 @@
 extends RoadDecoration
 class_name RoadCurb
 
+@export_group("Curb Properties")
 ## Define profile (geometry) of curb. Left is inside of track. Only points will be used - not tangents - when drawing curb, linearity is assumed
 ## Profile needs at least 2 points.
 @export var profile: Curve
@@ -9,10 +10,11 @@ class_name RoadCurb
 @export var use_stripes: bool = false
 ## Secondary color for stripes (if enabled)
 @export var secondary_color: Color = Color("#F9F6EE")
+## Length of each stripe in meters (if stripes are enabled)
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_length: float = 3.0
 
 func _init() -> void:
-	desc = "curbs"
+	description = "curbs"
 	# basic linear curb shape
 	profile = Curve.new()
 	profile.bake_resolution = 5

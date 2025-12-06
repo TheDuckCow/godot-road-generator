@@ -10,11 +10,24 @@ enum Side {
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
-@export var desc: String = "default"
-@export var side: RoadCurb.Side = RoadCurb.Side.REVERSE
-@export var offset_start: float = 0.0
-@export var offset_end: float = 0.0
+@export_group("General Decoration Properties")
+## Description used for nodes in scene tree
+@export var description: String = "default"
+## which side to place decoration on
+@export var side: RoadDecoration.Side = RoadDecoration.Side.REVERSE
+## relative start offset along the segment
+## 0.2 means that decoration starts after 20% length along the segment
+@export_range(0,1) var offset_start: float = 0.0
+## relative end offset along the segment
+## 0.2 means that decoration ends at 80% length along the segment
+@export_range(0,1) var offset_end: float = 0.0
+## absolut lateral offset in meters from the edge curve along the whole curve
+## negative values go "inwards", positive values "outwards" from the road
+## use offset_lateral_profile for more advanced lateral offsets
 @export var offset_lateral: float = -0.5
+## specify lateral offset profile (Curve) from 0..1 along the curb
+## domain needs to be between 0 and 1, they describe the relative position along the curve.
+## The value offset is the same as in parameter offset_lateral, just that you can vary it along the curve.
 @export var offset_lateral_profile: Curve
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:

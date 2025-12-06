@@ -2,8 +2,9 @@
 extends RoadDecoration
 class_name InstanceAlongCurve
 
+@export_group("Instance Properties")
 ## Scene with Mesh to instance along the curve
-@export var source_scene: PackedScene
+@export var mesh_source_scene: PackedScene
 ## Space between objects when placing along curve
 @export var spacing_along_curve: float = 0
 
@@ -12,7 +13,10 @@ class_name InstanceAlongCurve
 ## Works best if the mesh is short. This checks how often mesh would fit along curve.
 ## If it would fit 8.6 times, it will be scaled so that it fits exactly 9 times.
 @export var automatic_scaling: bool = true
+@export_subgroup("Advanced Properties")
+## If x axes is automatically scaled, scale y axes the same way
 @export var automatic_scaling_along_y_axes: bool = true
+## If x axes is automatically scaled, scale z axes the same way
 @export var automatic_scaling_along_z_axes: bool = true
 ## Manual scaling of object. Not used if automatic_scaling is true.
 @export var manual_scaling_object: Vector3 = Vector3.ONE
@@ -25,21 +29,21 @@ class_name InstanceAlongCurve
 @export var manual_offset_object: Vector3 = Vector3.ZERO
 
 func _init() -> void:
-	desc = "objects_along_curve"
+	description = "objects_along_curve"
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
-	if not source_scene:
-		push_error("No source_scene assigned for InstanceAlongCurve decoration.")
+	if not mesh_source_scene:
+		push_error("No mesh_source_scene assigned for InstanceAlongCurve decoration.")
 		return
 	
 	# check if source scene has a mesh
-	var decomesh = source_scene.instantiate()
+	var decomesh = mesh_source_scene.instantiate()
 	if not decomesh or not decomesh.has_method("get_aabb"):
-		push_error("The source_scene does not have a mesh or is invalid.")
+		push_error("The mesh_source_scene does not have a mesh or is invalid.")
 		return
 
 	print("Setup InstanceAlongCurve for ", segment.start_point.name, " to ", segment.end_point.name)
-	print("Source scene: ", source_scene)
+	print("Source scene: ", mesh_source_scene)
 
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
@@ -57,7 +61,7 @@ func _instance_scene_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegme
 		push_error("Invalid edge provided to _instance_scene_on_edge")
 		return
 
-	var decomesh = source_scene.instantiate()
+	var decomesh = mesh_source_scene.instantiate()
 
 	# smallest box size to fit the mesh
 	var aabb = decomesh.mesh.get_aabb()

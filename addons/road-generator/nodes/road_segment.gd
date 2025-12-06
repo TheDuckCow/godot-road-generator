@@ -747,7 +747,7 @@ func _rebuild():
 					continue
 
 				var decoration_node_wrapper = Node3D.new()
-				decoration_node_wrapper.name = "decoration_%d_%s" % [decoration_number, deco.desc]
+				decoration_node_wrapper.name = "decoration_%d_%s" % [decoration_number, deco.description]
 				point.add_child(decoration_node_wrapper)
 				decoration_node_wrapper.set_owner(point.get_tree().get_edited_scene_root())
 				
