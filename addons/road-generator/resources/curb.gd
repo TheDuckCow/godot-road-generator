@@ -58,6 +58,8 @@ func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment,
 	curb.mode = CSGPolygon3D.MODE_PATH
 	curb.path_node = curb_path.get_path()
 	curb.path_local = true
+	curb.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
+	curb.path_rotation_accurate = true
 
 	var material = StandardMaterial3D.new()
 
