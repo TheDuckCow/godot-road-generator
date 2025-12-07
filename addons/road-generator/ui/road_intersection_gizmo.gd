@@ -76,7 +76,6 @@ func _redraw(gizmo) -> void:
 		collider.bottom_radius = prior_lane_width_avg / 2.0  # resulting
 		collider.top_radius = prior_lane_width_avg / 2.0
 		collider.height = prior_lane_width_avg / 20.0
-		print("Applying new RoadIntersection gizmo scale: ", prior_lane_width_avg)
 	
 	intersection_widget.visible = true
 	intersection_widget.transform = intersection.global_transform

@@ -169,18 +169,56 @@ func add_branch(road_point: RoadPoint) -> void:
 		push_error("RoadIntersection %s cannot directly connect to another RoadIntersection %s. Use an intermediate RoadPoint." % [self.name, road_point.name])
 		return
 	if edge_points.has(road_point):
+		push_warning("Already connected to intersection")
+		return
+	if road_point.container != self.container:
+		push_error("Can directly connect RoadPoints and RoadIntersections from the same container")
 		return
 	edge_points.append(road_point)
-	#TODO set prior/next pt init?
 	_sort_edges_clockwise()
+	
+	# Identify the closest facing opene egde of the intersection.
+	var is_prior_connected = road_point.is_prior_connected()
+	var is_next_connected = road_point.is_next_connected()
+	road_point._is_internal_updating = true
+	if not is_prior_connected and not is_next_connected:
+		# Determine which direction to use.
+		var dir_to_inter: Vector3 = self.position - road_point.position 
+		var is_fwd_facing:bool = (road_point.global_basis.z.dot(dir_to_inter)) > 0
+		if is_fwd_facing:
+			road_point.next_pt_init = road_point.get_path_to(self)
+		else:
+			road_point.prior_pt_init = road_point.get_path_to(self)
+	elif is_prior_connected: # TODO: shoudl do if fwd or next prior connected, accounting for cross dirs
+		road_point.next_pt_init = road_point.get_path_to(self)
+	elif is_next_connected:
+		road_point.prior_pt_init = road_point.get_path_to(self)
+	else:
+		push_error("Cannot connect RoadPoint %s already fully connected" % road_point.name)
+		road_point._is_internal_updating = false
+		return
+	road_point._is_internal_updating = false
+	
+	container.update_edges()
 	emit_transform()
 
 
 ## Remove an edge from the intersection, sorting edges and updating the mesh afterwards.
 ## Does nothing if the edge is not present.
 func remove_branch(road_point: RoadPoint) -> void:
+	if not road_point in edge_points:
+		push_error("Failed to remove branch, RoadPoint %s not found among edges of RoadIntersection" % [
+			road_point.name, self.name
+		])
 	edge_points.erase(road_point)
+	if road_point.get_node_or_null(road_point.prior_pt_init) == self:
+		road_point.prior_pt_init = ^""
+		print("removed prior dir")
+	if road_point.get_node_or_null(road_point.next_pt_init) == self:
+		road_point.next_pt_init = ^""
+		print("removed next dir")
 	_sort_edges_clockwise()
+	container.update_edges()
 	emit_transform()
 
 

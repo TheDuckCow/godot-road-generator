@@ -540,12 +540,12 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_rp_hovering = null
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = false
-			elif target.get_prior_rp() == point:
+			elif target.get_prior_road_node() == point:
 				# If this pt is directly connected to the target, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
 				_overlay_hint_connection = false
-			elif target.get_next_rp() == point:
+			elif target.get_next_road_node() == point:
 				# If this pt is directly connected to the selection, offer quick dis-connect tool
 				_overlay_rp_selected = target
 				_overlay_hint_disconnect = true
@@ -1498,16 +1498,16 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 
 	var from_dir
 	var target_dir
-	if rp_a.get_prior_rp() == rp_b:
+	if rp_a.get_prior_road_node() == rp_b:
 		from_dir = RoadPoint.PointInit.PRIOR
-	elif rp_a.get_next_rp() == rp_b:
+	elif rp_a.get_next_road_node() == rp_b:
 		from_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
 		return
-	if rp_b.get_prior_rp() == rp_a:
+	if rp_b.get_prior_road_node() == rp_a:
 		target_dir = RoadPoint.PointInit.PRIOR
-	elif rp_b.get_next_rp() == rp_a:
+	elif rp_b.get_next_road_node() == rp_a:
 		target_dir = RoadPoint.PointInit.NEXT
 	else:
 		push_error("Not initially connected")
@@ -1752,8 +1752,8 @@ func subaction_flip_roadpoint(rp: RoadPoint, undo_redo:EditorUndoRedoManager) ->
 		undo_redo.add_undo_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_old)
 		
 		# Check if cross-container connected at this RP and grab container if so
-		var _pr = rp.get_prior_rp()
-		var _nt = rp.get_next_rp()
+		var _pr = rp.get_prior_road_node()
+		var _nt = rp.get_next_road_node()
 		var other_cont:RoadContainer
 		if is_instance_valid(_pr) and _pr.container != rp.container:
 			other_cont = _pr.container
