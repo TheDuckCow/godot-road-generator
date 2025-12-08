@@ -134,7 +134,7 @@ func is_road_node(node: Node) -> bool:
 
 ## Render the editor indicators for RoadPoints and RoadLanes if selected.
 func _on_selection_changed() -> void:
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 
 	if _new_selection:
 		set_selection(_new_selection)
@@ -166,8 +166,8 @@ func _on_selection_changed() -> void:
 
 
 func _on_scene_changed(scene_root: Node) -> void:
-	var selected = get_selected_node()
-	var eligible = is_road_node(selected)
+	var selected := get_selected_node()
+	var eligible := is_road_node(selected)
 	if selected and eligible:
 		_show_road_toolbar()
 	else:
@@ -206,7 +206,7 @@ func get_plugin_version() -> String:
 func get_selected_node() -> Node:
 	# TODO: Update this algorithm to figure out which node is really the
 	# primary selection rather than always assuming index 0 is the selection.
-	var selected_nodes = _eds.get_selected_nodes()
+	var selected_nodes := _eds.get_selected_nodes()
 	if not selected_nodes.is_empty():
 		return selected_nodes[0]
 	else:
@@ -215,7 +215,7 @@ func get_selected_node() -> Node:
 
 ## Returns the next highest level RoadManager from current primary selection.
 func get_manager_from_selection(): # -> Optional[RoadManager]
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 
 	if not is_instance_valid(selected_node):
 		push_error("Invalid selection to add road segment")
@@ -236,7 +236,7 @@ func get_manager_from_selection(): # -> Optional[RoadManager]
 
 ## Gets the RoadContainer from selection of either roadcontainer or roadpoint.
 func get_container_from_selection(): # -> Optional[RoadContainer]
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 	var t_container = null
 
 	if not is_instance_valid(selected_node):
@@ -280,7 +280,7 @@ func set_selection_list(nodes: Array) -> void:
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
 # TODO: Nearest GraphNode
-func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
+func get_nearest_graph_node(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
@@ -498,7 +498,7 @@ func _hide_road_toolbar() -> void:
 
 
 func _on_regenerate_pressed() -> void:
-	var nd = get_selected_node()
+	var nd := get_selected_node()
 	if nd is RoadManager:
 		for ch_container in nd.get_containers():
 			ch_container.rebuild_segments(true)
@@ -517,7 +517,7 @@ func _on_regenerate_pressed() -> void:
 
 func _instance_custom_roadcontainer(path: String) -> void:
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 
 	# Determine where to place it, for now - origin of the RoadManager
 	var t_manager = get_manager_from_selection()
@@ -565,7 +565,7 @@ func _create_container_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 	# if init_sel is RoadPoint: and is an "edge" roadpoint,
 
 	undo_redo.create_action("Add RoadContainer")
@@ -691,7 +691,7 @@ func _add_and_connect_rp(rp_rc: RoadContainer, connect_rp: RoadPoint) -> void:
 	var this_dir: int = RoadPoint.PointInit.PRIOR if target_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
 
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 
 	var pos: Vector3 = connect_rp.global_transform.origin
 	var nrm: Vector3 = connect_rp.global_rotation
@@ -827,7 +827,7 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 
 func _connect_rp_on_click(rp_a, rp_b):
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
 		push_error("Cannot connect non-roadpoints")
 		return
@@ -1267,7 +1267,7 @@ func _create_roadpoint_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 	
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 
 	undo_redo.create_action("Add RoadPoint")
 	if selected_node is RoadContainer:
@@ -1299,7 +1299,7 @@ func _create_roadpoint_do(t_container: RoadContainer):
 
 	# Get selected RoadPoint.
 	t_container.setup_road_container()
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 	var first_road_point: RoadPoint
 	var second_road_point: RoadPoint
 
@@ -1549,7 +1549,7 @@ func _on_report_issue_pressed() -> void:
 ## Adds a single RoadLane to the scene.
 func _create_lane_pressed() -> void:
 	var undo_redo = get_undo_redo()
-	var target_parent = get_selected_node()
+	var target_parent := get_selected_node()
 
 	if not is_instance_valid(target_parent):
 		push_error("No valid parent node selected to add RoadLane to")
@@ -1608,7 +1608,7 @@ func _create_lane_undo(parent: Node) -> void:
 ## Adds a single RoadLane to the scene.
 func _create_lane_agent_pressed() -> void:
 	var undo_redo = get_undo_redo()
-	var target_parent = get_selected_node()
+	var target_parent := get_selected_node()
 
 	if not is_instance_valid(target_parent):
 		push_error("No valid parent node selected to add RoadLane to")

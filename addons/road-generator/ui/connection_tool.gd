@@ -1,5 +1,9 @@
 extends Object
 
+# ------------------------------------------------------------------------------
+#region Enums, constants, vars, and initializer
+# ------------------------------------------------------------------------------
+
 
 enum SnapState {
 	IDLE,
@@ -66,8 +70,8 @@ func forward_3d_draw_over_viewport(overlay: Control):
 func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	var ret := 0
 
-	var selected = plg.get_selected_node()
-	var relevant = plg.is_road_node(selected)
+	var selected:Node = plg.get_selected_node()
+	var relevant:bool = plg.is_road_node(selected)
 
 	# TODO: Modifier key like control or option to toggle between select & add.
 
@@ -82,7 +86,7 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 
 # ------------------------------------------------------------------------------
 #endregion
-#region Connection tool functions
+#region GUI overlays
 # ------------------------------------------------------------------------------
 
 func draw_select_mode(overlay: Control, selected: Node3D) -> void:
@@ -96,7 +100,6 @@ func draw_select_mode(overlay: Control, selected: Node3D) -> void:
 	# between the two closest points. When Unsnapping, show lines between
 	# all connected points that will be Unsnapped.
 	if _snapping == SnapState.SNAPPING:
-		#col = Color.cadetblue
 		if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
 			return # Nothing to draw
 
@@ -267,14 +270,13 @@ func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 			_overlay_hint_disconnect = false
 			_overlay_hint_connection = false
 			plg.update_overlays()
-
 			return INPUT_PASS  # Is a drag event
 
 		elif _press_init_pos != event.position:
 			return INPUT_PASS  # Is a drag even
 
 		# Shoot a ray and see if it hits anything
-		var point:RoadGraphNode = plg.get_nearest_road_point(camera, event.position)
+		var point:RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
 		if point and not event.pressed:
 			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
 			#set_selection(point)
@@ -285,7 +287,6 @@ func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 			else:
 				plg._new_selection = point
 			return INPUT_PASS
-
 	elif event is InputEventMouseMotion and lmb_pressed and selected is RoadContainer:
 		# If container already has Edge connections then unsnap/disconnect them.
 		var sel_rp_connections: Array = selected.get_connected_edges()
