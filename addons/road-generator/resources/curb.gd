@@ -20,7 +20,7 @@ func _init() -> void:
 	profile.bake_resolution = 5
 	profile.max_domain = 2.0
 	profile.max_value = 0.5
-	profile.add_point(Vector2(0, 0),0,0,1,1)
+	profile.add_point(Vector2(0, 0.03),0,0,1,1)
 	profile.add_point(Vector2(1.7, 0.15),0,0,1,1)
 	profile.add_point(Vector2(2.0, 0),0,0,1,1)
 
