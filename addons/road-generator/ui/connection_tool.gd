@@ -76,11 +76,11 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	# TODO: Modifier key like control or option to toggle between select & add.
 
 	if not relevant or plg.tool_mode == plg._road_toolbar.InputMode.SELECT:
-		ret = _handle_gui_select_mode(camera, event)
+		ret = _handle_select_mode_input(camera, event)
 	elif plg.tool_mode == plg._road_toolbar.InputMode.ADD:
-		ret = _handle_gui_add_mode(camera, event)
+		ret = _handle_add_mode_input(camera, event)
 	elif plg.tool_mode == plg._road_toolbar.InputMode.DELETE:
-		ret = _handle_gui_delete_mode(camera, event)
+		ret = _handle_delete_mode_input(camera, event)
 	return ret
 
 
@@ -236,20 +236,31 @@ func draw_delete_mode(overlay: Control, selected: Node3D) -> void:
 			col, 6)
 
 
-func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
+# ------------------------------------------------------------------------------
+#endregion
+#region Input handling
+# ------------------------------------------------------------------------------
+
+
+func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	# Event triggers on both press and release. Ignore press and only act on
 	# release. Also, ignore right-click and middle-click.
 #	if (not event is InputEventMouseButton) and (not event is InputEventMouseMotion):
-#		return INPUT_PASS
-	var selected = plg.get_selected_node()
-	var lmb_pressed = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
-	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+#		return INPUT_PASS 
+	var selected:Node = plg.get_selected_node()
+	var lmb_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var ctrl_pressed := Input.is_key_pressed(KEY_CTRL)
+	var shift_pressed := Input.is_key_pressed(KEY_SHIFT)
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and _snapping:
 		# If user clicks RMB while snapping, then cancel snapping
 		_snapping = SnapState.IDLE
+		return INPUT_PASS
+	elif event is InputEventKey and event.keycode == KEY_ESCAPE and _snapping:
+		# If user presses escape while snapping, then cancel snapping
+		_snapping = SnapState.IDLE
+		return INPUT_PASS
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-
 		if event.pressed:
 			# Nothing done until click up, but detect initial position
 			# to differentiate between drags and direct clicks.
@@ -378,17 +389,16 @@ func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
-func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
+func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	if event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture:
 		# Handle updating UI overlays to indicate what would happen on click.
-
 		## TODO: if pressed state, then use this to update the in/out mag handles
 		# Pressed state not available here, need to track state separately.
 		# Handle visualizing which connections are free to make
 		# trigger overlay updates to draw/update indicators
-		var point:RoadGraphNode = plg.get_nearest_road_point(camera, event.position)
-		var hover_point = point # logical workaround to duplicate
-		var selection = plg.get_selected_node()
+		var point:RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
+		var hover_point := point # logical workaround to duplicate
+		var selection:Node = plg.get_selected_node()
 		var src_is_contianer := false
 		var target:RoadGraphNode
 
@@ -480,7 +490,6 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 				_overlay_hint_connection = false
 			else:
 				# Open connection scenario
-				
 				_overlay_rp_selected = target # could be the selection, or child of selected container
 				_overlay_hint_disconnect = false
 				_overlay_hint_connection = true
@@ -494,11 +503,11 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 		# Consume the event no matter what.
 		return INPUT_PASS
 
-	if not event is InputEventMouseButton:
+	elif not event is InputEventMouseButton:
 		return INPUT_PASS
-	if not event.button_index == MOUSE_BUTTON_LEFT:
+	elif not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
-	if not event.pressed:
+	elif not event.pressed:
 		return INPUT_STOP
 	# Should consume all left click operation hereafter.
 
@@ -520,20 +529,20 @@ func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
 
 		if selection is RoadContainer and selection.is_subscene():
 			plg._add_next_rp_on_click(pos, nrm, selection.get_manager())
-		elif selection is RoadPoint and selection.is_next_connected() and  selection.is_prior_connected():
+		elif selection is RoadPoint and selection.is_next_connected() and selection.is_prior_connected():
 			plg._add_next_rp_on_click(pos, nrm, selection.container)
 		else:
 			plg._add_next_rp_on_click(pos, nrm, selection)
 	return INPUT_STOP
 
 
-func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> int:
+func _handle_delete_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	if event is InputEventMouseMotion or event is InputEventPanGesture:
-		var point = plg.get_nearest_road_point(camera, event.position)
-		var selection = plg.get_selected_node()
+		var point: RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
+		var selection:Node = plg.get_selected_node()
 		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
-		var max_dist = 50 # ie only auto suggest deleting RP if it's within this dist to mouse.
+		var max_dist:= 50.0 # ie only auto suggest deleting RP if it's within this dist to mouse.
 		if point and point.container.is_subscene():
 			# Don't offer changing saved scenes in any way.
 			_overlay_rp_hovering = null
@@ -553,11 +562,11 @@ func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> int:
 			_overlay_hint_delete = false
 		plg.update_overlays()
 		return INPUT_PASS
-	if not event is InputEventMouseButton:
+	elif not event is InputEventMouseButton:
 		return INPUT_PASS
-	if not event.button_index == MOUSE_BUTTON_LEFT:
+	elif not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
-	if event.pressed and _overlay_rp_hovering != null:
+	elif event.pressed and _overlay_rp_hovering != null:
 		# Always match what the UI is showing
 		plg._delete_rp_on_click(_overlay_rp_hovering)
 	return INPUT_STOP
