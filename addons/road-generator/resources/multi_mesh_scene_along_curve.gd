@@ -1,6 +1,6 @@
 @tool
 extends RoadDecoration
-class_name InstanceAlongCurve
+class_name MultiMeshSceneAlongCurve
 
 @export_group("Instance Properties")
 ## Scene with Mesh to instance along the curve
@@ -53,7 +53,7 @@ class_name InstanceAlongCurve
 		check_auto_refresh()
 
 func _init() -> void:
-	description = "objects_along_curve"
+	description = "multi_scene_mesh_along_curve"
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 	if not mesh_source_scene:
@@ -66,7 +66,7 @@ func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 		push_error("The mesh_source_scene does not have a mesh or is invalid.")
 		return
 
-	# Create new curbs based on the selected side(s)
+	# place scene based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
 		_instance_scene_on_edge(decoration_node_wrapper, segment, edge, "R")
