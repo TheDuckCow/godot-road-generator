@@ -10,29 +10,62 @@ enum Side {
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+var parent_road_point: RoadPoint = null
+
 @export_group("General Decoration Properties")
 ## Description used for nodes in scene tree
-@export var description: String = "default"
+@export var description: String = "default":
+	set(value):
+		description = value
+		check_auto_refresh()
 ## which side to place decoration on
-@export var side: RoadDecoration.Side = RoadDecoration.Side.REVERSE
+@export var side: RoadDecoration.Side = RoadDecoration.Side.REVERSE:
+	set(value):
+		side = value
+		check_auto_refresh()
 ## relative start offset along the segment
 ## 0.2 means that decoration starts after 20% length along the segment
-@export_range(0,1) var offset_start: float = 0.0
+@export_range(0,1) var offset_start: float = 0.0:
+	set(value):
+		offset_start = value
+		check_auto_refresh()
 ## relative end offset along the segment
 ## 0.2 means that decoration ends at 80% length along the segment
-@export_range(0,1) var offset_end: float = 0.0
+@export_range(0,1) var offset_end: float = 0.0:
+	set(value):
+		offset_end = value
+		check_auto_refresh()
 ## absolut lateral offset in meters from the edge curve along the whole curve
 ## negative values go "inwards", positive values "outwards" from the road
 ## use offset_lateral_profile for more advanced lateral offsets
-@export var offset_lateral: float = -0.5
+@export var offset_lateral: float = -0.5:
+	set(value):
+		offset_lateral = value
+		check_auto_refresh()
 ## specify lateral offset profile (Curve) from 0..1 along the curb
 ## domain needs to be between 0 and 1, they describe the relative position along the curve.
 ## The value offset is the same as in parameter offset_lateral, just that you can vary it along the curve.
-@export var offset_lateral_profile: Curve
+@export var offset_lateral_profile: Curve = null:
+	set(value):
+		offset_lateral_profile = value
+		check_auto_refresh()
 
+# this saved the road point for later use
+func init(road_point: RoadPoint) -> void:
+	parent_road_point = road_point
+
+# this must be overwritten in subclasses
+# should be translated to abstract class in future Godot versions
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
 	pass
 
+
+# If auto-refresh is enabled on the container, trigger a rebuild
+func check_auto_refresh():
+	var container = parent_road_point.container
+	if container.get_manager().auto_refresh:
+		container.rebuild_segments(true)
+	
 
 func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 	## Based on edge curves, apply start/end offsets and lateral offsets (fixed and profile-based)
@@ -91,7 +124,6 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 		new_curve.add_point(pos)
 
 	return new_curve
-
 
 
 func _get_other_edge(segment: RoadSegment, edge: Path3D) -> Path3D:

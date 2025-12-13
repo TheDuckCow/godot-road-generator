@@ -4,29 +4,53 @@ class_name InstanceAlongCurve
 
 @export_group("Instance Properties")
 ## Scene with Mesh to instance along the curve
-@export var mesh_source_scene: PackedScene
+@export var mesh_source_scene: PackedScene:
+	set(value):
+		mesh_source_scene = value
+		check_auto_refresh()
 ## Space between objects when placing along curve
-@export var spacing_along_curve: float = 0
+@export var spacing_along_curve: float = 0:
+	set(value):
+		spacing_along_curve = value
+		check_auto_refresh()
 
 ## Automatically scale object to fit curve length (considers offsets below).
 ## This overrides manual scaling.
 ## Works best if the mesh is short. This checks how often mesh would fit along curve.
 ## If it would fit 8.6 times, it will be scaled so that it fits exactly 9 times.
-@export var automatic_scaling: bool = true
+@export var automatic_scaling: bool = true:
+	set(value):
+		automatic_scaling = value
+		check_auto_refresh()
 @export_subgroup("Advanced Properties")
 ## If x axes is automatically scaled, scale y axes the same way
-@export var automatic_scaling_along_y_axes: bool = true
+@export var automatic_scaling_along_y_axes: bool = true:
+	set(value):
+		automatic_scaling_along_y_axes = value
+		check_auto_refresh()
 ## If x axes is automatically scaled, scale z axes the same way
-@export var automatic_scaling_along_z_axes: bool = true
+@export var automatic_scaling_along_z_axes: bool = true:
+	set(value):
+		automatic_scaling_along_z_axes = value
+		check_auto_refresh()
 ## Manual scaling of object. Not used if automatic_scaling is true.
-@export var manual_scaling_object: Vector3 = Vector3.ONE
+@export var manual_scaling_object: Vector3 = Vector3.ONE:
+	set(value):
+		manual_scaling_object = value
+		check_auto_refresh()
 ## Rotation of object in degrees when placed along curve
 ## If your mesh points along X axis, you might want to set Y to 90 degrees.
-@export var rotation_object_degree: Vector3 = Vector3(0, -90, 0)
+@export var rotation_object_degree: Vector3 = Vector3(0, -90, 0):
+	set(value):
+		rotation_object_degree = value
+		check_auto_refresh()
 ## Move object by this much when placing in local coords.
 ## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
 ## This is just included to offer maximum flexibility.
-@export var manual_offset_object: Vector3 = Vector3.ZERO
+@export var manual_offset_object: Vector3 = Vector3.ZERO:
+	set(value):
+		manual_offset_object = value
+		check_auto_refresh()
 
 func _init() -> void:
 	description = "objects_along_curve"

@@ -814,6 +814,7 @@ func _rebuild():
 				point.add_child(decoration_node_wrapper)
 				decoration_node_wrapper.set_owner(point.get_tree().get_edited_scene_root())
 				
+				deco.init(point)
 				deco.setup(self, decoration_node_wrapper)
 				decoration_number += 1
 
