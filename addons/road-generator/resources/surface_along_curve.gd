@@ -1,6 +1,6 @@
 @tool
 extends RoadDecoration
-class_name AreaAlongCurve
+class_name SurfaceAlongCurve
 
 ## Shader for striped areas (lives in its own .gdshader file)
 const STRIPE_SHADER := preload("res://addons/road-generator/shaders/area_stripes.gdshader")
