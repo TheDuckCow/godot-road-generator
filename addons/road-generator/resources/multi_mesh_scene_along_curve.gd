@@ -7,12 +7,12 @@ class_name MultiMeshSceneAlongCurve
 @export var mesh_source_scene: PackedScene:
 	set(value):
 		mesh_source_scene = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Space between objects when placing along curve
 @export var spacing_along_curve: float = 0:
 	set(value):
 		spacing_along_curve = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## Automatically scale object to fit curve length (considers offsets below).
 ## This overrides manual scaling.
@@ -21,36 +21,36 @@ class_name MultiMeshSceneAlongCurve
 @export var automatic_scaling: bool = true:
 	set(value):
 		automatic_scaling = value
-		check_auto_refresh()
+		decoration_changed.emit()
 @export_subgroup("Advanced Properties")
 ## If x axes is automatically scaled, scale y axes the same way
 @export var automatic_scaling_along_y_axes: bool = true:
 	set(value):
 		automatic_scaling_along_y_axes = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## If x axes is automatically scaled, scale z axes the same way
 @export var automatic_scaling_along_z_axes: bool = true:
 	set(value):
 		automatic_scaling_along_z_axes = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Manual scaling of object. Not used if automatic_scaling is true.
 @export var manual_scaling_object: Vector3 = Vector3.ONE:
 	set(value):
 		manual_scaling_object = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Rotation of object in degrees when placed along curve
 ## If your mesh points along X axis, you might want to set Y to 90 degrees.
 @export var rotation_object_degree: Vector3 = Vector3(0, -90, 0):
 	set(value):
 		rotation_object_degree = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Move object by this much when placing in local coords.
 ## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
 ## This is just included to offer maximum flexibility.
 @export var manual_offset_object: Vector3 = Vector3.ZERO:
 	set(value):
 		manual_offset_object = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 func _init() -> void:
 	description = "multi_scene_mesh_along_curve"

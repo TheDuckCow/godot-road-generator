@@ -7,27 +7,27 @@ class_name SingleMeshSceneAlongCurve
 @export var mesh_source_scene: PackedScene:
 	set(value):
 		mesh_source_scene = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## Relative position along the (trimmed) curve where the object is placed.
 ## 0.0 = at the start after applying offsets, 1.0 = at the end.
 @export_range(0.0, 1.0) var position_along_curve: float = 0.5:
 	set(value):
 		position_along_curve = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## Manual scaling of object
 @export var manual_scaling_object: Vector3 = Vector3.ONE:
 	set(value):
 		manual_scaling_object = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## Rotation of object in degrees when placed along curve
 ## If your mesh points along X axis, you might want to set Y to 90 degrees.
 @export var rotation_object_degree: Vector3 = Vector3(0, -90, 0):
 	set(value):
 		rotation_object_degree = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## Move object by this much when placing in local coords.
 ## Try to work with the placement of the mesh in the scene itself first. Also offset lateral might help.
@@ -35,7 +35,7 @@ class_name SingleMeshSceneAlongCurve
 @export var manual_offset_object: Vector3 = Vector3.ZERO:
 	set(value):
 		manual_offset_object = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 func _init() -> void:
 	description = "single_scene_mesh_along_curve"

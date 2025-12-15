@@ -11,39 +11,39 @@ const STRIPE_SHADER := preload("res://addons/road-generator/shaders/area_stripes
 @export var profile: Curve:
 	set(value):
 		profile = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Define width of side area along the road segment.
 ## So at domain=0 a value of 2 would mean that the area extends 2 meters from the road edge (assuming max_domain of profile is 1) 
 ## at the start of the road segment. At domain=1 it would be at the end of the road segment and you can vary the width along it.
 @export var width: Curve:
 	set(value):
 		width = value
-		check_auto_refresh()
+		decoration_changed.emit()
 @export var primary_color: Color = Color("#006400"):
 	set(value):
 		primary_color = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 ## If true, use a striped shader instead of a solid color.
 @export var use_stripes: bool = false:
 	set(value):
 		use_stripes = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Secondary color for stripes (if enabled).
 @export var secondary_color: Color = Color("#F9F6EE"):
 	set(value):
 		secondary_color = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Width of each stripe in meters (if stripes are enabled).
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_width: float = 3.0:
 	set(value):
 		stripe_width = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Rotation of stripes in degrees (0 means they go parallel to road direction).
 @export_range(0, 90, 1) var stripe_rotation_degree: float = 0.0:
 	set(value):
 		stripe_rotation_degree = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 
 func _init() -> void:

@@ -8,25 +8,25 @@ class_name RoadCurb
 @export var profile: Curve:
 	set(value):
 		profile = value
-		check_auto_refresh()
+		decoration_changed.emit()
 @export var primary_color: Color = Color("#FF2400"):
 	set(value):
 		primary_color = value
-		check_auto_refresh()
+		decoration_changed.emit()
 @export var use_stripes: bool = false:
 	set(value):
 		use_stripes = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Secondary color for stripes (if enabled)
 @export var secondary_color: Color = Color("#F9F6EE"):
 	set(value):
 		secondary_color = value
-		check_auto_refresh()
+		decoration_changed.emit()
 ## Length of each stripe in meters (if stripes are enabled)
 @export_range(0.1, 10.0, 0.1, "or_greater") var stripe_length: float = 3.0:
 	set(value):
 		stripe_length = value
-		check_auto_refresh()
+		decoration_changed.emit()
 
 func _init() -> void:
 	description = "curbs"

@@ -782,8 +782,8 @@ func _rebuild():
 	else:
 		clear_lane_segments()
 	
-	# Setup decorations on both RoadPoints
-	for point in [start_point]:#, end_point]:
+	# Setup decorations on RoadPoints
+	for point in [start_point]:
 		if self.get_parent() == point:
 			# get rid of previous decorations
 			for child in point.get_children():
@@ -800,7 +800,8 @@ func _rebuild():
 					continue
 				
 				if not deco:
-					push_warning("Invalid decoration %s in RoadPoint: %s" % [deco, point])
+					# this happens when decoration array element is empty
+					# e.g. when user just clicked on "Add Element" in decorations
 					continue
 				
 				# check if deco has setup function
@@ -814,8 +815,8 @@ func _rebuild():
 				point.add_child(decoration_node_wrapper)
 				decoration_node_wrapper.set_owner(point.get_tree().get_edited_scene_root())
 				
-				deco.init(point)
 				deco.setup(self, decoration_node_wrapper)
+
 				decoration_number += 1
 
 
