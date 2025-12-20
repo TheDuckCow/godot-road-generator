@@ -45,6 +45,13 @@ const STRIPE_SHADER := preload("res://addons/road-generator/shaders/area_stripes
 		stripe_rotation_degree = value
 		decoration_changed.emit()
 
+@export_group("Material")
+## If you set this, primary_color, stripes and secondary_color are ignored and this material is used instead!
+@export var material_override: Material = null:
+	set(value):
+		material_override = value
+		decoration_changed.emit()
+
 
 func _init() -> void:
 	description = "side_area"
@@ -326,7 +333,11 @@ func _build_area_mesh(
 
 
 func _create_area_material() -> Material:
-	## Create either striped ShaderMaterial (using external .gdshader) or solid StandardMaterial3D.
+	# If the user provided a material, prefer it and ignore color/stripe params.
+	if material_override != null:
+		return material_override
+
+	# Fallback: build material from the "simple" parameters.
 	if use_stripes:
 		var shader_mat := ShaderMaterial.new()
 		shader_mat.shader = STRIPE_SHADER
@@ -340,6 +351,7 @@ func _create_area_material() -> Material:
 		std_mat.albedo_color = primary_color
 		std_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		return std_mat
+
 
 
 func _create_area_nodes_with_collision(
