@@ -148,7 +148,7 @@ next_mag = 38.2071
 next_pt_init = NodePath("../E1")
 
 [node name="E4" type="Node3D" parent="RoadManager/Road_001"]
-transform = Transform3D(-0.541118, 0, 0.840946, 0, 1, 0, -0.840946, 0, -0.541118, 17.7619, -52.1711, -218.914)
+transform = Transform3D(-0.541118, 0, 0.840946, 0, 1, 0, -0.840946, 0, -0.541118, 6.7619, -52.1711, -219.914)
 script = ExtResource("3_3xvxs")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
