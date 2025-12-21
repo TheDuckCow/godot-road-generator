@@ -451,21 +451,25 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 		var parallel_v_from: Vector3 = (edge.transform.basis.z).normalized()
 
-		var facing: _IntersectNGonFacing = _get_edge_facing(edge, intersection)
-		var facing_coefficient = 1
-		if facing == _IntersectNGonFacing.ORIGIN:
-			facing_coefficient = -1
+		var i_facing: _IntersectNGonFacing = _get_edge_facing(edge, intersection)
+		var i_facing_coefficient = 1
+		var i1_facing: _IntersectNGonFacing = _get_edge_facing(next_edge, intersection)
+		var i1_facing_coefficient = 1
+		if i_facing == _IntersectNGonFacing.ORIGIN:
+			i_facing_coefficient = -1
+		if i1_facing == _IntersectNGonFacing.ORIGIN:
+			i1_facing_coefficient = -1
 		var curve = Curve3D.new()
 		curve.bake_interval = density
 
 		curve.add_point(
 			edge_gutters[i][0],
 			Vector3.ZERO,
-			(edge.basis.z.normalized() * control_length_from * facing_coefficient)
+			(edge.basis.z.normalized() * control_length_from * i_facing_coefficient)
 		)
 		curve.add_point(
 			edge_gutters[next_i][1],
-			(next_edge.basis.z.normalized() * control_length_to * facing_coefficient),
+			(next_edge.basis.z.normalized() * control_length_to * i1_facing_coefficient),
 			Vector3.ZERO
 		)
 
