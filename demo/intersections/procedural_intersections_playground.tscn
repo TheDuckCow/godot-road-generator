@@ -23,11 +23,11 @@ script = ExtResource("1_7bqj5")
 [node name="RoadTempHardcoding" type="Node3D" parent="RoadManager"]
 script = ExtResource("2_5r4g7")
 use_lowpoly_preview = true
-edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_target_dirs = Array[int]([-1, -1, -1, -1, -1, -1])
-edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_004"), NodePath("RP_005"), NodePath("RP_006"), NodePath("InteractiveRoadPoint"), NodePath("InteractiveRoadPoint")])
-edge_rp_local_dirs = Array[int]([0, 1, 0, 1, 0, 1])
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_005"), NodePath("InteractiveRoadPoint")])
+edge_rp_local_dirs = Array[int]([0, 1])
 
 [node name="RP_001" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
 transform = Transform3D(-0.964111, 5.68735e-09, 0.265501, 0, 1, -2.14212e-08, -0.265501, -2.06524e-08, -0.964111, 2.68758, 0.332846, -1.62913)
@@ -104,11 +104,11 @@ next_pt_init = NodePath("../RoadIntersection")
 [node name="Road_001" type="Node3D" parent="RoadManager"]
 script = ExtResource("2_5r4g7")
 use_lowpoly_preview = true
-edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")])
-edge_rp_target_dirs = Array[int]([-1, -1, -1, -1, -1, -1, -1, -1])
-edge_rp_locals = Array[NodePath]([NodePath("E2"), NodePath("RP_002"), NodePath("E1"), NodePath("_Node3D_24232"), NodePath("E4"), NodePath("_Node3D_25011"), NodePath("E3"), NodePath("_Node3D_26023")])
-edge_rp_local_dirs = Array[int]([0, 1, 0, 1, 0, 1, 0, 1])
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_002"), NodePath("_Node3D_24232"), NodePath("_Node3D_25011"), NodePath("_Node3D_26023")])
+edge_rp_local_dirs = Array[int]([1, 1, 1, 1])
 
 [node name="E2" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(-0.0616923, 0, -0.998095, 0, 1, 0, 0.998095, 0, -0.0616923, 46.7656, -47.7218, -244.568)
@@ -117,6 +117,7 @@ traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 next_mag = 88.0948
 shoulder_width_l = 5.0
+gutter_profile = Vector2(5, -0.5)
 prior_pt_init = NodePath("../RP_002")
 next_pt_init = NodePath("../RoadIntersection")
 
