@@ -4,7 +4,16 @@ extends Object
 #region Enums, constants, vars, and initializer
 # ------------------------------------------------------------------------------
 
+## State of the connection tool to be drawn
+enum HintState {
+	NONE, ## No interactions active
+	CONNECT, ## Connect from source node to target node
+	DISCONNECT, ## Disconnect source node from target node
+	DELETE, ## Only source nodes defined, not target
+	DISSOLVE ## Only source nodes defined, not target
+}
 
+## State of the snapping tool
 enum SnapState {
 	IDLE,
 	SNAPPING,
@@ -13,32 +22,46 @@ enum SnapState {
 	CANCELING,
 }
 
-# Forwards the InputEvent to other EditorPlugins.
+## Forwards the InputEvent to other EditorPlugins.
 const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
-# Prevents the InputEvent from reaching other Editor classes.
+## Prevents the InputEvent from reaching other Editor classes.
 const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
-const ROADPOINT_SNAP_THRESHOLD := 25.0
 
+## Overlay margin for drawing white outlines
+const margin := 3
+## Outline color
+const white_col = Color(1, 1, 1, 0.9)
+## Connector dot radius
+const rad_size := 10.0
 
+## Threshold for snapping distance of nodes in the scene
+var snap_threshold := 25.0
 var plg:EditorPlugin
 
-var rad_size := 10.0
+## Current state of snapping
+var snapping: int = SnapState.IDLE
 
-# White margin background
-var margin := 3
-var white_col = Color(1, 1, 1, 0.9)
+## Used to define drawing overlays, should be updated in tandem with above assignments
+var hinting: int = HintState.NONE
+## Last cursor position, in case most recent event was not cursor-based (e.g. mod key)
+var cursor := Vector2(-1, -1)
 
-var _overlay_rp_selected: Node # Matching active selection or according RP child
-var _overlay_rp_hovering: Node # Matching what the mouse is hovering over
-var _overlay_hovering_pos := Vector2(-1, -1)
-var _overlay_hovering_from := Vector2(-1, -1)
-var _overlay_hint_disconnect := false
-var _overlay_hint_connection := false
-var _overlay_hint_delete := false
-var _snapping = SnapState.IDLE
-var _nearest_edges: Array # [Selected RP, Target RP]
-var _edge_positions: Array # [edge_from_pos, edge_to_pos]
-var _press_init_pos: Vector2
+## Array of source nodes to keep track of interaction states
+var hint_source_nodes: Array[Node3D] = []
+## Array of target nodes to kep track of interaction states
+var hint_target_nodes: Array[Node3D] = []
+## Array of projected screen positions to draw for the corresponding source node
+var hint_source_points: Array[Vector2] = []
+## Array of projected screen positions to draw for the corresponding target node
+var hint_target_points: Array[Vector2] = []
+
+## Array of edges to highlight for this tool mode, may have a different number to above arrays
+var hint_edges_r: Array[Vector2] = []
+## Array of edges to highlight for this tool mode, may have a different number to above arrays
+var hint_edges_f: Array[Vector2] = []
+
+var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of roads
+var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
 
 
 func _init(plugin: EditorPlugin) -> void:
@@ -53,16 +76,19 @@ func _init(plugin: EditorPlugin) -> void:
 
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_3d_draw_over_viewport(overlay: Control):
-	var selected:Node3D = _overlay_rp_selected
-
-	if plg.tool_mode == plg._road_toolbar.InputMode.SELECT and _snapping == SnapState.IDLE:
+	if hinting == HintState.NONE:
 		return
-	elif plg.tool_mode == plg._road_toolbar.InputMode.SELECT:
-		draw_select_mode(overlay, selected)
-	elif plg.tool_mode == plg._road_toolbar.InputMode.DELETE:
-		draw_delete_mode(overlay, selected)
-	else:
-		draw_add_mode(overlay, selected)
+	match hinting:
+		HintState.CONNECT:
+			draw_hint_connect(overlay)
+		HintState.DISCONNECT:
+			draw_hint_disconnect(overlay)
+		HintState.DELETE:
+			draw_hint_delete(overlay)
+		HintState.DISSOLVE:
+			draw_hint_dissolve(overlay)
+		_:  # Including HintState.NONE
+			return
 
 
 ## Handle or pass on event in the 3D editor
@@ -84,156 +110,196 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	return ret
 
 
+## Implement handling of [] keys for moving between RPs in the 3d editor
+##
+## TODO: Turn into actual shortcut and make it configurable
+## https://docs.godotengine.org/en/stable/classes/class_shortcut.html
+func unhandled_input(event: InputEvent) -> void:
+	var move_dir: int = -1
+	if event is InputEventKey and event.is_pressed() and not event.is_echo():
+		if event.keycode == KEY_BRACKETRIGHT:
+			move_dir = RoadPoint.PointInit.NEXT
+		elif event.keycode == KEY_BRACKETLEFT:
+			move_dir = RoadPoint.PointInit.PRIOR
+		else:
+			return
+	else:
+		return
+	
+	var to_end: bool = Input.is_key_pressed(KEY_SHIFT)
+	var alt_pressed: bool = Input.is_key_pressed(KEY_ALT)
+	var initial_sel = plg.get_selected_node()
+	var new_sel: Node3D
+	if initial_sel is RoadPoint and not alt_pressed:
+		# Just pick the next/prior node
+		var rp: RoadPoint = initial_sel
+		if to_end:
+			new_sel = rp.get_last_rp(move_dir)
+		else:
+			new_sel = rp.get_next_road_node() if move_dir == RoadPoint.PointInit.NEXT else rp.get_prior_road_node()
+		if is_instance_valid(new_sel):
+			if new_sel is RoadGraphNode and new_sel.container and new_sel.container.is_subscene():
+				new_sel = new_sel.container
+			elif new_sel is RoadIntersection:
+				# avoids automatically going back to the same rp after entering an intersection
+				_last_rp_before_inter = rp
+	elif initial_sel is RoadPoint and alt_pressed:
+		# Need to select the next/prior RP in the previously selected intersection
+		if not is_instance_valid(_last_sel_inter):
+			return
+		new_sel = _get_nextprior_rp_from_inter(_last_sel_inter, initial_sel, move_dir)
+		if not is_instance_valid(new_sel):
+			return
+		_last_rp_before_inter = initial_sel
+	elif initial_sel is RoadIntersection:
+		var inter: RoadIntersection = initial_sel
+		new_sel = _get_nextprior_rp_from_inter(inter, _last_rp_before_inter, move_dir)
+		if not is_instance_valid(new_sel):
+			return
+		_last_sel_inter = inter
+		
+	elif initial_sel is RoadContainer:
+		# TODO: Select one of the roadpoints (or containers) of connected edges to this container
+		pass
+	else:
+		return
+	
+	if is_instance_valid(new_sel) and is_instance_valid(initial_sel):
+		plg._edi.get_selection().call_deferred("remove_node", initial_sel)
+		plg._edi.get_selection().call_deferred("add_node", new_sel)
+		# TODO: need some way of calling plg.get_tree().set_input_as_handled()
+
+
+## Utility for processing tab-navigation after leaving an intersection
+static func _get_nextprior_rp_from_inter(inter: RoadIntersection, prior_rp: RoadPoint, move_dir: int) -> RoadPoint:
+	var last_index = inter.edge_points.find(prior_rp)
+	if last_index < 0:
+		if inter.edge_points.size() > 0:
+			last_index = 0
+		else:
+			return # nothing to select anyways
+
+	var new_index: int = last_index+1 if move_dir == RoadPoint.PointInit.NEXT else last_index-1
+	if new_index >= inter.edge_points.size():
+		new_index = 0
+	elif new_index < 0:
+		new_index = inter.edge_points.size() -1
+	return inter.edge_points[new_index]
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region GUI overlays
 # ------------------------------------------------------------------------------
 
-func draw_select_mode(overlay: Control, selected: Node3D) -> void:
-	var col: Color
-	if _overlay_hint_disconnect:
-		col = Color.CORAL
-	else:
-		col = Color.AQUA
 
-	# Treat Snapping and Unsnapping differently. When Snapping, show a line
-	# between the two closest points. When Unsnapping, show lines between
-	# all connected points that will be Unsnapped.
-	if _snapping == SnapState.SNAPPING:
-		if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
-			return # Nothing to draw
-
-		if not selected is RoadPoint:
-			return
-
-		# White margin background
-		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-		overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			white_col,
-			2+margin*2,
-			true)
-
-		# Now color based on operation
-		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-		overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-		overlay.draw_line(
-			_overlay_hovering_from,
-			_overlay_hovering_pos,
-			col,
-			2,
-			true)
-#			return
-	else: # Unsnapping
-		# Iterate _all_edges and draw line for each
-		for edge_pair in _edge_positions:
-			_overlay_hovering_from = edge_pair[0]
-			_overlay_hovering_pos = edge_pair[1]
-
-			# White margin background
-			overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-			overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-			overlay.draw_line(
-				_overlay_hovering_from,
-				_overlay_hovering_pos,
-				white_col,
-				2+margin*2,
-				true)
-
-			# Now color based on operation
-			overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-			overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-			overlay.draw_line(
-				_overlay_hovering_from,
-				_overlay_hovering_pos,
-				col,
-				2,
-				true)
+func draw_hint_connect(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	for idx in hint_source_points.size():
+		var src := hint_source_points[idx]
+		var trg := hint_target_points[idx]
+		_draw_connector(overlay, src, trg, col)
+		_draw_mouse_label(overlay, col, "Connect")
+	_draw_edges(overlay, col, false)
 
 
-func draw_add_mode(overlay: Control, selected: Node3D) -> void:
-	var col: Color
-	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
-		return # Nothing to draw
-	var hovering:RoadPoint = _overlay_rp_hovering
-	if _overlay_hint_disconnect:
-		# Hovering node is directly connected to this node already, offer to disconnect
-		col = Color.CORAL
-	elif hovering.is_next_connected() and hovering.is_prior_connected():
-		# Where we're coming from is already fully connected.
-		# Eventually though, this could be an intersection.
-		return
-	elif selected == null:
-		# Should mean the source is a RoadContainer, meaning we want to create
-		# a RoadPoint at the edge of an existing RoadContainer.
-		col = Color.CHARTREUSE
-		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-		# TODO: Consider drawing a horizontal line along the edge itself, to
-		# clarify this is connection-affecting.
-		return
-	elif selected.is_next_connected() and selected.is_prior_connected():
-		# Fully connected, though eventually this could be an intersection.
-		return
-	elif selected.container != hovering.container:
-		col = Color.CADET_BLUE
-	else:
-		# Connection mode intra RoadContainer
-		col = Color.AQUA
-	# TODO: make color slight transparent, but requires merging draw positions
-	# as one call instead of multiple shapes.
+func draw_hint_disconnect(overlay: Control) -> void:
+	var col: Color = Color.CORAL
+	for idx in hint_source_points.size():
+		var src := hint_source_points[idx]
+		var trg := hint_target_points[idx]
+		_draw_connector(overlay, src, trg, col)
+		_draw_mouse_label(overlay, col, "Disconnect")
+	_draw_edges(overlay, col, false)
 
-	if not selected is RoadPoint:
-		return
 
-	# White margin background
-	overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-	overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
+func draw_hint_delete(overlay: Control) -> void:
+	var col: Color = Color.CORAL
+	for pos in hint_source_points:
+		_draw_x(overlay, pos, col)
+		_draw_mouse_label(overlay, col, "Delete")
+	_draw_edges(overlay, col, false)
+
+
+func draw_hint_dissolve(overlay: Control) -> void:
+	var col: Color = Color.CORAL
+	for pos in hint_source_points:
+		_draw_x(overlay, pos, col)
+		_draw_mouse_label(overlay, col, "Dissolve")
+	_draw_edges(overlay, col, true)
+
+
+func _draw_edges(overlay: Control, col, dashed) -> void:
+	for idx in hint_edges_r.size():
+		var rev:Vector2 = hint_edges_r[idx]
+		var fwd:Vector2 = hint_edges_f[idx]
+		_draw_edge(overlay, col, dashed, [rev, fwd])
+
+
+## Draws a white-outlined line with circles caps between two screen positions
+func _draw_connector(overlay: Control, start_pos: Vector2, end_pos: Vector2, col: Color) -> void:
+	# White background margin
+	overlay.draw_circle(start_pos, rad_size + margin, white_col)
+	overlay.draw_circle(end_pos, rad_size + margin, white_col)
 	overlay.draw_line(
-		_overlay_hovering_from,
-		_overlay_hovering_pos,
+		start_pos,
+		end_pos,
 		white_col,
 		2+margin*2,
 		true)
-
-	# Now color based on opration
-	overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-	overlay.draw_circle(_overlay_hovering_from, rad_size, col)
+	
+	# Colored part
+	overlay.draw_circle(start_pos, rad_size, col)
+	overlay.draw_circle(end_pos, rad_size, col)
 	overlay.draw_line(
-		_overlay_hovering_from,
-		_overlay_hovering_pos,
+		start_pos,
+		end_pos,
 		col,
 		2,
 		true)
 
 
-func draw_delete_mode(overlay: Control, selected: Node3D) -> void:
-	var col: Color
-	if _overlay_hint_delete:
-		col = Color.CORAL
+func _draw_x(overlay: Control, pos: Vector2, col: Color) -> void:
+	var radius := 24.0  # Radius of the rounded ends
+	var hf := radius / 2.0
+	# white bg
+	overlay.draw_line(
+		pos + Vector2(-hf-margin, -hf-margin),
+		pos + Vector2(hf+margin, hf+margin),
+		white_col, 6 + margin)
+	overlay.draw_line(
+		pos + Vector2(-hf-margin, hf+margin),
+		pos + Vector2(hf+margin, -hf-margin),
+		white_col, 6 + margin)
+	# Red part on top
+	overlay.draw_line(
+		pos + Vector2(-hf, -hf),
+		pos + Vector2(hf, hf),
+		col, 6)
+	overlay.draw_line(
+		pos + Vector2(-hf, + hf),
+		pos + Vector2(hf, -hf),
+		col, 6)
 
-		var radius := 24.0  # Radius of the rounded ends
-		var hf := radius / 2.0
-		# white bg
-		overlay.draw_line(
-			_overlay_hovering_pos + Vector2(-hf-margin, -hf-margin),
-			_overlay_hovering_pos + Vector2(hf+margin, hf+margin),
-			white_col, 6 + margin)
-		overlay.draw_line(
-			_overlay_hovering_pos + Vector2(-hf-margin, hf+margin),
-			_overlay_hovering_pos + Vector2(hf+margin, -hf-margin),
-			white_col, 6 + margin)
-		# Red part on top
-		overlay.draw_line(
-			_overlay_hovering_pos + Vector2(-hf, -hf),
-			_overlay_hovering_pos + Vector2(hf, hf),
-			col, 6)
-		overlay.draw_line(
-			_overlay_hovering_pos + Vector2(-hf, + hf),
-			_overlay_hovering_pos + Vector2(hf, -hf),
-			col, 6)
+
+func _draw_edge(overlay: Control, col: Color, dashed: bool, pts: Array[Vector2]) -> void:
+	var left_pt: Vector2 = pts[0]
+	var right_pt: Vector2 = pts[1]
+	const width := 4
+	if dashed:
+		# from: Vector2, to: Vector2, color: Color, width: float = -1.0, dash: float = 2.0, aligned: bool = true, antialiased: bool = false
+		const dash_dist := 8
+		overlay.draw_dashed_line(left_pt, right_pt, col, width, dash_dist)
+	else:
+		overlay.draw_line(left_pt, right_pt, col, width)
+
+
+func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
+	var pos := cursor + Vector2(30, 35)
+	var font = overlay.get_theme_default_font()
+	const outline_size := 4
+	overlay.draw_multiline_string_outline(font, pos, text, 0, -1, 24, -1, outline_size, Color.WHITE)
+	overlay.draw_multiline_string(font, pos, text, 0, -1, 24, -1, col)
 
 
 # ------------------------------------------------------------------------------
@@ -243,333 +309,163 @@ func draw_delete_mode(overlay: Control, selected: Node3D) -> void:
 
 
 func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	# Event triggers on both press and release. Ignore press and only act on
-	# release. Also, ignore right-click and middle-click.
-#	if (not event is InputEventMouseButton) and (not event is InputEventMouseMotion):
-#		return INPUT_PASS 
-	var selected:Node = plg.get_selected_node()
-	var lmb_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var ctrl_pressed := Input.is_key_pressed(KEY_CTRL)
-	var shift_pressed := Input.is_key_pressed(KEY_SHIFT)
-
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and _snapping:
-		# If user clicks RMB while snapping, then cancel snapping
-		_snapping = SnapState.IDLE
-		return INPUT_PASS
-	elif event is InputEventKey and event.keycode == KEY_ESCAPE and _snapping:
-		# If user presses escape while snapping, then cancel snapping
-		_snapping = SnapState.IDLE
-		return INPUT_PASS
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			# Nothing done until click up, but detect initial position
-			# to differentiate between drags and direct clicks.
-			_press_init_pos = event.position
-			return INPUT_PASS
-		elif _press_init_pos != event.position and not _snapping == SnapState.IDLE:
-			# TODO: possibly add min distance before treated as a drag
-			# (does built in godot have a tolerance before counted as a drag?)
-			var sel_rp: RoadPoint = _nearest_edges[0]
-			var tgt_rp: RoadPoint = _nearest_edges[1]
-			if _snapping in [SnapState.SNAPPING, SnapState.CANCELING]:
-				plg._snap_to_road_point_future(selected, sel_rp, tgt_rp, _snapping==SnapState.CANCELING)
-			elif _snapping == SnapState.UNSNAPPING:
-				# Disconnect Edge RoadPoints
-				plg._unsnap_container_future(selected)
-			# Clear overlays and snapping/unsnapping condition
-			_snapping = SnapState.IDLE
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = false
-			plg.update_overlays()
-			return INPUT_PASS  # Is a drag event
-
-		elif _press_init_pos != event.position:
-			return INPUT_PASS  # Is a drag even
-
-		# Shoot a ray and see if it hits anything
-		var point:RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
-		if point and not event.pressed:
-			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
-			#set_selection(point)
-			#_on_selection_changed()
-
-			if point.container.is_subscene():
-				plg._new_selection = point.container
-			else:
-				plg._new_selection = point
-			return INPUT_PASS
-	elif event is InputEventMouseMotion and lmb_pressed and selected is RoadContainer:
-		# If container already has Edge connections then unsnap/disconnect them.
-		var sel_rp_connections: Array = selected.get_connected_edges()
-#		_all_edges = selected.get_connected_edges()
-
-		# Get the closest edges
-		if len(sel_rp_connections) > 0:
-#			print("%s %s connected edges" % [Time.get_ticks_msec(), len(sel_rp_connections)])
-			var dist: float = 0
-			_edge_positions = []
-			for edge_group in sel_rp_connections:
-				var edge = edge_group[0]
-				var tgt_edge = edge_group[1]
-
-				# Save edge positions for drawing in the viewport
-				var edge_from_pos = camera.unproject_position(edge.global_transform.origin)
-				var edge_to_pos = camera.unproject_position(tgt_edge.global_transform.origin)
-				_edge_positions.append([edge_from_pos, edge_to_pos])
-
-				# Save closest edges
-				var group_dist = abs((edge.global_position - tgt_edge.global_position).length())
-				if (not dist) or group_dist < dist:
-					dist = group_dist
-					_nearest_edges = edge_group
-
-#			_nearest_edges = _all_edges[0]
-#			var edge = _nearest_edges[0]
-#			var tgt_edge = _nearest_edges[1]
-#			dist = (edge.global_translation - tgt_edge.global_translation).length()
-#			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
-#			_overlay_rp_hovering = _nearest_edges[0]
-#			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
-#			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
-			if false: # dist < ROADPOINT_SNAP_THRESHOLD:
-				_snapping = SnapState.CANCELING
-				# Use blue line color
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			else:
-				_snapping = SnapState.UNSNAPPING
-				# Use red line color
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-#			selected.move_connected_road_points()
-			plg.update_overlays()
-			return INPUT_PASS
-
-		# If container doesn't have Edge connections then snap/connect an Edge.
-		# Get all usable Edge RoadPoints in selected container
-		var sel_rp_edges: Array = selected.get_open_edges()
-		if not len(sel_rp_edges) > 0:
-			return INPUT_PASS
-
-		# Iterate remaining RoadContainers in scene and find RoadPoint
-		# closest to the RoadPoints in the selected container.
-		var containers: Array = selected.get_all_road_containers(plg._edi.get_edited_scene_root())
-		var min_dist: float
-		_nearest_edges = []
-		for cont in containers:
-			if cont == selected:
-				# Skip the selected container. We already have its Edge RoadPoints
-				continue
-			for edge in sel_rp_edges:
-				if not is_instance_valid(edge):
-					#push_warning("Container has invalid edges: " + selected.name)
-					continue
-				var tgt_edge = cont.get_closest_edge_road_point(edge.global_position)
-				if not is_instance_valid(tgt_edge):
-					#push_warning("Container has invalid edges: " + cont.name)
-					continue
-				var dist = (edge.global_position - tgt_edge.global_position).length()
-				if dist < ROADPOINT_SNAP_THRESHOLD and ((not min_dist) or dist < min_dist):
-					min_dist = dist
-					_nearest_edges = [edge, tgt_edge]
-		if _nearest_edges:
-			_snapping = SnapState.SNAPPING
-			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
-			_overlay_rp_hovering = _nearest_edges[0]
-			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
-			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = true
-			plg.update_overlays()
-		else:
-			_snapping = SnapState.IDLE
-
-		return INPUT_PASS
+	# TODO: Re-implement thi
 	return INPUT_PASS
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	if event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture:
-		# Handle updating UI overlays to indicate what would happen on click.
-		## TODO: if pressed state, then use this to update the in/out mag handles
-		# Pressed state not available here, need to track state separately.
-		# Handle visualizing which connections are free to make
-		# trigger overlay updates to draw/update indicators
-		var point:RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
-		var hover_point := point # logical workaround to duplicate
-		var selection:Node = plg.get_selected_node()
-		var src_is_contianer := false
-		var target:RoadGraphNode
-
-		if selection is RoadContainer:
-			src_is_contianer = true
-			var closest_rp = plg.get_nearest_edge_road_point(selection, camera, event.position)
-			if closest_rp:
-				target = closest_rp
-			else:
-				hover_point = point
-				point = null # nothing to point from, so skip below on what we're pointing to
-		elif selection is RoadManager:
-			point = null
-			target = null
-		elif selection is RoadPoint:
-			target = selection
-		elif selection is RoadIntersection:
-			# TODO: Update to act the same as target selection once functional
-			point = null
-			target = null
-		else:
-			point = null
-			target = null
-		
-		if is_instance_valid(hover_point) and not is_instance_valid(target):
-			var hover_cnct:bool = hover_point.is_prior_connected() and hover_point.is_next_connected()
-			if not hover_cnct and src_is_contianer and not selection.is_subscene():
-				# If the current selection is a same-scene container, and the user
-				# hovers over another container with open connections, offer to
-				# create a new RoadPoint in the *selected* container that attaches
-				# to the *hovering* container. Confusing, but intuitive in practice
-				# as it allows you to create roads easily *between* prefab scenes.
-				_overlay_rp_hovering = hover_point # the selected non saved-scene container.
-				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
-				_overlay_hovering_pos = camera.unproject_position(hover_point.global_transform.origin)
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			else:
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hovering_pos = event.position
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-		elif is_instance_valid(point) and is_instance_valid(target):
-			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
-			_overlay_rp_hovering = point
-			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
-			var target_prior_cnct:bool = target.is_prior_connected()
-			var target_next_cnct:bool = target.is_next_connected()
-			var hover_cnct:bool = point.is_prior_connected() and point.is_next_connected()
-
-			if target == point:
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			elif src_is_contianer and point and point.container == selection:
-				# If a container is selected, don't (dis)connect internal rp's to itself.
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			elif target.get_prior_road_node() == point:
-				# If this pt is directly connected to the target, offer quick dis-connect tool
-				_overlay_rp_selected = target
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-			elif target.get_next_road_node() == point:
-				# If this pt is directly connected to the selection, offer quick dis-connect tool
-				_overlay_rp_selected = target
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-			elif not hover_cnct and src_is_contianer and not selection.is_subscene():
-				# If the current selection is a same-scene container, and the user
-				# hovers over another container with open connections, offer to
-				# create a new RoadPoint in the *selected* container that attaches
-				# to the *hovering* container. Confusing, but intuitive in practice
-				# as it allows you to create roads easily *between* prefab scenes.
-				_overlay_rp_hovering = point # the closest hovering non subscene container RP.
-				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			elif target_prior_cnct and target_next_cnct:
-				# Fully connected roadpoint, nothing to do.
-				# In the future, this could be a mode to convert into an intersection
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			else:
-				# Open connection scenario
-				_overlay_rp_selected = target # could be the selection, or child of selected container
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-		else:
-			_overlay_rp_selected = null
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = event.position
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = false
-		plg.update_overlays()
-		# Consume the event no matter what.
-		return INPUT_PASS
-
-	elif not event is InputEventMouseButton:
-		return INPUT_PASS
-	elif not event.button_index == MOUSE_BUTTON_LEFT:
-		return INPUT_PASS
-	elif not event.pressed:
-		return INPUT_STOP
-	# Should consume all left click operation hereafter.
-
-	var selection = plg.get_selected_node()
-
-	if _overlay_hint_disconnect:
-		plg._disconnect_rp_on_click(selection, _overlay_rp_hovering)
-	elif _overlay_hint_connection and selection is RoadContainer:
-		# Case of hovering over another container, so we want to add a new RoadPoint
-		# and connect it
-		plg._add_and_connect_rp(selection, _overlay_rp_hovering)
-	elif _overlay_hint_connection:
-		#print("Connect: %s to %s" % [selection.name, _overlay_rp_hovering.name])
-		plg._connect_rp_on_click(_overlay_rp_selected, _overlay_rp_hovering)
-	else:
-		var res:Array = plg.get_click_point_with_context(camera, event.position, selection)
-		var pos:Vector3 = res[0]
-		var nrm:Vector3 = res[1]
-
-		if selection is RoadContainer and selection.is_subscene():
-			plg._add_next_rp_on_click(pos, nrm, selection.get_manager())
-		elif selection is RoadPoint and selection.is_next_connected() and selection.is_prior_connected():
-			plg._add_next_rp_on_click(pos, nrm, selection.container)
-		else:
-			plg._add_next_rp_on_click(pos, nrm, selection)
-	return INPUT_STOP
+	# TODO: Re-implement thi
+	return INPUT_PASS
 
 
+## Handle deleting roadpoints, intersections, and containers (saved subscenes)
 func _handle_delete_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	if event is InputEventMouseMotion or event is InputEventPanGesture:
-		var point: RoadGraphNode = plg.get_nearest_graph_node(camera, event.position)
-		var selection:Node = plg.get_selected_node()
-		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
-		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
-		var max_dist:= 50.0 # ie only auto suggest deleting RP if it's within this dist to mouse.
+	var alt_pressed := Input.is_key_pressed(KEY_ALT)
+	if alt_pressed:
+		return _input_delete_dissolve(camera, event, HintState.DISSOLVE)
+	else:
+		return _input_delete_dissolve(camera, event, HintState.DELETE)
+
+
+## Handle dissolving roadpoints, intersections, and containers (saved subscenes)
+##
+## Similar to delete, but aims to reconnect adjacent road nodes if possible after
+func _handle_dissolve_mode_input(camera: Camera3D, event: InputEvent) -> int:
+	return _input_delete_dissolve(camera, event, HintState.DISSOLVE)
+
+
+## Common utility for both deleting and dissolving, which are otherwise quite similar
+func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int) -> int:
+	if _relevant_input_event(event):
+		_clear_targets()
+		var point: RoadGraphNode = plg.get_nearest_graph_node(camera, cursor) # TODO: revert to cursor
+		var selection:Node = plg.get_selected_node() # TODO: switch to selected *nodes*?
+		var hover_pos := camera.unproject_position(selection.global_transform.origin)
+		var mouse_dist = cursor.distance_to(hover_pos)
 		if point and point.container.is_subscene():
-			# Don't offer changing saved scenes in any way.
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = Vector2(-1, -1)
-			_overlay_hint_delete = false
+			hint_source_nodes.append(point.container)
+			var pt := camera.unproject_position(point.container.global_transform.origin)
+			hint_source_points.append(pt)
+			hinting = apply_hint
+			for idx in point.container.edge_rp_locals.size():
+				if not point.container.edge_containers[idx]:
+					# if a given edge isn't cross container connected, don't hint
+					# at it being disconnected
+					continue
+				var edge_path = point.container.edge_rp_locals[idx]
+				var edge_pt = point.container.get_node_or_null(edge_path)
+				if is_instance_valid(edge_pt):
+					_insert_edge_hint(edge_pt, camera)
 		elif point:
-			_overlay_rp_hovering = point
-			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
-			_overlay_hint_delete = true
-		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init and mouse_dist < max_dist:
-			_overlay_rp_hovering = selection
-			_overlay_hovering_pos = _overlay_hovering_from
-			_overlay_hint_delete = true
+			hint_source_nodes.append(point)
+			var pt := camera.unproject_position(point.global_transform.origin)
+			hint_source_points.append(pt)
+			if point is RoadPoint:
+				_insert_edge_hint(point, camera)
+			elif point is RoadIntersection:
+				for _edge in point.edge_points:
+					_insert_edge_hint(_edge, camera)
+			hinting = apply_hint
+		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init and mouse_dist < snap_threshold:
+			hint_source_nodes.append(selection)
+			hint_source_points.append(hover_pos)
+			_insert_edge_hint(selection, camera)
+			hinting = apply_hint
+		elif selection is RoadIntersection and selection.edge_points.size() == 0:
+			hint_source_nodes.append(selection)
+			hint_source_points.append(hover_pos)
+			hinting = apply_hint
+			for _edge in selection.edge_points:
+				_insert_edge_hint(_edge, camera)
 		else:
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = Vector2(-1, -1)
-			_overlay_hint_delete = false
+			pass # TODO: identify rp's in screenspace nearby to delete, may be not connected to anything
 		plg.update_overlays()
 		return INPUT_PASS
 	elif not event is InputEventMouseButton:
 		return INPUT_PASS
 	elif not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
-	elif event.pressed and _overlay_rp_hovering != null:
-		# Always match what the UI is showing
-		plg._delete_rp_on_click(_overlay_rp_hovering)
-	return INPUT_STOP
+	elif event.pressed:
+		var res = _perform_action()
+		_clear_targets()
+		plg.update_overlays()
+		return res
+
+	return INPUT_PASS
+
+
+func _perform_action() -> int:
+	match hinting:
+		HintState.CONNECT:
+			return INPUT_STOP
+		HintState.DISCONNECT:
+			return INPUT_STOP
+		HintState.DELETE:
+			for del_node in hint_source_nodes:
+				if del_node is RoadPoint:
+					plg.delete_roadpoint(del_node)
+				elif del_node is RoadIntersection:
+					plg.delete_intersection(del_node)
+				elif del_node is RoadContainer:
+					plg.delete_roadcontainer(del_node)
+				return INPUT_STOP
+		HintState.DISSOLVE:
+			# Dissolve where possibe, but failing that act like delete
+			for del_node in hint_source_nodes:
+				if del_node is RoadPoint:
+					plg.dissolve_roadpoint(del_node)
+				elif del_node is RoadIntersection:
+					plg.dissolve_intersection(del_node)
+				elif del_node is RoadContainer:
+					# Can't dissolve a whole container (or should this be a "merge" operation?)
+					plg.delete_roadcontainer(del_node)
+				return INPUT_STOP
+	return INPUT_PASS
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Input handling utilities
+# ------------------------------------------------------------------------------
+
+
+func _clear_targets() -> void:
+	hint_source_nodes = []
+	hint_target_nodes = []
+	hint_source_points = []
+	hint_target_points = []
+	hint_edges_r = []
+	hint_edges_f = []
+	hinting = HintState.NONE
+
+
+func _insert_edge_hint(rp: RoadPoint, camera: Camera3D) -> void:
+	var origin = rp.global_position
+	
+	var rev_width: float = rp.get_width_without_shoulders() / 2.0
+	var fwd_width: float = rp.get_width_without_shoulders() / 2.0
+	var align_offset: float = 0.0
+	if rp.alignment == rp.Alignment.DIVIDER:
+		align_offset = rp.lane_width * rp.get_fwd_lane_count() / 2.0 - rp.lane_width * rp.get_rev_lane_count() / 2.0
+	
+	var rev_pos3d: Vector3 = origin - rp.global_basis.x * (rev_width - align_offset + rp.shoulder_width_l)
+	var fwd_pos3d: Vector3 = origin + rp.global_basis.x * (fwd_width + align_offset + rp.shoulder_width_r)
+	
+	var rev_pos2d: Vector2 = camera.unproject_position(rev_pos3d)
+	var fwd_pos2d: Vector2 = camera.unproject_position(fwd_pos3d)
+	hint_edges_r.append(rev_pos2d)
+	hint_edges_f.append(fwd_pos2d)
+
+
+func _relevant_input_event(event: InputEvent) -> bool:
+	if event is InputEventKey and event.keycode == KEY_ALT:
+		return true
+	var mouse_events:bool = event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture
+	if mouse_events:
+		cursor = event.position
+		return true
+	return false
 
 
 #endregion

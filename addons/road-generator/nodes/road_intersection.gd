@@ -65,6 +65,7 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 
 var _mesh: MeshInstance3D
+var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
 var is_dirty := true ## Flag used to know if prior changes means the mesh needs refreshing.
 
@@ -200,6 +201,7 @@ func add_branch(road_point: RoadPoint) -> void:
 	road_point._is_internal_updating = false
 	
 	container.update_edges()
+	is_dirty = true
 	emit_transform()
 
 
@@ -207,7 +209,7 @@ func add_branch(road_point: RoadPoint) -> void:
 ## Does nothing if the edge is not present.
 func remove_branch(road_point: RoadPoint) -> void:
 	if not road_point in edge_points:
-		push_error("Failed to remove branch, RoadPoint %s not found among edges of RoadIntersection" % [
+		push_error("Failed to remove branch, RoadPoint %s not found among edges of RoadIntersection %s" % [
 			road_point.name, self.name
 		])
 	edge_points.erase(road_point)
@@ -219,6 +221,7 @@ func remove_branch(road_point: RoadPoint) -> void:
 		print("removed next dir")
 	_sort_edges_clockwise()
 	container.update_edges()
+	is_dirty = true
 	emit_transform()
 
 
@@ -273,6 +276,9 @@ func _rebuild() -> void:
 		if not _pt is RoadPoint:
 			continue
 		valid_edges.append(_pt)
+	
+	if not valid_edges:
+		return
 	
 	var mesh: Mesh = settings.generate_mesh(self, valid_edges, container)
 	_mesh.mesh = mesh

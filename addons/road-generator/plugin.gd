@@ -117,6 +117,11 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	return connection_tool.forward_3d_gui_input(camera, event)
 
 
+## Implements roadpoint navigation movement via shortcut keys
+func _unhandled_input(event: InputEvent) -> void:
+	connection_tool.unhandled_input(event)
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region GUI utilities
@@ -1006,108 +1011,6 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 	undo_redo.commit_action()
 
 
-func _delete_rp_on_click(selection: Node):
-	var undo_redo = get_undo_redo()
-
-	if not selection is RoadPoint:
-		push_error("Selection is not a RoadPoint")
-		return
-	elif not is_instance_valid(selection):
-		push_error("Invalid selection selection, not valid node")
-		return
-
-	var rp:RoadPoint = selection
-	var container:RoadContainer = rp.container
-	var prior_rp = null
-	var prior_samedir: bool = true
-	var next_rp = null
-	var next_samedir: bool = true
-	var dissolve = false
-	if rp.prior_pt_init:
-		prior_rp = rp.get_node(rp.prior_pt_init)
-		if prior_rp.next_pt_init == prior_rp.get_path_to(rp):
-			prior_samedir = true
-		elif prior_rp.prior_pt_init == prior_rp.get_path_to(rp):
-			prior_samedir = false
-		else:
-			push_warning("Should be prior connected %s" % prior_rp.name)
-			pass # not actually mutually connected?
-	if rp.next_pt_init:
-		next_rp = rp.get_node(rp.next_pt_init)
-		if next_rp.prior_pt_init == next_rp.get_path_to(rp):
-			next_samedir = true
-		elif next_rp.prior_pt_init == next_rp.get_path_to(rp):
-			next_samedir = false
-		else:
-			push_warning("Should be prior connected %s" % next_rp.name)
-			pass # not actually mutually connected?
-	if is_instance_valid(prior_rp) and is_instance_valid(next_rp):
-		# only if fully connected will it combine both sides back together
-		dissolve = true
-
-	#print("Dissolve: %s, prior %s samedir %s , next %s smaedir %s" % [
-	#	dissolve, prior_rp, prior_samedir, next_rp, next_samedir])
-
-	# Define the current editor selection for redo'ing afer an undo,
-	# which could be multi selection
-	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
-
-	# Define the action
-	if dissolve:
-		undo_redo.create_action("Dissolve RoadPoint")
-	else:
-		undo_redo.create_action("Delete RoadPoint")
-
-	# Disconnect the existing RoadPoints and set updated selection
-	var prior_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
-	var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
-	if is_instance_valid(prior_rp):
-		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, prior_dir)
-	if is_instance_valid(next_rp):
-		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, next_dir)
-
-	# Remove the node
-	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)
-	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp)
-	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
-
-	# Update do/undo selections
-	if is_instance_valid(next_rp):
-		undo_redo.add_do_method(self, "set_selection", next_rp)
-	elif is_instance_valid(prior_rp):
-		undo_redo.add_do_method(self, "set_selection", prior_rp)
-	else:
-		undo_redo.add_do_method(self, "set_selection", rp.container)
-	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
-
-	# If in dissolve mode, connect RPs in both directions to each other
-	if dissolve:
-		undo_redo.add_do_method(
-			prior_rp,
-			"connect_roadpoint",
-			prior_dir,
-			next_rp,
-			next_dir
-		)
-		undo_redo.add_undo_method(
-			prior_rp,
-			"disconnect_roadpoint",
-			prior_dir,
-			next_dir
-		)
-		undo_redo.add_do_method(container, "rebuild_segments", false)
-
-	# Have to do reconnection undo steps after re-adding and un-dissolve connections
-	if is_instance_valid(prior_rp):
-		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.PRIOR, prior_rp, prior_dir)
-	if is_instance_valid(next_rp):
-		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, next_rp, next_dir)
-
-	undo_redo.add_undo_method(container, "rebuild_segments", false)
-	undo_redo.add_undo_reference(rp)
-	undo_redo.commit_action()
-
-
 ## When the interface is running and we realize we are about to perform a snap,
 ## we can't perform the action right away as then it would happen before the
 ## internal move action completes (and thus, someone who does control-Z would see
@@ -1170,6 +1073,346 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 	undo_redo.add_undo_method(sel_rp, "disconnect_container", sel_dir, tgt_dir)
 	undo_redo.commit_action()
 
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Top-level actions with undoredo
+# ------------------------------------------------------------------------------
+
+
+func delete_roadpoint(rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadPoint")
+	subaction_delete_roadpoint(rp, false, undo_redo)
+	undo_redo.add_undo_method(rp.container, "rebuild_segments", false)
+	# update edges too?
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [rp]:
+		# Update do/undo selections if this was the only selected item
+		var next_rp = rp.get_next_road_node()
+		var prior_rp = rp.get_next_road_node()
+		
+		if is_instance_valid(next_rp):
+			undo_redo.add_do_method(self, "set_selection", next_rp)
+		elif is_instance_valid(prior_rp):
+			undo_redo.add_do_method(self, "set_selection", prior_rp)
+		else:
+			undo_redo.add_do_method(self, "set_selection", rp.container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+
+	undo_redo.commit_action()
+
+
+func dissolve_roadpoint(rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Dissolve RoadPoint")
+	subaction_delete_roadpoint(rp, true, undo_redo)
+	undo_redo.add_undo_method(rp.container, "rebuild_segments", false)
+	# update edges too?
+	
+	# Update do/undo selections
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [rp]:
+		var next_rp = rp.get_next_road_node()
+		var prior_rp = rp.get_next_road_node()
+		if is_instance_valid(next_rp):
+			undo_redo.add_do_method(self, "set_selection", next_rp)
+		elif is_instance_valid(prior_rp):
+			undo_redo.add_do_method(self, "set_selection", prior_rp)
+		else:
+			undo_redo.add_do_method(self, "set_selection", rp.container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	
+	undo_redo.commit_action()
+
+
+func delete_intersection(inter: RoadIntersection) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadIntersection")
+	subaction_delete_intersection(inter, undo_redo)
+	undo_redo.commit_action()
+
+
+func dissolve_intersection(inter: RoadIntersection) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Dissolve RoadIntersection")
+	subaction_dissolve_intersection(inter, undo_redo)
+	undo_redo.commit_action()
+
+
+func delete_roadcontainer(container: RoadContainer) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadContainer")
+	subaction_delete_roadcontainer(container, undo_redo)
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [container]:
+		var mgr := container.get_manager()
+		if is_instance_valid(mgr):
+			undo_redo.add_do_method(self, "set_selection", mgr)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Subactions for undoredo
+# ------------------------------------------------------------------------------
+
+
+func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorUndoRedoManager) -> void:
+	var prior_graph: RoadGraphNode
+	var prior_rp: RoadPoint
+	var prior_samedir: bool = true
+	var prior_inter: RoadIntersection
+	
+	var next_graph: RoadGraphNode
+	var next_rp: RoadPoint
+	var next_samedir: bool = true
+	var next_inter: RoadIntersection
+	
+	if rp.prior_pt_init:
+		prior_graph = rp.get_node(rp.prior_pt_init)
+		if prior_graph is RoadIntersection:
+			prior_inter = prior_graph
+			undo_redo.add_do_method(prior_inter, "remove_branch", rp)
+		elif prior_graph.next_pt_init == prior_graph.get_path_to(rp):
+			prior_rp = prior_graph
+			prior_samedir = true
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.NEXT) # one should be flipped?
+		elif prior_graph.prior_pt_init == prior_graph.get_path_to(rp):
+			prior_rp = prior_graph
+			prior_samedir = false
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % prior_graph.name)
+			pass # not actually mutually connected?
+	else:
+		pass # TODO: check if cross-container selected, if so need to sever the edge
+	
+	if rp.next_pt_init:
+		next_graph = rp.get_node(rp.next_pt_init)
+		if next_graph is RoadIntersection:
+			next_inter = next_graph
+			undo_redo.add_do_method(next_inter, "remove_branch", rp)
+		elif next_graph.prior_pt_init == next_graph.get_path_to(rp):
+			next_rp = next_graph
+			next_samedir = true
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		elif next_graph.next_pt_init == next_graph.get_path_to(rp):
+			next_rp = prior_graph
+			next_samedir = false
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % next_graph.name)
+			pass # not actually mutually connected?
+	else:
+		pass # TODO: check if cross-container selected, if so need to sever the edge
+	
+	
+	# Core removal
+	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)
+	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
+	
+	# dissolve steps
+	if dissolve:
+		if is_instance_valid(prior_rp) and is_instance_valid(next_rp):
+			undo_redo.add_do_method(
+				prior_rp,
+				"connect_roadpoint",
+				RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR,
+				RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT,
+			)
+			undo_redo.add_undo_method(
+				prior_rp,
+				"disconnect_roadpoint",
+				RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
+			)
+		elif is_instance_valid(prior_rp) and is_instance_valid(next_inter):
+			undo_redo.add_do_method(next_inter, "add_branch", prior_rp)
+			undo_redo.add_undo_method(next_inter, "remove_branch", prior_rp)
+		elif is_instance_valid(prior_inter) and is_instance_valid(next_rp):
+			undo_redo.add_do_method(prior_inter, "add_branch", next_rp)
+			undo_redo.add_undo_method(prior_inter, "remove_branch", next_rp)
+	
+	undo_redo.add_undo_reference(rp)
+	
+	if prior_inter:
+		undo_redo.add_undo_method(prior_inter, "add_branch", rp)
+	elif prior_rp:
+		if prior_rp.next_pt_init == prior_rp.get_path_to(rp):
+			#undo_redo.add_undo_property(prior_rp, "next_pt_init", rp)
+			undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.PRIOR, prior_rp, RoadPoint.PointInit.NEXT) # one should be flipped?
+		else:
+			#undo_redo.add_undo_method(prior_rp, "prior_pt_init", rp)
+			undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.PRIOR, prior_rp, RoadPoint.PointInit.PRIOR) # one should be flipped?
+	
+	if next_inter:
+		undo_redo.add_undo_method(next_inter, "add_branch", rp)
+	elif next_rp:
+		if next_rp.next_pt_init == next_rp.get_path_to(rp):
+			#undo_redo.add_undo_property(prior_rp, "next_pt_init", rp)
+			undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, next_rp, RoadPoint.PointInit.NEXT) # one should be flipped?
+		else:
+			#undo_redo.add_undo_method(next_rp, "prior_pt_init", rp)
+			undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, next_rp, RoadPoint.PointInit.PRIOR) # one should be flipped?
+
+
+func subaction_delete_intersection(inter: RoadIntersection, undo_redo:EditorUndoRedoManager) -> void:
+	print("Doing subaction_delete_intersection")
+	var edges := inter.edge_points.duplicate()
+	
+	for _rp in edges:
+		if _rp.get_next_road_node() == inter:
+			print("DID next_pt_init")
+			undo_redo.add_do_property(_rp, "next_pt_init", "")
+		if _rp.get_prior_road_node() == inter:
+			print("DID prior_pt_init")
+			undo_redo.add_do_property(_rp, "prior_pt_init", "")
+	
+	# Core removal
+	undo_redo.add_do_method(inter.get_parent(), "remove_child", inter)
+	undo_redo.add_undo_method(inter.get_parent(), "add_child", inter)
+	undo_redo.add_undo_method(inter, "set_owner", get_tree().get_edited_scene_root())
+	
+	undo_redo.add_undo_reference(inter)
+	
+	for _rp in edges:
+		if _rp.get_next_road_node() == inter:
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+			undo_redo.add_undo_property(_rp, "next_pt_init", _rp.next_pt_init)
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+		if _rp.get_prior_road_node() == inter:
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+			undo_redo.add_undo_property(_rp, "prior_pt_init", _rp.prior_pt_init)
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+
+
+## Dissolves an intersection, keeping the two largest roads lane-wise connected
+func subaction_dissolve_intersection(inter: RoadIntersection, undo_redo:EditorUndoRedoManager) -> void:
+	print("Doing subaction_dissolve_intersection")
+	if inter.edge_points.size() < 2:
+		# Will be the same as a simple delete in this scenario
+		subaction_delete_intersection(inter, undo_redo)
+		return
+	
+	# See if there's a better choice for rpa / rpb. Idea:
+	# For RPA: pick the RoadPoint with the largest number of lanes
+	var edges := inter.edge_points.duplicate()
+	var rpa: RoadPoint
+	var rpa_lanes: int = -1
+	var rpa_next := false
+	var rpb: RoadPoint
+	var rpb_lanes: int = -1
+	var rpb_next := false
+	for _rp in edges:
+		if rpa_lanes == -1:
+			rpa_lanes = _rp.lanes.size()
+			rpa = _rp
+		elif _rp.lanes.size() > rpa_lanes:
+			rpb_lanes = rpa_lanes
+			rpb = rpa
+			rpa_lanes = _rp.lanes.size()
+			rpa = _rp
+		elif rpb_lanes == -1:
+			rpb_lanes = _rp.lanes.size()
+			rpb = _rp
+		elif _rp.lanes.size() > rpb_lanes:
+			rpb_lanes = _rp.lanes.size()
+			rpb = _rp
+	
+	undo_redo.add_do_property(inter, "_is_internal_updating", true)
+	
+	if rpa.get_next_road_node() == inter:
+		print("DID next_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpa)
+		rpa_next = true
+	elif rpa.get_prior_road_node() == inter:
+		print("DID prior_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpa)
+		rpa_next = false
+	
+	if rpb.get_next_road_node() == inter:
+		print("DID next_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpb)
+		rpb_next = true
+	elif rpb.get_prior_road_node() == inter:
+		print("DID prior_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpb)
+		rpb_next = false
+	
+	# TODO: disconenct other branches
+	for _rp in edges:
+		if _rp == rpa or _rp == rpb:
+			continue
+		undo_redo.add_do_method(inter, "remove_branch", _rp)
+
+	# Now connect the other two 
+	undo_redo.add_do_method(
+		rpa,
+		"connect_roadpoint",
+		RoadPoint.PointInit.NEXT if rpa_next else RoadPoint.PointInit.PRIOR,
+		rpb,
+		RoadPoint.PointInit.NEXT if rpb_next else RoadPoint.PointInit.PRIOR,
+	)
+	
+	# Do the dissolve connection
+	undo_redo.add_do_method(inter.get_parent(), "remove_child", inter)
+	undo_redo.add_undo_method(inter.get_parent(), "add_child", inter)
+	undo_redo.add_undo_method(inter, "set_owner", get_tree().get_edited_scene_root())
+	
+	# Redo steps, in reverse order
+	undo_redo.add_undo_reference(inter)
+	undo_redo.add_undo_method(
+		rpa,
+		"disconnect_roadpoint",
+		RoadPoint.PointInit.NEXT if rpa_next else RoadPoint.PointInit.PRIOR,
+		rpb
+	)
+	
+	# Save initial state before dissolve
+	for _rp in edges:
+		undo_redo.add_undo_method(inter, "add_branch", _rp)
+	undo_redo.add_undo_property(inter, "_is_internal_updating", false)
+	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+
+
+func subaction_delete_roadcontainer(container: RoadContainer, undo_redo:EditorUndoRedoManager) -> void:
+	
+	# We need to identify the container-level connection edges to clear
+	var connected_conts: Array[RoadContainer] = []
+	for idx in container.edge_containers.size():
+		var _cont: RoadContainer = container.get_node_or_null(container.edge_containers[idx])
+		if not is_instance_valid(_cont):
+			continue
+		connected_conts.append(_cont)
+		
+		# Need to find which indexs of this connected container point back to the original
+		var cp_edge_containers := _cont.edge_containers.duplicate()
+		var cp_edge_rp_targets := _cont.edge_rp_targets.duplicate()
+		var cp_edge_rp_target_dirs := _cont.edge_rp_target_dirs.duplicate()
+		for jdx in _cont.edge_containers.size():
+			var _cont_back: RoadContainer = _cont.get_node_or_null(_cont.edge_containers[jdx])
+			if _cont_back != container:
+				continue
+			cp_edge_containers[jdx] = ^""
+			cp_edge_rp_targets[jdx] = ^""
+			cp_edge_rp_target_dirs[jdx] = -1
+		undo_redo.add_do_property(_cont, "edge_containers", cp_edge_containers)
+		undo_redo.add_do_property(_cont, "edge_rp_targets", cp_edge_rp_targets)
+		undo_redo.add_do_property(_cont, "edge_rp_target_dirs", cp_edge_rp_target_dirs)
+	
+	undo_redo.add_do_method(container.get_parent(), "remove_child", container)
+	undo_redo.add_undo_method(container.get_parent(), "add_child", container)
+	undo_redo.add_undo_method(container, "set_owner", get_tree().get_edited_scene_root())
+	
+	undo_redo.add_undo_reference(container)
+	for _cont in connected_conts:
+		undo_redo.add_undo_property(_cont, "edge_containers", _cont.edge_containers)
+		undo_redo.add_undo_property(_cont, "edge_rp_targets", _cont.edge_rp_targets)
+		undo_redo.add_undo_property(_cont, "edge_rp_target_dirs", _cont.edge_rp_target_dirs)
 
 
 ## Utility to call within an undo/redo transaction to flip around a RoadPoint

@@ -1245,6 +1245,12 @@ func get_width_without_shoulders():
 	var total_width = lane_width * len(lanes)
 	return total_width
 
+
+## Gets the total width of the road including shoulders, but not gutters
+func get_width_with_shoulders():
+	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
+	return total_width
+
 # ------------------------------------------------------------------------------
 #endregion
 # ------------------------------------------------------------------------------
