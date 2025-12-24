@@ -479,38 +479,51 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		var from_gutter: Vector2 = edge.gutter_profile
 		var to_gutter: Vector2 = next_edge.gutter_profile
 
-		# FIXME start/end potential bug.
-		# create shoulder/gutter quads using point i and i+1
+		# create shoulder/gutter and shoulder/lane quads using point i and i+1
 		for j in range(baked_points.size() - 1):
 			var i_gutter: Vector3 = baked_points[j]
 			var i1_gutter: Vector3 = baked_points[j + 1]
 			var i_shoulder: Vector3 = Vector3.ZERO
 			var i1_shoulder: Vector3 = Vector3.ZERO
-			var i_gutter_profile: Vector2 = lerp(from_gutter, to_gutter, float(j) / float(baked_points.size() - 1))
-			var i1_gutter_profile: Vector2 = lerp(from_gutter, to_gutter, float(j + 1) / float(baked_points.size() - 1))
+			var i_lane: Vector3 = Vector3.ZERO
+			var i1_lane: Vector3 = Vector3.ZERO
 			
 			var this_up: Vector3 = edge.transform.basis.y.normalized()
 			var next_up: Vector3 = next_edge.transform.basis.y.normalized()
-			
-			var get_shoulder: Callable = func (index) -> Vector3:
+
+			## First vector is the shoulder point, second is the direction of the vertices column
+			var get_shoulder_and_dir: Callable = func (index) -> Array[Vector3]:
 				var prev_p = baked_points[index - 1]
 				var this_p = baked_points[index]
 				var next_p = baked_points[index + 1]
 
+				var gutter_profile: Vector2 = lerp(from_gutter, to_gutter, float(index) / float(baked_points.size() - 1))
+
 				var dir_v: Vector3 = (next_p - prev_p).normalized()
 				var blended_up: Vector3 = this_up.slerp(next_up, float(index) / float(baked_points.size() - 1)).normalized() 
 				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
-				return this_p + perpendicular_v * i_gutter_profile[0] - blended_up * i_gutter_profile[1]
+				return [
+					this_p + perpendicular_v * gutter_profile[0] - blended_up * gutter_profile[1],
+					perpendicular_v
+				]
 
 			if (j == 0):
 				i_shoulder = edge_shoulders[i][0]
+				i_lane = edge_road_sides[i][0]
 			else:
-				i_shoulder = get_shoulder.call(j)
+				var result = get_shoulder_and_dir.call(j)
+				i_shoulder = result[0]
+				var dir = result[1]
+				i_lane = i_shoulder + dir * lerp(edge.shoulder_width_l, next_edge.shoulder_width_r, float(j) / float(baked_points.size() - 1))
 			
 			if (j + 1 == baked_points.size() - 1):
 				i1_shoulder = edge_shoulders[next_i][1]
+				i1_lane = edge_road_sides[next_i][1]
 			else:
-				i1_shoulder = get_shoulder.call(j + 1)
+				var result = get_shoulder_and_dir.call(j + 1)
+				i1_shoulder = result[0]
+				var dir = result[1]
+				i1_lane = i1_shoulder + dir * lerp(edge.shoulder_width_l, next_edge.shoulder_width_r, float(j + 1) / float(baked_points.size() - 1))
 
 			# gutter/shoulder quad
 			# TODO UV
@@ -521,6 +534,16 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			surface_tool.add_vertex(i1_shoulder - parent_transform.origin)
 			surface_tool.add_vertex(i_gutter - parent_transform.origin)
 			surface_tool.add_vertex(i1_gutter - parent_transform.origin)
+
+			# shoulder/lane quad
+			# TODO UV
+			surface_tool.add_vertex(i_lane - parent_transform.origin)
+			surface_tool.add_vertex(i_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(i1_lane - parent_transform.origin)
+
+			surface_tool.add_vertex(i1_lane - parent_transform.origin)
+			surface_tool.add_vertex(i_shoulder - parent_transform.origin)
+			surface_tool.add_vertex(i1_shoulder - parent_transform.origin)
 			
 		i += 1
 	
