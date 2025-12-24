@@ -492,29 +492,25 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			var this_up: Vector3 = edge.transform.basis.y.normalized()
 			var next_up: Vector3 = next_edge.transform.basis.y.normalized()
 			
+			var get_shoulder: Callable = func (index) -> Vector3:
+				var prev_p = baked_points[index - 1]
+				var this_p = baked_points[index]
+				var next_p = baked_points[index + 1]
+
+				var dir_v: Vector3 = (next_p - prev_p).normalized()
+				var blended_up: Vector3 = this_up.slerp(next_up, float(index) / float(baked_points.size() - 1)).normalized() 
+				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
+				return this_p + perpendicular_v * i_gutter_profile[0] - blended_up * i_gutter_profile[1]
+
 			if (j == 0):
 				i_shoulder = edge_shoulders[i][0]
 			else:
-				var prev_p = baked_points[j - 1]
-				var this_p = baked_points[j]
-				var next_p = baked_points[j + 1]
-				# TODO refactor duplicate?
-				var dir_v: Vector3 = (next_p - prev_p).normalized()
-				var blended_up: Vector3 = this_up.slerp(next_up, float(j) / float(baked_points.size() - 1)).normalized() 
-				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
-				i_shoulder = this_p + perpendicular_v * i_gutter_profile[0] - blended_up * i_gutter_profile[1]
+				i_shoulder = get_shoulder.call(j)
 			
 			if (j + 1 == baked_points.size() - 1):
 				i1_shoulder = edge_shoulders[next_i][1]
 			else:
-				var prev_p = baked_points[j]
-				var this_p = baked_points[j + 1]
-				var next_p = baked_points[j + 2]
-				# TODO refactor duplicate?
-				var dir_v: Vector3 = (next_p - prev_p).normalized()
-				var blended_up: Vector3 = this_up.slerp(next_up, float(j+1) / float(baked_points.size() - 1)).normalized() 
-				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
-				i1_shoulder = this_p + perpendicular_v * i1_gutter_profile[0] - blended_up * i1_gutter_profile[1]
+				i1_shoulder = get_shoulder.call(j + 1)
 
 			# gutter/shoulder quad
 			# TODO UV
