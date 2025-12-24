@@ -437,7 +437,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	var to_next_edge_directions_excluded: Array[Array] = []
 	var edge_facing: Array[_IntersectNGonFacing] = []
 
-	const CONTROL_LENGTH_DIVIDER = 3.0
+	const CONTROL_LENGTH_DIVIDER = 5.0
 	for i in range(edges.size()):
 		var edge: RoadPoint = edges[i]
 		var next_i: int = (i + 1) % edge_shoulders.size()
