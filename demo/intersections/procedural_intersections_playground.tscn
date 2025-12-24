@@ -65,6 +65,7 @@ traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_mag = 58.6029
 next_mag = 58.6029
+lane_width = 9.41
 prior_pt_init = NodePath("../RoadIntersection")
 next_pt_init = NodePath("../RP_003")
 
@@ -73,7 +74,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0306, 25.988, -58.6679)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_01na1")
 force_mesh_refresh_toggle = false
-edge_points = [NodePath("../RP_004"), NodePath("../InteractiveRoadPoint"), NodePath("../RP_006"), NodePath("../RP_001")]
+edge_points = [NodePath("../InteractiveRoadPoint"), NodePath("../RP_006"), NodePath("../RP_001"), NodePath("../RP_004")]
 force_edges_sort_toggle = false
 
 [node name="RP_005" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
@@ -133,8 +134,8 @@ next_pt_init = NodePath("../E2")
 [node name="E1" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(-0.601027, 0, -0.799228, 0, 1, 0, 0.799228, 0, -0.601027, 38.0137, -40.4123, -204.945)
 script = ExtResource("3_3xvxs")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
+traffic_dir = Array[int]([2, 2, 2, 1, 1, 1])
+lanes = Array[int]([2, 3, 4, 4, 3, 2])
 next_mag = 38.2071
 prior_pt_init = NodePath("../_Node3D_24232")
 next_pt_init = NodePath("../RoadIntersection")
@@ -151,8 +152,8 @@ next_pt_init = NodePath("../E1")
 [node name="E4" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(-0.541118, 0, 0.840946, 0, 1, 0, -0.840946, 0, -0.541118, 6.7619, -52.1711, -219.914)
 script = ExtResource("3_3xvxs")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
+traffic_dir = Array[int]([2, 2, 1, 1, 1])
+lanes = Array[int]([2, 4, 4, 3, 2])
 next_mag = 75.3651
 prior_pt_init = NodePath("../_Node3D_25011")
 next_pt_init = NodePath("../RoadIntersection")
@@ -169,9 +170,10 @@ next_pt_init = NodePath("../E4")
 [node name="E3" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(0.834209, 0, 0.551449, 0, 1, 0, -0.551449, 0, 0.834209, 11.7017, -48.1057, -280.392)
 script = ExtResource("3_3xvxs")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
+traffic_dir = Array[int]([2, 2, 1])
+lanes = Array[int]([2, 4, 5])
 next_mag = 35.9406
+lane_width = 1.005
 prior_pt_init = NodePath("../_Node3D_26022")
 next_pt_init = NodePath("../RoadIntersection")
 

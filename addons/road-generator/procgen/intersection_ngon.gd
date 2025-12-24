@@ -431,11 +431,17 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# /!\ /!\ /!\ only support nodes in a very specific order
 	# (edges should be sorted by the caller)
 
+	# excluded = do not include vertices directly connecting to road edges.
+	# Array[Array[Vector3]]
+	var to_next_edge_vertices_excluded: Array[Array] = []
+	var to_next_edge_directions_excluded: Array[Array] = []
+	var edge_facing: Array[_IntersectNGonFacing] = []
+
 	const CONTROL_LENGTH_DIVIDER = 3.0
-	var i = 0
-	for edge in edges:
+	for i in range(edges.size()):
+		var edge: RoadPoint = edges[i]
 		var next_i: int = (i + 1) % edge_shoulders.size()
-		var next_edge = edges[next_i]
+		var next_edge: RoadPoint = edges[next_i]
 		var gutter_to_gutter_distance: float = (edge_gutters[next_i][1] - edge_gutters[i][0]).length()
 
 		var control_length_from = min(
@@ -452,6 +458,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		var parallel_v_from: Vector3 = (edge.transform.basis.z).normalized()
 
 		var i_facing: _IntersectNGonFacing = _get_edge_facing(edge, intersection)
+		edge_facing.append(i_facing)
 		var i_facing_coefficient = 1
 		var i1_facing: _IntersectNGonFacing = _get_edge_facing(next_edge, intersection)
 		var i1_facing_coefficient = 1
@@ -507,13 +514,16 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 					perpendicular_v
 				]
 
+			to_next_edge_vertices_excluded.append([])
+			to_next_edge_directions_excluded.append([])
+
 			if (j == 0):
 				i_shoulder = edge_shoulders[i][0]
 				i_lane = edge_road_sides[i][0]
 			else:
 				var result = get_shoulder_and_dir.call(j)
 				i_shoulder = result[0]
-				var dir = result[1]
+				var dir: Vector3 = result[1]
 				i_lane = i_shoulder + dir * lerp(edge.shoulder_width_l, next_edge.shoulder_width_r, float(j) / float(baked_points.size() - 1))
 			
 			if (j + 1 == baked_points.size() - 1):
@@ -522,8 +532,11 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			else:
 				var result = get_shoulder_and_dir.call(j + 1)
 				i1_shoulder = result[0]
-				var dir = result[1]
+				var dir: Vector3 = result[1]
 				i1_lane = i1_shoulder + dir * lerp(edge.shoulder_width_l, next_edge.shoulder_width_r, float(j + 1) / float(baked_points.size() - 1))
+
+				to_next_edge_vertices_excluded[i].append(i1_lane)
+				to_next_edge_directions_excluded[i].append(dir)
 
 			# gutter/shoulder quad
 			# TODO UV
@@ -545,8 +558,89 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			surface_tool.add_vertex(i_shoulder - parent_transform.origin)
 			surface_tool.add_vertex(i1_shoulder - parent_transform.origin)
 			
-		i += 1
 	
+	# Now, we want to connect lanes to each other whenever there is a matching lane
+	# on the next edge. We do this until we fail to find a matching lane for every edge.
+	# This process aim to create a UV friendly continuous surface between edges.
+
+	var successes: Array[bool] = []
+	var remaining_lanes: Array[int] = []
+	var taken_slots_from_left: Array[int] = []
+	var taken_slots_from_right: Array[int] = []
+	for edge in edges:
+		successes.append(true)
+		remaining_lanes.append(edge.lanes.size())
+		taken_slots_from_left.append(0)
+		taken_slots_from_right.append(0)
+
+	var i: int = 0
+	while true in successes:
+		var edge: RoadPoint = edges[i]
+		var next_i: int = (i + 1) % edges.size()
+		var next_edge: RoadPoint = edges[next_i]
+		var possible: bool = remaining_lanes[i] > 0 and remaining_lanes[next_i] > 0
+		if possible:
+			var this_lane_width = edge.lane_width
+			var next_lane_width = next_edge.lane_width
+
+			# build quads from i to i+1
+			# size excluded + 1 quads to build
+			for j in range(to_next_edge_vertices_excluded[i].size() + 1):
+				# print("Building lane quad between edge %d and %d, vertex slot %d, vertices: %d, directions: %d" % [i, next_i, j, to_next_edge_vertices_excluded.size(), to_next_edge_directions_excluded.size()])
+				# ext = closest to shoulder/gutter
+				var ext_vertex_i: Vector3 = Vector3.ZERO
+				var ext_vertex_i1: Vector3 = Vector3.ZERO
+				var int_vertex_i: Vector3 = Vector3.ZERO
+				var int_vertex_i1: Vector3 = Vector3.ZERO
+				var dir_i: Vector3 = Vector3.ZERO
+				var dir_i1: Vector3 = Vector3.ZERO
+				var lane_width_i: float = lerp(this_lane_width, next_lane_width, float(j) / float(to_next_edge_vertices_excluded[i].size() + 1))
+				var lane_width_i1: float = lerp(this_lane_width, next_lane_width, float(j + 1) / float(to_next_edge_vertices_excluded[i].size() + 1))
+
+				var this_edge_dir = edge.transform.basis.x.normalized()
+				if edge_facing[i] == _IntersectNGonFacing.AWAY:
+					this_edge_dir = -this_edge_dir
+				var next_edge_dir = next_edge.transform.basis.x.normalized()
+				if edge_facing[next_i] == _IntersectNGonFacing.ORIGIN:
+					next_edge_dir = -next_edge_dir
+
+				if (j == 0):
+					ext_vertex_i = edge_road_sides[i][0] + this_edge_dir * (lane_width_i * taken_slots_from_left[i])
+					int_vertex_i = ext_vertex_i + this_edge_dir * lane_width_i
+				else:
+					var i_dir = to_next_edge_directions_excluded[i][j - 1]
+					ext_vertex_i = to_next_edge_vertices_excluded[i][j - 1] + i_dir * (lane_width_i * taken_slots_from_left[i])
+					int_vertex_i = ext_vertex_i + i_dir * lane_width_i
+
+				# if last index
+				if (j == to_next_edge_vertices_excluded[i].size()):
+					ext_vertex_i1 = edge_road_sides[next_i][1] + next_edge_dir * (lane_width_i1 * taken_slots_from_right[next_i])
+					int_vertex_i1 = ext_vertex_i1 + next_edge_dir * lane_width_i1
+				else:
+					var i1_dir = to_next_edge_directions_excluded[i][j]
+					ext_vertex_i1 = to_next_edge_vertices_excluded[i][j] + i1_dir * (lane_width_i1 * taken_slots_from_right[next_i])
+					int_vertex_i1 = ext_vertex_i1 + i1_dir * lane_width_i1
+
+				# lane quad
+				# TODO UV
+				surface_tool.add_vertex(int_vertex_i - parent_transform.origin)
+				surface_tool.add_vertex(ext_vertex_i - parent_transform.origin)
+				surface_tool.add_vertex(int_vertex_i1 - parent_transform.origin)
+
+				surface_tool.add_vertex(int_vertex_i1 - parent_transform.origin)
+				surface_tool.add_vertex(ext_vertex_i - parent_transform.origin)
+				surface_tool.add_vertex(ext_vertex_i1 - parent_transform.origin)
+					
+
+			remaining_lanes[i] -= 1
+			remaining_lanes[next_i] -= 1
+			taken_slots_from_left[i] += 1
+			taken_slots_from_right[next_i] += 1
+
+		successes[i] = possible
+
+		i = next_i
+
 	surface_tool.index()
 	var material: Material = container.effective_surface_material()
 	if material:
