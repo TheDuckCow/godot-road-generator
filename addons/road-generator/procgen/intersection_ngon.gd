@@ -474,7 +474,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		)
 
 		var baked_points: PackedVector3Array = curve.get_baked_points()
-		var baked_up_vectors = curve.get_baked_up_vectors()
+		var baked_up_vectors: PackedVector3Array = curve.get_baked_up_vectors()
 		
 		var from_gutter: Vector2 = edge.gutter_profile
 		var to_gutter: Vector2 = next_edge.gutter_profile
@@ -482,15 +482,15 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		# FIXME start/end potential bug.
 		# create shoulder/gutter quads using point i and i+1
 		for j in range(baked_points.size() - 1):
-			var i_gutter = baked_points[j]
-			var i1_gutter = baked_points[j + 1]
-			var i_shoulder = Vector3.ZERO
-			var i_gutter_profile = lerp(from_gutter, to_gutter, float(j) / float(baked_points.size() - 1))
-			var i1_gutter_profile = lerp(from_gutter, to_gutter, float(j + 1) / float(baked_points.size() - 1))
+			var i_gutter: Vector3 = baked_points[j]
+			var i1_gutter: Vector3 = baked_points[j + 1]
+			var i_shoulder: Vector3 = Vector3.ZERO
+			var i1_shoulder: Vector3 = Vector3.ZERO
+			var i_gutter_profile: Vector2 = lerp(from_gutter, to_gutter, float(j) / float(baked_points.size() - 1))
+			var i1_gutter_profile: Vector2 = lerp(from_gutter, to_gutter, float(j + 1) / float(baked_points.size() - 1))
 			
-			# FIXME this slope method has problematic edge cases, need to find
-			# something else. ex: if dir and intersection origin are aligned,
-			# the plane is vertical, causing a weird bump or even a glitched mesh.
+			var this_up: Vector3 = edge.transform.basis.y.normalized()
+			var next_up: Vector3 = next_edge.transform.basis.y.normalized()
 			
 			if (j == 0):
 				i_shoulder = edge_shoulders[i][0]
@@ -500,12 +500,10 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				var next_p = baked_points[j + 1]
 				# TODO refactor duplicate?
 				var dir_v: Vector3 = (next_p - prev_p).normalized()
-				var dir_intersection_plane: Plane = Plane(this_p, next_p, parent_transform.origin)
-				var plane_up = dir_intersection_plane.normal
-				var perpendicular_v: Vector3 = dir_v.cross(plane_up).normalized()
-				i_shoulder = this_p + perpendicular_v * i_gutter_profile[0] + plane_up * i_gutter_profile[1]
-
-			var i1_shoulder = Vector3.ZERO
+				var blended_up: Vector3 = this_up.slerp(next_up, float(j) / float(baked_points.size() - 1)).normalized() 
+				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
+				i_shoulder = this_p + perpendicular_v * i_gutter_profile[0] - blended_up * i_gutter_profile[1]
+			
 			if (j + 1 == baked_points.size() - 1):
 				i1_shoulder = edge_shoulders[next_i][1]
 			else:
@@ -514,10 +512,9 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				var next_p = baked_points[j + 2]
 				# TODO refactor duplicate?
 				var dir_v: Vector3 = (next_p - prev_p).normalized()
-				var dir_intersection_plane: Plane = Plane(this_p, next_p, parent_transform.origin)
-				var plane_up = dir_intersection_plane.normal
-				var perpendicular_v: Vector3 = dir_v.cross(plane_up).normalized()
-				i1_shoulder = this_p + perpendicular_v * i1_gutter_profile[0] + plane_up * i1_gutter_profile[1]
+				var blended_up: Vector3 = this_up.slerp(next_up, float(j+1) / float(baked_points.size() - 1)).normalized() 
+				var perpendicular_v: Vector3 = dir_v.cross(blended_up).normalized()
+				i1_shoulder = this_p + perpendicular_v * i1_gutter_profile[0] - blended_up * i1_gutter_profile[1]
 
 			# gutter/shoulder quad
 			# TODO UV
