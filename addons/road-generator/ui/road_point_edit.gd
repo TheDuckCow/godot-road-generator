@@ -98,15 +98,19 @@ func _handle_add_connected_rp(selection, point_init_type):
 
 func _assign_copy_target(target) -> void:
 	_editor_plugin.copy_attributes = {
+		# Lanes group
 		"traffic_dir": target.traffic_dir,
 		"auto_lanes": target.auto_lanes,
 		"lanes": target.lanes,
+		# Road gen group
+		"create_geo": target.create_geo,
+		"flatten_terrain": target.flatten_terrain,
 		"lane_width": target.lane_width,
 		"shoulder_width_l": target.shoulder_width_l,
 		"shoulder_width_r": target.shoulder_width_r,
 		"gutter_profile": target.gutter_profile,
-		"create_geo": target.create_geo,
-		"alignment": target.alignment
+		"alignment": target.alignment,
+		"underside_thickness": target.underside_thickness,
 	}
 
 
