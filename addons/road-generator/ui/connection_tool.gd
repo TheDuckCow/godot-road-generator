@@ -8,6 +8,8 @@ extends Object
 enum HintState {
 	NONE, ## No interactions active
 	CONNECT, ## Connect from source node to target node
+	CREATE_RP, ## Add a new node such as a RoadPoint
+	CREATE_INTERSECTION, ## Construct an intersection
 	DISCONNECT, ## Disconnect source node from target node
 	DELETE, ## Only source nodes defined, not target
 	DISSOLVE ## Only source nodes defined, not target
@@ -81,6 +83,10 @@ func forward_3d_draw_over_viewport(overlay: Control):
 	match hinting:
 		HintState.CONNECT:
 			draw_hint_connect(overlay)
+		HintState.CREATE_RP:
+			draw_hint_create_rp(overlay)
+		HintState.CREATE_INTERSECTION:
+			draw_hint_create_intersection(overlay)
 		HintState.DISCONNECT:
 			draw_hint_disconnect(overlay)
 		HintState.DELETE:
@@ -199,7 +205,25 @@ func draw_hint_connect(overlay: Control) -> void:
 		var src := hint_source_points[idx]
 		var trg := hint_target_points[idx]
 		_draw_connector(overlay, src, trg, col)
-		_draw_mouse_label(overlay, col, "Connect")
+	_draw_mouse_label(overlay, col, "Connect")
+	_draw_edges(overlay, col, false)
+
+
+func draw_hint_create_rp(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	if hint_source_nodes[0] is RoadPoint or hint_source_nodes[0] is RoadIntersection:
+		_draw_connector(overlay, hint_source_points[0], cursor, col, true)
+	_draw_mouse_label(overlay, col, "Add")
+
+
+func draw_hint_create_intersection(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	for idx in hint_source_points.size():
+		var src := hint_source_points[idx]
+		var trg := hint_target_points[idx]
+		var dashed: bool = idx > 0
+		_draw_connector(overlay, src, trg, col, dashed)
+		_draw_mouse_label(overlay, col, "Create Intersection")
 	_draw_edges(overlay, col, false)
 
 
@@ -209,7 +233,7 @@ func draw_hint_disconnect(overlay: Control) -> void:
 		var src := hint_source_points[idx]
 		var trg := hint_target_points[idx]
 		_draw_connector(overlay, src, trg, col)
-		_draw_mouse_label(overlay, col, "Disconnect")
+	_draw_mouse_label(overlay, col, "Disconnect")
 	_draw_edges(overlay, col, false)
 
 
@@ -225,7 +249,7 @@ func draw_hint_dissolve(overlay: Control) -> void:
 	var col: Color = Color.CORAL
 	for pos in hint_source_points:
 		_draw_x(overlay, pos, col)
-		_draw_mouse_label(overlay, col, "Dissolve")
+	_draw_mouse_label(overlay, col, "Dissolve")
 	_draw_edges(overlay, col, true)
 
 
@@ -237,26 +261,24 @@ func _draw_edges(overlay: Control, col, dashed) -> void:
 
 
 ## Draws a white-outlined line with circles caps between two screen positions
-func _draw_connector(overlay: Control, start_pos: Vector2, end_pos: Vector2, col: Color) -> void:
+func _draw_connector(overlay: Control, start_pos: Vector2, end_pos: Vector2, col: Color, dashed: bool = false) -> void:
 	# White background margin
 	overlay.draw_circle(start_pos, rad_size + margin, white_col)
 	overlay.draw_circle(end_pos, rad_size + margin, white_col)
-	overlay.draw_line(
-		start_pos,
-		end_pos,
-		white_col,
-		2+margin*2,
-		true)
+	
+	const dash_dist := 8
+	if dashed:
+		overlay.draw_dashed_line(start_pos, end_pos, white_col, 2+margin*2, dash_dist, true)
+	else:
+		overlay.draw_line(start_pos, end_pos, white_col, 2+margin*2, true)
 	
 	# Colored part
 	overlay.draw_circle(start_pos, rad_size, col)
 	overlay.draw_circle(end_pos, rad_size, col)
-	overlay.draw_line(
-		start_pos,
-		end_pos,
-		col,
-		2,
-		true)
+	if dashed:
+		overlay.draw_dashed_line(start_pos, end_pos, col, 2, dash_dist, true)
+	else:
+		overlay.draw_line(start_pos, end_pos, col, 2, true)
 
 
 func _draw_x(overlay: Control, pos: Vector2, col: Color) -> void:
@@ -304,18 +326,131 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 
 # ------------------------------------------------------------------------------
 #endregion
-#region Input handling
+#region Handle input hinting
 # ------------------------------------------------------------------------------
 
 
 func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	# TODO: Re-implement thi
+	# TODO: Re-implement this
+	_clear_targets()
+	plg.update_overlays()
 	return INPUT_PASS
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	# TODO: Re-implement thi
+	# TODO: Re-implement this
+	if _relevant_input_event(event):
+		_clear_targets()
+		#print("_handle_add_mode_input relevanat")
+	
+		# Set up context variables which help determine the relevant current input
+		var hover_roadnode:RoadGraphNode = plg.get_nearest_graph_node(camera, cursor)
+		var selection:Node = plg.get_selected_node()
+		
+		var active_container: RoadContainer
+		if selection is RoadGraphNode:
+			active_container = selection.container
+		elif selection is RoadContainer:
+			active_container = selection
+		
+		if selection is RoadManager:
+			hint_source_nodes.append(selection)
+			hinting = HintState.CREATE_RP
+		elif selection is RoadContainer:
+			if selection.is_subscene():
+				pass
+			else:
+				hint_source_nodes.append(selection)
+				hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
+				hinting = HintState.CREATE_RP
+		elif selection is RoadPoint and not is_instance_valid(hover_roadnode):
+			var rp_sel_filled:bool = selection.is_prior_connected() and selection.is_next_connected()
+			if rp_sel_filled:
+				pass
+			else:
+				hint_source_nodes.append(selection)
+				hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
+				hinting = HintState.CREATE_RP
+		elif selection is RoadIntersection and not is_instance_valid(hover_roadnode):
+			hint_source_nodes.append(selection)
+			hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
+			hinting = HintState.CREATE_RP
+		elif hover_roadnode is RoadPoint and selection is RoadPoint:
+			#print("Hover and selection are both RPs")
+			# TODO - extract into func handle_add_rp2rp?
+			# Connection context, but need to check if same container and if 
+			var rp_sel: RoadPoint = selection
+			var rp_hover:RoadPoint = hover_roadnode
+
+			var rp_sel_filled:bool = rp_sel.is_prior_connected() and rp_sel.is_next_connected()
+			var rp_sel_pos: Vector2 = camera.unproject_position(rp_sel.global_transform.origin)
+			
+			var rp_hover_filled:bool = rp_hover.is_prior_connected() and rp_hover.is_next_connected()
+			var rp_hover_pos: Vector2 = camera.unproject_position(rp_hover.global_transform.origin)
+			
+			var sel_hover_connected = rp_hover.get_next_road_node() == rp_sel or rp_hover.get_prior_road_node() == rp_sel
+			
+			# TODO: check if either are on an edge which is cross-container connected.
+			if rp_sel == rp_hover:
+				pass
+			elif sel_hover_connected:
+				hint_source_nodes.append(rp_sel)
+				hint_source_points.append(rp_sel_pos)
+				hint_target_nodes.append(rp_hover)
+				hint_target_points.append(rp_hover_pos)
+				_insert_edge_hint(rp_sel, camera)
+				_insert_edge_hint(rp_hover, camera)
+				hinting = HintState.DISCONNECT
+			elif not rp_hover_filled and not rp_sel_filled:
+				hint_source_nodes.append(rp_sel)
+				hint_source_points.append(rp_sel_pos)
+				hint_target_nodes.append(rp_hover)
+				hint_target_points.append(rp_hover_pos)
+				_insert_edge_hint(rp_sel, camera)
+				_insert_edge_hint(rp_hover, camera)
+				hinting = HintState.CONNECT
+			elif rp_hover_filled and not rp_sel_filled:
+				_hint_intersection_creation(rp_hover, rp_sel, camera)
+			elif not rp_hover_filled and rp_sel_filled:
+				_hint_intersection_creation(rp_sel, rp_hover, camera)
+		elif hover_roadnode is RoadIntersection and selection is RoadPoint:
+			var inter: RoadIntersection = hover_roadnode
+			var rp: RoadPoint = selection
+			hint_source_nodes.append(rp)
+			hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
+			hint_target_nodes.append(inter)
+			hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
+			_insert_edge_hint(rp, camera)
+			if rp in inter.edge_points:
+				hinting = HintState.DISCONNECT
+			else:
+				hinting = HintState.CONNECT
+		elif hover_roadnode is RoadPoint and selection is RoadIntersection:
+			var inter: RoadIntersection = selection
+			var rp: RoadPoint = hover_roadnode
+			hint_source_nodes.append(rp)
+			hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
+			hint_target_nodes.append(inter)
+			hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
+			_insert_edge_hint(rp, camera)
+			if rp in inter.edge_points:
+				hinting = HintState.DISCONNECT
+			else:
+				hinting = HintState.CONNECT
+		
+		plg.update_overlays()
+	elif not event is InputEventMouseButton:
+		return INPUT_PASS
+	elif not event.button_index == MOUSE_BUTTON_LEFT:
+		return INPUT_PASS
+	elif event.pressed:
+		print("Perform action")
+		var res = _perform_action(camera)
+		_clear_targets()
+		plg.update_overlays()
+		return res
+
 	return INPUT_PASS
 
 
@@ -387,7 +522,7 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 	elif not event.button_index == MOUSE_BUTTON_LEFT:
 		return INPUT_PASS
 	elif event.pressed:
-		var res = _perform_action()
+		var res = _perform_action(camera)
 		_clear_targets()
 		plg.update_overlays()
 		return res
@@ -395,11 +530,53 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 	return INPUT_PASS
 
 
-func _perform_action() -> int:
+# ------------------------------------------------------------------------------
+#endregion
+#region Perform action
+# ------------------------------------------------------------------------------
+
+
+func _perform_action(camera: Camera3D) -> int:
 	match hinting:
 		HintState.CONNECT:
+			for idx in hint_source_nodes.size():
+				if hint_target_nodes[idx] is RoadIntersection:
+					# add branch
+					plg.connect_rp_to_intersection(hint_target_nodes[idx], hint_source_nodes[idx])
+				else:
+					plg._connect_rp_on_click(hint_source_nodes[idx], hint_target_nodes[idx])
+			return INPUT_STOP
+		HintState.CREATE_RP:
+			if hint_source_nodes[0] is RoadPoint or hint_source_nodes[0] is RoadContainer:
+				var selection = hint_source_nodes[0]
+				var res: Array = plg.get_click_point_with_context(camera, cursor, selection)
+				var pos:Vector3 = res[0]
+				var nrm:Vector3 = res[1]
+				plg._add_next_rp_on_click(pos, nrm, hint_source_nodes[0], null)
+			elif hint_source_nodes[0] is RoadIntersection:
+				var inter = hint_source_nodes[0]
+				var res: Array = plg.get_click_point_with_context(camera, cursor, inter)
+				var pos:Vector3 = res[0]
+				var nrm:Vector3 = res[1]
+				plg.add_and_connect_rp_to_intersection(inter, pos, nrm)
+			elif hint_source_nodes[0] is RoadManager:
+				var mgr: RoadManager = hint_source_nodes[0]
+				var res: Array = plg.get_click_point_with_context(camera, cursor, mgr)
+				var pos:Vector3 = res[0]
+				var nrm:Vector3 = res[1]
+				plg.add_roadcontainer_and_roadpoint(mgr, pos, nrm)
+			return INPUT_STOP
+		HintState.CREATE_INTERSECTION:
+			if hint_source_nodes[0] is RoadPoint and hint_target_nodes[0] is RoadPoint:
+				plg.convert_to_intersection_with_new_branch(hint_target_nodes[0], hint_source_nodes[0])
+			else:
+				print("Not implemented")
 			return INPUT_STOP
 		HintState.DISCONNECT:
+			if hint_target_nodes[0] is RoadIntersection:
+				plg.disconnect_rp_from_intersection(hint_target_nodes[0], hint_source_nodes[0])
+			else:
+				plg._disconnect_rp_on_click(hint_source_nodes[0], hint_target_nodes[0])
 			return INPUT_STOP
 		HintState.DELETE:
 			for del_node in hint_source_nodes:
@@ -467,6 +644,42 @@ func _relevant_input_event(event: InputEvent) -> bool:
 		return true
 	return false
 
+
+func _hint_intersection_creation(rp_hover: RoadPoint, rp_sel: RoadPoint, camera: Camera3D) -> void:
+	var prior_hover_node := rp_hover.get_prior_road_node()
+	var next_hover_node := rp_hover.get_next_road_node()
+	var rp_sel_pos: Vector2 = camera.unproject_position(rp_sel.global_transform.origin)
+	var rp_hover_pos: Vector2 = camera.unproject_position(rp_hover.global_transform.origin)
+	if prior_hover_node is RoadIntersection or next_hover_node is RoadIntersection:
+		# Can't directly connect two intersections
+		pass
+	elif is_instance_valid(prior_hover_node) and prior_hover_node.container != rp_hover.container:
+		pass  # cross-container connected
+	elif is_instance_valid(next_hover_node) and next_hover_node.container != rp_hover.container:
+		pass  # cross container connected
+	elif rp_sel.container != rp_hover.container:
+		pass  # Both must be part of the same container to become connected
+	else:
+		# Create intersection
+		hint_source_nodes.append(rp_sel)
+		hint_source_points.append(rp_sel_pos)
+		hint_target_nodes.append(rp_hover)
+		hint_target_points.append(rp_hover_pos)
+		_insert_edge_hint(rp_sel, camera)
+		# visualize some edge or border for new intersection? based on initial connections
+		if is_instance_valid(prior_hover_node):
+			_insert_edge_hint(prior_hover_node, camera)
+			hint_source_nodes.append(prior_hover_node)
+			hint_source_points.append(camera.unproject_position(prior_hover_node.global_transform.origin))
+			hint_target_nodes.append(rp_hover)
+			hint_target_points.append(rp_hover_pos)
+		if is_instance_valid(next_hover_node):
+			_insert_edge_hint(next_hover_node, camera)
+			hint_source_nodes.append(next_hover_node)
+			hint_source_points.append(camera.unproject_position(next_hover_node.global_transform.origin))
+			hint_target_nodes.append(rp_hover)
+			hint_target_points.append(rp_hover_pos)
+		hinting = HintState.CREATE_INTERSECTION
 
 #endregion
 # ------------------------------------------------------------------------------
