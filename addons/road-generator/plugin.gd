@@ -746,7 +746,6 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Update rotation along the initially picked axis.
 	elif selection is RoadContainer:
-		next_rp.name = next_rp.increment_name("RP_001")
 		var _lanes:Array[RoadPoint.LaneDir] = [
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.REVERSE,
@@ -757,6 +756,7 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		next_rp.auto_lanes = true
 		parent.add_child(next_rp)
 		next_rp.set_owner(get_tree().get_edited_scene_root())
+		next_rp.name = next_rp.increment_name("RP_001")
 
 	# Make the road visible halfway above the ground by the gutter height amount.
 	if nrm == Vector3.ZERO:
