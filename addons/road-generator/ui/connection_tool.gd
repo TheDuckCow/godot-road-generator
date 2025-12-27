@@ -1,8 +1,13 @@
 extends Object
 
 # ------------------------------------------------------------------------------
-#region Enums, constants, vars, and initializer
+#region Signals, Enums, constants, vars, and initializer
 # ------------------------------------------------------------------------------
+
+## When event handling detects a need to adjust the mode, propogate upwards to reflect in the toolbar
+##
+## Value should be of type plg._road_toolbar.InputMode
+signal assign_mode(mode: int)
 
 ## State of the connection tool to be drawn
 enum HintState {
@@ -64,7 +69,9 @@ var hint_edges_f: Array[Vector2] = []
 
 var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of roads
 var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
+var _overlay_ref: Control
 
+var tempset_toolmode: bool = false
 
 func _init(plugin: EditorPlugin) -> void:
 	plg = plugin
@@ -78,6 +85,13 @@ func _init(plugin: EditorPlugin) -> void:
 
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_3d_draw_over_viewport(overlay: Control):
+	# Overlay refresh 
+	if not Rect2(Vector2(), overlay.size).has_point(overlay.get_local_mouse_position()):
+		return # Outside the 3D viweport area, such as due to a hotkey press
+	if not overlay.mouse_exited.is_connected(_on_mouse_exited):
+		_overlay_ref = overlay
+		_overlay_ref.mouse_exited.connect(_on_mouse_exited)
+	# State handling
 	if hinting == HintState.NONE:
 		return
 	match hinting:
@@ -100,12 +114,13 @@ func forward_3d_draw_over_viewport(overlay: Control):
 ## Handle or pass on event in the 3D editor
 ## If return true, consumes the event, otherwise forwards event
 func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
+	# Preprocess event to update toolbar if necessary
+	handle_shortcuts(event)
+	
+	# Handle inputs
 	var ret := 0
-
 	var selected:Node = plg.get_selected_node()
 	var relevant:bool = plg.is_road_node(selected)
-
-	# TODO: Modifier key like control or option to toggle between select & add.
 
 	if not relevant or plg.tool_mode == plg._road_toolbar.InputMode.SELECT:
 		ret = _handle_select_mode_input(camera, event)
@@ -116,11 +131,16 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	return ret
 
 
+func handle_shortcuts(event: InputEvent) -> void:
+	traverse_nodes_shortcut(event)
+	var _did_update := update_toolmode_shortcut(event)
+
+
 ## Implement handling of [] keys for moving between RPs in the 3d editor
 ##
 ## TODO: Turn into actual shortcut and make it configurable
 ## https://docs.godotengine.org/en/stable/classes/class_shortcut.html
-func unhandled_input(event: InputEvent) -> void:
+func traverse_nodes_shortcut(event: InputEvent) -> void:
 	var move_dir: int = -1
 	if event is InputEventKey and event.is_pressed() and not event.is_echo():
 		if event.keycode == KEY_BRACKETRIGHT:
@@ -173,7 +193,28 @@ func unhandled_input(event: InputEvent) -> void:
 	if is_instance_valid(new_sel) and is_instance_valid(initial_sel):
 		plg._edi.get_selection().call_deferred("remove_node", initial_sel)
 		plg._edi.get_selection().call_deferred("add_node", new_sel)
-		# TODO: need some way of calling plg.get_tree().set_input_as_handled()
+
+
+## Update the state of the toolbar mode
+##
+## Tightly bound to the toolbar code, not great design but necessary to have all
+## inputs processed from here to avoid delay issues.
+##
+## Returns true if mode changed.
+func update_toolmode_shortcut(event: InputEvent) -> bool:
+	if event is InputEventKey and event.keycode == KEY_ALT:
+		var was_tempset := tempset_toolmode
+		tempset_toolmode = event.is_pressed()
+		if was_tempset == tempset_toolmode:
+			return false
+		if plg._road_toolbar.mode == plg._road_toolbar.InputMode.SELECT:
+			plg._road_toolbar._on_add_mode_pressed()
+			return true
+		elif plg._road_toolbar.mode == plg._road_toolbar.InputMode.ADD:
+			plg._road_toolbar._on_select_mode_pressed()
+			return true
+				
+	return false
 
 
 ## Utility for processing tab-navigation after leaving an intersection
@@ -333,6 +374,8 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	# TODO: Re-implement this
 	_clear_targets()
+	# Check relevant necessary to ensure last cursor pos is always updated
+	var relevant := _relevant_input_event(event)
 	plg.update_overlays()
 	return INPUT_PASS
 
@@ -636,13 +679,20 @@ func _insert_edge_hint(rp: RoadPoint, camera: Camera3D) -> void:
 
 
 func _relevant_input_event(event: InputEvent) -> bool:
+	var relevant: bool = false
 	if event is InputEventKey and event.keycode == KEY_ALT:
-		return true
+		relevant = true
 	var mouse_events:bool = event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture
 	if mouse_events:
 		cursor = event.position
-		return true
-	return false
+		relevant = true
+	return relevant
+
+
+func _on_mouse_exited():
+	if is_instance_valid(_overlay_ref) and _overlay_ref.mouse_exited.is_connected(_on_mouse_exited):
+		_overlay_ref.mouse_exited.disconnect(_on_mouse_exited)
+		plg.update_overlays()
 
 
 func _hint_intersection_creation(rp_hover: RoadPoint, rp_sel: RoadPoint, camera: Camera3D) -> void:

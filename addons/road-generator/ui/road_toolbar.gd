@@ -18,7 +18,6 @@ var create_menu:MenuButton
 var selected_nodes: Array # of Nodes
 var gui # For fetching built in icons (not yet working)
 var mode # Passed in by parent
-var alt_pressed: bool = false
 
 
 func _enter_tree():
@@ -30,15 +29,6 @@ func _enter_tree():
 			add_mode.button_pressed = true
 		InputMode.DELETE:
 			delete_mode.button_pressed = true
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.keycode == KEY_ALT:
-		alt_pressed = event.is_pressed()
-		if mode == InputMode.SELECT and alt_pressed:
-			_on_add_mode_pressed()
-		elif mode == InputMode.ADD and not alt_pressed:
-			_on_select_mode_pressed()
 
 
 func update_refs():

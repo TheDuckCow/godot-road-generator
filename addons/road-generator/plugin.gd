@@ -117,11 +117,6 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	return connection_tool.forward_3d_gui_input(camera, event)
 
 
-## Implements roadpoint navigation movement via shortcut keys
-func _unhandled_input(event: InputEvent) -> void:
-	connection_tool.unhandled_input(event)
-
-
 # ------------------------------------------------------------------------------
 #endregion
 #region GUI utilities
