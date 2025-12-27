@@ -1110,7 +1110,7 @@ func convert_to_intersection_with_new_branch(rp_init: RoadPoint, rp_branch: Road
 	undo_redo.create_action("Create intersection", 0, null, false) # if last arg=true -> backwards undo
 	var inter = subaction_create_intersection(rp_init, undo_redo)
 	# subaction_delete_roadpoint(rp_init, false, undo_redo)
-	# subaction_add_branch(inter, rp_branch, undo_redo)
+	subaction_add_branch(inter, rp_branch, undo_redo)
 	undo_redo.add_do_method(self, "_call_update_edges", rp_init.container)
 	undo_redo.add_undo_method(self, "_call_update_edges", rp_init.container)
 	
