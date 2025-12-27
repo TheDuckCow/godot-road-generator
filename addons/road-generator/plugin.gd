@@ -34,8 +34,6 @@ var _last_point: Node
 var _last_lane: Node
 var _export_file_dialog: FileDialog
 
-var _new_selection: Node # RoadPoint or RoadContainer
-
 var _edi_debug := false
 
 # For use by road_point_edit and panel, keys are props on RoadPoint
@@ -56,8 +54,6 @@ func _enter_tree():
 	add_inspector_plugin(road_container_editor)
 	road_container_editor.call("set_edi", _edi)
 	_eds.connect("selection_changed", self._on_selection_changed)
-	_eds.connect("selection_changed", road_point_gizmo.on_selection_changed)
-	_eds.connect("selection_changed", road_intersection_gizmo.on_selection_changed)
 	
 	connect("scene_changed", Callable(self, "_on_scene_changed"))
 	connect("scene_closed", Callable(self, "_on_scene_closed"))
@@ -84,8 +80,6 @@ func _enter_tree():
 
 func _exit_tree():
 	_eds.disconnect("selection_changed", self._on_selection_changed)
-	_eds.disconnect("selection_changed", road_point_gizmo.on_selection_changed)
-	_eds.disconnect("selection_changed", road_intersection_gizmo.on_selection_changed)
 	disconnect("scene_changed", self._on_scene_changed)
 	disconnect("scene_closed", self._on_scene_closed)
 	_road_toolbar.queue_free()
@@ -134,13 +128,13 @@ func is_road_node(node: Node) -> bool:
 
 ## Render the editor indicators for RoadPoints and RoadLanes if selected.
 func _on_selection_changed() -> void:
+	var nodes = _eds.get_selected_nodes()
+	
 	var selected_node := get_selected_node()
 
-	if _new_selection:
-		set_selection(_new_selection)
-		selected_node = _new_selection
-		_new_selection = null
-	elif not selected_node:
+	if not selected_node:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
 		_hide_road_toolbar()
 		return
 
@@ -149,10 +143,21 @@ func _on_selection_changed() -> void:
 
 	if selected_node is RoadPoint:
 		_last_point = selected_node
-		# selected_node.on_transform() # Creates duplicate rebuilds.
+		road_point_gizmo.set_visible()
+		road_intersection_gizmo.set_hidden()
+	elif selected_node is RoadIntersection:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_visible()
 	elif selected_node is RoadLane:
+		road_point_gizmo.set_hidden()
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
+		
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
+	else:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
 
 	# Show the panel even if selection is scene root, but not if selection is a
 	# scene instance itself (non editable).

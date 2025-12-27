@@ -94,7 +94,6 @@ func setup_lane_widgets():
 	lane_divider.material_override = lane_widget_mat
 	lane_widget.add_child(lane_dividers)
 
-	lane_widget.visible = false
 	_editor_plugin.add_child(lane_widget)
 
 
@@ -154,7 +153,6 @@ func _redraw(gizmo) -> void:
 	gizmo.add_handles(width_handles, get_material("blue_handles"), [], false, false)
 
 	# Add lane widget
-	lane_widget.visible = true
 	lane_widget.transform = point.global_transform
 	arrow_left.position = Vector3(rev_width_mag, 0, 0)
 	arrow_left.scale = width_scale_v
@@ -481,15 +479,21 @@ func _intersect_2D_point_with_3D_plane(spatial, target, camera, screen_point) ->
 	var intersect = plane.intersects_ray(src, nrm)
 	return intersect
 
+
 ## Sets width handles to outside lane edges, hides lane widget, and redraws.
 func refresh_gizmo(gizmo: EditorNode3DGizmo):
 	var point = gizmo.get_node_3d()
 	point.rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	point.fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	lane_widget.visible = false
 	_redraw(gizmo)
 
 
-func on_selection_changed():
+func set_visible():
+	prior_lane_width = -1
+	lane_widget.visible = true
+
+
+## Called by editor plugin when new selection is no longer a RoadPoint
+func set_hidden() -> void:
 	prior_lane_width = -1
 	lane_widget.visible = false

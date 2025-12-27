@@ -12,6 +12,7 @@ var copy_ref:RoadPoint  # For use in panel to copy settings
 func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
+
 func _can_handle(object):
 	# Only road points are supported.
 	# TODO: Add RoadContainer and RoadManager in future for bulk ops.
@@ -145,4 +146,3 @@ func _flip_roadpoint(rp:RoadPoint) -> void:
 	undo_redo.create_action("Flip RoadPoint")
 	_editor_plugin.subaction_flip_roadpoint(rp, undo_redo)
 	undo_redo.commit_action()
-	

@@ -88,7 +88,11 @@ func refresh_gizmo(gizmo: EditorNode3DGizmo):
 	_redraw(gizmo)
 
 
-func on_selection_changed():
+func set_visible():
+	intersection_widget.visible = true
+
+
+func set_hidden():
 	intersection_widget.visible = false
 
 
