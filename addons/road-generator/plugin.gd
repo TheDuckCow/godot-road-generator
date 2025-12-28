@@ -1128,12 +1128,37 @@ func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, n
 		push_error("Invalid RoadIntersection, cannot add and connect")
 		return
 	
+	var rp := RoadPoint.new()
+	
 	undo_redo.create_action("Branch new RoadPoint from RoadIntersection")
 	
-	# TODO: add rp, add brach, set selection
+	rp.name = rp.increment_name("RP_001")
+	undo_redo.add_do_method(inter.container, "add_child", rp, true)
+	undo_redo.add_do_method(rp, "set_owner", inter.owner)
+	if nrm == Vector3.ZERO:
+		nrm = Vector3.UP	 # workaround? should this ever be null?
+		print("nrm was null for create branch from road container")
+
+	var half_gutter: float = -0.5 * rp.gutter_profile.y
+	var new_transform = inter.global_transform # weird to do this, use direct method to assign global?
+	new_transform.origin = pos + nrm * half_gutter
+	new_transform.basis.y = nrm # legal????
+	undo_redo.add_do_property(rp, "global_transform", new_transform)
+	undo_redo.add_do_method(rp, "look_at", inter.global_transform.origin, new_transform.basis.y)
+	undo_redo.add_do_method(inter, "add_branch", rp)
+	
+	undo_redo.add_do_reference(rp)
+	
+	undo_redo.add_undo_method(inter, "remove_branch", rp)
+	undo_redo.add_undo_method(inter.container, "remove_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", null)
 	
 	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
 	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", rp) # selection not retained???
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 	undo_redo.commit_action()
 
 
@@ -1358,6 +1383,7 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 				prior_rp,
 				"connect_roadpoint",
 				RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR,
+				next_rp,
 				RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT,
 			)
 			undo_redo.add_undo_method(
