@@ -1030,7 +1030,7 @@ func setup_road_container():
 	else:
 		own = self
 
-	if not is_instance_valid(get_manager()):
+	if not is_instance_valid(get_manager()) and not material_resource:
 		# Assign a road material by default if there's no parent RoadManager
 		material_resource = RoadMaterial
 
