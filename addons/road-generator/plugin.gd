@@ -6,28 +6,15 @@ extends EditorPlugin
 #region Signals/Enums/Const/Vars
 # ------------------------------------------------------------------------------
 
-enum SnapState {
-	IDLE,
-	SNAPPING,
-	UNSNAPPING,
-	MOVING,
-	CANCELING,
-}
-
 const RoadPointGizmo = preload("res://addons/road-generator/ui/road_point_gizmo.gd")
 const RoadIntersectionGizmo = preload("res://addons/road-generator/ui/road_intersection_gizmo.gd")
 const RoadPointEdit = preload("res://addons/road-generator/ui/road_point_edit.gd")
 const RoadContainerEdit = preload("res://addons/road-generator/ui/road_container_edit.gd")
 const RoadToolbar = preload("res://addons/road-generator/ui/road_toolbar.tscn")
 const RoadToolbarClass = preload("res://addons/road-generator/ui/road_toolbar.gd")
+const ConnectionTool = preload("res://addons/road-generator/ui/connection_tool.gd")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-
-# Forwards the InputEvent to other EditorPlugins.
-const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
-# Prevents the InputEvent from reaching other Editor classes.
-const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
-const ROADPOINT_SNAP_THRESHOLD := 25.0
 
 
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
@@ -36,6 +23,7 @@ var road_point_gizmo = RoadPointGizmo.new(self)
 var road_intersection_gizmo = RoadIntersectionGizmo.new(self)
 var road_point_editor = RoadPointEdit.new(self)
 var road_container_editor = RoadContainerEdit.new(self)
+var connection_tool = ConnectionTool.new(self)
 
 var plugin_version: String
 
@@ -44,21 +32,7 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
-var _overlay_rp_selected: Node # Matching active selection or according RP child
-var _overlay_rp_hovering: Node # Matching what the mouse is hovering over
-var _overlay_hovering_pos := Vector2(-1, -1)
-var _overlay_hovering_from := Vector2(-1, -1)
-var _overlay_hint_disconnect := false
-var _overlay_hint_connection := false
-var _overlay_hint_delete := false
-var _snapping = SnapState.IDLE
-var _nearest_edges: Array # [Selected RP, Target RP]
-var _edge_positions: Array # [edge_from_pos, edge_to_pos]
 var _export_file_dialog: FileDialog
-
-var _press_init_pos: Vector2
-
-var _new_selection: Node # RoadPoint or RoadContainer
 
 var _edi_debug := false
 
@@ -80,8 +54,6 @@ func _enter_tree():
 	add_inspector_plugin(road_container_editor)
 	road_container_editor.call("set_edi", _edi)
 	_eds.connect("selection_changed", self._on_selection_changed)
-	_eds.connect("selection_changed", road_point_gizmo.on_selection_changed)
-	_eds.connect("selection_changed", road_intersection_gizmo.on_selection_changed)
 	
 	connect("scene_changed", Callable(self, "_on_scene_changed"))
 	connect("scene_closed", Callable(self, "_on_scene_closed"))
@@ -108,8 +80,6 @@ func _enter_tree():
 
 func _exit_tree():
 	_eds.disconnect("selection_changed", self._on_selection_changed)
-	_eds.disconnect("selection_changed", road_point_gizmo.on_selection_changed)
-	_eds.disconnect("selection_changed", road_intersection_gizmo.on_selection_changed)
 	disconnect("scene_changed", self._on_scene_changed)
 	disconnect("scene_closed", self._on_scene_closed)
 	_road_toolbar.queue_free()
@@ -131,181 +101,14 @@ func _exit_tree():
 
 
 ## Called by the engine when the 3D editor's viewport is updated.
-func _forward_3d_draw_over_viewport(overlay: Control):
-
-	var selected = _overlay_rp_selected
-	var rad_size := 10.0
-	var col:Color
-
-	# White margin background
-	var margin := 3
-	var white_col = Color(1, 1, 1, 0.9)
-
-	if tool_mode == _road_toolbar.InputMode.SELECT and _snapping == SnapState.IDLE:
-		return
-	elif tool_mode == _road_toolbar.InputMode.SELECT:
-		# Set the drawing color
-		if _overlay_hint_disconnect:
-			col = Color.CORAL
-		else:
-			col = Color.AQUA
-
-		# Treat Snapping and Unsnapping differently. When Snapping, show a line
-		# between the two closest points. When Unsnapping, show lines between
-		# all connected points that will be Unsnapped.
-		if _snapping == SnapState.SNAPPING:
-#			col = Color.cadetblue
-			if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
-				return # Nothing to draw
-
-			if not selected is RoadPoint:
-				return
-
-			# White margin background
-			overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-			overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-			overlay.draw_line(
-				_overlay_hovering_from,
-				_overlay_hovering_pos,
-				white_col,
-				2+margin*2,
-				true)
-
-			# Now color based on operation
-			overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-			overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-			overlay.draw_line(
-				_overlay_hovering_from,
-				_overlay_hovering_pos,
-				col,
-				2,
-				true)
-#			return
-		else: # Unsnapping
-			# Iterate _all_edges and draw line for each
-			for edge_pair in _edge_positions:
-				_overlay_hovering_from = edge_pair[0]
-				_overlay_hovering_pos = edge_pair[1]
-
-				# White margin background
-				overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-				overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-				overlay.draw_line(
-					_overlay_hovering_from,
-					_overlay_hovering_pos,
-					white_col,
-					2+margin*2,
-					true)
-
-				# Now color based on operation
-				overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-				overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-				overlay.draw_line(
-					_overlay_hovering_from,
-					_overlay_hovering_pos,
-					col,
-					2,
-					true)
-#			return
-	elif tool_mode == _road_toolbar.InputMode.DELETE:
-		if _overlay_hint_delete:
-			col = Color.CORAL
-
-			var radius := 24.0  # Radius of the rounded ends
-			var hf := radius / 2.0
-			# white bg
-			overlay.draw_line(
-				_overlay_hovering_pos + Vector2(-hf-margin, -hf-margin),
-				_overlay_hovering_pos + Vector2(hf+margin, hf+margin),
-				white_col, 6 + margin)
-			overlay.draw_line(
-				_overlay_hovering_pos + Vector2(-hf-margin, hf+margin),
-				_overlay_hovering_pos + Vector2(hf+margin, -hf-margin),
-				white_col, 6 + margin)
-			# Red part on top
-			overlay.draw_line(
-				_overlay_hovering_pos + Vector2(-hf, -hf),
-				_overlay_hovering_pos + Vector2(hf, hf),
-				col, 6)
-			overlay.draw_line(
-				_overlay_hovering_pos + Vector2(-hf, + hf),
-				_overlay_hovering_pos + Vector2(hf, -hf),
-				col, 6)
-		return
-
-	# Add mode
-	if _overlay_rp_hovering == null or not is_instance_valid(_overlay_rp_hovering): # or is not RoadPoint?
-		return # Nothing to draw
-	var hovering:RoadPoint = _overlay_rp_hovering
-	if _overlay_hint_disconnect:
-		# Hovering node is directly connected to this node already, offer to disconnect
-		col = Color.CORAL
-	elif hovering.is_next_connected() and hovering.is_prior_connected():
-		# Where we're coming from is already fully connected.
-		# Eventually though, this could be an intersection.
-		return
-	elif selected == null:
-		# Should mean the source is a RoadContainer, meaning we want to create
-		# a RoadPoint at the edge of an existing RoadContainer.
-		col = Color.CHARTREUSE
-		overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-		overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-		# TODO: Consider drawing a horizontal line along the edge itself, to
-		# clarify this is connection-affecting.
-		return
-	elif selected.is_next_connected() and selected.is_prior_connected():
-		# Fully connected, though eventually this could be an intersection.
-		return
-	elif selected.container != hovering.container:
-		col = Color.CADET_BLUE
-	else:
-		# Connection mode intra RoadContainer
-		col = Color.AQUA
-	# TODO: make color slight transparent, but requires merging draw positions
-	# as one call instead of multiple shapes.
-
-	if not selected is RoadPoint:
-		return
-
-	# White margin background
-	overlay.draw_circle(_overlay_hovering_pos, rad_size + margin, white_col)
-	overlay.draw_circle(_overlay_hovering_from, rad_size + margin, white_col)
-	overlay.draw_line(
-		_overlay_hovering_from,
-		_overlay_hovering_pos,
-		white_col,
-		2+margin*2,
-		true)
-
-	# Now color based on opration
-	overlay.draw_circle(_overlay_hovering_pos, rad_size, col)
-	overlay.draw_circle(_overlay_hovering_from, rad_size, col)
-	overlay.draw_line(
-		_overlay_hovering_from,
-		_overlay_hovering_pos,
-		col,
-		2,
-		true)
+func _forward_3d_draw_over_viewport(overlay: Control) -> void:
+	connection_tool.forward_3d_draw_over_viewport(overlay)
 
 
 ## Handle or pass on event in the 3D editor
 ## If return true, consumes the event, otherwise forwards event
 func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
-	var ret := 0
-
-	var selected = get_selected_node()
-	var relevant = is_road_node(selected)
-
-	# TODO: Modifier key like control or option to toggle between select & add.
-
-	if not relevant or tool_mode == _road_toolbar.InputMode.SELECT:
-		ret = _handle_gui_select_mode(camera, event)
-	elif tool_mode == _road_toolbar.InputMode.ADD:
-		ret = _handle_gui_add_mode(camera, event)
-	elif tool_mode == _road_toolbar.InputMode.DELETE:
-		ret = _handle_gui_delete_mode(camera, event)
-
-	return ret
+	return connection_tool.forward_3d_gui_input(camera, event)
 
 
 # ------------------------------------------------------------------------------
@@ -323,344 +126,15 @@ func is_road_node(node: Node) -> bool:
 		or node is RoadManager)
 
 
-func _handle_gui_select_mode(camera: Camera3D, event: InputEvent) -> int:
-	# Event triggers on both press and release. Ignore press and only act on
-	# release. Also, ignore right-click and middle-click.
-#	if (not event is InputEventMouseButton) and (not event is InputEventMouseMotion):
-#		return INPUT_PASS
-	var selected = get_selected_node()
-	var lmb_pressed = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
-	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and _snapping:
-		# If user clicks RMB while snapping, then cancel snapping
-		_snapping = SnapState.IDLE
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-
-		if event.pressed:
-			# Nothing done until click up, but detect initial position
-			# to differentiate between drags and direct clicks.
-			_press_init_pos = event.position
-			return INPUT_PASS
-		elif _press_init_pos != event.position and not _snapping == SnapState.IDLE:
-			# TODO: possibly add min distance before treated as a drag
-			# (does built in godot have a tolerance before counted as a drag?)
-			var sel_rp: RoadPoint = _nearest_edges[0]
-			var tgt_rp: RoadPoint = _nearest_edges[1]
-			if _snapping in [SnapState.SNAPPING, SnapState.CANCELING]:
-				_snap_to_road_point_future(selected, sel_rp, tgt_rp, _snapping==SnapState.CANCELING)
-			elif _snapping == SnapState.UNSNAPPING:
-				# Disconnect Edge RoadPoints
-				_unsnap_container_future(selected)
-			# Clear overlays and snapping/unsnapping condition
-			_snapping = SnapState.IDLE
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = false
-			update_overlays()
-
-			return INPUT_PASS  # Is a drag event
-
-		elif _press_init_pos != event.position:
-			return INPUT_PASS  # Is a drag even
-
-		# Shoot a ray and see if it hits anything
-		var point:RoadGraphNode = get_nearest_road_point(camera, event.position)
-		if point and not event.pressed:
-			# Using this method creates a conflcit with builtin drag n drop & 3d gizmo usage
-			#set_selection(point)
-			#_on_selection_changed()
-
-			if point.container.is_subscene():
-				_new_selection = point.container
-			else:
-				_new_selection = point
-			return INPUT_PASS
-
-	elif event is InputEventMouseMotion and lmb_pressed and selected is RoadContainer:
-		# If container already has Edge connections then unsnap/disconnect them.
-		var sel_rp_connections: Array = selected.get_connected_edges()
-#		_all_edges = selected.get_connected_edges()
-
-		# Get the closest edges
-		if len(sel_rp_connections) > 0:
-#			print("%s %s connected edges" % [Time.get_ticks_msec(), len(sel_rp_connections)])
-			var dist: float = 0
-			_edge_positions = []
-			for edge_group in sel_rp_connections:
-				var edge = edge_group[0]
-				var tgt_edge = edge_group[1]
-
-				# Save edge positions for drawing in the viewport
-				var edge_from_pos = camera.unproject_position(edge.global_transform.origin)
-				var edge_to_pos = camera.unproject_position(tgt_edge.global_transform.origin)
-				_edge_positions.append([edge_from_pos, edge_to_pos])
-
-				# Save closest edges
-				var group_dist = abs((edge.global_position - tgt_edge.global_position).length())
-				if (not dist) or group_dist < dist:
-					dist = group_dist
-					_nearest_edges = edge_group
-
-#			_nearest_edges = _all_edges[0]
-#			var edge = _nearest_edges[0]
-#			var tgt_edge = _nearest_edges[1]
-#			dist = (edge.global_translation - tgt_edge.global_translation).length()
-#			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
-#			_overlay_rp_hovering = _nearest_edges[0]
-#			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
-#			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
-			if false: # dist < ROADPOINT_SNAP_THRESHOLD:
-				_snapping = SnapState.CANCELING
-				# Use blue line color
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			else:
-				_snapping = SnapState.UNSNAPPING
-				# Use red line color
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-#			selected.move_connected_road_points()
-			update_overlays()
-			return INPUT_PASS
-
-		# If container doesn't have Edge connections then snap/connect an Edge.
-		# Get all usable Edge RoadPoints in selected container
-		var sel_rp_edges: Array = selected.get_open_edges()
-		if not len(sel_rp_edges) > 0:
-			return INPUT_PASS
-
-		# Iterate remaining RoadContainers in scene and find RoadPoint
-		# closest to the RoadPoints in the selected container.
-		var containers: Array = selected.get_all_road_containers(_edi.get_edited_scene_root())
-		var min_dist: float
-		_nearest_edges = []
-		for cont in containers:
-			if cont == selected:
-				# Skip the selected container. We already have its Edge RoadPoints
-				continue
-			for edge in sel_rp_edges:
-				if not is_instance_valid(edge):
-					#push_warning("Container has invalid edges: " + selected.name)
-					continue
-				var tgt_edge = cont.get_closest_edge_road_point(edge.global_position)
-				if not is_instance_valid(tgt_edge):
-					#push_warning("Container has invalid edges: " + cont.name)
-					continue
-				var dist = (edge.global_position - tgt_edge.global_position).length()
-				if dist < ROADPOINT_SNAP_THRESHOLD and ((not min_dist) or dist < min_dist):
-					min_dist = dist
-					_nearest_edges = [edge, tgt_edge]
-		if _nearest_edges:
-			_snapping = SnapState.SNAPPING
-			_overlay_hovering_from = camera.unproject_position(_nearest_edges[0].global_transform.origin)
-			_overlay_rp_hovering = _nearest_edges[0]
-			_overlay_hovering_pos = camera.unproject_position(_nearest_edges[1].global_transform.origin)
-			_overlay_rp_selected = _nearest_edges[1] # could be the selection, or child of selected container
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = true
-			update_overlays()
-		else:
-			_snapping = SnapState.IDLE
-
-		return INPUT_PASS
-	return INPUT_PASS
-
-
-## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
-func _handle_gui_add_mode(camera: Camera3D, event: InputEvent) -> int:
-	if event is InputEventMouseMotion or event is InputEventPanGesture or event is InputEventMagnifyGesture:
-		# Handle updating UI overlays to indicate what would happen on click.
-
-		## TODO: if pressed state, then use this to update the in/out mag handles
-		# Pressed state not available here, need to track state separately.
-		# Handle visualizing which connections are free to make
-		# trigger overlay updates to draw/update indicators
-		var point:RoadGraphNode = get_nearest_road_point(camera, event.position)
-		var hover_point = point # logical workaround to duplicate
-		var selection = get_selected_node()
-		var src_is_contianer := false
-		var target:RoadGraphNode
-
-		if selection is RoadContainer:
-			src_is_contianer = true
-			var closest_rp = get_nearest_edge_road_point(selection, camera, event.position)
-			if closest_rp:
-				target = closest_rp
-			else:
-				hover_point = point
-				point = null # nothing to point from, so skip below on what we're pointing to
-		elif selection is RoadManager:
-			point = null
-			target = null
-		elif selection is RoadPoint:
-			target = selection
-		elif selection is RoadIntersection:
-			# TODO: Update to act the same as target selection once functional
-			point = null
-			target = null
-		else:
-			point = null
-			target = null
-		
-		if is_instance_valid(hover_point) and not is_instance_valid(target):
-			var hover_cnct:bool = hover_point.is_prior_connected() and hover_point.is_next_connected()
-			if not hover_cnct and src_is_contianer and not selection.is_subscene():
-				# If the current selection is a same-scene container, and the user
-				# hovers over another container with open connections, offer to
-				# create a new RoadPoint in the *selected* container that attaches
-				# to the *hovering* container. Confusing, but intuitive in practice
-				# as it allows you to create roads easily *between* prefab scenes.
-				_overlay_rp_hovering = hover_point # the selected non saved-scene container.
-				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
-				_overlay_hovering_pos = camera.unproject_position(hover_point.global_transform.origin)
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			else:
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hovering_pos = event.position
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-		elif is_instance_valid(point) and is_instance_valid(target):
-			_overlay_hovering_from = camera.unproject_position(target.global_transform.origin)
-			_overlay_rp_hovering = point
-			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
-			var target_prior_cnct:bool = target.is_prior_connected()
-			var target_next_cnct:bool = target.is_next_connected()
-			var hover_cnct:bool = point.is_prior_connected() and point.is_next_connected()
-
-			if target == point:
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			elif src_is_contianer and point and point.container == selection:
-				# If a container is selected, don't (dis)connect internal rp's to itself.
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			elif target.get_prior_road_node() == point:
-				# If this pt is directly connected to the target, offer quick dis-connect tool
-				_overlay_rp_selected = target
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-			elif target.get_next_road_node() == point:
-				# If this pt is directly connected to the selection, offer quick dis-connect tool
-				_overlay_rp_selected = target
-				_overlay_hint_disconnect = true
-				_overlay_hint_connection = false
-			elif not hover_cnct and src_is_contianer and not selection.is_subscene():
-				# If the current selection is a same-scene container, and the user
-				# hovers over another container with open connections, offer to
-				# create a new RoadPoint in the *selected* container that attaches
-				# to the *hovering* container. Confusing, but intuitive in practice
-				# as it allows you to create roads easily *between* prefab scenes.
-				_overlay_rp_hovering = point # the closest hovering non subscene container RP.
-				_overlay_rp_selected = null  # Selection is an RC, not an RP. RP to be created
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-			elif target_prior_cnct and target_next_cnct:
-				# Fully connected roadpoint, nothing to do.
-				# In the future, this could be a mode to convert into an intersection
-				_overlay_rp_selected = null
-				_overlay_rp_hovering = null
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = false
-			else:
-				# Open connection scenario
-				
-				_overlay_rp_selected = target # could be the selection, or child of selected container
-				_overlay_hint_disconnect = false
-				_overlay_hint_connection = true
-		else:
-			_overlay_rp_selected = null
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = event.position
-			_overlay_hint_disconnect = false
-			_overlay_hint_connection = false
-		update_overlays()
-		# Consume the event no matter what.
-		return INPUT_PASS
-
-	if not event is InputEventMouseButton:
-		return INPUT_PASS
-	if not event.button_index == MOUSE_BUTTON_LEFT:
-		return INPUT_PASS
-	if not event.pressed:
-		return INPUT_STOP
-	# Should consume all left click operation hereafter.
-
-	var selection = get_selected_node()
-
-	if _overlay_hint_disconnect:
-		_disconnect_rp_on_click(selection, _overlay_rp_hovering)
-	elif _overlay_hint_connection and selection is RoadContainer:
-		# Case of hovering over another container, so we want to add a new RoadPoint
-		# and connect it
-		_add_and_connect_rp(selection, _overlay_rp_hovering)
-	elif _overlay_hint_connection:
-		#print("Connect: %s to %s" % [selection.name, _overlay_rp_hovering.name])
-		_connect_rp_on_click(_overlay_rp_selected, _overlay_rp_hovering)
-	else:
-		var res := get_click_point_with_context(camera, event.position, selection)
-		var pos:Vector3 = res[0]
-		var nrm:Vector3 = res[1]
-
-		if selection is RoadContainer and selection.is_subscene():
-			_add_next_rp_on_click(pos, nrm, selection.get_manager())
-		elif selection is RoadPoint and selection.is_next_connected() and  selection.is_prior_connected():
-			_add_next_rp_on_click(pos, nrm, selection.container)
-		else:
-			_add_next_rp_on_click(pos, nrm, selection)
-	return INPUT_STOP
-
-
-func _handle_gui_delete_mode(camera: Camera3D, event: InputEvent) -> int:
-	if event is InputEventMouseMotion or event is InputEventPanGesture:
-		var point = get_nearest_road_point(camera, event.position)
-		var selection = get_selected_node()
-		_overlay_hovering_from = camera.unproject_position(selection.global_transform.origin)
-		var mouse_dist = event.position.distance_to(_overlay_hovering_from)
-		var max_dist = 50 # ie only auto suggest deleting RP if it's within this dist to mouse.
-		if point and point.container.is_subscene():
-			# Don't offer changing saved scenes in any way.
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = Vector2(-1, -1)
-			_overlay_hint_delete = false
-		elif point:
-			_overlay_rp_hovering = point
-			_overlay_hovering_pos = camera.unproject_position(point.global_transform.origin)
-			_overlay_hint_delete = true
-		elif selection is RoadPoint and not selection.prior_pt_init and not selection.next_pt_init and mouse_dist < max_dist:
-			_overlay_rp_hovering = selection
-			_overlay_hovering_pos = _overlay_hovering_from
-			_overlay_hint_delete = true
-		else:
-			_overlay_rp_hovering = null
-			_overlay_hovering_pos = Vector2(-1, -1)
-			_overlay_hint_delete = false
-		update_overlays()
-		return INPUT_PASS
-	if not event is InputEventMouseButton:
-		return INPUT_PASS
-	if not event.button_index == MOUSE_BUTTON_LEFT:
-		return INPUT_PASS
-	if event.pressed and _overlay_rp_hovering != null:
-		# Always match what the UI is showing
-		_delete_rp_on_click(_overlay_rp_hovering)
-	return INPUT_STOP
-
-
 ## Render the editor indicators for RoadPoints and RoadLanes if selected.
 func _on_selection_changed() -> void:
-	var selected_node = get_selected_node()
+	var nodes = _eds.get_selected_nodes()
+	
+	var selected_node := get_selected_node()
 
-	if _new_selection:
-		set_selection(_new_selection)
-		selected_node = _new_selection
-		_new_selection = null
-	elif not selected_node:
+	if not selected_node:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
 		_hide_road_toolbar()
 		return
 
@@ -669,10 +143,21 @@ func _on_selection_changed() -> void:
 
 	if selected_node is RoadPoint:
 		_last_point = selected_node
-		# selected_node.on_transform() # Creates duplicate rebuilds.
+		road_point_gizmo.set_visible()
+		road_intersection_gizmo.set_hidden()
+	elif selected_node is RoadIntersection:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_visible()
 	elif selected_node is RoadLane:
+		road_point_gizmo.set_hidden()
 		_last_lane = selected_node
 		_last_lane.show_fins(true)
+		
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
+	else:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
 
 	# Show the panel even if selection is scene root, but not if selection is a
 	# scene instance itself (non editable).
@@ -686,8 +171,8 @@ func _on_selection_changed() -> void:
 
 
 func _on_scene_changed(scene_root: Node) -> void:
-	var selected = get_selected_node()
-	var eligible = is_road_node(selected)
+	var selected := get_selected_node()
+	var eligible := is_road_node(selected)
 	if selected and eligible:
 		_show_road_toolbar()
 	else:
@@ -700,6 +185,7 @@ func _on_scene_closed(_value) -> void:
 
 func _on_mode_change(_mode: int) -> void:
 	tool_mode = _mode  # Instance of RoadToolbar.InputMode
+	update_overlays()
 
 
 func refresh() -> void:
@@ -726,7 +212,7 @@ func get_plugin_version() -> String:
 func get_selected_node() -> Node:
 	# TODO: Update this algorithm to figure out which node is really the
 	# primary selection rather than always assuming index 0 is the selection.
-	var selected_nodes = _eds.get_selected_nodes()
+	var selected_nodes := _eds.get_selected_nodes()
 	if not selected_nodes.is_empty():
 		return selected_nodes[0]
 	else:
@@ -735,7 +221,7 @@ func get_selected_node() -> Node:
 
 ## Returns the next highest level RoadManager from current primary selection.
 func get_manager_from_selection(): # -> Optional[RoadManager]
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 
 	if not is_instance_valid(selected_node):
 		push_error("Invalid selection to add road segment")
@@ -756,7 +242,7 @@ func get_manager_from_selection(): # -> Optional[RoadManager]
 
 ## Gets the RoadContainer from selection of either roadcontainer or roadpoint.
 func get_container_from_selection(): # -> Optional[RoadContainer]
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 	var t_container = null
 
 	if not is_instance_valid(selected_node):
@@ -775,15 +261,6 @@ func get_container_from_selection(): # -> Optional[RoadContainer]
 		return
 
 
-func select_road_point(point) -> void:
-	_last_point = point
-	_edi.get_selection().clear()
-	_edi.edit_node(point)
-	_edi.get_selection().add_node(point)
-	point.on_transform()
-	_show_road_toolbar()
-
-
 ## Utility for easily selecting a node in the editor.
 func set_selection(node: Node) -> void:
 	_edi.get_selection().clear()
@@ -799,8 +276,7 @@ func set_selection_list(nodes: Array) -> void:
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-# TODO: Nearest GraphNode
-func get_nearest_road_point(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
+func get_nearest_graph_node(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
 	var src = camera.project_ray_origin(mouse_pos)
 	var nrm = camera.project_ray_normal(mouse_pos)
 	var dist = camera.far
@@ -911,7 +387,7 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 	# point in the same plane as the initial selection which is also facing
 	# the camera, or in the plane of that object's
 
-	var use_obj_plane = selection is RoadPoint
+	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
 
 	# Points used to define offset used to construct a valid Plane
 	var point_y_offset:Vector3
@@ -1018,7 +494,7 @@ func _hide_road_toolbar() -> void:
 
 
 func _on_regenerate_pressed() -> void:
-	var nd = get_selected_node()
+	var nd := get_selected_node()
 	if nd is RoadManager:
 		for ch_container in nd.get_containers():
 			ch_container.rebuild_segments(true)
@@ -1037,7 +513,7 @@ func _on_regenerate_pressed() -> void:
 
 func _instance_custom_roadcontainer(path: String) -> void:
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 
 	# Determine where to place it, for now - origin of the RoadManager
 	var t_manager = get_manager_from_selection()
@@ -1085,7 +561,7 @@ func _create_container_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 	# if init_sel is RoadPoint: and is an "edge" roadpoint,
 
 	undo_redo.create_action("Add RoadContainer")
@@ -1158,37 +634,28 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
-	elif selection is RoadManager:
-		add_container = true
-		t_manager = selection
-		_sel = selection
 	else: # RoadManager or RoadLane.
 		push_error("Invalid selection context, need RoadContainer parent")
 		return
 
-	if add_container:
-		undo_redo.create_action("Add RoadContainer")
-		undo_redo.add_do_method(self, "_create_road_container_do", t_manager, selection)
-		undo_redo.add_undo_method(self, "_create_road_container_undo", t_manager, selection)
-	else:
-		undo_redo.create_action("Add next RoadPoint")
-		if handle_mag > 0:
-			if not selection.next_pt_init:
-				undo_redo.add_do_property(_sel, "next_mag", handle_mag)
-				undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
-			elif not selection.prior_pt_init:
-				undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
-				undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
-		if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
-			# Special case: the starting point is not connected to anything, then the user is
-			# probably wanting it to be rotated towards the new point being placed anyways
-			undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
-			undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
-		undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
-		if parent is RoadContainer:
-			undo_redo.add_do_method(self, "_call_update_edges", parent)
-			undo_redo.add_undo_method(self, "_call_update_edges", parent)
-		undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
+	undo_redo.create_action("Add next RoadPoint")
+	if handle_mag > 0:
+		if not selection.next_pt_init:
+			undo_redo.add_do_property(_sel, "next_mag", handle_mag)
+			undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
+		elif not selection.prior_pt_init:
+			undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
+			undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
+	if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
+		# Special case: the starting point is not connected to anything, then the user is
+		# probably wanting it to be rotated towards the new point being placed anyways
+		undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
+		undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
+	undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
+	if parent is RoadContainer:
+		undo_redo.add_do_method(self, "_call_update_edges", parent)
+		undo_redo.add_undo_method(self, "_call_update_edges", parent)
+	undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
 
 	undo_redo.commit_action()
 
@@ -1211,7 +678,7 @@ func _add_and_connect_rp(rp_rc: RoadContainer, connect_rp: RoadPoint) -> void:
 	var this_dir: int = RoadPoint.PointInit.PRIOR if target_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
 
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 
 	var pos: Vector3 = connect_rp.global_transform.origin
 	var nrm: Vector3 = connect_rp.global_rotation
@@ -1241,6 +708,7 @@ func _call_update_edges(container: RoadContainer) -> void:
 func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float) -> void:
 
 	var next_rp = RoadPoint.new()
+	next_rp._is_internal_updating = true
 	var adding_to_next = true
 	var dirvec: Vector3 = pos - selection.global_transform.origin
 
@@ -1278,7 +746,6 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Update rotation along the initially picked axis.
 	elif selection is RoadContainer:
-		next_rp.name = "RP_001"  # TODO: define this in some central area.
 		var _lanes:Array[RoadPoint.LaneDir] = [
 			RoadPoint.LaneDir.REVERSE,
 			RoadPoint.LaneDir.REVERSE,
@@ -1289,6 +756,7 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 		next_rp.auto_lanes = true
 		parent.add_child(next_rp)
 		next_rp.set_owner(get_tree().get_edited_scene_root())
+		next_rp.name = next_rp.increment_name("RP_001")
 
 	# Make the road visible halfway above the ground by the gutter height amount.
 	if nrm == Vector3.ZERO:
@@ -1311,7 +779,8 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 			else:
 				look_pos += selection.global_transform.basis.z * selection.prior_mag
 			next_rp.look_at(look_pos, nrm)
-
+	
+	next_rp._is_internal_updating = false
 	set_selection(next_rp)
 
 
@@ -1347,7 +816,7 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 
 func _connect_rp_on_click(rp_a, rp_b):
 	var undo_redo = get_undo_redo()
-	var init_sel = get_selected_node()
+	var init_sel := get_selected_node()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
 		push_error("Cannot connect non-roadpoints")
 		return
@@ -1526,108 +995,6 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 	undo_redo.commit_action()
 
 
-func _delete_rp_on_click(selection: Node):
-	var undo_redo = get_undo_redo()
-
-	if not selection is RoadPoint:
-		push_error("Selection is not a RoadPoint")
-		return
-	elif not is_instance_valid(selection):
-		push_error("Invalid selection selection, not valid node")
-		return
-
-	var rp:RoadPoint = selection
-	var container:RoadContainer = rp.container
-	var prior_rp = null
-	var prior_samedir: bool = true
-	var next_rp = null
-	var next_samedir: bool = true
-	var dissolve = false
-	if rp.prior_pt_init:
-		prior_rp = rp.get_node(rp.prior_pt_init)
-		if prior_rp.next_pt_init == prior_rp.get_path_to(rp):
-			prior_samedir = true
-		elif prior_rp.prior_pt_init == prior_rp.get_path_to(rp):
-			prior_samedir = false
-		else:
-			push_warning("Should be prior connected %s" % prior_rp.name)
-			pass # not actually mutually connected?
-	if rp.next_pt_init:
-		next_rp = rp.get_node(rp.next_pt_init)
-		if next_rp.prior_pt_init == next_rp.get_path_to(rp):
-			next_samedir = true
-		elif next_rp.prior_pt_init == next_rp.get_path_to(rp):
-			next_samedir = false
-		else:
-			push_warning("Should be prior connected %s" % next_rp.name)
-			pass # not actually mutually connected?
-	if is_instance_valid(prior_rp) and is_instance_valid(next_rp):
-		# only if fully connected will it combine both sides back together
-		dissolve = true
-
-	#print("Dissolve: %s, prior %s samedir %s , next %s smaedir %s" % [
-	#	dissolve, prior_rp, prior_samedir, next_rp, next_samedir])
-
-	# Define the current editor selection for redo'ing afer an undo,
-	# which could be multi selection
-	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
-
-	# Define the action
-	if dissolve:
-		undo_redo.create_action("Dissolve RoadPoint")
-	else:
-		undo_redo.create_action("Delete RoadPoint")
-
-	# Disconnect the existing RoadPoints and set updated selection
-	var prior_dir = RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR
-	var next_dir = RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT
-	if is_instance_valid(prior_rp):
-		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, prior_dir)
-	if is_instance_valid(next_rp):
-		undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, next_dir)
-
-	# Remove the node
-	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)
-	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp)
-	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
-
-	# Update do/undo selections
-	if is_instance_valid(next_rp):
-		undo_redo.add_do_method(self, "set_selection", next_rp)
-	elif is_instance_valid(prior_rp):
-		undo_redo.add_do_method(self, "set_selection", prior_rp)
-	else:
-		undo_redo.add_do_method(self, "set_selection", rp.container)
-	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
-
-	# If in dissolve mode, connect RPs in both directions to each other
-	if dissolve:
-		undo_redo.add_do_method(
-			prior_rp,
-			"connect_roadpoint",
-			prior_dir,
-			next_rp,
-			next_dir
-		)
-		undo_redo.add_undo_method(
-			prior_rp,
-			"disconnect_roadpoint",
-			prior_dir,
-			next_dir
-		)
-		undo_redo.add_do_method(container, "rebuild_segments", false)
-
-	# Have to do reconnection undo steps after re-adding and un-dissolve connections
-	if is_instance_valid(prior_rp):
-		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.PRIOR, prior_rp, prior_dir)
-	if is_instance_valid(next_rp):
-		undo_redo.add_undo_method(rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, next_rp, next_dir)
-
-	undo_redo.add_undo_method(container, "rebuild_segments", false)
-	undo_redo.add_undo_reference(rp)
-	undo_redo.commit_action()
-
-
 ## When the interface is running and we realize we are about to perform a snap,
 ## we can't perform the action right away as then it would happen before the
 ## internal move action completes (and thus, someone who does control-Z would see
@@ -1690,6 +1057,572 @@ func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPo
 	undo_redo.add_undo_method(sel_rp, "disconnect_container", sel_dir, tgt_dir)
 	undo_redo.commit_action()
 
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Top-level actions with undoredo
+# ------------------------------------------------------------------------------
+
+
+func add_roadcontainer_and_roadpoint(manager: RoadManager, pos: Vector3, nrm: Vector3) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Create RoadContainer and RoadPoint")
+	var container := RoadContainer.new()
+	var rp := RoadPoint.new()
+	
+	container.name = "Road_001"
+	undo_redo.add_do_method(manager, "add_child", container, true)
+	undo_redo.add_do_method(container, "set_owner", manager.owner)
+	var target_transform: Transform3D = manager.global_transform
+	target_transform.basis = Basis.IDENTITY
+	target_transform.origin = pos
+	undo_redo.add_do_property(container, "global_transform", target_transform)
+	
+	rp.name = rp.increment_name("RP_001")
+	undo_redo.add_do_method(container, "add_child", rp, true)
+	undo_redo.add_do_method(rp, "set_owner", manager.owner)
+	# TODO: do the RP raycast placement approach, including normal
+	if nrm == Vector3.ZERO:
+		pass
+	else:
+		var half_gutter: float = -0.5 * rp.gutter_profile.y
+		var new_transform = target_transform
+		new_transform.origin = pos + nrm * half_gutter
+		undo_redo.add_do_property(rp, "global_transform", new_transform)
+	
+	undo_redo.add_do_reference(container)
+	undo_redo.add_do_reference(rp)
+	
+	undo_redo.add_undo_method(container, "remove_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", null)
+	undo_redo.add_undo_method(manager, "remove_child", container)
+	undo_redo.add_undo_method(container, "set_owner", null)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", rp)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	
+	undo_redo.commit_action()
+
+
+## Converts the first RoadPoint into an intersection then adds the next one as a branch
+func convert_to_intersection_with_new_branch(rp_init: RoadPoint, rp_branch: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	if rp_init.container != rp_branch.container:
+		push_error("Source RoadPoints don't belong to the same RoadContainer")
+		return
+	
+	undo_redo.create_action("Create intersection", 0, null, false) # if last arg=true -> backwards undo
+	var inter = subaction_create_intersection(rp_init, rp_branch, undo_redo)
+	undo_redo.add_do_method(rp_init.container, "rebuild_segments", false)
+	undo_redo.add_undo_method(rp_init.container, "rebuild_segments", false)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", inter)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	
+	undo_redo.commit_action()
+
+
+func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, nrm: Vector3) -> void:
+	var undo_redo = get_undo_redo()
+	if not is_instance_valid(inter):
+		push_error("Invalid RoadIntersection, cannot add and connect")
+		return
+	
+	var rp := RoadPoint.new()
+	
+	undo_redo.create_action("Branch new RoadPoint from RoadIntersection")
+	
+	rp.name = rp.increment_name("RP_001")
+	undo_redo.add_do_method(inter.container, "add_child", rp, true)
+	undo_redo.add_do_method(rp, "set_owner", inter.owner)
+	if nrm == Vector3.ZERO:
+		nrm = Vector3.UP	 # workaround? should this ever be null?
+		print("nrm was null for create branch from road container")
+
+	var half_gutter: float = -0.5 * rp.gutter_profile.y
+	var new_transform = inter.global_transform # weird to do this, use direct method to assign global?
+	new_transform.origin = pos + nrm * half_gutter
+	new_transform.basis.y = nrm # legal????
+	undo_redo.add_do_property(rp, "global_transform", new_transform)
+	undo_redo.add_do_method(rp, "look_at", inter.global_transform.origin, new_transform.basis.y)
+	undo_redo.add_do_method(inter, "add_branch", rp)
+	
+	undo_redo.add_do_reference(rp)
+	
+	undo_redo.add_undo_method(inter, "remove_branch", rp)
+	undo_redo.add_undo_method(inter.container, "remove_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", null)
+	
+	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", rp) # selection not retained???
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func connect_rp_to_intersection(inter: RoadIntersection, rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	if inter.container != rp.container:
+		push_error("RoadIntersection and RoadPoint don't belong to the same RoadContainer")
+		return
+	
+	undo_redo.create_action("Connect RoadPoint to RoadIntersection")
+	subaction_add_branch(inter, rp, undo_redo)
+	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	
+	undo_redo.commit_action()
+
+
+func disconnect_rp_from_intersection(inter: RoadIntersection, rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	if inter.container != rp.container:
+		push_error("Intersection and RoadPoint don't belong to the same RoadContainer")
+		return
+	if not rp in inter.edge_points:
+		push_error("RoadPoint not already connected to RoadIntersection")
+		return
+	
+	undo_redo.create_action("Connect RoadPoint to RoadIntersection")
+	undo_redo.add_do_method(inter, "remove_branch", rp)
+	undo_redo.add_undo_method(inter, "add_branch", rp)
+	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	
+	undo_redo.commit_action()
+
+
+func delete_roadpoint(rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadPoint")
+	subaction_delete_roadpoint(rp, false, undo_redo)
+	undo_redo.add_do_method(rp.container, "rebuild_segments", false)
+	undo_redo.add_undo_method(rp.container, "rebuild_segments", false)
+	
+	# Update do/undo selections
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [rp]:
+		var next_rp = rp.get_next_road_node()
+		var prior_rp = rp.get_next_road_node()
+		if is_instance_valid(next_rp):
+			undo_redo.add_do_method(self, "set_selection", next_rp)
+		elif is_instance_valid(prior_rp):
+			undo_redo.add_do_method(self, "set_selection", prior_rp)
+		else:
+			undo_redo.add_do_method(self, "set_selection", rp.container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func dissolve_roadpoint(rp: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Dissolve RoadPoint")
+	subaction_delete_roadpoint(rp, true, undo_redo)
+	undo_redo.add_do_method(rp.container, "rebuild_segments", false)
+	undo_redo.add_undo_method(rp.container, "rebuild_segments", false)
+	
+	# Update do/undo selections
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [rp]:
+		var next_rp = rp.get_next_road_node()
+		var prior_rp = rp.get_next_road_node()
+		if is_instance_valid(next_rp):
+			undo_redo.add_do_method(self, "set_selection", next_rp)
+		elif is_instance_valid(prior_rp):
+			undo_redo.add_do_method(self, "set_selection", prior_rp)
+		else:
+			undo_redo.add_do_method(self, "set_selection", rp.container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func delete_intersection(inter: RoadIntersection) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadIntersection")
+	subaction_delete_intersection(inter, undo_redo)
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [inter]:
+		var container := inter.container
+		if is_instance_valid(container):
+			undo_redo.add_do_method(self, "set_selection", container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func dissolve_intersection(inter: RoadIntersection) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Dissolve RoadIntersection")
+	subaction_dissolve_intersection(inter, undo_redo)
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [inter]:
+		var container := inter.container
+		if is_instance_valid(container):
+			undo_redo.add_do_method(self, "set_selection", container)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func delete_roadcontainer(container: RoadContainer) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Delete RoadContainer")
+	subaction_delete_roadcontainer(container, undo_redo)
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	if editor_selected == [container]:
+		var mgr := container.get_manager()
+		if is_instance_valid(mgr):
+			undo_redo.add_do_method(self, "set_selection", mgr)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Subactions for undoredo
+# ------------------------------------------------------------------------------
+
+
+func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, undo_redo:EditorUndoRedoManager) -> RoadIntersection:
+	var inter = RoadIntersection.new()
+	var initial_branches = [source_rp.get_prior_road_node(true), source_rp.get_next_road_node(true), rp_branch]
+	
+	inter.name = "Intersection"
+	undo_redo.add_do_method(source_rp.get_parent(), "add_child", inter, true)
+	undo_redo.add_do_method(inter, "set_owner", source_rp.owner)
+	var target_transform: Transform3D = source_rp.global_transform
+	target_transform.basis = Basis.IDENTITY # Necesary as any rotation meses up generated mesh
+	undo_redo.add_do_property(inter, "global_transform", target_transform)
+	
+	var prior_graph: RoadGraphNode
+	var prior_rp: RoadPoint
+	var prior_samedir: bool = true
+	
+	var next_graph: RoadGraphNode
+	var next_rp: RoadPoint
+	var next_samedir: bool = true
+	if source_rp.prior_pt_init:
+		prior_graph = source_rp.get_node(source_rp.prior_pt_init)
+		if prior_graph.next_pt_init == prior_graph.get_path_to(source_rp):
+			prior_rp = prior_graph
+			prior_samedir = true
+			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.NEXT) # one should be flipped?
+		elif prior_graph.prior_pt_init == prior_graph.get_path_to(source_rp):
+			prior_rp = prior_graph
+			prior_samedir = false
+			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % prior_graph.name)
+			pass # not actually mutually connected?
+	
+	if source_rp.next_pt_init:
+		next_graph = source_rp.get_node(source_rp.next_pt_init)
+		if next_graph.prior_pt_init == next_graph.get_path_to(source_rp):
+			next_rp = next_graph
+			next_samedir = true
+			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		elif next_graph.next_pt_init == next_graph.get_path_to(source_rp):
+			next_rp = prior_graph
+			next_samedir = false
+			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % next_graph.name)
+			pass # not actually mutually connected?
+	
+	# Core removal
+	undo_redo.add_do_method(source_rp.get_parent(), "remove_child", source_rp)
+	undo_redo.add_undo_method(source_rp.get_parent(), "add_child", source_rp)
+	undo_redo.add_undo_method(source_rp, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_undo_reference(source_rp)
+	
+	for _branch in initial_branches:
+		if not is_instance_valid(_branch) or not _branch is RoadPoint:
+			continue
+		#subaction_add_branch(inter, _branch, undo_redo)
+		undo_redo.add_do_method(inter, "add_branch", _branch)
+	undo_redo.add_do_reference(inter)
+	
+	# Undo steps
+	for _branch in initial_branches:
+		if not is_instance_valid(_branch) or not _branch is RoadPoint:
+			continue
+		undo_redo.add_undo_method(inter, "remove_branch", _branch)
+	
+	undo_redo.add_undo_method(source_rp.get_parent(), "remove_child", inter)
+	undo_redo.add_undo_method(inter, "set_owner", null)
+	
+	for _rp in initial_branches:
+		undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+		undo_redo.add_undo_property(_rp, "prior_pt_init", _rp.prior_pt_init)
+		undo_redo.add_undo_property(_rp, "next_pt_init", _rp.next_pt_init)
+		undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+	# And finally, restore the one which was deleted in favor of the intersection
+	undo_redo.add_undo_property(source_rp, "_is_internal_updating", true)
+	undo_redo.add_undo_property(source_rp, "prior_pt_init", source_rp.prior_pt_init)
+	undo_redo.add_undo_property(source_rp, "next_pt_init", source_rp.next_pt_init)
+	undo_redo.add_undo_property(source_rp, "_is_internal_updating", false)
+	return inter
+
+
+func subaction_add_branch(inter: RoadIntersection, rp: RoadPoint, undo_redo:EditorUndoRedoManager) -> void:
+	undo_redo.add_do_method(inter, "add_branch", rp)
+	undo_redo.add_undo_method(inter, "remove_branch", rp)
+
+
+func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorUndoRedoManager) -> void:
+	var prior_graph: RoadGraphNode
+	var prior_rp: RoadPoint
+	var prior_samedir: bool = true
+	var prior_inter: RoadIntersection
+	
+	var next_graph: RoadGraphNode
+	var next_rp: RoadPoint
+	var next_samedir: bool = true
+	var next_inter: RoadIntersection
+	
+	if rp.prior_pt_init:
+		prior_graph = rp.get_node(rp.prior_pt_init)
+		if prior_graph is RoadIntersection:
+			prior_inter = prior_graph
+			undo_redo.add_do_method(prior_inter, "remove_branch", rp)
+		elif prior_graph.next_pt_init == prior_graph.get_path_to(rp):
+			prior_rp = prior_graph
+			prior_samedir = true
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.NEXT) # one should be flipped?
+		elif prior_graph.prior_pt_init == prior_graph.get_path_to(rp):
+			prior_rp = prior_graph
+			prior_samedir = false
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % prior_graph.name)
+			pass # not actually mutually connected?
+	else:
+		pass # TODO: check if cross-container selected, if so need to sever the edge
+	
+	if rp.next_pt_init:
+		next_graph = rp.get_node(rp.next_pt_init)
+		if next_graph is RoadIntersection:
+			next_inter = next_graph
+			undo_redo.add_do_method(next_inter, "remove_branch", rp)
+		elif next_graph.prior_pt_init == next_graph.get_path_to(rp):
+			next_rp = next_graph
+			next_samedir = true
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR) # one should be flipped?
+		elif next_graph.next_pt_init == next_graph.get_path_to(rp):
+			next_rp = prior_graph
+			next_samedir = false
+			undo_redo.add_do_method(rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.NEXT) # one should be flipped?
+		else:
+			push_warning("Should be prior connected %s" % next_graph.name)
+			pass # not actually mutually connected?
+	else:
+		pass # TODO: check if cross-container selected, if so need to sever the edge
+	
+	
+	# Core removal
+	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)
+	
+	# Begin undo steps
+	undo_redo.add_undo_method(rp.get_parent(), "add_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_undo_reference(rp)
+
+	# dissolve steps (overlapping do/undo to same some if/else space
+	if dissolve:
+		if is_instance_valid(prior_rp) and is_instance_valid(next_rp):
+			undo_redo.add_do_method(
+				prior_rp,
+				"connect_roadpoint",
+				RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR,
+				next_rp,
+				RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT,
+			)
+			undo_redo.add_undo_method(
+				prior_rp,
+				"disconnect_roadpoint",
+				RoadPoint.PointInit.NEXT if prior_samedir else RoadPoint.PointInit.PRIOR,
+				RoadPoint.PointInit.PRIOR if next_samedir else RoadPoint.PointInit.NEXT,
+			)
+		elif is_instance_valid(prior_rp) and is_instance_valid(next_inter):
+			undo_redo.add_do_method(next_inter, "add_branch", prior_rp)
+			undo_redo.add_undo_method(next_inter, "remove_branch", prior_rp)
+		elif is_instance_valid(prior_inter) and is_instance_valid(next_rp):
+			undo_redo.add_do_method(prior_inter, "add_branch", next_rp)
+			undo_redo.add_undo_method(prior_inter, "remove_branch", next_rp)
+	
+	for _rp in [prior_rp, next_rp, rp]:
+		if not is_instance_valid(_rp):
+			continue
+		undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+		undo_redo.add_undo_property(_rp, "prior_pt_init", _rp.prior_pt_init)
+		undo_redo.add_undo_property(_rp, "next_pt_init", _rp.next_pt_init)
+		undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+	for _inter in [prior_inter, next_inter]:
+		if not is_instance_valid(_inter):
+			continue
+		var this_inter: RoadIntersection = _inter
+		undo_redo.add_undo_property(_inter, "_is_internal_updating", true)
+		undo_redo.add_undo_property(_inter, "edge_points", _inter.edge_points.duplicate())
+		undo_redo.add_undo_property(_inter, "_is_internal_updating", false)
+		#undo_redo.add_undo_method(_inter, "add_branch", rp)
+
+
+func subaction_delete_intersection(inter: RoadIntersection, undo_redo:EditorUndoRedoManager) -> void:
+	print("Doing subaction_delete_intersection")
+	var edges := inter.edge_points.duplicate()
+	
+	for _rp in edges:
+		if _rp.get_next_road_node() == inter:
+			print("DID next_pt_init")
+			undo_redo.add_do_property(_rp, "next_pt_init", "")
+		if _rp.get_prior_road_node() == inter:
+			print("DID prior_pt_init")
+			undo_redo.add_do_property(_rp, "prior_pt_init", "")
+	
+	# Core removal
+	undo_redo.add_do_method(inter.get_parent(), "remove_child", inter)
+	undo_redo.add_undo_method(inter.get_parent(), "add_child", inter)
+	undo_redo.add_undo_method(inter, "set_owner", get_tree().get_edited_scene_root())
+	
+	undo_redo.add_undo_reference(inter)
+	
+	for _rp in edges:
+		if _rp.get_next_road_node() == inter:
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+			undo_redo.add_undo_property(_rp, "next_pt_init", _rp.next_pt_init)
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+		if _rp.get_prior_road_node() == inter:
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", true)
+			undo_redo.add_undo_property(_rp, "prior_pt_init", _rp.prior_pt_init)
+			undo_redo.add_undo_property(_rp, "_is_internal_updating", false)
+
+
+## Dissolves an intersection, keeping the two largest roads lane-wise connected
+func subaction_dissolve_intersection(inter: RoadIntersection, undo_redo:EditorUndoRedoManager) -> void:
+	print("Doing subaction_dissolve_intersection")
+	if inter.edge_points.size() < 2:
+		# Will be the same as a simple delete in this scenario
+		subaction_delete_intersection(inter, undo_redo)
+		return
+	
+	# See if there's a better choice for rpa / rpb. Idea:
+	# For RPA: pick the RoadPoint with the largest number of lanes
+	var edges := inter.edge_points.duplicate()
+	var rpa: RoadPoint
+	var rpa_lanes: int = -1
+	var rpa_next := false
+	var rpb: RoadPoint
+	var rpb_lanes: int = -1
+	var rpb_next := false
+	for _rp in edges:
+		if rpa_lanes == -1:
+			rpa_lanes = _rp.lanes.size()
+			rpa = _rp
+		elif _rp.lanes.size() > rpa_lanes:
+			rpb_lanes = rpa_lanes
+			rpb = rpa
+			rpa_lanes = _rp.lanes.size()
+			rpa = _rp
+		elif rpb_lanes == -1:
+			rpb_lanes = _rp.lanes.size()
+			rpb = _rp
+		elif _rp.lanes.size() > rpb_lanes:
+			rpb_lanes = _rp.lanes.size()
+			rpb = _rp
+	
+	undo_redo.add_do_property(inter, "_is_internal_updating", true)
+	
+	if rpa.get_next_road_node() == inter:
+		print("DID next_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpa)
+		rpa_next = true
+	elif rpa.get_prior_road_node() == inter:
+		print("DID prior_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpa)
+		rpa_next = false
+	
+	if rpb.get_next_road_node() == inter:
+		print("DID next_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpb)
+		rpb_next = true
+	elif rpb.get_prior_road_node() == inter:
+		print("DID prior_pt_init")
+		undo_redo.add_do_method(inter, "remove_branch", rpb)
+		rpb_next = false
+	
+	# TODO: disconenct other branches
+	for _rp in edges:
+		if _rp == rpa or _rp == rpb:
+			continue
+		undo_redo.add_do_method(inter, "remove_branch", _rp)
+
+	# Now connect the other two 
+	undo_redo.add_do_method(
+		rpa,
+		"connect_roadpoint",
+		RoadPoint.PointInit.NEXT if rpa_next else RoadPoint.PointInit.PRIOR,
+		rpb,
+		RoadPoint.PointInit.NEXT if rpb_next else RoadPoint.PointInit.PRIOR,
+	)
+	
+	# Do the dissolve connection
+	undo_redo.add_do_method(inter.get_parent(), "remove_child", inter)
+	undo_redo.add_undo_method(inter.get_parent(), "add_child", inter)
+	undo_redo.add_undo_method(inter, "set_owner", get_tree().get_edited_scene_root())
+	
+	# Redo steps, in reverse order
+	undo_redo.add_undo_reference(inter)
+	undo_redo.add_undo_method(
+		rpa,
+		"disconnect_roadpoint",
+		RoadPoint.PointInit.NEXT if rpa_next else RoadPoint.PointInit.PRIOR,
+		RoadPoint.PointInit.NEXT if rpb_next else RoadPoint.PointInit.PRIOR,
+	)
+	
+	# Save initial state before dissolve
+	for _rp in edges:
+		undo_redo.add_undo_method(inter, "add_branch", _rp)
+	undo_redo.add_undo_property(inter, "_is_internal_updating", false)
+	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+
+
+func subaction_delete_roadcontainer(container: RoadContainer, undo_redo:EditorUndoRedoManager) -> void:
+	
+	# We need to identify the container-level connection edges to clear
+	var connected_conts: Array[RoadContainer] = []
+	for idx in container.edge_containers.size():
+		var _cont: RoadContainer = container.get_node_or_null(container.edge_containers[idx])
+		if not is_instance_valid(_cont):
+			continue
+		connected_conts.append(_cont)
+		
+		# Need to find which indexs of this connected container point back to the original
+		var cp_edge_containers := _cont.edge_containers.duplicate()
+		var cp_edge_rp_targets := _cont.edge_rp_targets.duplicate()
+		var cp_edge_rp_target_dirs := _cont.edge_rp_target_dirs.duplicate()
+		for jdx in _cont.edge_containers.size():
+			var _cont_back: RoadContainer = _cont.get_node_or_null(_cont.edge_containers[jdx])
+			if _cont_back != container:
+				continue
+			cp_edge_containers[jdx] = ^""
+			cp_edge_rp_targets[jdx] = ^""
+			cp_edge_rp_target_dirs[jdx] = -1
+		undo_redo.add_do_property(_cont, "edge_containers", cp_edge_containers)
+		undo_redo.add_do_property(_cont, "edge_rp_targets", cp_edge_rp_targets)
+		undo_redo.add_do_property(_cont, "edge_rp_target_dirs", cp_edge_rp_target_dirs)
+	
+	undo_redo.add_do_method(container.get_parent(), "remove_child", container)
+	undo_redo.add_undo_method(container.get_parent(), "add_child", container)
+	undo_redo.add_undo_method(container, "set_owner", get_tree().get_edited_scene_root())
+	
+	undo_redo.add_undo_reference(container)
+	for _cont in connected_conts:
+		undo_redo.add_undo_property(_cont, "edge_containers", _cont.edge_containers)
+		undo_redo.add_undo_property(_cont, "edge_rp_targets", _cont.edge_rp_targets)
+		undo_redo.add_undo_property(_cont, "edge_rp_target_dirs", _cont.edge_rp_target_dirs)
 
 
 ## Utility to call within an undo/redo transaction to flip around a RoadPoint
@@ -1787,13 +1720,13 @@ func _create_roadpoint_pressed() -> void:
 		push_error("Invalid selection context")
 		return
 	
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 
 	undo_redo.create_action("Add RoadPoint")
 	if selected_node is RoadContainer:
 		var editor_selected:Array = _edi.get_selection().get_selected_nodes()
 		var rp := RoadPoint.new()
-		rp.name = "RP_001"
+		rp.name = rp.increment_name("RP_001")
 		undo_redo.add_do_method(selected_node, "add_child", rp, true)
 		undo_redo.add_do_method(rp, "set_owner", get_tree().get_edited_scene_root())
 		undo_redo.add_do_method(self, "set_selection", rp)
@@ -1819,7 +1752,7 @@ func _create_roadpoint_do(t_container: RoadContainer):
 
 	# Get selected RoadPoint.
 	t_container.setup_road_container()
-	var selected_node = get_selected_node()
+	var selected_node := get_selected_node()
 	var first_road_point: RoadPoint
 	var second_road_point: RoadPoint
 
@@ -2069,7 +2002,7 @@ func _on_report_issue_pressed() -> void:
 ## Adds a single RoadLane to the scene.
 func _create_lane_pressed() -> void:
 	var undo_redo = get_undo_redo()
-	var target_parent = get_selected_node()
+	var target_parent := get_selected_node()
 
 	if not is_instance_valid(target_parent):
 		push_error("No valid parent node selected to add RoadLane to")
@@ -2128,7 +2061,7 @@ func _create_lane_undo(parent: Node) -> void:
 ## Adds a single RoadLane to the scene.
 func _create_lane_agent_pressed() -> void:
 	var undo_redo = get_undo_redo()
-	var target_parent = get_selected_node()
+	var target_parent := get_selected_node()
 
 	if not is_instance_valid(target_parent):
 		push_error("No valid parent node selected to add RoadLane to")

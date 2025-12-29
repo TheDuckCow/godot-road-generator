@@ -519,9 +519,11 @@ func get_prior_rp():
 
 
 ## Returns prior RP direct reference, accounting for cross-container connections
-func get_prior_road_node() -> RoadGraphNode:
+func get_prior_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.prior_pt_init:
 		return get_node(prior_pt_init)
+	if limit_same_container:
+		return null
 	# If no sibling point, could still have a cross-container connection
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
@@ -543,10 +545,12 @@ func get_next_rp():
 
 
 ## Returns next RP direct reference, accounting for cross-container connections
-func get_next_road_node() -> RoadGraphNode:
+func get_next_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.next_pt_init:
 		return get_node(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
+	if limit_same_container:
+		return null
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
 			continue
@@ -1243,6 +1247,12 @@ func get_thickness():
 func get_width_without_shoulders():
 	# TODO should use get_road_width() instead?
 	var total_width = lane_width * len(lanes)
+	return total_width
+
+
+## Gets the total width of the road including shoulders, but not gutters
+func get_width_with_shoulders():
+	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
 	return total_width
 
 # ------------------------------------------------------------------------------
