@@ -1,8 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://b7r8ejy8iua8t"]
+[gd_scene load_steps=3 format=3 uid="uid://b7r8ejy8iua8t"]
 
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" id="2"]
-[ext_resource type="Texture2D" uid="uid://44gbdq5cb18e" path="res://addons/road-generator/ui/gizmo_blue_handle.png" id="6"]
 
 [node name="RoadToolbar" type="HBoxContainer"]
 script = ExtResource("1")
@@ -21,7 +20,6 @@ prior/next handle magnitudes to adjust easing between points.
 Press alt to temporarily toggle to Add Road Mode."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="add_mode" type="Button" parent="."]
 layout_mode = 2
@@ -37,7 +35,6 @@ Perform actions to extend your roads with mouse hover and left click:
 Press alt to temporarily toggle to Select Road Mode."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="delete_mode" type="Button" parent="."]
 layout_mode = 2
@@ -50,7 +47,6 @@ Hold alt to enable dissolve mode, which will attempt to connect
 adjacent RoadPoints if relevant."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="CreateMenu" type="MenuButton" parent="."]
 layout_mode = 2
