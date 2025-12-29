@@ -94,6 +94,9 @@ func _exit_tree():
 	#remove_custom_type("RoadLane")
 
 
+func _physics_process(delta: float) -> void:
+	connection_tool._physics_process(delta)
+
 # ------------------------------------------------------------------------------
 #endregion
 #region EditorPlugin overriden methods

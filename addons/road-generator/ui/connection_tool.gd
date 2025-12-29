@@ -70,6 +70,7 @@ var hint_edges_f: Array[Vector2] = []
 var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of roads
 var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
 var _overlay_ref: Control
+var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
 
 var tempset_toolmode: bool = false
 
@@ -81,6 +82,14 @@ func _init(plugin: EditorPlugin) -> void:
 #endregion
 #region Plugin override pass-throughs
 # ------------------------------------------------------------------------------
+
+
+## This must be called by a parent process with an actual _physics_process hook
+func _physics_process(_delta) -> void:
+	if Engine.is_editor_hint():
+		var view := EditorInterface.get_editor_viewport_3d(0)
+		var camera := view.get_camera_3d()
+		_hover_graphnode = plg.get_nearest_graph_node(camera, cursor)
 
 
 ## Called by the engine when the 3D editor's viewport is updated.
@@ -388,7 +397,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		#print("_handle_add_mode_input relevanat")
 	
 		# Set up context variables which help determine the relevant current input
-		var hover_roadnode:RoadGraphNode = plg.get_nearest_graph_node(camera, cursor)
+		var hover_roadnode:RoadGraphNode = _hover_graphnode
 		var selection:Node = plg.get_selected_node()
 		
 		var active_container: RoadContainer
@@ -518,7 +527,7 @@ func _handle_dissolve_mode_input(camera: Camera3D, event: InputEvent) -> int:
 func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int) -> int:
 	if _relevant_input_event(event):
 		_clear_targets()
-		var point: RoadGraphNode = plg.get_nearest_graph_node(camera, cursor) # TODO: revert to cursor
+		var point: RoadGraphNode = _hover_graphnode
 		var selection:Node = plg.get_selected_node() # TODO: switch to selected *nodes*?
 		var hover_pos := camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = cursor.distance_to(hover_pos)
