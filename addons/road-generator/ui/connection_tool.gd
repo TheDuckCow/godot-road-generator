@@ -487,27 +487,29 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		elif hover_roadnode is RoadIntersection and selection is RoadPoint:
 			var inter: RoadIntersection = hover_roadnode
 			var rp: RoadPoint = selection
-			hint_source_nodes.append(rp)
-			hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
-			hint_target_nodes.append(inter)
-			hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
-			_insert_edge_hint(rp, camera)
-			if rp in inter.edge_points:
-				hinting = HintState.DISCONNECT
-			else:
-				hinting = HintState.CONNECT
+			if inter.container == rp.container:
+				hint_source_nodes.append(rp)
+				hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
+				hint_target_nodes.append(inter)
+				hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
+				_insert_edge_hint(rp, camera)
+				if rp in inter.edge_points:
+					hinting = HintState.DISCONNECT
+				else:
+					hinting = HintState.CONNECT
 		elif hover_roadnode is RoadPoint and selection is RoadIntersection:
 			var inter: RoadIntersection = selection
 			var rp: RoadPoint = hover_roadnode
-			hint_source_nodes.append(rp)
-			hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
-			hint_target_nodes.append(inter)
-			hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
-			_insert_edge_hint(rp, camera)
-			if rp in inter.edge_points:
-				hinting = HintState.DISCONNECT
-			else:
-				hinting = HintState.CONNECT
+			if inter.container == rp.container:
+				hint_source_nodes.append(rp)
+				hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
+				hint_target_nodes.append(inter)
+				hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
+				_insert_edge_hint(rp, camera)
+				if rp in inter.edge_points:
+					hinting = HintState.DISCONNECT
+				else:
+					hinting = HintState.CONNECT
 		
 		plg.update_overlays()
 	elif not event is InputEventMouseButton:
