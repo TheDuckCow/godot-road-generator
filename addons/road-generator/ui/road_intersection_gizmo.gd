@@ -4,7 +4,7 @@
 extends EditorNode3DGizmoPlugin
 
 
-const GizmoBlueHandle := preload("res://addons/road-generator/ui/gizmo_blue_handle.png")
+const GizmoHiddenMat := preload("res://addons/road-generator/ui/hidden_gizmo_mat.tres")
 
 var _editor_plugin: EditorPlugin
 var _editor_selection  # Of type: EditorSelection, but can't type due to exports.
@@ -33,7 +33,7 @@ func _init(editor_plugin: EditorPlugin):
 	create_handle_material("handles")
 	create_handle_material("blue_handles")
 	var mat_blue_handles = get_material("blue_handles")
-	mat_blue_handles.albedo_texture = GizmoBlueHandle
+	mat_blue_handles.albedo_color = Color.AQUA
 	collider.bottom_radius = RoadPoint.DEFAULT_LANE_WIDTH / 2.0
 	collider.top_radius = RoadPoint.DEFAULT_LANE_WIDTH  / 2.0
 	collider.height = RoadPoint.DEFAULT_LANE_WIDTH / 20.0
@@ -64,7 +64,10 @@ func _redraw(gizmo) -> void:
 	lines.push_back(Vector3.UP)
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
 
-	gizmo.add_collision_triangles(collider_tri_mesh)
+	
+	var mesh := _generate_collider_mesh(intersection)
+	gizmo.add_collision_triangles(mesh.generate_triangle_mesh())
+	gizmo.add_mesh(mesh, GizmoHiddenMat) # Have add for collision to work, but apply invisible shader
 	gizmo.add_mesh(collider, get_material("collider", gizmo))
 	
 	# Re-process the handler
@@ -105,3 +108,23 @@ func get_avg_lane_width(intersection: RoadIntersection) -> float:
 		count += 1
 		sum += _pt.lane_width
 	return sum / count if count > 0 else -1.0
+
+
+
+## Workaround to generate a single merged collider mesh
+##
+## Only one (the last) collision mesh added to the 3D gizmo will actually respond
+## to clicks, even if multiple other meshes are visually rendered. Here, we merge
+## all child road segments and the widget control mesh itself into one mesh to
+## act as the click handler, but material setup will ensure only the control
+## widget visual itself ends up being visible in the scene.
+func _generate_collider_mesh(inter: RoadIntersection) -> Mesh:
+	var surface_tool = SurfaceTool.new()
+	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	# Always start with the base collider array
+	surface_tool.create_from_arrays(collider.get_mesh_arrays())
+	if inter._mesh and inter._mesh.mesh:
+		surface_tool.append_from(inter._mesh.mesh, 0, Transform3D.IDENTITY)
+	
+	return surface_tool.commit()
