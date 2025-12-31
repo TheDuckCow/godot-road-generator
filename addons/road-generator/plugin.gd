@@ -279,15 +279,10 @@ func set_selection_list(nodes: Array) -> void:
 
 
 ## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-func get_nearest_graph_node(camera: Camera3D, mouse_pos: Vector2) -> RoadGraphNode:
-	var src = camera.project_ray_origin(mouse_pos)
-	var nrm = camera.project_ray_normal(mouse_pos)
-	var dist = camera.far
-
-	var space_state = get_viewport().world_3d.direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
-	var intersect = space_state.intersect_ray(query)
-
+##
+## Takes in a previously already determined raycast intersection that must have
+## been identified in a physics_process call (result can be empty).
+func get_nearest_graph_node(intersect: Dictionary) -> RoadGraphNode:
 	if intersect.is_empty():
 		return null
 
@@ -369,16 +364,7 @@ func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mou
 ## raycast onto the xz  or screen xy local plane of the object clicked on.
 ##
 ## Returns: [Position, Normal]
-func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selection: Node) -> Array:
-	var src = camera.project_ray_origin(mouse_pos)
-	var nrm = camera.project_ray_normal(mouse_pos)
-	var dist = camera.far
-
-	var space_state = get_viewport().world_3d.direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(src, src + nrm * dist)
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	var intersect = space_state.intersect_ray(query)
+func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mouse_nrm: Vector3, camera: Camera3D, selection: Node) -> Array:
 	# Unfortunately, must have collide with areas off. And this doesn't pick
 	# up collisions with objects that don't have collisions already added, making
 	# it not as convinient for viewport manipulation.
@@ -415,7 +401,7 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 		ref_pt + point_y_offset,
 		ref_pt + point_x_offset)
 
-	var hit_pt = plane.intersects_ray(src, nrm)
+	var hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
 	var up = selection.global_transform.basis.y
 
 	if hit_pt == null:
@@ -425,7 +411,7 @@ func get_click_point_with_context(camera: Camera3D, mouse_pos: Vector2, selectio
 			ref_pt,
 			ref_pt + point_y_offset,
 			ref_pt + point_x_offset)
-		hit_pt = plane.intersects_ray(src, nrm)
+		hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
 		up = selection.global_transform.basis.y
 
 	# TODO: Finally, detect if the point is behind or in front;
