@@ -760,7 +760,12 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
 		print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
 
-	# Finally, fill the center of the intersection with quads
+	
+	
+	
+	
+	# Finally, fill the center of the intersection with quads.
+	# We define its 3D border from the remaining vertices.
 	var center_border_vertices: Array[Vector3] = []
 	for i in range(edges.size()):
 		# first, add the offset edge border vertices
@@ -776,10 +781,6 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			to_next_edge_border_vertices_included[i].size() - to_next_edge_border_eaten_end[i]
 		):
 			center_border_vertices.append(to_next_edge_border_vertices_included[i][j])
-		# for j in range(1, to_next_edge_border_vertices_included[i].size() - 1):
-		# 	center_border_vertices.append(to_next_edge_border_vertices_included[i][j])
-		# for j in range(1, to_next_edge_vertices_excluded[i].size() - 1):
-		# 	center_border_vertices.append(to_next_edge_vertices_excluded[i][j])
 
 	print("Filling center with border vertices:")
 	print(center_border_vertices)
@@ -787,15 +788,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# We want to fill the center with a grid. To make the process easier,
 	# We project the center border vertices on a best-fit plane to work in 2D.
 	# We choose the plane made by the intersection point's up vector as the plane normal.
-	# var center_plane: Plane = Plane(parent_transform.basis.y.normalized(), parent_transform.origin)
-	# var x_parallel_plane: Plane = Plane(parent_transform.basis.z.normalized(), parent_transform.origin)
-	# var z_parallel_plane: Plane = Plane(parent_transform.basis.x.normalized(), parent_transform.origin)
 	var center_plane: Plane = Plane(parent_transform.basis.y.normalized(), parent_transform.origin)
-	# var center_plane: Plane = Plane(
-	# 	parent_transform.origin,
-	# 	parent_transform.origin + parent_transform.basis.x.normalized(),
-	# 	parent_transform.origin + parent_transform.basis.z.normalized()
-	# )
 	var x_parallel_plane: Plane = Plane(parent_transform.basis.z.normalized(), parent_transform.origin)
 	var z_parallel_plane: Plane = Plane(parent_transform.basis.x.normalized(), parent_transform.origin)
 	print("Center plane center: %s" % center_plane.get_center())
@@ -803,6 +796,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	print("Center plane normal: %s" % center_plane.normal)
 	print("Intersection up vector: %s" % parent_transform.basis.y.normalized())
 	print("planes intersection: %s" % center_plane.intersect_3(x_parallel_plane, z_parallel_plane))
+
 	# We go from the road container's 3D basis (vertices are built from edges local positions which
 	# are children of the container), to the plane's 2D basis.
 	var projected_center_border_vertices_2d: Array[Vector2] = []
@@ -817,6 +811,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	print("Projected center border vertices 2D:")
 	print(projected_center_border_vertices_2d)
 
+	# We find grid boundaries...
 	var min_z: int = 100_000_000
 	var max_z: int = -100_000_000
 	var min_x: int = 100_000_000
@@ -832,7 +827,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			min_z = int(floor(p.y))
 	
 	print("Center fill grid bounds: X[%d, %d], Z[%d, %d]" % [min_x, max_x, min_z, max_z])
-		
+	
+	# ...then generate the grid, figuring out which points are inside the polygon.
 	# Array[Array[bool]]
 	var grid: Array[Array] = []
 	var grid_density:int = max(1, int(round(density)))
@@ -850,10 +846,73 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		grid.append(row)
 
 	print("Center fill grid generated with %d points." % points)
-	_debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z, grid_density)
-	_debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
-	_debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
+	# _debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z, grid_density)
 	# _debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
+	# _debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
+
+	# We project the grid back to 3D space by triangulating
+	# the border polygon and projecting each vertex on triangles.
+	# 2D to 3D conversion is possible as the indexes of both arrays match.
+	## Array[Array[Vector3]]
+	var grid_positions_3d: Array[Array] = []
+	for i in range(grid.size()):
+		grid_positions_3d.append([])
+		for j in range(grid[i].size()):
+			grid_positions_3d[i].append(Vector3.ZERO)
+	
+	var triangulated_polygon: PackedInt32Array = Geometry2D.triangulate_polygon(PackedVector2Array(projected_center_border_vertices_2d))
+	for t in range(0, triangulated_polygon.size(), 3):
+		var index_a: int = triangulated_polygon[t]
+		var index_b: int = triangulated_polygon[t + 1]
+		var index_c: int = triangulated_polygon[t + 2]
+
+		var a_2d: Vector2 = projected_center_border_vertices_2d[index_a]
+		var b_2d: Vector2 = projected_center_border_vertices_2d[index_b]
+		var c_2d: Vector2 = projected_center_border_vertices_2d[index_c]
+
+		var a_3d: Vector3 = center_border_vertices[index_a]
+		var b_3d: Vector3 = center_border_vertices[index_b]
+		var c_3d: Vector3 = center_border_vertices[index_c]
+		var plane: Plane = Plane(a_3d, b_3d, c_3d)
+
+		for i in range(grid.size()):
+			for j in range(grid[i].size()):
+				if grid[i][j] and grid_positions_3d[i][j] == Vector3.ZERO:
+					var p_2d: Vector2 = Vector2(
+						min_x + i * grid_density,
+						min_z + j * grid_density
+					)
+					var is_in_triangle: bool = Geometry2D.point_is_inside_triangle(
+						p_2d,
+						a_2d,
+						b_2d,
+						c_2d
+					)
+					if is_in_triangle:
+						var p_3d: Vector3 = parent_transform.origin + parent_transform.basis.x.normalized() * p_2d.x + parent_transform.basis.z.normalized() * p_2d.y
+						var projected_p_3d: Vector3 = plane.project(p_3d)
+						grid_positions_3d[i][j] = projected_p_3d
+
+	# Generate grid quads
+	var origin: Vector3 = parent_transform.origin
+	for i in range(grid.size() - 1):
+		for j in range(grid[i].size() - 1):
+			if grid[i][j]:
+				if grid[i + 1][j] and grid[i][j + 1] and grid[i + 1][j + 1]:
+					# quad
+					var x_z: Vector3 = grid_positions_3d[i][j]
+					var x1_z: Vector3 = grid_positions_3d[i + 1][j]
+					var x_z1: Vector3 = grid_positions_3d[i][j + 1]
+					var x1_z1: Vector3 = grid_positions_3d[i + 1][j + 1]
+
+					surface_tool.add_vertex(x1_z1 - origin)
+					surface_tool.add_vertex(x_z - origin)
+					surface_tool.add_vertex(x1_z - origin)
+
+					surface_tool.add_vertex(x_z1 - origin)
+					surface_tool.add_vertex(x_z - origin)
+					surface_tool.add_vertex(x1_z1 - origin)
+
 
 	# Finish up the mesh
 
