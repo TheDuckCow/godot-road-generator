@@ -882,8 +882,6 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	var vertices_distances: Array[float] = []
 	for vertex in center_border_vertices:
 		var distance: float = center_plane.distance_to(vertex)
-		if center_plane.is_point_over(vertex):
-			distance = -distance
 		vertices_distances.append(distance)
 	
 	for i in range(grid.size()):
@@ -898,7 +896,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				var weights: Array[float] = []
 				for k in range(projected_center_border_vertices_2d.size()):
 					var distance: float = p_2d.distance_to(projected_center_border_vertices_2d[k])
-					var weight: float = 1 / max(distance - density, 0.00001)
+					# the power of distance changes the smoothing behaviour
+					var weight: float = 1 / max(pow(distance, 3) - density, 0.00001)
 
 					weights.append(weight)
 					total_weights += weight
