@@ -574,11 +574,12 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		taken_slots_from_right.append(0)
 
 	var i: int = 0
+	const MIN_LANES_GAP: int = 1
 	while true in successes:
 		var edge: RoadPoint = edges[i]
 		var next_i: int = (i + 1) % edges.size()
 		var next_edge: RoadPoint = edges[next_i]
-		var possible: bool = remaining_lanes[i] > 0 and remaining_lanes[next_i] > 0
+		var possible: bool = remaining_lanes[i] > MIN_LANES_GAP and remaining_lanes[next_i] > MIN_LANES_GAP
 		if possible:
 			var this_lane_width = edge.lane_width
 			var next_lane_width = next_edge.lane_width
