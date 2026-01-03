@@ -669,11 +669,12 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 	var to_next_edge_border_eaten_start: Array[int] = []
 	var to_next_edge_border_eaten_end: Array[int] = []
+	## Array[Array[Vector3]]
+	var edge_offset_border_vertices_included: Array[Array] = []
 	for i in range(edges.size()):
-		# -1 = we must also include the edge vertices when building the border for center fill.
-		# (reminder from earlier, excluded means we do not include the edge vertices in the arrays)
-		to_next_edge_border_eaten_start.append(-1)
-		to_next_edge_border_eaten_end.append(-1)
+		to_next_edge_border_eaten_start.append(0)
+		to_next_edge_border_eaten_end.append(0)
+		edge_offset_border_vertices_included.append([])
 
 	for i in range(edges.size()):
 		var curr_edge: RoadPoint = edges[i]
@@ -683,6 +684,18 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		var prev_border = to_next_edge_border_vertices_included[prev_i]
 		var quad_columns: int = remaining_lanes[i];
 		var border_index: int = 0
+
+		# building the initial offset edge border row in case we can't extend at all
+		edge_offset_border_vertices_included[i] = []
+		for j in range(quad_columns + 1):
+			var ratio: float = float(j) / float(quad_columns)
+			# HACK only works if lanes are of equal width on the edge.
+			edge_offset_border_vertices_included[i].append(
+				prev_border[prev_border.size() - 1 - border_index].lerp(
+					curr_border[border_index],
+					ratio
+				)
+			)
 
 		var next_curr_edge_border_vertex: Vector3 = curr_border[border_index + 1]
 		var next_prev_edge_border_vertex: Vector3 = prev_border[prev_border.size() - 1 - (border_index + 1)]
@@ -724,11 +737,120 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				surface_tool.add_vertex(edge_side_row_vertices[j] - parent_transform.origin)
 				surface_tool.add_vertex(edge_side_row_vertices[j + 1] - parent_transform.origin)
 			
+			# update edge offsets
+			edge_offset_border_vertices_included[i] = center_side_row_vertices
+
 			# update loop values
 			border_index += 1
 			to_next_edge_border_eaten_start[i] += 1
 			to_next_edge_border_eaten_end[prev_i] += 1
 			next_vertices_row_length_in_lanes = next_curr_border_vertex.distance_to(next_prev_border_vertex) / curr_edge.lane_width
+
+
+	print("offset_borders for %s:" % intersection.get_parent_node_3d().name)
+	for edge_border in edge_offset_border_vertices_included:
+		print(edge_border)
+		print("    - length: %d" % edge_border.size())
+
+	print("to_next_edge_borders for %s:" % intersection.get_parent_node_3d().name)
+	for i in range(to_next_edge_border_vertices_included.size()):
+		var edge_border = to_next_edge_border_vertices_included[i]
+		print(edge_border)
+		print("    - length: %d" % edge_border.size())
+		print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
+		print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
+
+	# Finally, fill the center of the intersection with quads
+	var center_border_vertices: Array[Vector3] = []
+	for i in range(edges.size()):
+		# first, add the offset edge border vertices
+
+		for j in range( 	edge_offset_border_vertices_included[i].size()):
+			center_border_vertices.append(edge_offset_border_vertices_included[i][j])
+
+		# then, append the non eaten border vertices to next edge.
+		# We exclude "cordners" which are already included in the offset edge border vertices.
+		
+		for j in range(
+			to_next_edge_border_eaten_start[i] + 1,
+			to_next_edge_border_vertices_included[i].size() - to_next_edge_border_eaten_end[i]
+		):
+			center_border_vertices.append(to_next_edge_border_vertices_included[i][j])
+		# for j in range(1, to_next_edge_border_vertices_included[i].size() - 1):
+		# 	center_border_vertices.append(to_next_edge_border_vertices_included[i][j])
+		# for j in range(1, to_next_edge_vertices_excluded[i].size() - 1):
+		# 	center_border_vertices.append(to_next_edge_vertices_excluded[i][j])
+
+	print("Filling center with border vertices:")
+	print(center_border_vertices)
+
+	# We want to fill the center with a grid. To make the process easier,
+	# We project the center border vertices on a best-fit plane to work in 2D.
+	# We choose the plane made by the intersection point's up vector as the plane normal.
+	# var center_plane: Plane = Plane(parent_transform.basis.y.normalized(), parent_transform.origin)
+	# var x_parallel_plane: Plane = Plane(parent_transform.basis.z.normalized(), parent_transform.origin)
+	# var z_parallel_plane: Plane = Plane(parent_transform.basis.x.normalized(), parent_transform.origin)
+	var center_plane: Plane = Plane(parent_transform.basis.y.normalized(), parent_transform.origin)
+	# var center_plane: Plane = Plane(
+	# 	parent_transform.origin,
+	# 	parent_transform.origin + parent_transform.basis.x.normalized(),
+	# 	parent_transform.origin + parent_transform.basis.z.normalized()
+	# )
+	var x_parallel_plane: Plane = Plane(parent_transform.basis.z.normalized(), parent_transform.origin)
+	var z_parallel_plane: Plane = Plane(parent_transform.basis.x.normalized(), parent_transform.origin)
+	print("Center plane center: %s" % center_plane.get_center())
+	print("Intersection position: %s" % parent_transform.origin)
+	print("Center plane normal: %s" % center_plane.normal)
+	print("Intersection up vector: %s" % parent_transform.basis.y.normalized())
+	print("planes intersection: %s" % center_plane.intersect_3(x_parallel_plane, z_parallel_plane))
+	# We go from the road container's 3D basis (vertices are built from edges local positions which
+	# are children of the container), to the plane's 2D basis.
+	var projected_center_border_vertices_2d: Array[Vector2] = []
+	for vertex in center_border_vertices:
+		var projected_point: Vector3 = center_plane.project(vertex)
+		var projected_x: Vector3 = x_parallel_plane.project(projected_point)
+		var projected_z: Vector3 = z_parallel_plane.project(projected_point)
+		var x: float = projected_x.distance_to(parent_transform.origin) * sign((projected_x - parent_transform.origin).dot(parent_transform.basis.x))
+		var z: float = projected_z.distance_to(parent_transform.origin) * sign((projected_z - parent_transform.origin).dot(parent_transform.basis.z))
+		projected_center_border_vertices_2d.append(Vector2(x, z))
+
+	print("Projected center border vertices 2D:")
+	print(projected_center_border_vertices_2d)
+
+	var min_z: int = 100_000_000
+	var max_z: int = -100_000_000
+	var min_x: int = 100_000_000
+	var max_x: int = -100_000_000
+	for p in projected_center_border_vertices_2d:
+		if p.x > max_x:
+			max_x = int(ceil(p.x))
+		if p.x < min_x:
+			min_x = int(floor(p.x))
+		if p.y > max_z:
+			max_z = int(ceil(p.y))
+		if p.y < min_z:
+			min_z = int(floor(p.y))
+	
+	print("Center fill grid bounds: X[%d, %d], Z[%d, %d]" % [min_x, max_x, min_z, max_z])
+		
+	# Array[Array[bool]]
+	var grid: Array[Array] = []
+	var points:int = 0
+	for x in range(min_x, max_x + 1):
+		grid.append([])
+		for z in range(min_z, max_z + 1):
+			grid[x - min_x].append(Geometry2D.is_point_in_polygon(
+				Vector2(x, z),
+				PackedVector2Array(projected_center_border_vertices_2d)
+			))
+			if grid[x - min_x][z - min_z]:
+				points += 1
+
+	print("Center fill grid generated with %d points." % points)
+	_debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z)
+	_debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
+	_debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
+	# _debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
 
 	# Finish up the mesh
 
@@ -741,6 +863,84 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh
 
+func _debug_add_grid_mesh(grid: Array[Array], surface_tool: SurfaceTool, parent_transform: Transform3D, min_x: int, min_z: int) -> void:
+	print("Debugging grid mesh:")
+	var origin: Vector3 = parent_transform.origin
+	var basis_x: Vector3 = parent_transform.basis.x.normalized()
+	var basis_z: Vector3 = parent_transform.basis.z.normalized()
+	for i in range(grid.size() - 1):
+		for j in range(grid[i].size() - 1):
+			var x = min_x + i
+			var z = min_z + j
+			if grid[i][j]:
+				if grid[i + 1][j] and grid[i][j + 1] and grid[i + 1][j + 1]:
+					# quad
+					var x_z: Vector3 = origin + basis_x * float(x) + basis_z * float(z)
+					var x1_z: Vector3 = origin + basis_x * float(x + 1) + basis_z * float(z)
+					var x_z1: Vector3 = origin + basis_x * float(x) + basis_z * float(z + 1)
+					var x1_z1: Vector3 = origin + basis_x * float(x + 1) + basis_z * float(z + 1)
+
+					surface_tool.add_vertex(x1_z1 - origin)
+					surface_tool.add_vertex(x_z - origin)
+					surface_tool.add_vertex(x1_z - origin)
+
+					surface_tool.add_vertex(x_z1 - origin)
+					surface_tool.add_vertex(x_z - origin)
+					surface_tool.add_vertex(x1_z1 - origin)
+
+
+func _debug_add_polygon_3D(surface_tool: SurfaceTool, parent_transform: Transform3D, polygon: Array[Vector3]) -> void:
+	print("Debugging triangulated polygon mesh:")
+	for i in range(polygon.size()):
+		var current_point: Vector3 = polygon[i]
+		var next_point: Vector3 = polygon[(i + 1) % polygon.size()]
+
+		var dir: Vector3 = (next_point - current_point).normalized()
+		var cross: Vector3 = dir.cross(Vector3.UP).normalized()
+
+		var thickness: float = 0.1
+		var p1: Vector3 = current_point + cross * thickness
+		var p2: Vector3 = current_point - cross * thickness
+		var p3: Vector3 = next_point + cross * thickness
+		var p4: Vector3 = next_point - cross * thickness
+
+		surface_tool.add_vertex(p1 - parent_transform.origin)
+		surface_tool.add_vertex(p2 - parent_transform.origin)
+		surface_tool.add_vertex(p3 - parent_transform.origin)
+
+		surface_tool.add_vertex(p4 - parent_transform.origin)
+		surface_tool.add_vertex(p3 - parent_transform.origin)
+		surface_tool.add_vertex(p2 - parent_transform.origin)
+
+## draw quad lines for the polygon
+func _debug_add_polygon_2D(surface_tool: SurfaceTool, parent_transform: Transform3D, polygon: Array[Vector2]) -> void:
+	print("Debugging triangulated polygon mesh:")
+	var basis_x: Vector3 = parent_transform.basis.x.normalized()
+	var basis_z: Vector3 = parent_transform.basis.z.normalized()
+	var origin: Vector3 = parent_transform.origin
+	for i in range(polygon.size()):
+		var current_point: Vector2 = polygon[i]
+		var next_point: Vector2 = polygon[(i + 1) % polygon.size()]
+
+		var current_point_3d: Vector3 = origin + basis_x * current_point.x + basis_z * current_point.y
+		var next_point_3d: Vector3 = origin + basis_x * next_point.x + basis_z * next_point.y
+
+		var dir: Vector3 = (next_point_3d - current_point_3d).normalized()
+		var cross: Vector3 = dir.cross(Vector3.UP).normalized()
+
+		var thickness: float = 0.1
+		var p1: Vector3 = current_point_3d + cross * thickness
+		var p2: Vector3 = current_point_3d - cross * thickness
+		var p3: Vector3 = next_point_3d + cross * thickness
+		var p4: Vector3 = next_point_3d - cross * thickness
+
+		surface_tool.add_vertex(p1 - parent_transform.origin)
+		surface_tool.add_vertex(p2 - parent_transform.origin)
+		surface_tool.add_vertex(p3 - parent_transform.origin)
+
+		surface_tool.add_vertex(p4 - parent_transform.origin)
+		surface_tool.add_vertex(p3 - parent_transform.origin)
+		surface_tool.add_vertex(p2 - parent_transform.origin)
 
 #endregion
 # ------------------------------------------------------------------------------
