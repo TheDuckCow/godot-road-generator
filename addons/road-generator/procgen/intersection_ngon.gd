@@ -782,6 +782,20 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		):
 			center_border_vertices.append(to_next_edge_border_vertices_included[i][j])
 
+	var evenly_spaced_border_vertices: Array[Vector3] = []
+	for i in range(center_border_vertices.size()):
+		var next_i: int = (i + 1) % center_border_vertices.size()
+		var start_vertex: Vector3 = center_border_vertices[i]
+		var end_vertex: Vector3 = center_border_vertices[next_i]
+		var segment_length: float = start_vertex.distance_to(end_vertex)
+		var num_subdivisions: int = int(floor(segment_length / density))
+		evenly_spaced_border_vertices.append(start_vertex)
+		for j in range(num_subdivisions):
+			var t: float = 1.0 / float(num_subdivisions+1) * float(j + 1)
+			var point: Vector3 = start_vertex.lerp(end_vertex, t)
+			evenly_spaced_border_vertices.append(point)
+	center_border_vertices = evenly_spaced_border_vertices
+
 	print("Filling center with border vertices:")
 	print(center_border_vertices)
 
@@ -850,48 +864,85 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# _debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
 	# _debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
 
-	# We project the grid back to 3D space by triangulating
-	# the border polygon and projecting each vertex on triangles.
-	# 2D to 3D conversion is possible as the indexes of both arrays match.
+	# We project the grid back to 3D space
 	## Array[Array[Vector3]]
 	var grid_positions_3d: Array[Array] = []
 	for i in range(grid.size()):
 		grid_positions_3d.append([])
 		for j in range(grid[i].size()):
 			grid_positions_3d[i].append(Vector3.ZERO)
+
+	# We do a weighted average of the distance from the plane along the up vector
+	# for each border vertex, to get the Y component of the grid points.
+	# var total_distance: float = 0.0
+	var vertices_distances: Array[float] = []
+	for vertex in center_border_vertices:
+		var distance: float = center_plane.distance_to(vertex)
+		if center_plane.is_point_over(vertex):
+			distance = -distance
+		vertices_distances.append(distance)
 	
-	var triangulated_polygon: PackedInt32Array = Geometry2D.triangulate_polygon(PackedVector2Array(projected_center_border_vertices_2d))
-	for t in range(0, triangulated_polygon.size(), 3):
-		var index_a: int = triangulated_polygon[t]
-		var index_b: int = triangulated_polygon[t + 1]
-		var index_c: int = triangulated_polygon[t + 2]
+	for i in range(grid.size()):
+		for j in range(grid[i].size()):
+			if grid[i][j]:
+				var x: float = min_x + i * grid_density
+				var z: float = min_z + j * grid_density
+				var p_2d: Vector2 = Vector2(x, z)
 
-		var a_2d: Vector2 = projected_center_border_vertices_2d[index_a]
-		var b_2d: Vector2 = projected_center_border_vertices_2d[index_b]
-		var c_2d: Vector2 = projected_center_border_vertices_2d[index_c]
+				# weighted average distance
+				var total_weights: float = 0.0
+				var weights: Array[float] = []
+				for k in range(projected_center_border_vertices_2d.size()):
+					var distance: float = p_2d.distance_to(projected_center_border_vertices_2d[k])
+					var weight: float = 1 / max(distance - density, 0.00001)
 
-		var a_3d: Vector3 = center_border_vertices[index_a]
-		var b_3d: Vector3 = center_border_vertices[index_b]
-		var c_3d: Vector3 = center_border_vertices[index_c]
-		var plane: Plane = Plane(a_3d, b_3d, c_3d)
+					weights.append(weight)
+					total_weights += weight
 
-		for i in range(grid.size()):
-			for j in range(grid[i].size()):
-				if grid[i][j] and grid_positions_3d[i][j] == Vector3.ZERO:
-					var p_2d: Vector2 = Vector2(
-						min_x + i * grid_density,
-						min_z + j * grid_density
-					)
-					var is_in_triangle: bool = Geometry2D.point_is_inside_triangle(
-						p_2d,
-						a_2d,
-						b_2d,
-						c_2d
-					)
-					if is_in_triangle:
-						var p_3d: Vector3 = parent_transform.origin + parent_transform.basis.x.normalized() * p_2d.x + parent_transform.basis.z.normalized() * p_2d.y
-						var projected_p_3d: Vector3 = plane.project(p_3d)
-						grid_positions_3d[i][j] = projected_p_3d
+				var weighted_distance: float = 0.0
+				for w in range(weights.size()):
+					weighted_distance += weights[w] * vertices_distances[w]
+				weighted_distance /= total_weights
+				var p_3d: Vector3 = (
+					parent_transform.origin
+					+ parent_transform.basis.x.normalized() * x
+					+ parent_transform.basis.z.normalized() * z
+					+ parent_transform.basis.y.normalized() * (weighted_distance)
+				)
+				grid_positions_3d[i][j] = p_3d
+	
+	# var triangulated_polygon: PackedInt32Array = Geometry2D.triangulate_polygon(PackedVector2Array(projected_center_border_vertices_2d))
+	# for t in range(0, triangulated_polygon.size(), 3):
+	# 	var index_a: int = triangulated_polygon[t]
+	# 	var index_b: int = triangulated_polygon[t + 1]
+	# 	var index_c: int = triangulated_polygon[t + 2]
+
+	# 	var a_2d: Vector2 = projected_center_border_vertices_2d[index_a]
+	# 	var b_2d: Vector2 = projected_center_border_vertices_2d[index_b]
+	# 	var c_2d: Vector2 = projected_center_border_vertices_2d[index_c]
+
+	# 	var a_3d: Vector3 = center_border_vertices[index_a]
+	# 	var b_3d: Vector3 = center_border_vertices[index_b]
+	# 	var c_3d: Vector3 = center_border_vertices[index_c]
+	# 	var plane: Plane = Plane(a_3d, b_3d, c_3d)
+
+	# 	for i in range(grid.size()):
+	# 		for j in range(grid[i].size()):
+	# 			if grid[i][j] and grid_positions_3d[i][j] == Vector3.ZERO:
+	# 				var p_2d: Vector2 = Vector2(
+	# 					min_x + i * grid_density,
+	# 					min_z + j * grid_density
+	# 				)
+	# 				var is_in_triangle: bool = Geometry2D.point_is_inside_triangle(
+	# 					p_2d,
+	# 					a_2d,
+	# 					b_2d,
+	# 					c_2d
+	# 				)
+	# 				if is_in_triangle:
+	# 					var p_3d: Vector3 = parent_transform.origin + parent_transform.basis.x.normalized() * p_2d.x + parent_transform.basis.z.normalized() * p_2d.y
+	# 					var projected_p_3d: Vector3 = plane.project(p_3d)
+	# 					grid_positions_3d[i][j] = projected_p_3d
 
 	# Generate grid quads
 	var origin: Vector3 = parent_transform.origin
