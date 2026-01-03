@@ -573,20 +573,30 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		taken_slots_from_left.append(0)
 		taken_slots_from_right.append(0)
 
-	var i: int = 0
+	var while_i: int = 0
 	const MIN_LANES_GAP: int = 1
+
+	## Array[Array[Vector3]]
+	var to_next_edge_border_vertices_included: Array[Array] = []
+	for i in range(edges.size()):
+		to_next_edge_border_vertices_included.append([])
+		to_next_edge_border_vertices_included[i].append(edge_road_sides[i][0])
+		for j in range(to_next_edge_vertices_excluded[i].size()):
+			to_next_edge_border_vertices_included[i].append(to_next_edge_vertices_excluded[i][j])
+		to_next_edge_border_vertices_included[i].append(edge_road_sides[(i + 1) % edges.size()][1])
+
 	while true in successes:
-		var edge: RoadPoint = edges[i]
-		var next_i: int = (i + 1) % edges.size()
+		var edge: RoadPoint = edges[while_i]
+		var next_i: int = (while_i + 1) % edges.size()
 		var next_edge: RoadPoint = edges[next_i]
-		var possible: bool = remaining_lanes[i] > MIN_LANES_GAP and remaining_lanes[next_i] > MIN_LANES_GAP
+		var possible: bool = remaining_lanes[while_i] > MIN_LANES_GAP and remaining_lanes[next_i] > MIN_LANES_GAP
 		if possible:
 			var this_lane_width = edge.lane_width
 			var next_lane_width = next_edge.lane_width
 
 			# build quads from i to i+1
 			# size excluded + 1 quads to build
-			for j in range(to_next_edge_vertices_excluded[i].size() + 1):
+			for j in range(to_next_edge_vertices_excluded[while_i].size() + 1):
 				# print("Building lane quad between edge %d and %d, vertex slot %d, vertices: %d, directions: %d" % [i, next_i, j, to_next_edge_vertices_excluded.size(), to_next_edge_directions_excluded.size()])
 				# ext = closest to shoulder/gutter
 				var ext_vertex_i: Vector3 = Vector3.ZERO
@@ -595,32 +605,43 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				var int_vertex_i1: Vector3 = Vector3.ZERO
 				var dir_i: Vector3 = Vector3.ZERO
 				var dir_i1: Vector3 = Vector3.ZERO
-				var lane_width_i: float = lerp(this_lane_width, next_lane_width, float(j) / float(to_next_edge_vertices_excluded[i].size() + 1))
-				var lane_width_i1: float = lerp(this_lane_width, next_lane_width, float(j + 1) / float(to_next_edge_vertices_excluded[i].size() + 1))
+				var lane_width_i: float = lerp(this_lane_width, next_lane_width, float(j) / float(to_next_edge_vertices_excluded[while_i].size() + 1))
+				var lane_width_i1: float = lerp(this_lane_width, next_lane_width, float(j + 1) / float(to_next_edge_vertices_excluded[while_i].size() + 1))
 
 				var this_edge_dir = edge.transform.basis.x.normalized()
-				if edge_facing[i] == _IntersectNGonFacing.AWAY:
+				if edge_facing[while_i] == _IntersectNGonFacing.AWAY:
 					this_edge_dir = -this_edge_dir
 				var next_edge_dir = next_edge.transform.basis.x.normalized()
 				if edge_facing[next_i] == _IntersectNGonFacing.ORIGIN:
 					next_edge_dir = -next_edge_dir
 
 				if (j == 0):
-					ext_vertex_i = edge_road_sides[i][0] + this_edge_dir * (lane_width_i * taken_slots_from_left[i])
+					ext_vertex_i = edge_road_sides[while_i][0] + this_edge_dir * (lane_width_i * taken_slots_from_left[while_i])
 					int_vertex_i = ext_vertex_i + this_edge_dir * lane_width_i
+
+					# Update the border in preparation for filling the center (0)
+					to_next_edge_border_vertices_included[while_i][j] = int_vertex_i
 				else:
-					var i_dir = to_next_edge_directions_excluded[i][j - 1]
-					ext_vertex_i = to_next_edge_vertices_excluded[i][j - 1] + i_dir * (lane_width_i * taken_slots_from_left[i])
+					var i_dir = to_next_edge_directions_excluded[while_i][j - 1]
+					ext_vertex_i = to_next_edge_vertices_excluded[while_i][j - 1] + i_dir * (lane_width_i * taken_slots_from_left[while_i])
 					int_vertex_i = ext_vertex_i + i_dir * lane_width_i
 
 				# if last index
-				if (j == to_next_edge_vertices_excluded[i].size()):
+				if (j == to_next_edge_vertices_excluded[while_i].size()):
 					ext_vertex_i1 = edge_road_sides[next_i][1] + next_edge_dir * (lane_width_i1 * taken_slots_from_right[next_i])
 					int_vertex_i1 = ext_vertex_i1 + next_edge_dir * lane_width_i1
+
+					# Update the border in preparation for filling the center (n)
+					to_next_edge_border_vertices_included[while_i][j+1] = int_vertex_i1
 				else:
-					var i1_dir = to_next_edge_directions_excluded[i][j]
-					ext_vertex_i1 = to_next_edge_vertices_excluded[i][j] + i1_dir * (lane_width_i1 * taken_slots_from_right[next_i])
+					var i1_dir = to_next_edge_directions_excluded[while_i][j]
+					ext_vertex_i1 = to_next_edge_vertices_excluded[while_i][j] + i1_dir * (lane_width_i1 * taken_slots_from_right[next_i])
 					int_vertex_i1 = ext_vertex_i1 + i1_dir * lane_width_i1
+
+					# Update the border in preparation for filling the center ([1, n-1])
+					to_next_edge_border_vertices_included[while_i][j+1] = int_vertex_i1
+
+
 
 				# lane quad
 				# TODO UV
@@ -633,14 +654,83 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				surface_tool.add_vertex(ext_vertex_i1 - parent_transform.origin)
 					
 
-			remaining_lanes[i] -= 1
+			remaining_lanes[while_i] -= 1
 			remaining_lanes[next_i] -= 1
-			taken_slots_from_left[i] += 1
+			taken_slots_from_left[while_i] += 1
 			taken_slots_from_right[next_i] += 1
 
-		successes[i] = possible
+		successes[while_i] = possible
 
-		i = next_i
+		while_i = next_i
+
+
+	# Before doing the center fill, we partially extend the remaining gaps between lanes
+	# at edges.
+
+	var to_next_edge_border_eaten_start: Array[int] = []
+	var to_next_edge_border_eaten_end: Array[int] = []
+	for i in range(edges.size()):
+		# -1 = we must also include the edge vertices when building the border for center fill.
+		# (reminder from earlier, excluded means we do not include the edge vertices in the arrays)
+		to_next_edge_border_eaten_start.append(-1)
+		to_next_edge_border_eaten_end.append(-1)
+
+	for i in range(edges.size()):
+		var curr_edge: RoadPoint = edges[i]
+		var prev_i = (i - 1 + edges.size()) % edges.size()
+		var prev_edge: RoadPoint = edges[prev_i]
+		var curr_border = to_next_edge_border_vertices_included[i]
+		var prev_border = to_next_edge_border_vertices_included[prev_i]
+		var quad_columns: int = remaining_lanes[i];
+		var border_index: int = 0
+
+		var next_curr_edge_border_vertex: Vector3 = curr_border[border_index + 1]
+		var next_prev_edge_border_vertex: Vector3 = prev_border[prev_border.size() - 1 - (border_index + 1)]
+		var next_vertices_row_length_in_lanes: float = next_curr_edge_border_vertex.distance_to(next_prev_edge_border_vertex) / curr_edge.lane_width
+
+		#TODO test edge case, two edges facing each other and parallel with same lane width and count,
+		# will it go beyond the other edge?
+
+		while (
+			next_vertices_row_length_in_lanes < quad_columns + 2
+			and (curr_border.size() - to_next_edge_border_eaten_end[i] - to_next_edge_border_eaten_start[i]) > 0
+			and (prev_border.size() - to_next_edge_border_eaten_end[prev_i] - to_next_edge_border_eaten_start[prev_i]) > 0
+		):
+			var edge_side_row_vertices: Array[Vector3] = []
+			var center_side_row_vertices: Array[Vector3] = []
+			var curr_border_vertex: Vector3 = curr_border[border_index]
+			var prev_border_vertex: Vector3 = prev_border[prev_border.size() - 1 - border_index]
+			var next_curr_border_vertex: Vector3 = curr_border[border_index + 1]
+			var next_prev_border_vertex: Vector3 = prev_border[prev_border.size() - 1 - (border_index + 1)]
+			# build the quad row
+			for j in range(quad_columns + 1):
+				var ratio: float = float(j) / float(quad_columns)
+				edge_side_row_vertices.append(
+					prev_border_vertex.lerp(curr_border_vertex, ratio)
+				)
+				center_side_row_vertices.append(
+					next_prev_border_vertex.lerp(next_curr_border_vertex, ratio)
+				)
+
+			# add quads
+			for j in range(quad_columns):
+				# lane quad
+				# TODO UV
+				surface_tool.add_vertex(center_side_row_vertices[j] - parent_transform.origin)
+				surface_tool.add_vertex(edge_side_row_vertices[j] - parent_transform.origin)
+				surface_tool.add_vertex(center_side_row_vertices[j + 1] - parent_transform.origin)
+
+				surface_tool.add_vertex(center_side_row_vertices[j + 1] - parent_transform.origin)
+				surface_tool.add_vertex(edge_side_row_vertices[j] - parent_transform.origin)
+				surface_tool.add_vertex(edge_side_row_vertices[j + 1] - parent_transform.origin)
+			
+			# update loop values
+			border_index += 1
+			to_next_edge_border_eaten_start[i] += 1
+			to_next_edge_border_eaten_end[prev_i] += 1
+			next_vertices_row_length_in_lanes = next_curr_border_vertex.distance_to(next_prev_border_vertex) / curr_edge.lane_width
+
+	# Finish up the mesh
 
 	surface_tool.index()
 	var material: Material = container.effective_surface_material()
