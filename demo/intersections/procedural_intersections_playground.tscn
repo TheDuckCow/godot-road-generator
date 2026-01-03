@@ -32,8 +32,8 @@ edge_rp_local_dirs = Array[int]([0, 1])
 [node name="RP_001" type="Node3D" parent="RoadManager/RoadTempHardcoding"]
 transform = Transform3D(-0.964111, 5.68735e-09, 0.265501, 0, 1, -2.14212e-08, -0.265501, -2.06524e-08, -0.964111, 2.68758, 0.332846, -1.62913)
 script = ExtResource("3_3xvxs")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
+traffic_dir = Array[int]([2, 2, 1, 1, 0, 0, 0])
+lanes = Array[int]([7, 0, 0, 0, 0, 0, 7])
 next_mag = 27.8251
 prior_pt_init = NodePath("../RP_002")
 next_pt_init = NodePath("../RoadIntersection")
