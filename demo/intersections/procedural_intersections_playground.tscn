@@ -19,6 +19,7 @@ sort_temp_toggle = true
 
 [node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource("1_7bqj5")
+density = 0.5
 
 [node name="RoadTempHardcoding" type="Node3D" parent="RoadManager"]
 script = ExtResource("2_5r4g7")

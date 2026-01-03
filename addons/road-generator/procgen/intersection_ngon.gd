@@ -845,11 +845,13 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# ...then generate the grid, figuring out which points are inside the polygon.
 	# Array[Array[bool]]
 	var grid: Array[Array] = []
-	var grid_density:int = max(1, int(round(density)))
 	var points:int = 0
-	for x in range(min_x, max_x + 1, grid_density):
+	var x = min_x
+	# range uses int steps, which cap the density, so we use a while loop instead.
+	while x < max_x + 1:
 		var row: Array[bool] = []
-		for z in range(min_z, max_z + 1, grid_density):
+		var z = min_z
+		while z < max_z + 1:
 			var in_polygon: bool = Geometry2D.is_point_in_polygon(
 				Vector2(x, z),
 				PackedVector2Array(projected_center_border_vertices_2d)
@@ -857,7 +859,9 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			row.append(in_polygon)
 			if in_polygon:
 				points += 1
+			z += density
 		grid.append(row)
+		x += density
 
 	print("Center fill grid generated with %d points." % points)
 	# _debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z, grid_density)
@@ -885,9 +889,9 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	for i in range(grid.size()):
 		for j in range(grid[i].size()):
 			if grid[i][j]:
-				var x: float = min_x + i * grid_density
-				var z: float = min_z + j * grid_density
-				var p_2d: Vector2 = Vector2(x, z)
+				var px: float = min_x + i * density
+				var pz: float = min_z + j * density
+				var p_2d: Vector2 = Vector2(px, pz)
 
 				# weighted average distance
 				var total_weights: float = 0.0
@@ -905,8 +909,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				weighted_distance /= total_weights
 				var p_3d: Vector3 = (
 					parent_transform.origin
-					+ parent_transform.basis.x.normalized() * x
-					+ parent_transform.basis.z.normalized() * z
+					+ parent_transform.basis.x.normalized() * px
+					+ parent_transform.basis.z.normalized() * pz
 					+ parent_transform.basis.y.normalized() * (weighted_distance)
 				)
 				grid_positions_3d[i][j] = p_3d
