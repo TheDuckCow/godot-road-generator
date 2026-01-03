@@ -835,19 +835,22 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		
 	# Array[Array[bool]]
 	var grid: Array[Array] = []
+	var grid_density:int = max(1, int(round(density)))
 	var points:int = 0
-	for x in range(min_x, max_x + 1):
-		grid.append([])
-		for z in range(min_z, max_z + 1):
-			grid[x - min_x].append(Geometry2D.is_point_in_polygon(
+	for x in range(min_x, max_x + 1, grid_density):
+		var row: Array[bool] = []
+		for z in range(min_z, max_z + 1, grid_density):
+			var in_polygon: bool = Geometry2D.is_point_in_polygon(
 				Vector2(x, z),
 				PackedVector2Array(projected_center_border_vertices_2d)
-			))
-			if grid[x - min_x][z - min_z]:
+			) 
+			row.append(in_polygon)
+			if in_polygon:
 				points += 1
+		grid.append(row)
 
 	print("Center fill grid generated with %d points." % points)
-	_debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z)
+	_debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z, grid_density)
 	_debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
 	_debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
 	# _debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
@@ -863,22 +866,22 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh
 
-func _debug_add_grid_mesh(grid: Array[Array], surface_tool: SurfaceTool, parent_transform: Transform3D, min_x: int, min_z: int) -> void:
+func _debug_add_grid_mesh(grid: Array[Array], surface_tool: SurfaceTool, parent_transform: Transform3D, min_x: int, min_z: int, density: float) -> void:
 	print("Debugging grid mesh:")
 	var origin: Vector3 = parent_transform.origin
 	var basis_x: Vector3 = parent_transform.basis.x.normalized()
 	var basis_z: Vector3 = parent_transform.basis.z.normalized()
 	for i in range(grid.size() - 1):
 		for j in range(grid[i].size() - 1):
-			var x = min_x + i
-			var z = min_z + j
+			var x = min_x + i * density
+			var z = min_z + j * density
 			if grid[i][j]:
 				if grid[i + 1][j] and grid[i][j + 1] and grid[i + 1][j + 1]:
 					# quad
 					var x_z: Vector3 = origin + basis_x * float(x) + basis_z * float(z)
-					var x1_z: Vector3 = origin + basis_x * float(x + 1) + basis_z * float(z)
-					var x_z1: Vector3 = origin + basis_x * float(x) + basis_z * float(z + 1)
-					var x1_z1: Vector3 = origin + basis_x * float(x + 1) + basis_z * float(z + 1)
+					var x1_z: Vector3 = origin + basis_x * float(x + density) + basis_z * float(z)
+					var x_z1: Vector3 = origin + basis_x * float(x) + basis_z * float(z + density)
+					var x1_z1: Vector3 = origin + basis_x * float(x + density) + basis_z * float(z + density)
 
 					surface_tool.add_vertex(x1_z1 - origin)
 					surface_tool.add_vertex(x_z - origin)
