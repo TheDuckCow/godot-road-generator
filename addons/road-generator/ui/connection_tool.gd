@@ -72,7 +72,11 @@ var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
 var _overlay_ref: Control
 var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
 
-# Context sharing from the physics process function to input handling functions
+# Flag to trigger updated raycasts on next physics frame after relevant input
+# TODO: Technically this means the outcome of the input handling is delayed one frame. Could improve
+# by moving current input handling into physics process, at risk of events being swallowed.
+var _physics_post_input: bool = false
+# Context sharing from the physics process function to next input handling functions
 var _intersect_dict: Dictionary = {}
 var _intersect_mouse_src: Vector3 = Vector3.ZERO
 var _intersect_mouse_nrm: Vector3 = Vector3.UP
@@ -91,31 +95,34 @@ func _init(plugin: EditorPlugin) -> void:
 
 ## This must be called by a parent process with an actual _physics_process hook
 func _physics_process(_delta) -> void:
-	if Engine.is_editor_hint():
-		# Perform raycast for both updating hinting as well as performing actions
-		# Unforutnately, this means raycasting is essentially always being done
-		# (if a road node is selected).
-		if not plg.is_road_node(plg.get_selected_node()):
-			return
-		var view := EditorInterface.get_editor_viewport_3d(0)
-		var camera := view.get_camera_3d()
-		
-		# Perform the main raycast
-		_intersect_mouse_src = camera.project_ray_origin(cursor)
-		_intersect_mouse_nrm = camera.project_ray_normal(cursor)
-		var dist := camera.far
+	# TODO: Technically safer to wrap in a mutex lock, but unsetting is one-sided anyways.
+	if not _physics_post_input:
+		return
+	_physics_post_input = false
+	# Perform raycast for both updating hinting as well as performing actions
+	# Unforutnately, this means raycasting is essentially always being done
+	# (if a road node is selected).
+	if not plg.is_road_node(plg.get_selected_node()):
+		return
+	var view := EditorInterface.get_editor_viewport_3d(0)
+	var camera := view.get_camera_3d()
+	
+	# Perform the main raycast
+	_intersect_mouse_src = camera.project_ray_origin(cursor)
+	_intersect_mouse_nrm = camera.project_ray_normal(cursor)
+	var dist := camera.far
 
-		var space_state := plg.get_viewport().world_3d.direct_space_state
-		var query := PhysicsRayQueryParameters3D.create(
-			_intersect_mouse_src,
-			_intersect_mouse_src + _intersect_mouse_nrm * dist)
-		query.collide_with_areas = false
-		query.collide_with_bodies = true
-		_intersect_dict = space_state.intersect_ray(query)
+	var space_state := plg.get_viewport().world_3d.direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		_intersect_mouse_src,
+		_intersect_mouse_src + _intersect_mouse_nrm * dist)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	_intersect_dict = space_state.intersect_ray(query)
 
-		# Now update hover node based one this state:
-		_hover_graphnode = plg.get_nearest_graph_node(_intersect_dict)
-		# Be aware: _intersect_dict is also used in _perform_action.
+	# Now update hover node based one this state:
+	_hover_graphnode = plg.get_nearest_graph_node(_intersect_dict)
+	# Be aware: _intersect_dict is also used in _perform_action.
 
 
 ## Called by the engine when the 3D editor's viewport is updated.
@@ -417,7 +424,6 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	# TODO: Re-implement this
 	if _relevant_input_event(event):
 		_clear_targets()
 		#print("_handle_add_mode_input relevanat")
@@ -725,6 +731,9 @@ func _relevant_input_event(event: InputEvent) -> bool:
 	if mouse_events:
 		cursor = event.position
 		relevant = true
+	if relevant:
+		# Ensure next physics frame attempts to update its raycast targets
+		_physics_post_input = true
 	return relevant
 
 
