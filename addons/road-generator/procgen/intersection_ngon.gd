@@ -984,49 +984,12 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# The ring is a concave hull around the grid border vertices.
 	# We work in 2D space for simplicity.
 
+	# Working in a 2D grid makes it easy, by only having to find
+	# adjacent empty and filled cells and creating edges accordingly.
+	# Then we build the concave hull by attaching the edges together.
+
 	
-	# ## Array[Array[bool]]
-	# var grid_border_vertices_grid: Array[Array] = []
-	# var walk_start_index: Vector2i = Vector2i(-1, -1)
-	# for i in range(grid.size()):
-	# 	var row: Array[bool] = []
-	# 	for j in range(grid[i].size()):
-	# 		var is_border_vertex: bool = (
-	# 			grid[i][j]
-	# 			and (
-	# 				(i > 0 and not grid[i - 1][j])
-	# 				or (i < grid.size() - 1 and not grid[i + 1][j])
-	# 				or (j > 0 and not grid[i][j - 1])
-	# 				or (j < grid[i].size() - 1 and not grid[i][j + 1])
-	# 			)
-	# 		)
-	# 		row.append(is_border_vertex)
-	# 		if is_border_vertex and walk_start_index == Vector2i(-1, -1):
-	# 			walk_start_index = Vector2i(i, j)
-	# 	grid_border_vertices_grid.append(row)
-
-	# var grid_border_vertices: Array[Vector2i] = []
-	# for i in range(grid.size()):
-	# 	for j in range(grid[i].size()):
-	# 		var is_border_vertex: bool = (
-	# 			grid[i][j]
-	# 			and (
-	# 				(i > 0 and not grid[i - 1][j])
-	# 				or (i < grid.size() - 1 and not grid[i + 1][j])
-	# 				or (j > 0 and not grid[i][j - 1])
-	# 				or (j < grid[i].size() - 1 and not grid[i][j + 1])
-	# 			)
-	# 		)
-	# 		if is_border_vertex:
-	# 			grid_border_vertices.append(Vector2i(i, j))
-
-
-	# TODO better:
-		# - define a 2D array of grid cells, true if it has the four vertices.
-		# - for each filled cell, check if it has a filled edge on its side.
-		# - if false, add an edge on that side.
-		# - build the ring as usual.
-
+	
 	## cell defined by its top-left vertex corner.
 	## Array[Array[bool]]
 	var grid_filled_cells: Array[Array] = []
@@ -1058,187 +1021,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				if i == grid_filled_cells.size() - 1 or not grid_filled_cells[i + 1][j]:
 					grid_border_edges.append(Edge.right(i, j))
 
-	# # Let's imagine a balloon covering the whole grid.
-	# # We want to shrink it to fit exactly the island,
-	# # By removing cells progressively and updating
-	# # the balloon edges accordingly.
-	# # Each edge is either a balloon border or nothing.
-	# # (We only need to test for border vertices to deduce
-	# # the island's border.)
-	# # We have 4 edges per cells, so 4 bits, so 16 possible states.
-	# # Behaviour can be grouped by shape:
-	# # U: 1110 ; 1101 ; 1011 ; 0111
-	# #    -> we want a single edge on the zero side. -> NOT.
-	# # L: 1001 ; 0011 ; 0110 ; 1100
-	# #    -> we want two edges on adjacent sides. -> NOT.
-	# # //: 1010 ; 0101
-	# #    -> We do not want to split the balloon in two. -> NOTHING.
-	# # | : 1000 ; 0100 ; 0010 ; 0001
-	# #    -> we "dig a hole" on this side. -> NOT.
-	# # 0 : 0000
-	# #    -> we only deflate from the sides. -> NOTHING.
-	# # []: 1111
-	# #    -> since we can't split the balloon in two,
-	# #       it means we did not find the island border properly;
-	# #       given that all vertices are not island border vertices. -> ERROR.
-
-	# # a cell is defined by its top-left corner.
-	# var balloon_border_edges: Array[Edge] = []
-	# for i in range(grid_width-1):
-	# 	balloon_border_edges.append(Edge.up(i, 0))
-	# 	balloon_border_edges.append(Edge.down(i, grid_height-2))
-	# for j in range(grid_height-1):
-	# 	balloon_border_edges.append(Edge.left(0, j))
-	# 	balloon_border_edges.append(Edge.right(grid_width-2, j))
-
-	# var deflated: bool = false
-	# ## Array[Array[bool]]
-	# var cells_deflated:Array[Array] = []
-	# for i in range(grid_width-1):
-	# 	cells_deflated.append([])
-	# 	for j in range(grid_height-1):
-	# 		cells_deflated[i].append(false)
-
-	# var abort_deflation: bool = false
-	# while !deflated:
-	# 	deflated = true
-	# 	# assuming we iterate over top left corners.
-	# 	for i in range(grid_width-1):
-	# 		for j in range(grid_height-1):
-	# 			if grid[i][j] or cells_deflated[i][j]:
-	# 				continue
-	# 			## state: URDL, U = up = 8.
-	# 			var state: int = 0
-	# 			if Edge.array_has_edge(balloon_border_edges, Edge.up(i,j)):
-	# 				state += 8
-	# 			if Edge.array_has_edge(balloon_border_edges, Edge.right(i,j)):
-	# 				state += 4
-	# 			if Edge.array_has_edge(balloon_border_edges, Edge.down(i,j)):
-	# 				state += 2
-	# 			if Edge.array_has_edge(balloon_border_edges, Edge.left(i,j)):
-	# 				state += 1
-
-	# 			match state:
-	# 				0: #0
-	# 					continue
-	# 				15: #[]
-	# 					if not grid[i][j]:
-	# 						push_error("Failed to identify island border properly. Aborting border fill.")
-	# 						abort_deflation = true
-	# 					break
-	# 				1, 2, 4, 8: #|
-	# 					if state == 1: # Up
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 					elif state == 2: # Right
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 					elif state == 4: # Down
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 					elif state == 8: # Left
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 					cells_deflated[i][j] = true
-	# 					deflated = false
-	# 					break
-	# 				3, 6, 12, 9: #L
-	# 					if state == 3: # Bottom-Left
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 					elif state == 6: # Bottom-Right
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 					elif state == 12: # Top-Right
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 					elif state == 9: # Top-Left
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 					cells_deflated[i][j] = true
-	# 					deflated = false
-	# 					break
-	# 				7, 14, 13, 11: #U
-	# 					if state == 7: # hole on Top
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.up(i,j))
-	# 					elif state == 11: # hole on Right
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						balloon_border_edges.append(Edge.right(i,j))
-	# 					elif state == 14: # hole on Left
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.down(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.left(i,j))
-	# 					elif state == 13: # hole on Bottom
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.up(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.left(i,j))
-	# 						Edge.array_remove_edge(balloon_border_edges, Edge.right(i,j))
-	# 						balloon_border_edges.append(Edge.down(i,j))
-	# 					cells_deflated[i][j] = true
-	# 					deflated = false
-	# 					break
-	# 				5, 10: #//
-	# 					# do nothing
-	# 					continue
-	# 				_:
-	# 					push_error("Unhandled balloon state %d. Aborting border fill." % state)
-	# 					break
-	# 			if abort_deflation:
-	# 				break
-	# 		if abort_deflation:
-	# 			break
-	# 	if abort_deflation:
-	# 		break
-							
-	# var ring_indices: Array[Vector2i] = []
-	# # Reconstruct border ring from balloon edges
-	# if balloon_border_edges.size() > 0:
-	# 	var start_edge: Edge = balloon_border_edges[0]
-	# 	ring_indices.append(start_edge.p1)
-	# 	ring_indices.append(start_edge.p2)
-	# 	Edge.array_remove_edge(balloon_border_edges, start_edge)
-	# 	var current_index: Vector2i = start_edge.p2
-	# 	while balloon_border_edges.size() > 0:
-	# 		var found_next: bool = false
-	# 		for e in balloon_border_edges:
-	# 			if e.p1 == current_index:
-	# 				ring_indices.append(e.p2)
-	# 				current_index = e.p2
-	# 				Edge.array_remove_edge(balloon_border_edges, e)
-	# 				found_next = true
-	# 				break
-	# 			elif e.p2 == current_index:
-	# 				ring_indices.append(e.p1)
-	# 				current_index = e.p1
-	# 				Edge.array_remove_edge(balloon_border_edges, e)
-	# 				found_next = true
-	# 				break
-	# 		if not found_next:
-	# 			push_error("Failed to walk the border of the intersection center fill grid. Aborting border fill.")
-	# 			push_error("Remaining balloon edges: %d" % balloon_border_edges.size())
-	# 			push_error("%s" % Edge.array_to_string(balloon_border_edges))
-	# 			break
+	
 
 	var ring_indices: Array[Vector2i] = []
 	# Reconstruct border ring from balloon edges
@@ -1272,121 +1055,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		
 
 
-	# walk from neighbor to neighbor to construct the ring
-	# var ring_closed: bool = false
-	# var ring_indices: Array[Vector2i] = []
-	# var current_index: Vector2i = walk_start_index
-	# var previous_direction: Vector2i = Vector2i(-1, -1)
-	# while not ring_closed:
-	# 	ring_indices.append(current_index)
-	# 	var found_next: Array[Vector2i] = []
-	# 	for di in range(-1, 2):
-	# 		for dj in range(-1, 2):
-	# 			if abs(di) + abs(dj) != 1:
-	# 				continue
-
-	# 			var neighbor_index: Vector2i = current_index + Vector2i(di, dj)
-	# 			if (
-	# 				neighbor_index.x >= 0 and neighbor_index.x < grid_border_vertices_grid.size()
-	# 				and neighbor_index.y >= 0 and neighbor_index.y < grid_border_vertices_grid[0].size()
-	# 				and grid_border_vertices_grid[neighbor_index.x][neighbor_index.y]
-	# 				and neighbor_index != (current_index - previous_direction)
-	# 			):
-	# 				# previous_direction = Vector2(di, dj)
-	# 				# current_index = neighbor_index
-	# 				found_next.append(neighbor_index)
-		
-	# 	if found_next.size() > 1:
-	# 		# ambiguous next vertex, impossible in practice.
-	# 		# Some proposals want to cut through an isolated quad.
-	# 		# We need to identify them and remove them from the list.
-	# 		for i in range(found_next.size()-1, -1, -1):
-	# 			var test_index: Vector2i = found_next[i]
-	# 			var direction: Vector2i = test_index - current_index
-	# 			var cross_axis: Vector2i = Vector2i(-1, -1)
-	# 			if direction.x != 0:
-	# 				cross_axis = Vector2i(0, 1)
-	# 			else:
-	# 				cross_axis = Vector2i(1, 0)
-
-	# 			var quad1_p1 = current_index
-	# 			var quad1_p2 = current_index + direction
-	# 			var quad1_p3 = current_index + cross_axis
-	# 			var quad1_p4 = current_index + direction + cross_axis
-	# 			# If they are all border vertices, then this is an isolated quad
-	# 			# that we are trying to cut through. We remove this option.
-	# 			if (
-	# 				grid_border_vertices_grid[quad1_p1.x][quad1_p1.y]
-	# 				and grid_border_vertices_grid[quad1_p2.x][quad1_p2.y]
-	# 				and grid_border_vertices_grid[quad1_p3.x][quad1_p3.y]
-	# 				and grid_border_vertices_grid[quad1_p4.x][quad1_p4.y]
-	# 			):
-	# 				found_next.remove_at(i)
-	# 				continue
-				
-	# 			var quad2_p1 = current_index
-	# 			var quad2_p2 = current_index + direction
-	# 			var quad2_p3 = current_index - cross_axis
-	# 			var quad2_p4 = current_index + direction - cross_axis
-	# 			if (
-	# 				grid_border_vertices_grid[quad2_p1.x][quad2_p1.y]
-	# 				and grid_border_vertices_grid[quad2_p2.x][quad2_p2.y]
-	# 				and grid_border_vertices_grid[quad2_p3.x][quad2_p3.y]
-	# 				and grid_border_vertices_grid[quad2_p4.x][quad2_p4.y]
-	# 			):
-	# 				found_next.remove_at(i)
-	# 				continue
-				
-
-
-	# 	if found_next.size() == 1:
-	# 		previous_direction = found_next[0] - current_index
-	# 		current_index = found_next[0]
-		
-
-	# 	if current_index == walk_start_index:
-	# 		ring_closed = true
-	# 	if not found_next and not ring_closed:
-	# 		push_error("Failed to walk the border of the intersection center fill grid. Aborting border fill.")
-	# 		break
-
-
-	# var convex_hull: PackedVector2Array = Geometry2D.convex_hull(grid_border_vertices)
-	# var ring_indices: Array[Vector2i] = []
-	# for p in convex_hull:
-	# 	ring_indices.append(Vector2i(int(p.x), int(p.y)))
-	# # While we can still find a point so that this point associated to two consecutive points
-	# # in the ring form a triangle that does not contain any other point, we insert it in the ring.
-	# var is_concave: bool = false
-	# while not is_concave:
-	# 	is_concave = true
-	# 	for i in range(grid_border_vertices.size()):
-	# 		var p: Vector2i = grid_border_vertices[i]
-	# 		if ring_indices.has(p):
-	# 			continue
-	# 		for j in range(ring_indices.size()):
-	# 			var next_j: int = (j + 1) % ring_indices.size()
-	# 			var a: Vector2i = ring_indices[j]
-	# 			var b: Vector2i = ring_indices[next_j]
-
-	# 			# try to avoid points on the other side of the island.
-	# 			if a.distance_to(p) > density * 1.5 and b.distance_to(p) > density * 1.5:
-	# 				continue
-
-	# 			var triangle: PackedVector2Array = PackedVector2Array([a, b, p])
-	# 			var contains_other_point: bool = false
-	# 			for k in range(grid_border_vertices.size()):
-	# 				var test_p: Vector2i = grid_border_vertices[k]
-	# 				if test_p == a or test_p == b or test_p == p:
-	# 					continue
-	# 				if Geometry2D.is_point_in_polygon(test_p, triangle):
-	# 					contains_other_point = true
-	# 					break
-	# 			if not contains_other_point:
-	# 				is_concave = false
-	# 				# insert p between a and b
-	# 				ring_indices.insert(next_j, p)
-	# 				break # Is there a more efficient way that doesn't involve restarting the whole loop?
+	
 
 	var ring_vertices_3d: Array[Vector3] = []
 	for index in ring_indices:
@@ -1409,6 +1078,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		if distance < closest_distance:
 			closest_distance = distance
 			center_border_start_index = i
+
+	#FIXME supposedly broken as-is.
 
 	# var center_border_current_index: int = center_border_start_index
 
