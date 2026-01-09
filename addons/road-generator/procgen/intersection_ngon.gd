@@ -74,7 +74,22 @@ class Edge:
 			if e.p1 == edge.p1 and e.p2 == edge.p2:
 				edges.remove_at(i) # OK as we stop the loop
 				return
-	
+
+enum IndexVertexType {
+	GRID_RING,
+	EDGE_RING
+}
+
+## Represents the vertex of the associated ring array `vertex_type`.
+## Its index associated to the ring array allows to retrieve the actual vertex position.
+## (in 2D or 3D depending of the used ring array).
+## It is the user responsibility to keep both in sync.
+class IndexVertex:
+	var vertex_type: IndexVertexType
+	var index: int
+	func _init(vertex_type: IndexVertexType, index: int) -> void:
+		self.vertex_type = vertex_type
+		self.index = index
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -803,7 +818,9 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
 		print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
 
-	
+	# HACK
+	if intersection.get_parent_node_3d().name == "Road_001":
+		return Mesh.new()
 	
 	
 	
@@ -893,13 +910,26 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	var grid_width: int = int(floor((max_x - min_x + 1) / density))
 	var grid_height: int = int(floor((max_z - min_z + 1) / density))
 
+	print(projected_center_border_vertices_2d)
+	# We inset the polygon to avoid edge cases when filling the ring hole.
+	var inset_polygons: Array[PackedVector2Array] = Geometry2D.offset_polygon(
+		projected_center_border_vertices_2d,
+		-density * 0.5
+	)
+	print("now:")
+	print(projected_center_border_vertices_2d)
+
 	for i in range(grid_width):
 		var row: Array[bool] = []
 		for j in range(grid_height):
-			var in_polygon: bool = Geometry2D.is_point_in_polygon(
-				Vector2(min_x + i * density, min_z + j * density),
-				PackedVector2Array(projected_center_border_vertices_2d)
-			)
+			var in_polygon: bool = false
+			for inset_polygon in inset_polygons:
+				if Geometry2D.is_point_in_polygon(
+					Vector2(min_x + i * density, min_z + j * density),
+					PackedVector2Array(inset_polygon)
+				):
+					in_polygon = true
+					break
 			row.append(in_polygon)
 			if in_polygon:
 				points += 1
@@ -1023,43 +1053,344 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 	
 
-	var ring_indices: Array[Vector2i] = []
+	var grid_ring_indices: Array[Vector2i] = []
 	# Reconstruct border ring from balloon edges
 	if grid_border_edges.size() > 0:
 		var start_edge: Edge = grid_border_edges[0]
-		ring_indices.append(start_edge.p1)
-		ring_indices.append(start_edge.p2)
+		grid_ring_indices.append(start_edge.p1)
+		grid_ring_indices.append(start_edge.p2)
 		Edge.array_remove_edge(grid_border_edges, start_edge)
 		var current_index: Vector2i = start_edge.p2
 		while grid_border_edges.size() > 0:
 			var found_next: bool = false
 			for e in grid_border_edges:
 				if e.p1 == current_index:
-					ring_indices.append(e.p2)
+					grid_ring_indices.append(e.p2)
 					current_index = e.p2
 					Edge.array_remove_edge(grid_border_edges, e)
 					found_next = true
 					break
 				elif e.p2 == current_index:
-					ring_indices.append(e.p1)
+					grid_ring_indices.append(e.p1)
 					current_index = e.p1
 					Edge.array_remove_edge(grid_border_edges, e)
 					found_next = true
 					break
 			if not found_next:
 				push_error("Failed to walk the border of the intersection center fill grid. Aborting border fill.")
-				push_error("Remaining balloon edges: %d" % grid_border_edges.size())
+				push_error("Remaining edges: %d" % grid_border_edges.size())
 				push_error("%s" % Edge.array_to_string(grid_border_edges))
 				break
 
 		
+	var grid_ring_vertices_2d: Array[Vector2] = []
+	for index in grid_ring_indices:
+		grid_ring_vertices_2d.append(Vector2(
+			min_x + index.x * density,
+			min_z + index.y * density
+		))
 
+	# fill the border ring to the center border vertices
+	# we walk through both arrays side by side, creating quads or triangles depending
+	# on the closest distance pairs between the current and next vertices, and their closest border vertices.
+	# We still work in 2D for simplicity.
+
+	print("border length: %d, ring length: %d" % [projected_center_border_vertices_2d.size(), grid_ring_vertices_2d.size()])
+	# _debug_add_polygon_2D(surface_tool, parent_transform, grid_ring_vertices_2d)
+	var center_border_ring_start_index: int = -1
+	var closest_distance: float = 100_000_000.0
+	for i in range(projected_center_border_vertices_2d.size()):
+		var distance: float = projected_center_border_vertices_2d[i].distance_to(grid_ring_vertices_2d[0])
+		if distance < closest_distance:
+			closest_distance = distance
+			center_border_ring_start_index = i
+
+	# Done after the closest point search to keep both arrays
+	# (grid and approximate shape) in sync. Makes it easier afterwards.
+	var approx_island_shape: Array[Vector2] = []
+	const APPROX_ISLAND_SHAPE_STEP: int = 3
+	for i in range(0, grid_ring_vertices_2d.size(), APPROX_ISLAND_SHAPE_STEP):
+		approx_island_shape.append(grid_ring_vertices_2d[(center_border_ring_start_index + i) % grid_ring_vertices_2d.size()])
+	print("Approx island shape vertices:")
+	print(approx_island_shape)
+
+
+	## every 3 vertices make a triangle
+	var index_triangles: Array[IndexVertex] = []
+
+	# grid_ring_vertices_2d.reverse()
+
+
+	var center_border_ring_current_index: int = center_border_ring_start_index
+	var grid_border_ring_current_index: int = 0
+	var ring_fill_ran_once: bool = false
+	var ring_fill_iterations: int = 0
+	const MAX_RING_FILL_ITERATIONS: int = 1_000
+	var center_ring_progress: int = 0
+	var grid_ring_progress: int = 0
+
+	while (
+		(
+			center_ring_progress < center_border_vertices.size()
+			and grid_ring_progress < grid_ring_vertices_2d.size()
+		)
+		or not ring_fill_ran_once
+	):
+		var grid_ring_current_index: int = grid_border_ring_current_index
+		var grid_ring_current: Vector2 = grid_ring_vertices_2d[grid_border_ring_current_index]
+		var grid_ring_next_index: int = (grid_border_ring_current_index + 1) % grid_ring_vertices_2d.size()
+		var grid_ring_next: Vector2 = grid_ring_vertices_2d[grid_ring_next_index]
+		var grid_ring_prior: Vector2 = grid_ring_vertices_2d[(grid_border_ring_current_index - 1 + grid_ring_vertices_2d.size()) % grid_ring_vertices_2d.size()]
+
+		var center_border_ring_current: Vector2 = projected_center_border_vertices_2d[center_border_ring_current_index]
+		var center_border_ring_next_index: int = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
+		var center_border_ring_next: Vector2 = projected_center_border_vertices_2d[center_border_ring_next_index]
+
+		var approx_shape_index: int = grid_border_ring_current_index / APPROX_ISLAND_SHAPE_STEP # integer division
+		var shape_dir: Vector2 = (
+			approx_island_shape[(approx_shape_index + 1) % approx_island_shape.size()]
+			- approx_island_shape[approx_shape_index]
+		).normalized()
+		# print("shape dir: %s" % shape_dir)
+
+		var curr_border_to_curr_ring: Vector2 = grid_ring_current - center_border_ring_current
+		var next_border_to_next_ring: Vector2 = grid_ring_next - center_border_ring_next
+		var average_quad_dir: Vector2 = (curr_border_to_curr_ring + next_border_to_next_ring).normalized()
+		var quad_alignment: float = average_quad_dir.dot(shape_dir)
+		var center_ring_late_indicator: float = (curr_border_to_curr_ring.normalized()).dot(shape_dir)
+		var aligned_with_grid_prior: bool = (grid_ring_current - grid_ring_prior).dot(grid_ring_next - grid_ring_current) > 0.25
+		
+		# print("quad alignment: %f, center ring late indicator: %f, aligned with grid prior: %s" % [quad_alignment, center_ring_late_indicator, str(aligned_with_grid_prior)])
+		if quad_alignment <= -0.8 and aligned_with_grid_prior: # more or less on sync
+			# quad
+			# Have the quad always facing the "top".
+			var center_to_grid_next: Vector2 = grid_ring_next - center_border_ring_next
+			var center_to_grid_current: Vector2 = grid_ring_current - center_border_ring_next
+			if ((center_to_grid_current).angle_to(center_to_grid_next) < 0):
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+			else:
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+
+			var grid_to_center_current: Vector2 = center_border_ring_current - grid_ring_current
+			var grid_to_center_next: Vector2 = center_border_ring_next - grid_ring_current
+			if ((grid_to_center_current).angle_to(grid_to_center_next) < 0):
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+			else:
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+
+			grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_2d.size()
+			center_border_ring_current_index = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
+			center_ring_progress += 1
+			grid_ring_progress += 1
+		elif center_ring_late_indicator < 0: # grid ring lag behind
+			# triangle
+			var center_to_grid_next: Vector2 = grid_ring_next - center_border_ring_current
+			var center_to_grid_current: Vector2 = grid_ring_current - center_border_ring_current
+			# Have the triangle always facing the "top".
+			if ((center_to_grid_current).angle_to(center_to_grid_next) > 0):
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+			else:
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_next_index,
+				))
+			grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_2d.size()
+			grid_ring_progress += 1
+		else: # center ring lag behind
+			# triangle
+			# Have the triangle always facing the "top".
+			var grid_to_center_next: Vector2 = center_border_ring_next - grid_ring_current
+			var grid_to_center_current: Vector2 = center_border_ring_current - grid_ring_current
+			if ((grid_to_center_current).angle_to(grid_to_center_next) > 0):
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+			else:
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.GRID_RING,
+					grid_ring_current_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_next_index,
+				))
+				index_triangles.append(IndexVertex.new(
+					IndexVertexType.EDGE_RING,
+					center_border_ring_current_index,
+				))
+			center_border_ring_current_index = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
+			center_ring_progress += 1
+
+		ring_fill_ran_once = true
+		ring_fill_iterations += 1
+		# print("ring fill iteration %d: center progress %d / %d, grid progress %d / %d" % [
+		# 	ring_fill_iterations,
+		# 	center_ring_progress,
+		# 	center_border_vertices.size(),
+		# 	grid_ring_progress,
+		# 	grid_ring_vertices_2d.size(),
+		# ])
+		if ring_fill_iterations >= MAX_RING_FILL_ITERATIONS:
+			push_warning("Max ring fill iterations reached (%d)." % MAX_RING_FILL_ITERATIONS)
+			break
+
+
+
+
+
+
+
+
+
+
+
+
+
+	# commit triangles
+	print("Filling border ring with %d triangles." % (index_triangles.size() / 3))
+	
+	var grid_ring_vertices_3d: Array[Vector3] = []
+	for index in grid_ring_indices:
+		grid_ring_vertices_3d.append(grid_positions_3d[int(index.x)][int(index.y)])
+	
+	print("Grid ring vertices 3D length: %d" % grid_ring_vertices_3d.size())
+	print("Center border vertices length: %d" % center_border_vertices.size())
+
+	for i in range(0, index_triangles.size(), 3):
+		var iv1: IndexVertex = index_triangles[i]
+		var iv2: IndexVertex = index_triangles[i + 1]
+		var iv3: IndexVertex = index_triangles[i + 2]
+
+		var v1: Vector3
+		var v2: Vector3
+		var v3: Vector3
+		var v1_2d: Vector2
+		var v2_2d: Vector2
+		var v3_2d: Vector2
+
+		if iv1.vertex_type == IndexVertexType.GRID_RING:
+			if iv1.index >= grid_ring_vertices_3d.size():
+				push_error("Index out of bounds accessing grid ring vertices (%d >= %d)." % [iv1.index, grid_ring_vertices_3d.size()])
+				continue
+			v1 = grid_ring_vertices_3d[iv1.index]
+			v1_2d = grid_ring_vertices_2d[iv1.index]
+		else:
+			if iv1.index >= center_border_vertices.size():
+				push_error("Index out of bounds accessing center border vertices (%d >= %d)." % [iv1.index, center_border_vertices.size()])
+				continue
+			v1 = center_border_vertices[iv1.index]
+			v1_2d = projected_center_border_vertices_2d[iv1.index]
+
+		if iv2.vertex_type == IndexVertexType.GRID_RING:
+			if iv2.index >= grid_ring_vertices_3d.size():
+				push_error("Index out of bounds accessing grid ring vertices (%d >= %d)." % [iv2.index, grid_ring_vertices_3d.size()])
+				continue
+			v2 = grid_ring_vertices_3d[iv2.index]
+			v2_2d = grid_ring_vertices_2d[iv2.index]
+		else:
+			if iv2.index >= center_border_vertices.size():
+				push_error("Index out of bounds accessing center border vertices (%d >= %d)." % [iv2.index, center_border_vertices.size()])
+				continue
+			v2 = center_border_vertices[iv2.index]
+			v2_2d = projected_center_border_vertices_2d[iv2.index]
+
+		if iv3.vertex_type == IndexVertexType.GRID_RING:
+			if iv3.index >= grid_ring_vertices_3d.size():
+				push_error("Index out of bounds accessing grid ring vertices (%d >= %d)." % [iv3.index, grid_ring_vertices_3d.size()])
+				continue
+			v3 = grid_ring_vertices_3d[iv3.index]
+			v3_2d = grid_ring_vertices_2d[iv3.index]
+		else:
+			if iv3.index >= center_border_vertices.size():
+				push_error("Index out of bounds accessing center border vertices (%d >= %d)." % [iv3.index, center_border_vertices.size()])
+				continue
+			v3 = center_border_vertices[iv3.index]
+			v3_2d = projected_center_border_vertices_2d[iv3.index]
+
+		surface_tool.add_vertex(v1 - parent_transform.origin)
+		surface_tool.add_vertex(v2 - parent_transform.origin)
+		surface_tool.add_vertex(v3 - parent_transform.origin)
+		# _debug_add_polygon_2D(surface_tool, parent_transform, [
+		# 	v1_2d,
+		# 	v2_2d,
+		# 	v3_2d,
+		# ])
 
 	
+	# TODO if no grid? -> triangle fan
 
-	var ring_vertices_3d: Array[Vector3] = []
-	for index in ring_indices:
-		ring_vertices_3d.append(grid_positions_3d[int(index.x)][int(index.y)])
 	
 	# fill the border ring to the center border vertices
 	# we walk through both arrays side by side, creating quads or triangles depending
@@ -1069,19 +1400,128 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# ring_vertices_3d.reverse()
 
 
-	print("border length: %d, ring length: %d" % [center_border_vertices.size(), ring_vertices_3d.size()])
-	_debug_add_polygon_3D(surface_tool, parent_transform, ring_vertices_3d)
-	var center_border_start_index: int = -1
-	var closest_distance: float = 100_000_000.0
-	for i in range(center_border_vertices.size()):
-		var distance: float = center_border_vertices[i].distance_to(ring_vertices_3d[0])
-		if distance < closest_distance:
-			closest_distance = distance
-			center_border_start_index = i
+
+	# print("border length: %d, ring length: %d" % [center_border_vertices.size(), grid_ring_vertices_3d.size()])
+	# _debug_add_polygon_3D(surface_tool, parent_transform, ring_vertices_3d)
+	# var center_border_ring_start_index: int = -1
+	# var closest_distance: float = 100_000_000.0
+	# for i in range(center_border_vertices.size()):
+	# 	var distance: float = center_border_vertices[i].distance_to(grid_ring_vertices_3d[0])
+	# 	if distance < closest_distance:
+	# 		closest_distance = distance
+	# 		center_border_ring_start_index = i
+
+	# # Done after the closest point search to keep both arrays
+	# # (grid and approximate shape) in sync. Makes it easier afterwards.
+	# var approx_island_shape: Array[Vector3] = []
+	# const APPROX_ISLAND_SHAPE_STEP: int = 3
+	# for i in range(0, grid_ring_vertices_3d.size(), APPROX_ISLAND_SHAPE_STEP):
+	# 	approx_island_shape.append(grid_ring_vertices_3d[(center_border_ring_start_index + i) % grid_ring_vertices_3d.size()])
+	# print("Approx island shape vertices:")
+
+	# ## Array[Array[Vector3]]
+	# var grid_up_vectors: Array[Array] = []
+	# for i in range(grid_width):
+	# 	var row: Array[Vector3] = []
+	# 	for j in range(grid_height):
+	# 		var this_pos: Vector3 = grid_positions_3d[i][j]
+	# 		var x_axis_pos: Vector3
+	# 		if i + 1 < grid_width:
+	# 			x_axis_pos = grid_positions_3d[i + 1][j]
+	# 		else:
+	# 			x_axis_pos = grid_positions_3d[i - 1][j]
+	# 		var z_axis_pos: Vector3
+	# 		if j + 1 < grid_height:
+	# 			z_axis_pos = grid_positions_3d[i][j + 1]
+	# 		else:
+	# 			z_axis_pos = grid_positions_3d[i][j - 1]
+	# 		var x_dir: Vector3 = (x_axis_pos - this_pos).normalized()
+	# 		var z_dir: Vector3 = (z_axis_pos - this_pos).normalized()
+	# 		var up_vector: Vector3 = x_dir.cross(z_dir).normalized()
+	# 		row.append(up_vector)
+	# 	grid_up_vectors.append(row)
 
 	#FIXME supposedly broken as-is.
 
-	# var center_border_current_index: int = center_border_start_index
+	# var center_border_ring_current_index: int = center_border_ring_start_index
+	# var grid_border_ring_current_index: int = 0
+	# var ring_fill_ran_once: bool = false
+	# var ring_fill_iterations: int = 0
+	# const MAX_RING_FILL_ITERATIONS: int = 1_000
+	# var center_ring_progress: int = 0
+	# var grid_ring_progress: int = 0
+
+	# while (
+	# 	center_ring_progress < center_border_vertices.size()
+	# 	or grid_ring_progress < grid_ring_vertices_3d.size()
+	# 	or not ring_fill_ran_once
+	# 	or not ring_fill_iterations > MAX_RING_FILL_ITERATIONS
+	# ):
+	# 	var grid_ring_current: Vector3 = grid_ring_vertices_3d[grid_border_ring_current_index]
+	# 	var grid_ring_next: Vector3 = grid_ring_vertices_3d[(grid_border_ring_current_index + 1) % grid_ring_vertices_3d.size()]
+	# 	var grid_ring_prior: Vector3 = grid_ring_vertices_3d[(grid_border_ring_current_index - 1 + grid_ring_vertices_3d.size()) % grid_ring_vertices_3d.size()]
+
+	# 	var center_border_ring_current: Vector3 = center_border_vertices[center_border_ring_current_index]
+	# 	var center_border_ring_next: Vector3 = center_border_vertices[(center_border_ring_current_index + 1) % center_border_vertices.size()]
+
+	# 	var approx_shape_index: int = grid_border_ring_current_index / APPROX_ISLAND_SHAPE_STEP # integer division
+	# 	var shape_dir: Vector3 = (
+	# 		approx_island_shape[(approx_shape_index + 1) % approx_island_shape.size()]
+	# 		- approx_island_shape[approx_shape_index]
+	# 	).normalized()
+	# 	_debug_add_polygon_3D(surface_tool, parent_transform, approx_island_shape)
+
+	# 	var curr_border_to_curr_ring: Vector3 = grid_ring_current - center_border_ring_current
+	# 	var next_border_to_next_ring: Vector3 = grid_ring_next - center_border_ring_next
+	# 	var average_quad_dir: Vector3 = (curr_border_to_curr_ring + next_border_to_next_ring).normalized()
+	# 	var grid_vertex: Vector2i = grid_ring_indices[grid_border_ring_current_index]
+	# 	var up_vector: Vector3 = grid_up_vectors[grid_vertex.x][grid_vertex.y]
+	# 	var shape_cross_vector_inside: Vector3 = shape_dir.cross(up_vector).normalized()
+	# 	var shape_cross_vector: Vector3 = -shape_cross_vector_inside.normalized()
+	# 	var quad_alignment: float = average_quad_dir.dot(shape_cross_vector)
+	# 	var center_ring_late_indicator: float = (next_border_to_next_ring).dot(shape_cross_vector_inside)
+	# 	var aligned_with_grid_prior: bool = (grid_ring_current - grid_ring_prior).dot(grid_ring_next - grid_ring_current) > 0.25
+	# 	# var prior_current_angle: float = (grid_ring_current - grid_ring_prior).dot(shape_dir)
+	# 	# var center_current_grid_current_angle: float = (grid_ring_current - center_border_ring_current).dot(shape_dir)
+	# 	# var quad_will_cross: bool = not aligned_with_grid_prior and center_current_grid_current_angle > prior_current_angle
+		
+	# 	if quad_alignment >= 0.8 and aligned_with_grid_prior: # more or less on sync
+	# 		# quad
+	# 		surface_tool.add_vertex(grid_ring_next - parent_transform.origin)
+	# 		surface_tool.add_vertex(grid_ring_current - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_ring_next - parent_transform.origin)
+
+	# 		surface_tool.add_vertex(center_border_ring_next - parent_transform.origin)
+	# 		surface_tool.add_vertex(grid_ring_current - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_ring_current - parent_transform.origin)
+
+	# 		grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_3d.size()
+	# 		center_border_ring_current_index = (center_border_ring_current_index + 1) % center_border_vertices.size()
+	# 		center_ring_progress += 1
+	# 		grid_ring_progress += 1
+	# 	elif center_ring_late_indicator < 0: # grid ring lag behind
+	# 		# triangle
+	# 		surface_tool.add_vertex(grid_ring_next - parent_transform.origin)
+	# 		surface_tool.add_vertex(grid_ring_current - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_ring_current - parent_transform.origin)
+
+	# 		grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_3d.size()
+	# 		grid_ring_progress += 1
+	# 	else: # center ring lag behind
+	# 		# triangle
+	# 		surface_tool.add_vertex(center_border_ring_next - parent_transform.origin)
+	# 		surface_tool.add_vertex(grid_ring_current - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_ring_current - parent_transform.origin)
+
+	# 		center_border_ring_current_index = (center_border_ring_current_index + 1) % center_border_vertices.size()
+	# 		center_ring_progress += 1
+	# 	ring_fill_ran_once = true
+	# 	ring_fill_iterations += 1
+	# 	if ring_fill_iterations >= MAX_RING_FILL_ITERATIONS:
+	# 		push_error("Max ring fill iterations reached (%d). Aborting border fill." % MAX_RING_FILL_ITERATIONS)
+	# 		break
+			
+
 
 	# for i in range(ring_vertices_3d.size()):
 	# 	var ring_current: Vector3 = ring_vertices_3d[i]
@@ -1133,28 +1573,26 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 	# 		center_border_current_index = center_border_next_index
 	# 		continue
+	# 	# HACK cut half way
+	# 	if i > 10:
+	# 		break
 
+	if center_border_ring_current_index != center_border_ring_start_index:
+		push_warning("Border ring fill incomplete, filling the gap with a triangle fan.")
+		# A gap is left, fill it with a triangle fan where the center is
+		# the last next ring vertex (i.e. index 0).
+		var last_ring_vertex: Vector3 = grid_ring_vertices_3d[0]
+		while center_border_ring_current_index != center_border_ring_start_index:
+			var center_border_current: Vector3 = center_border_vertices[center_border_ring_current_index]
+			var center_border_next_index: int = (center_border_ring_current_index + 1) % center_border_vertices.size()
+			var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
 
-	# # TODO if no grid? -> triangle fan
-	# # 	# HACK cut half way
-	# # 	if i > 10:
-	# # 		break
+			# triangle
+			surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
+			surface_tool.add_vertex(center_border_current - parent_transform.origin)
+			surface_tool.add_vertex(center_border_next - parent_transform.origin)
 
-	# if center_border_current_index != center_border_start_index:
-	# 	# A gap is left, fill it with a triangle fan where the center is
-	# 	# the last next ring vertex (i.e. index 0).
-	# 	var last_ring_vertex: Vector3 = ring_vertices_3d[0]
-	# 	while center_border_current_index != center_border_start_index:
-	# 		var center_border_current: Vector3 = center_border_vertices[center_border_current_index]
-	# 		var center_border_next_index: int = (center_border_current_index + 1) % center_border_vertices.size()
-	# 		var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
-
-	# 		# triangle
-	# 		surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
-	# 		surface_tool.add_vertex(center_border_current - parent_transform.origin)
-	# 		surface_tool.add_vertex(center_border_next - parent_transform.origin)
-
-	# 		center_border_current_index = center_border_next_index
+			center_border_ring_current_index = center_border_next_index
 
 
 
