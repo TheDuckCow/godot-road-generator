@@ -818,9 +818,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
 		print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
 
-	# HACK
-	if intersection.get_parent_node_3d().name == "Road_001":
-		return Mesh.new()
+
 	
 	
 	
@@ -1108,7 +1106,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# Done after the closest point search to keep both arrays
 	# (grid and approximate shape) in sync. Makes it easier afterwards.
 	var approx_island_shape: Array[Vector2] = []
-	const APPROX_ISLAND_SHAPE_STEP: int = 3
+	const APPROX_ISLAND_SHAPE_STEP: int = 5
 	for i in range(0, grid_ring_vertices_2d.size(), APPROX_ISLAND_SHAPE_STEP):
 		approx_island_shape.append(grid_ring_vertices_2d[(center_border_ring_start_index + i) % grid_ring_vertices_2d.size()])
 	print("Approx island shape vertices:")
@@ -1155,13 +1153,68 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 		var curr_border_to_curr_ring: Vector2 = grid_ring_current - center_border_ring_current
 		var next_border_to_next_ring: Vector2 = grid_ring_next - center_border_ring_next
+		var curr_border_to_next_ring: Vector2 = grid_ring_next - center_border_ring_current
+		var next_border_to_curr_ring: Vector2 = grid_ring_current - center_border_ring_next
 		var average_quad_dir: Vector2 = (curr_border_to_curr_ring + next_border_to_next_ring).normalized()
 		var quad_alignment: float = average_quad_dir.dot(shape_dir)
 		var center_ring_late_indicator: float = (curr_border_to_curr_ring.normalized()).dot(shape_dir)
 		var aligned_with_grid_prior: bool = (grid_ring_current - grid_ring_prior).dot(grid_ring_next - grid_ring_current) > 0.25
 		
+		## Array[Vector2 | null]
+		var curr_border_curr_grid_intersections: Array[Variant] = []
+		## Array[Vector2 | null]
+		var curr_border_next_grid_intersections: Array[Variant] = []
+		## Array[Vector2 | null]
+		var next_border_curr_grid_intersections: Array[Variant] = []
+		## Array[Vector2 | null]
+		var next_border_next_grid_intersections: Array[Variant] = []
+		#FIXME can still cross edge border.
+		for i in range(grid_ring_vertices_2d.size()):
+			var next_i: int = (i + 1) % grid_ring_vertices_2d.size()
+			var edge_start: Vector2 = grid_ring_vertices_2d[i]
+			var edge_end: Vector2 = grid_ring_vertices_2d[next_i]
+
+			if (edge_start != grid_ring_current and edge_end != grid_ring_current):
+				curr_border_curr_grid_intersections.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_current,
+					grid_ring_current,
+					edge_start,
+					edge_end
+				))
+				next_border_curr_grid_intersections.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_next,
+					grid_ring_current,
+					edge_start,
+					edge_end
+				))
+			if (edge_start != grid_ring_next and edge_end != grid_ring_next):
+				curr_border_next_grid_intersections.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_current,
+					grid_ring_next,
+					edge_start,
+					edge_end
+				))
+				next_border_next_grid_intersections.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_next,
+					grid_ring_next,
+					edge_start,
+					edge_end
+				))
+		var curr_border_curr_grid_crossing: bool = curr_border_curr_grid_intersections.any(func(v): return v != null)
+		var curr_border_next_grid_crossing: bool = curr_border_next_grid_intersections.any(func(v): return v != null)
+		var next_border_curr_grid_crossing: bool = next_border_curr_grid_intersections.any(func(v): return v != null)
+		var next_border_next_grid_crossing: bool = next_border_next_grid_intersections.any(func(v): return v != null)
+
+
+		
 		# print("quad alignment: %f, center ring late indicator: %f, aligned with grid prior: %s" % [quad_alignment, center_ring_late_indicator, str(aligned_with_grid_prior)])
-		if quad_alignment <= -0.8 and aligned_with_grid_prior: # more or less on sync
+		if (
+			quad_alignment <= -0.5 # 0 = flat, -1 = perfect 90 deg 
+			and aligned_with_grid_prior
+			and not curr_border_curr_grid_crossing
+			and not next_border_next_grid_crossing
+			and not next_border_curr_grid_crossing
+		): # more or less on sync
 			# quad
 			# Have the quad always facing the "top".
 			var center_to_grid_next: Vector2 = grid_ring_next - center_border_ring_next
@@ -1226,72 +1279,86 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			center_border_ring_current_index = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
 			center_ring_progress += 1
 			grid_ring_progress += 1
-		elif center_ring_late_indicator < 0: # grid ring lag behind
-			# triangle
-			var center_to_grid_next: Vector2 = grid_ring_next - center_border_ring_current
-			var center_to_grid_current: Vector2 = grid_ring_current - center_border_ring_current
-			# Have the triangle always facing the "top".
-			if ((center_to_grid_current).angle_to(center_to_grid_next) > 0):
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_next_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_current_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_current_index,
-				))
+		else:
+			var grid_triangle_possible: bool = (
+				not curr_border_curr_grid_crossing
+				and not curr_border_next_grid_crossing
+			)
+			var border_triangle_possible: bool = (
+				not curr_border_curr_grid_crossing
+				and not next_border_curr_grid_crossing
+			)
+			var grid_ring_lag_behind: bool = center_ring_late_indicator < 0
+				
+			if (grid_ring_lag_behind and grid_triangle_possible) or not border_triangle_possible: # grid ring lag behind
+				# triangle
+				var center_to_grid_next: Vector2 = grid_ring_next - center_border_ring_current
+				var center_to_grid_current: Vector2 = grid_ring_current - center_border_ring_current
+				# Have the triangle always facing the "top".
+				if ((center_to_grid_current).angle_to(center_to_grid_next) > 0):
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_next_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_current_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_current_index,
+					))
+				else:
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_current_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_current_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_next_index,
+					))
+				grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_2d.size()
+				grid_ring_progress += 1
+			elif border_triangle_possible: # center ring lag behind
+				# triangle
+				# Have the triangle always facing the "top".
+				var grid_to_center_next: Vector2 = center_border_ring_next - grid_ring_current
+				var grid_to_center_current: Vector2 = center_border_ring_current - grid_ring_current
+				if ((grid_to_center_current).angle_to(grid_to_center_next) > 0):
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_current_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_next_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_current_index,
+					))
+				else:
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.GRID_RING,
+						grid_ring_current_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_next_index,
+					))
+					index_triangles.append(IndexVertex.new(
+						IndexVertexType.EDGE_RING,
+						center_border_ring_current_index,
+					))
+				center_border_ring_current_index = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
+				center_ring_progress += 1
 			else:
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_current_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_current_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_next_index,
-				))
-			grid_border_ring_current_index = (grid_border_ring_current_index + 1) % grid_ring_vertices_2d.size()
-			grid_ring_progress += 1
-		else: # center ring lag behind
-			# triangle
-			# Have the triangle always facing the "top".
-			var grid_to_center_next: Vector2 = center_border_ring_next - grid_ring_current
-			var grid_to_center_current: Vector2 = center_border_ring_current - grid_ring_current
-			if ((grid_to_center_current).angle_to(grid_to_center_next) > 0):
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_current_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_next_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_current_index,
-				))
-			else:
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.GRID_RING,
-					grid_ring_current_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_next_index,
-				))
-				index_triangles.append(IndexVertex.new(
-					IndexVertexType.EDGE_RING,
-					center_border_ring_current_index,
-				))
-			center_border_ring_current_index = (center_border_ring_current_index + 1) % projected_center_border_vertices_2d.size()
-			center_ring_progress += 1
+				push_error("Failed to decide on triangle/quad for ring fill. Aborting.")
+				break
 
 		ring_fill_ran_once = true
 		ring_fill_iterations += 1
@@ -1389,7 +1456,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		# ])
 
 	
-	# TODO if no grid? -> triangle fan
+	# FIXME if no grid? -> triangle fan
 
 	
 	# fill the border ring to the center border vertices
@@ -1577,22 +1644,22 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# 	if i > 10:
 	# 		break
 
-	if center_border_ring_current_index != center_border_ring_start_index:
-		push_warning("Border ring fill incomplete, filling the gap with a triangle fan.")
-		# A gap is left, fill it with a triangle fan where the center is
-		# the last next ring vertex (i.e. index 0).
-		var last_ring_vertex: Vector3 = grid_ring_vertices_3d[0]
-		while center_border_ring_current_index != center_border_ring_start_index:
-			var center_border_current: Vector3 = center_border_vertices[center_border_ring_current_index]
-			var center_border_next_index: int = (center_border_ring_current_index + 1) % center_border_vertices.size()
-			var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
+	# if center_border_ring_current_index != center_border_ring_start_index:
+	# 	push_warning("Border ring fill incomplete, filling the gap with a triangle fan.")
+	# 	# A gap is left, fill it with a triangle fan where the center is
+	# 	# the last next ring vertex (i.e. index 0).
+	# 	var last_ring_vertex: Vector3 = grid_ring_vertices_3d[0]
+	# 	while center_border_ring_current_index != center_border_ring_start_index:
+	# 		var center_border_current: Vector3 = center_border_vertices[center_border_ring_current_index]
+	# 		var center_border_next_index: int = (center_border_ring_current_index + 1) % center_border_vertices.size()
+	# 		var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
 
-			# triangle
-			surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
-			surface_tool.add_vertex(center_border_current - parent_transform.origin)
-			surface_tool.add_vertex(center_border_next - parent_transform.origin)
+	# 		# triangle
+	# 		surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_current - parent_transform.origin)
+	# 		surface_tool.add_vertex(center_border_next - parent_transform.origin)
 
-			center_border_ring_current_index = center_border_next_index
+	# 		center_border_ring_current_index = center_border_next_index
 
 
 
