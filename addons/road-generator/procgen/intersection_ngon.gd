@@ -1713,22 +1713,22 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# 	if i > 10:
 	# 		break
 
-	# if center_border_ring_current_index != center_border_ring_start_index:
-	# 	push_warning("Border ring fill incomplete, filling the gap with a triangle fan.")
-	# 	# A gap is left, fill it with a triangle fan where the center is
-	# 	# the last next ring vertex (i.e. index 0).
-	# 	var last_ring_vertex: Vector3 = grid_ring_vertices_3d[0]
-	# 	while center_border_ring_current_index != center_border_ring_start_index:
-	# 		var center_border_current: Vector3 = center_border_vertices[center_border_ring_current_index]
-	# 		var center_border_next_index: int = (center_border_ring_current_index + 1) % center_border_vertices.size()
-	# 		var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
+	if center_border_ring_current_index != center_border_ring_start_index:
+		push_warning("Border ring fill incomplete, filling the gap with a triangle fan.")
+		# A gap is left, fill it with a triangle fan where the center is
+		# the last next ring vertex (i.e. index 0).
+		var last_ring_vertex: Vector3 = grid_ring_vertices_3d[0]
+		while center_border_ring_current_index != center_border_ring_start_index:
+			var center_border_current: Vector3 = center_border_vertices[center_border_ring_current_index]
+			var center_border_next_index: int = (center_border_ring_current_index + 1) % center_border_vertices.size()
+			var center_border_next: Vector3 = center_border_vertices[center_border_next_index]
 
-	# 		# triangle
-	# 		surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
-	# 		surface_tool.add_vertex(center_border_current - parent_transform.origin)
-	# 		surface_tool.add_vertex(center_border_next - parent_transform.origin)
+			# triangle
+			surface_tool.add_vertex(last_ring_vertex - parent_transform.origin)
+			surface_tool.add_vertex(center_border_current - parent_transform.origin)
+			surface_tool.add_vertex(center_border_next - parent_transform.origin)
 
-	# 		center_border_ring_current_index = center_border_next_index
+			center_border_ring_current_index = center_border_next_index
 
 
 
