@@ -912,7 +912,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# We inset the polygon to avoid edge cases when filling the ring hole.
 	var inset_polygons: Array[PackedVector2Array] = Geometry2D.offset_polygon(
 		projected_center_border_vertices_2d,
-		-density * 0.5
+		-density * 0.5,
 	)
 	print("now:")
 	print(projected_center_border_vertices_2d)
@@ -1161,59 +1161,118 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		var aligned_with_grid_prior: bool = (grid_ring_current - grid_ring_prior).dot(grid_ring_next - grid_ring_current) > 0.25
 		
 		## Array[Vector2 | null]
-		var curr_border_curr_grid_intersections: Array[Variant] = []
+		var curr_border_curr_grid_intersections_grid: Array[Variant] = []
 		## Array[Vector2 | null]
-		var curr_border_next_grid_intersections: Array[Variant] = []
+		var curr_border_next_grid_intersections_grid: Array[Variant] = []
 		## Array[Vector2 | null]
-		var next_border_curr_grid_intersections: Array[Variant] = []
+		var next_border_curr_grid_intersections_grid: Array[Variant] = []
 		## Array[Vector2 | null]
-		var next_border_next_grid_intersections: Array[Variant] = []
-		#FIXME can still cross edge border.
+		var next_border_next_grid_intersections_grid: Array[Variant] = []
 		for i in range(grid_ring_vertices_2d.size()):
 			var next_i: int = (i + 1) % grid_ring_vertices_2d.size()
 			var edge_start: Vector2 = grid_ring_vertices_2d[i]
 			var edge_end: Vector2 = grid_ring_vertices_2d[next_i]
 
 			if (edge_start != grid_ring_current and edge_end != grid_ring_current):
-				curr_border_curr_grid_intersections.append(Geometry2D.segment_intersects_segment(
+				curr_border_curr_grid_intersections_grid.append(Geometry2D.segment_intersects_segment(
 					center_border_ring_current,
 					grid_ring_current,
 					edge_start,
 					edge_end
 				))
-				next_border_curr_grid_intersections.append(Geometry2D.segment_intersects_segment(
+				next_border_curr_grid_intersections_grid.append(Geometry2D.segment_intersects_segment(
 					center_border_ring_next,
 					grid_ring_current,
 					edge_start,
 					edge_end
 				))
 			if (edge_start != grid_ring_next and edge_end != grid_ring_next):
-				curr_border_next_grid_intersections.append(Geometry2D.segment_intersects_segment(
+				curr_border_next_grid_intersections_grid.append(Geometry2D.segment_intersects_segment(
 					center_border_ring_current,
 					grid_ring_next,
 					edge_start,
 					edge_end
 				))
-				next_border_next_grid_intersections.append(Geometry2D.segment_intersects_segment(
+				next_border_next_grid_intersections_grid.append(Geometry2D.segment_intersects_segment(
 					center_border_ring_next,
 					grid_ring_next,
 					edge_start,
 					edge_end
 				))
-		var curr_border_curr_grid_crossing: bool = curr_border_curr_grid_intersections.any(func(v): return v != null)
-		var curr_border_next_grid_crossing: bool = curr_border_next_grid_intersections.any(func(v): return v != null)
-		var next_border_curr_grid_crossing: bool = next_border_curr_grid_intersections.any(func(v): return v != null)
-		var next_border_next_grid_crossing: bool = next_border_next_grid_intersections.any(func(v): return v != null)
+		## Array[Vector2 | null]
+		var curr_border_curr_grid_intersections_edge: Array[Variant] = []
+		## Array[Vector2 | null]
+		var curr_border_next_grid_intersections_edge: Array[Variant] = []
+		## Array[Vector2 | null]
+		var next_border_curr_grid_intersections_edge: Array[Variant] = []
+		## Array[Vector2 | null]
+		var next_border_next_grid_intersections_edge: Array[Variant] = []
 
+		for i in range(projected_center_border_vertices_2d.size()):
+			var next_i: int = (i + 1) % projected_center_border_vertices_2d.size()
+			var edge_start: Vector2 = projected_center_border_vertices_2d[i]
+			var edge_end: Vector2 = projected_center_border_vertices_2d[next_i]
 
-		
+			if (edge_start != center_border_ring_current and edge_end != center_border_ring_current):
+				curr_border_curr_grid_intersections_edge.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_current,
+					grid_ring_current,
+					edge_start,
+					edge_end
+				))
+				curr_border_next_grid_intersections_edge.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_current,
+					grid_ring_next,
+					edge_start,
+					edge_end
+				))
+			if (edge_start != center_border_ring_next and edge_end != center_border_ring_next):
+				next_border_curr_grid_intersections_edge.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_next,
+					grid_ring_current,
+					edge_start,
+					edge_end
+				))
+				next_border_next_grid_intersections_edge.append(Geometry2D.segment_intersects_segment(
+					center_border_ring_next,
+					grid_ring_next,
+					edge_start,
+					edge_end
+				))
+		var curr_border_curr_grid_crossing_grid: bool = curr_border_curr_grid_intersections_grid.any(func(v): return v != null)
+		var curr_border_next_grid_crossing_grid: bool = curr_border_next_grid_intersections_grid.any(func(v): return v != null)
+		var next_border_curr_grid_crossing_grid: bool = next_border_curr_grid_intersections_grid.any(func(v): return v != null)
+		var next_border_next_grid_crossing_grid: bool = next_border_next_grid_intersections_grid.any(func(v): return v != null)
+
+		var curr_border_curr_grid_crossing_edge: bool = curr_border_curr_grid_intersections_edge.any(func(v): return v != null)
+		var curr_border_next_grid_crossing_edge: bool = curr_border_next_grid_intersections_edge.any(func(v): return v != null)
+		var next_border_curr_grid_crossing_edge: bool = next_border_curr_grid_intersections_edge.any(func(v): return v != null)
+		var next_border_next_grid_crossing_edge: bool = next_border_next_grid_intersections_edge.any(func(v): return v != null)
+
+		# print("Iteration %d:" % ring_fill_iterations)
+		# print("  grid intersections: curr/curr: %s, curr/next: %s, next/curr: %s, next/next: %s" % [
+		# 	str(curr_border_curr_grid_crossing_grid),
+		# 	str(curr_border_next_grid_crossing_grid),
+		# 	str(next_border_curr_grid_crossing_grid),
+		# 	str(next_border_next_grid_crossing_grid),
+		# ])
+		# print("  edge intersections: curr/curr: %s, curr/next: %s, next/curr: %s, next/next: %s" % [
+		# 	str(curr_border_curr_grid_crossing_edge),
+		# 	str(curr_border_next_grid_crossing_edge),
+		# 	str(next_border_curr_grid_crossing_edge),
+		# 	str(next_border_next_grid_crossing_edge),
+		# ])
+
 		# print("quad alignment: %f, center ring late indicator: %f, aligned with grid prior: %s" % [quad_alignment, center_ring_late_indicator, str(aligned_with_grid_prior)])
 		if (
 			quad_alignment <= -0.5 # 0 = flat, -1 = perfect 90 deg 
 			and aligned_with_grid_prior
-			and not curr_border_curr_grid_crossing
-			and not next_border_next_grid_crossing
-			and not next_border_curr_grid_crossing
+			and not curr_border_curr_grid_crossing_grid
+			and not next_border_next_grid_crossing_grid
+			and not next_border_curr_grid_crossing_grid
+			and not curr_border_curr_grid_crossing_edge
+			and not next_border_next_grid_crossing_edge
+			and not next_border_curr_grid_crossing_edge
 		): # more or less on sync
 			# quad
 			# Have the quad always facing the "top".
@@ -1281,14 +1340,24 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			grid_ring_progress += 1
 		else:
 			var grid_triangle_possible: bool = (
-				not curr_border_curr_grid_crossing
-				and not curr_border_next_grid_crossing
+				not curr_border_curr_grid_crossing_grid
+				and not curr_border_next_grid_crossing_grid
+				and not curr_border_curr_grid_crossing_edge
+				and not curr_border_next_grid_crossing_edge
 			)
 			var border_triangle_possible: bool = (
-				not curr_border_curr_grid_crossing
-				and not next_border_curr_grid_crossing
+				not curr_border_curr_grid_crossing_grid
+				and not next_border_curr_grid_crossing_grid
+				and not curr_border_curr_grid_crossing_edge
+				and not next_border_curr_grid_crossing_edge
 			)
 			var grid_ring_lag_behind: bool = center_ring_late_indicator < 0
+			if not grid_triangle_possible and not border_triangle_possible:
+				push_warning("No triangle possible this iteration (%d), forcing triangle based on lag." % ring_fill_iterations)
+				if grid_ring_lag_behind:
+					grid_triangle_possible = true
+				else:
+					border_triangle_possible = true
 				
 			if (grid_ring_lag_behind and grid_triangle_possible) or not border_triangle_possible: # grid ring lag behind
 				# triangle
@@ -1677,7 +1746,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	return mesh
 
 func _debug_add_grid_mesh(grid: Array[Array], surface_tool: SurfaceTool, parent_transform: Transform3D, min_x: int, min_z: int, density: float) -> void:
-	print("Debugging grid mesh:")
+	# print("Debugging grid mesh:")
 	var origin: Vector3 = parent_transform.origin
 	var basis_x: Vector3 = parent_transform.basis.x.normalized()
 	var basis_z: Vector3 = parent_transform.basis.z.normalized()
@@ -1703,7 +1772,7 @@ func _debug_add_grid_mesh(grid: Array[Array], surface_tool: SurfaceTool, parent_
 
 
 func _debug_add_polygon_3D(surface_tool: SurfaceTool, parent_transform: Transform3D, polygon: Array[Vector3]) -> void:
-	print("Debugging triangulated polygon mesh:")
+	# print("Debugging triangulated polygon mesh:")
 	for i in range(polygon.size()):
 		var current_point: Vector3 = polygon[i]
 		var next_point: Vector3 = polygon[(i + 1) % polygon.size()]
@@ -1727,7 +1796,7 @@ func _debug_add_polygon_3D(surface_tool: SurfaceTool, parent_transform: Transfor
 
 ## draw quad lines for the polygon
 func _debug_add_polygon_2D(surface_tool: SurfaceTool, parent_transform: Transform3D, polygon: Array[Vector2]) -> void:
-	print("Debugging triangulated polygon mesh:")
+	# print("Debugging triangulated polygon mesh:")
 	var basis_x: Vector3 = parent_transform.basis.x.normalized()
 	var basis_z: Vector3 = parent_transform.basis.z.normalized()
 	var origin: Vector3 = parent_transform.origin
