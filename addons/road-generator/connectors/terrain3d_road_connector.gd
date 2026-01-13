@@ -207,6 +207,27 @@ func get_road_width(point: RoadPoint) -> float:
 	)
 
 
+func _flatten_curve(curve: Curve3D, normalization_value: float):
+	if is_zero_approx(normalization_value):
+		push_error("Division by zero imminent, curve flattening aborted")
+		return
+		
+	for i in range(curve.point_count):
+		var pos:Vector3 = curve.get_point_position(i)
+		var pos_in:Vector3 = curve.get_point_in(i)
+		var pos_out:Vector3 = curve.get_point_out(i)
+		
+		# Instead of setting pos.y to 0 we divide it by a large enough value so that it becomes effectively flat
+		# This is necessary so we can retrieve the height at a later point. 
+		pos.y /= normalization_value 
+		pos_in.y = 0
+		pos_out.y = 0
+		
+		curve.set_point_position(i,pos)
+		curve.set_point_in(i,pos_in)
+		curve.set_point_out(i,pos_out)
+
+
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	if not is_instance_valid(segment):
 		return
@@ -223,7 +244,15 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	var start_width: float = get_road_width(segment.start_point)
 	var end_width: float = get_road_width(segment.end_point)
 	var vertex_spacing: float = terrain.vertex_spacing
-
+	
+	# Creat the flattened version of the curve. 
+	# Check out the following Issue for more information why this is necessary: https://github.com/TheDuckCow/godot-road-generator/issues/322
+	var flattened_curve: Curve3D = curve.duplicate(true)
+	# The normalization factor is picked arbitrary here. The steeper the road, the bigger this value needs to be
+	# Values that are too big can cause issues because of float accuracy, too small causes the terrain height to be wrong
+	var normalization_factor:float = 10000
+	_flatten_curve(flattened_curve,normalization_factor)
+	
 	# Get global bounding box from mesh, expanded by affected smoothing radius
 	var offsets := Vector3(edge_margin+edge_falloff, 0, edge_margin+edge_falloff)
 	var aabb: AABB = segment.road_mesh.global_transform * segment.road_mesh.get_aabb()
@@ -243,8 +272,9 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			var world_pos := Vector3(x, 0.0, z)
 			var local_pos := world_to_local * world_pos
 
-			var closest_distance := curve.get_closest_offset(local_pos)
-			var curve_point := curve.sample_baked(closest_distance)
+			var closest_distance := flattened_curve.get_closest_offset(local_pos)
+			var curve_point := flattened_curve.sample_baked(closest_distance)
+			curve_point.y *= normalization_factor
 			var world_curve_point := segment.global_transform * curve_point
 
 			# Check if we are beyond the egde of this RoadSegment, and thus
@@ -255,7 +285,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				if zdist > vertex_spacing:
 					z += vertex_spacing
 					continue
-			if closest_distance == curve.get_baked_length():
+			if closest_distance == flattened_curve.get_baked_length():
 				var _offset = world_pos - segment.end_point.global_position # check this, also if can be flipped..???
 				var zdist:float = abs(segment.end_point.global_transform.basis.z.dot(_offset))
 				if zdist > vertex_spacing:
@@ -269,7 +299,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			
 			var lateral_vector := world_pos - Vector3(world_curve_point.x, 0.0, world_curve_point.z)
 
-			var t := clamp(closest_distance / curve.get_baked_length(), 0.0, 1.0)
+			var t := clamp(closest_distance / flattened_curve.get_baked_length(), 0.0, 1.0)
 			# Note: this will not be exact as it's not actually linear, as there
 			# is some ease/smoothing done for lane count / width changes
 			# TODO: Need to account for RoadPoint alignment, right now assumes CENTERED
