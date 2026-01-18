@@ -278,60 +278,6 @@ func set_selection_list(nodes: Array) -> void:
 		_edi.edit_node(_nd)
 
 
-## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
-##
-## Takes in a previously already determined raycast intersection that must have
-## been identified in a physics_process call (result can be empty).
-func get_nearest_graph_node(intersect: Dictionary) -> RoadGraphNode:
-	if intersect.is_empty():
-		return null
-
-	var collider = intersect["collider"]
-	var position = intersect["position"]
-	if collider.name.begins_with("road_mesh_col"):
-		# Native RoadSegment - so there's just two RP's to choose between
-		# Return the closest RoadPoint
-		var road_segment: RoadSegment = collider.get_parent().get_parent()
-		var start_point: RoadPoint = road_segment.start_point
-		var end_point: RoadPoint = road_segment.end_point
-		var nearest_point: RoadPoint
-		var dist_to_start = start_point.global_position.distance_to(position)
-		var dist_to_end = end_point.global_position.distance_to(position)
-		if dist_to_start > dist_to_end:
-			nearest_point = end_point
-		else:
-			nearest_point = start_point
-		return nearest_point
-	elif collider.name.begins_with("intersection_mesh_col"):
-		var intersection: RoadIntersection = collider.get_parent().get_parent()
-		return intersection
-	else:
-		# Might be a custom RoadContainer.
-		# static body collider could be child or grandchild
-		var check_par = collider.get_parent()
-		if not check_par is RoadContainer:
-			check_par = check_par.get_parent()
-			if not check_par is RoadContainer:
-				check_par = check_par.get_parent()
-				if not check_par is RoadContainer:
-					return null
-		var par_rc:RoadContainer = check_par
-		par_rc.update_edges()
-		var nearest_point: RoadPoint
-		var nearest_dist: float
-		for idx in len(par_rc.edge_rp_locals):
-			var edge: RoadPoint = par_rc.get_node_or_null(par_rc.edge_rp_locals[idx])
-			if not is_instance_valid(edge):
-				continue
-			var edge_dist: float = edge.global_position.distance_to(position)
-			if not is_instance_valid(nearest_point) or edge_dist < nearest_dist:
-				nearest_point = edge
-				nearest_dist = edge_dist
-		if not is_instance_valid(nearest_point):
-			return null
-		return nearest_point
-
-
 ## Get the nearest edge RoadPoint for the given container
 func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mouse_pos: Vector2):
 	if _edi_debug:
@@ -356,68 +302,6 @@ func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mou
 			closest_dist = this_dist
 			closest_rp = rp
 	return closest_rp
-
-
-## Convert a given click to the nearest, best fitting 3d pos + normal for click.
-##
-## Includes selection node so that if there's no intersection made, we can still
-## raycast onto the xz  or screen xy local plane of the object clicked on.
-##
-## Returns: [Position, Normal]
-func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mouse_nrm: Vector3, camera: Camera3D, selection: Node) -> Array:
-	# Unfortunately, must have collide with areas off. And this doesn't pick
-	# up collisions with objects that don't have collisions already added, making
-	# it not as convinient for viewport manipulation.
-
-	if not intersect.is_empty():
-		return [intersect["position"], intersect["normal"]]
-
-	# if we couldn't directly intersect with something, then place the next
-	# point in the same plane as the initial selection which is also facing
-	# the camera, or in the plane of that object's
-
-	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
-
-	# Points used to define offset used to construct a valid Plane
-	var point_y_offset:Vector3
-	var point_x_offset:Vector3
-
-	if use_obj_plane:
-		# Stick within the current selection's xy plane
-		point_y_offset = selection.global_transform.basis.z
-		point_x_offset = selection.global_transform.basis.x
-	else:
-		# Use the camera plane instead
-		point_y_offset = camera.global_transform.basis.y
-		point_x_offset = camera.global_transform.basis.x
-
-	# the normal is the camera.global_transform.basis.z
-	# the reference position is selection.global_transform.origin
-	# which already defines the plane in quesiton.
-	var plane_nrm = -camera.global_transform.basis.z
-	var ref_pt = selection.global_transform.origin
-	var plane = Plane(
-		ref_pt,
-		ref_pt + point_y_offset,
-		ref_pt + point_x_offset)
-
-	var hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
-	var up = selection.global_transform.basis.y
-
-	if hit_pt == null:
-		point_y_offset = camera.global_transform.basis.y
-		point_x_offset = camera.global_transform.basis.x
-		plane = Plane(
-			ref_pt,
-			ref_pt + point_y_offset,
-			ref_pt + point_x_offset)
-		hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
-		up = selection.global_transform.basis.y
-
-	# TODO: Finally, detect if the point is behind or in front;
-	# if behind, then skip action.
-
-	return [hit_pt, up]
 
 
 func _handles(object: Object):
@@ -616,7 +500,6 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 			_sel = parent
 		else:
 			_sel = selection
-
 			var road_width = _sel.lane_width * len(_sel.lanes)
 			var dist:float = pos.distance_to(_sel.global_transform.origin) / 2.0
 			handle_mag = max(road_width, dist)
@@ -926,27 +809,11 @@ func _connect_rp_on_click(rp_a, rp_b):
 	undo_redo.commit_action()
 
 
-func _unsnap_container_future(selected:RoadContainer):
-	# TODO: this poses a problem actually, as the unsnapp now happens cleanly after the transform
-	# (UI drag) has completed. For snapping this is good, as snapping takes place at the end,
-	# but here we actually want the snapping to happen immediately
-	if not selected is RoadContainer:
-		push_warning("_unsnap_container_future should have been called with RoadContainer")
-		return
-	var res = selected.connect("on_transform", Callable(self, "_call_disconnect_rp_on_click"))
-	assert(res == OK)
-
-
-func _call_disconnect_rp_on_click(selected:RoadContainer):
-	selected.disconnect("on_transform", Callable(self, "_call_disconnect_rp_on_click"))
-	selected._drag_source_rp = null
-	selected._drag_target_rp = null
-	# For simplicity, this will disconnect all parts of the RoadContainer
-	for edge in selected.get_connected_edges():
-		_disconnect_rp_on_click(edge[1], edge[0])
-
-
-func _disconnect_rp_on_click(rp_a, rp_b):
+## Action to disconnect a RoadPoint
+##
+## init_trans provides the undo position to assign to the rp_b if relevant, such
+## as when disconnected a RoadContainer via unsnapping.
+func _disconnect_rp_on_click(rp_a, rp_b, init_trans: Array[Transform3D] = []):
 	var undo_redo = get_undo_redo()
 	if not rp_a is RoadPoint or not rp_b is RoadPoint:
 		push_error("Cannot connect non-roadpoints")
@@ -981,69 +848,6 @@ func _disconnect_rp_on_click(rp_a, rp_b):
 	else:
 		undo_redo.add_do_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
 		undo_redo.add_undo_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
-	undo_redo.commit_action()
-
-
-## When the interface is running and we realize we are about to perform a snap,
-## we can't perform the action right away as then it would happen before the
-## internal move action completes (and thus, someone who does control-Z would see
-## the container move back but not realize it hasn't undone the connection step
-## yet). So, we want to wait until after transform has been fired, then
-## in the container check if these meta props are assigned, and THEN we can
-## call the function there via a signal callback back to plugin
-func _snap_to_road_point_future(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPoint, is_cancelling:bool):
-	if is_cancelling:
-		# If canceling, no undo/redo stack to worry about, so just move
-		# directly (is there a consequence for that?)
-		_snap_to_road_point(selected, sel_rp, tgt_rp, is_cancelling)
-		return
-
-	# selected._drag_init_transform # already be assigned
-	selected._drag_source_rp = sel_rp
-	selected._drag_target_rp = tgt_rp
-
-	# Signal will be called after the transform action has completed, then auto disconnect this
-	var res = selected.connect("on_transform", Callable(self, "_on_transform_complete_do_snap"))
-	assert(res == OK)
-
-
-## Conditionally defined callback for RoadContainer's on_transform to complete drag-snap action
-func _on_transform_complete_do_snap(selected:RoadContainer):
-	selected.disconnect("on_transform", Callable(self, "_on_transform_complete_do_snap"))
-	var _srcrp = selected._drag_source_rp
-	var _tgtrp = selected._drag_target_rp
-	selected._drag_source_rp = null
-	selected._drag_target_rp = null
-	_snap_to_road_point(selected, _srcrp, _tgtrp, false)
-
-
-## Action committing function to do road point snapping
-##
-## This should be called only after any translation internal event has finished
-## (ie this is called after its on_transform signal has been emitted already)
-func _snap_to_road_point(selected:RoadContainer, sel_rp:RoadPoint, tgt_rp:RoadPoint, is_cancelling:bool) -> void:
-	var undo_redo = get_undo_redo()
-
-	# Precalculate the snapt-to locaiton
-	var res:Array = selected.get_transform_for_snap_rp(sel_rp, tgt_rp)
-	var tgt_transform: Transform3D = res[0]
-	var sel_dir:int = res[1]
-	var tgt_dir:int = res[2]
-
-	# This just means we're cancelling the user's movement efforts, so put back without undo
-	if is_cancelling:
-		sel_rp.container.transform = tgt_transform
-		return
-
-	undo_redo.create_action("Snap RoadContainer to RoadPoint")
-
-	undo_redo.add_do_property(sel_rp.container, "global_transform", tgt_transform)
-	undo_redo.add_undo_property(sel_rp.container, "global_transform", sel_rp.container.global_transform)
-
-	# TODO: move any sibling RoadPoints if appropriate?
-
-	undo_redo.add_do_method(sel_rp, "connect_container", sel_dir, tgt_rp, tgt_dir)
-	undo_redo.add_undo_method(sel_rp, "disconnect_container", sel_dir, tgt_dir)
 	undo_redo.commit_action()
 
 
@@ -1164,6 +968,70 @@ func connect_rp_to_intersection(inter: RoadIntersection, rp: RoadPoint) -> void:
 	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
 	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
 	
+	undo_redo.commit_action()
+
+
+## Snap this selected sel_rp's container onto the tgt_rp of another container
+##
+## Only results in translating the whole RoadContainer, not RPs.
+##
+## Assumes the initial_trans is a single entry consiging of sel_rp's container.
+func snap_container_to_road_point(sel_rp:RoadPoint, tgt_rp:RoadPoint, initial_trans: Array[Transform3D]) -> void:
+	var undo_redo = get_undo_redo()
+	if sel_rp.container == tgt_rp.container:
+		push_error("Cannot snap a RoadContainer to itself")
+		return
+
+	# Precalculate the snapt-to locaiton
+	var container: RoadContainer = sel_rp.container
+	var res:Array = container.get_transform_for_snap_rp(sel_rp, tgt_rp)
+	var tgt_transform: Transform3D = res[0]
+	var sel_dir:int = res[1]
+	var tgt_dir:int = res[2]
+
+	undo_redo.create_action("Snap RoadContainer to RoadPoint")
+
+	undo_redo.add_do_property(container, "global_transform", tgt_transform)
+	undo_redo.add_do_method(sel_rp, "connect_container", sel_dir, tgt_rp, tgt_dir)
+
+	undo_redo.add_undo_method(sel_rp, "disconnect_container", sel_dir, tgt_dir)
+	undo_redo.add_undo_property(container, "global_transform", initial_trans[0])
+
+	undo_redo.commit_action()
+
+
+## Dragging a RoadContainer away from its connected points
+func unsnap_container(container: RoadContainer, initial_trans: Array[Transform3D]) -> void:
+	var undo_redo = get_undo_redo()
+	var current_transform := container.global_transform
+	container.update_edges() # Force current, to workaround some bad states seen
+	
+	undo_redo.create_action("Unsnap RoadContainer connections")
+	
+	for idx in container.edge_rp_locals.size():
+		var local_rp: RoadPoint = container.get_node_or_null(container.edge_rp_locals[idx])
+		var local_dir: int = container.edge_rp_local_dirs[idx]
+		var other_cont: RoadContainer = container.get_node_or_null(container.edge_containers[idx])
+		if not is_instance_valid(other_cont):
+			continue # Empty slot
+		var other_rp: RoadPoint = other_cont.get_node_or_null(container.edge_rp_targets[idx])
+		var other_dir: int = container.edge_rp_target_dirs[idx]
+		if not is_instance_valid(other_rp):
+			continue
+		undo_redo.add_do_method(local_rp, "disconnect_container", local_dir, other_dir)
+	undo_redo.add_do_property(container, "global_transform", current_transform)
+
+	# --  undo steps
+	undo_redo.add_undo_property(container, "global_transform", initial_trans[0])
+	for idx in container.edge_rp_locals.size():
+		var local_rp: RoadPoint = container.get_node_or_null(container.edge_rp_locals[idx])
+		var local_dir: int = container.edge_rp_local_dirs[idx]
+		var other_rp: RoadPoint = container.get_node_or_null(container.edge_rp_targets[idx])
+		var other_dir: int = container.edge_rp_target_dirs[idx]
+		if not is_instance_valid(other_rp):
+			continue
+		undo_redo.add_undo_method(local_rp, "connect_container", local_dir, other_rp, other_dir)
+
 	undo_redo.commit_action()
 
 

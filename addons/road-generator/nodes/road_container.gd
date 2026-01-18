@@ -598,12 +598,12 @@ func get_all_road_containers(root: Node) -> Array[RoadContainer]:
 
 
 ## Get Edge RoadPoints that are open and available for connections
-func get_open_edges() -> Array:
-	var rp_edges: Array = []
+func get_open_edges() -> Array[RoadPoint]:
+	var rp_edges: Array[RoadPoint] = []
 	for idx in len(edge_rp_locals):
 		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
-		var connected: RoadPoint = get_node_or_null(edge_rp_targets[idx])
-		if connected:
+		var edge_cont: RoadContainer = get_node_or_null(edge_containers[idx])
+		if edge_cont:
 			# Edge is already connected
 			continue
 		elif edge and edge.terminated:
@@ -618,12 +618,36 @@ func get_open_edges() -> Array:
 	return rp_edges
 
 
-## Get edge RoadPoint closest to input 3D position.
-func get_closest_edge_road_point(g_search_pos: Vector3) -> RoadPoint:
+## Get RoadPoint closest to this global 3D position
+func get_closest_graphnode(g_search_pos: Vector3, ignore_node: RoadGraphNode = null, include_intersections: bool = true) -> RoadGraphNode:
+	var nodes: Array[RoadGraphNode] = []
+	for _node in get_roadpoints():
+		if _node == ignore_node:
+			continue
+		nodes.append(_node)
+	if include_intersections:
+		for _node in get_intersections():
+			if _node == ignore_node:
+				continue
+			nodes.append(_node)
+	return _cloest_graph_node(g_search_pos, nodes)
+
+
+## Get edge RoadPoint closest to this global 3D position.
+func get_closest_edge_road_point(g_search_pos: Vector3, ignore_rp: RoadPoint = null) -> RoadPoint:
+	var nodes: Array[RoadGraphNode] = []
+	for _node in get_open_edges():
+		if _node == ignore_rp:
+			continue
+		nodes.append(_node)
+	return _cloest_graph_node(g_search_pos, nodes) as RoadPoint
+
+
+func _cloest_graph_node(g_search_pos: Vector3, reference_rps: Array[RoadGraphNode]) -> RoadGraphNode:
 	var closest_rp: RoadPoint
 	var closest_dist: float
 
-	for rp in get_open_edges():
+	for rp in reference_rps:
 		var this_dist = g_search_pos.distance_squared_to(rp.global_position)
 		if not closest_dist or this_dist < closest_dist:
 			closest_dist = this_dist
@@ -631,8 +655,8 @@ func get_closest_edge_road_point(g_search_pos: Vector3) -> RoadPoint:
 	return closest_rp
 
 
-## Get Edge RoadPoints that are unavailable for connections. Returns
-## local Edges, target Edges, and target containers.
+## Get Edge RoadPoints that are unavailable for connections. Returns structure of
+## [local Edges, target Edges, and target containers].
 func get_connected_edges() -> Array:
 	var rp_edges: Array = []
 	for idx in len(edge_rp_locals):
@@ -1082,7 +1106,6 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
-
 	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
 		var prior = point.get_node(point.prior_pt_init)
 		if prior.has_method("is_road_point"):  # ie skip road container.
@@ -1160,23 +1183,23 @@ func rebuild_segments(clear_existing := false):
 		var next_pt
 		if pt.prior_pt_init:
 			prior_pt = pt.get_node_or_null(pt.prior_pt_init)
-			if not is_instance_valid(prior_pt) or not prior_pt.has_method("is_road_point"):
+			if not is_instance_valid(prior_pt) or not prior_pt is RoadGraphNode:
 				prior_pt = null
 		if pt.next_pt_init:
 			next_pt = pt.get_node_or_null(pt.next_pt_init)
-			if not is_instance_valid(next_pt) or not next_pt.has_method("is_road_point"):
+			if not is_instance_valid(next_pt) or not next_pt is RoadGraphNode:
 				next_pt = null
 
 		if not prior_pt and not next_pt:
 			push_warning("Road point %s/%s not connected to anything yet" % [pt.get_parent().name, pt.name])
 			continue
 		var res
-		if prior_pt and prior_pt.visible:
+		if prior_pt is RoadPoint and prior_pt.visible:
 			res = _process_seg(prior_pt, pt)
 			if res[0] == true:
 				rebuilt += 1
 				signal_rebuilt.append(res[1])
-		if next_pt and next_pt.visible:
+		if next_pt is RoadPoint and next_pt.visible:
 			res = _process_seg(pt, next_pt)
 			if res[0] == true:
 				rebuilt += 1

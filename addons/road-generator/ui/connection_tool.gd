@@ -13,6 +13,8 @@ signal assign_mode(mode: int)
 enum HintState {
 	NONE, ## No interactions active
 	CONNECT, ## Connect from source node to target node
+	SNAP, ## Snap the source to the target, action should keep track of initial transforms
+	UNSNAP, ## User is pulling 2+ elements apart, shoudl keep track of initial transforms
 	CREATE_RP, ## Add a new node such as a RoadPoint
 	CREATE_INTERSECTION, ## Construct an intersection
 	DISCONNECT, ## Disconnect source node from target node
@@ -22,31 +24,25 @@ enum HintState {
 
 ## State of the snapping tool
 enum SnapState {
-	IDLE,
-	SNAPPING,
-	UNSNAPPING,
-	MOVING,
-	CANCELING,
+	IDLE,  ## No action in progress
+	MOVING,  ## A node is being dragged around
+	HINTING,  ## An action is being hinted at, reflected in hintstate
 }
+
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 ## Forwards the InputEvent to other EditorPlugins.
 const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
 ## Prevents the InputEvent from reaching other Editor classes.
 const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
+const margin := 3 ## Overlay margin for drawing white outlines
+const white_col = Color(1, 1, 1, 0.9) ## Outline color
+const rad_size := 10.0 ## Connector dot radius
 
-## Overlay margin for drawing white outlines
-const margin := 3
-## Outline color
-const white_col = Color(1, 1, 1, 0.9)
-## Connector dot radius
-const rad_size := 10.0
-
-## Threshold for snapping distance of nodes in the scene
-var snap_threshold := 25.0
 var plg:EditorPlugin
-
-## Current state of snapping
-var snapping: int = SnapState.IDLE
+var snap_threshold := 25.0 ## Threshold for snapping distance of nodes in the scene
+var snapping: int = SnapState.IDLE ## Current state of snapping
+var pre_snap_trans: Array[Transform3D] = []
 
 ## Used to define drawing overlays, should be updated in tandem with above assignments
 var hinting: int = HintState.NONE
@@ -121,7 +117,7 @@ func _physics_process(_delta) -> void:
 	_intersect_dict = space_state.intersect_ray(query)
 
 	# Now update hover node based one this state:
-	_hover_graphnode = plg.get_nearest_graph_node(_intersect_dict)
+	_hover_graphnode = nearest_graphnode_from_raycast(_intersect_dict)
 	# Be aware: _intersect_dict is also used in _perform_action.
 
 
@@ -139,12 +135,16 @@ func forward_3d_draw_over_viewport(overlay: Control):
 	match hinting:
 		HintState.CONNECT:
 			draw_hint_connect(overlay)
+		HintState.SNAP:
+			draw_hint_snap(overlay)
+		HintState.UNSNAP:
+			draw_hint_disconnect(overlay, "Unsnap")
 		HintState.CREATE_RP:
 			draw_hint_create_rp(overlay)
 		HintState.CREATE_INTERSECTION:
 			draw_hint_create_intersection(overlay)
 		HintState.DISCONNECT:
-			draw_hint_disconnect(overlay)
+			draw_hint_disconnect(overlay, "Disconnect")
 		HintState.DELETE:
 			draw_hint_delete(overlay)
 		HintState.DISSOLVE:
@@ -171,6 +171,12 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	elif plg.tool_mode == plg._road_toolbar.InputMode.DELETE:
 		ret = _handle_delete_mode_input(camera, event)
 	return ret
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Interaction utilities
+# ------------------------------------------------------------------------------
 
 
 func handle_shortcuts(event: InputEvent, camera: Camera3D) -> void:
@@ -276,6 +282,122 @@ static func _get_nextprior_rp_from_inter(inter: RoadIntersection, prior_rp: Road
 	return inter.edge_points[new_index]
 
 
+## Gets nearest RoadPoint if user clicks a Segment. Returns RoadPoint or null.
+##
+## Takes in a previously already determined raycast intersection that must have
+## been identified in a physics_process call (result can be empty).
+func nearest_graphnode_from_raycast(intersect: Dictionary) -> RoadGraphNode:
+	if intersect.is_empty():
+		return null
+
+	var collider = intersect["collider"]
+	var position = intersect["position"]
+	if collider.name.begins_with("road_mesh_col"):
+		# Native RoadSegment - so there's just two RP's to choose between
+		# Return the closest RoadPoint
+		var road_segment: RoadSegment = collider.get_parent().get_parent()
+		var start_point: RoadPoint = road_segment.start_point
+		var end_point: RoadPoint = road_segment.end_point
+		var nearest_point: RoadPoint
+		var dist_to_start = start_point.global_position.distance_to(position)
+		var dist_to_end = end_point.global_position.distance_to(position)
+		if dist_to_start > dist_to_end:
+			nearest_point = end_point
+		else:
+			nearest_point = start_point
+		return nearest_point
+	elif collider.name.begins_with("intersection_mesh_col"):
+		var intersection: RoadIntersection = collider.get_parent().get_parent()
+		return intersection
+	else:
+		# Might be a custom RoadContainer.
+		# static body collider could be child or grandchild
+		var check_par = collider.get_parent()
+		if not check_par is RoadContainer:
+			check_par = check_par.get_parent()
+			if not check_par is RoadContainer:
+				check_par = check_par.get_parent()
+				if not check_par is RoadContainer:
+					return null
+		var par_rc:RoadContainer = check_par
+		par_rc.update_edges()
+		var nearest_point: RoadPoint
+		var nearest_dist: float
+		for idx in len(par_rc.edge_rp_locals):
+			var edge: RoadPoint = par_rc.get_node_or_null(par_rc.edge_rp_locals[idx])
+			if not is_instance_valid(edge):
+				continue
+			var edge_dist: float = edge.global_position.distance_to(position)
+			if not is_instance_valid(nearest_point) or edge_dist < nearest_dist:
+				nearest_point = edge
+				nearest_dist = edge_dist
+		if not is_instance_valid(nearest_point):
+			return null
+		return nearest_point
+
+
+## Convert a given click to the nearest, best fitting 3d pos + normal for click.
+##
+## Includes selection node so that if there's no intersection made, we can still
+## raycast onto the xz  or screen xy local plane of the object clicked on.
+##
+## Returns: [Position, Normal]
+func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mouse_nrm: Vector3, camera: Camera3D, selection: Node) -> Array:
+	# Unfortunately, must have collide with areas off. And this doesn't pick
+	# up collisions with objects that don't have collisions already added, making
+	# it not as convinient for viewport manipulation.
+
+	if not intersect.is_empty():
+		return [intersect["position"], intersect["normal"]]
+
+	# if we couldn't directly intersect with something, then place the next
+	# point in the same plane as the initial selection which is also facing
+	# the camera, or in the plane of that object's
+
+	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
+
+	# Points used to define offset used to construct a valid Plane
+	var point_y_offset:Vector3
+	var point_x_offset:Vector3
+
+	if use_obj_plane:
+		# Stick within the current selection's xy plane
+		point_y_offset = selection.global_transform.basis.z
+		point_x_offset = selection.global_transform.basis.x
+	else:
+		# Use the camera plane instead
+		point_y_offset = camera.global_transform.basis.y
+		point_x_offset = camera.global_transform.basis.x
+
+	# the normal is the camera.global_transform.basis.z
+	# the reference position is selection.global_transform.origin
+	# which already defines the plane in quesiton.
+	var plane_nrm = -camera.global_transform.basis.z
+	var ref_pt = selection.global_transform.origin
+	var plane = Plane(
+		ref_pt,
+		ref_pt + point_y_offset,
+		ref_pt + point_x_offset)
+
+	var hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
+	var up = selection.global_transform.basis.y
+
+	if hit_pt == null:
+		point_y_offset = camera.global_transform.basis.y
+		point_x_offset = camera.global_transform.basis.x
+		plane = Plane(
+			ref_pt,
+			ref_pt + point_y_offset,
+			ref_pt + point_x_offset)
+		hit_pt = plane.intersects_ray(mouse_src, mouse_nrm)
+		up = selection.global_transform.basis.y
+
+	# TODO: Finally, detect if the point is behind or in front;
+	# if behind, then skip action.
+
+	return [hit_pt, up]
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region GUI overlays
@@ -289,6 +411,16 @@ func draw_hint_connect(overlay: Control) -> void:
 		var trg := hint_target_points[idx]
 		_draw_connector(overlay, src, trg, col)
 	_draw_mouse_label(overlay, col, "Connect")
+	_draw_edges(overlay, col, false)
+
+
+func draw_hint_snap(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	for idx in hint_source_points.size():
+		var src := hint_source_points[idx]
+		var trg := hint_target_points[idx]
+		_draw_connector(overlay, src, trg, col)
+	_draw_mouse_label(overlay, col, "Snap")
 	_draw_edges(overlay, col, false)
 
 
@@ -310,13 +442,13 @@ func draw_hint_create_intersection(overlay: Control) -> void:
 	_draw_edges(overlay, col, false)
 
 
-func draw_hint_disconnect(overlay: Control) -> void:
+func draw_hint_disconnect(overlay: Control, label: String) -> void:
 	var col: Color = Color.CORAL
 	for idx in hint_source_points.size():
 		var src := hint_source_points[idx]
 		var trg := hint_target_points[idx]
 		_draw_connector(overlay, src, trg, col)
-	_draw_mouse_label(overlay, col, "Disconnect")
+	_draw_mouse_label(overlay, col, label)
 	_draw_edges(overlay, col, false)
 
 
@@ -414,10 +546,97 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 
 
 func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
-	# TODO: Re-implement this
-	_clear_targets()
 	# Check relevant necessary to ensure last cursor pos is always updated
 	var relevant := _relevant_input_event(event)
+
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			# Drag started
+			var selection:Node = plg.get_selected_node()
+			if not plg.is_road_node(selection):
+				snapping = SnapState.IDLE
+				_clear_targets()
+				return INPUT_PASS
+			_clear_targets()
+			if selection is RoadContainer:
+				pre_snap_trans = [selection.global_transform]
+				# TODO: Add each cross-connected RP that is not part of subscene.
+			snapping = SnapState.MOVING # May get upgraded to HINTING after any mouse movements
+			plg.update_overlays()
+			return INPUT_PASS
+		elif event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			# Drag potentially ended
+			if snapping == SnapState.HINTING:
+				var res = _perform_action(camera)
+				snapping = SnapState.IDLE
+				_clear_targets()
+				plg.update_overlays()
+				return res
+			snapping = SnapState.IDLE
+			_clear_targets()
+			plg.update_overlays()
+			return INPUT_PASS
+		else:
+			pass # handle cancellation
+	elif event is InputEventMouseMotion and snapping in [SnapState.MOVING, SnapState.HINTING]:
+		# Update drag state to show connection/disconnection, no actions performed
+		# if selection = cotnianer, check nearest poitns and so forth.
+		# _physics_post_input = true needed?
+		_clear_targets()
+		var selection:Node = plg.get_selected_node()
+
+		if selection is RoadPoint:
+			var rp: RoadPoint = selection
+			pass # Not implemented yet (connect to other RPs/container edges)
+		elif selection is RoadIntersection:
+			pass # Not implemented yet (drag road_edges along with self)
+		elif selection is RoadContainer:
+			# Identify if snapping or unsnapping
+			var container: RoadContainer = selection
+			var cont_connections: Array = container.get_connected_edges()
+			if cont_connections.size() > 0:
+				# TODO: support using alt to toggle this superstate
+				hinting = HintState.UNSNAP
+				snapping = SnapState.HINTING
+				# Disconnection mode for each edge
+				for _egdeset in cont_connections:
+					var rp_local: RoadPoint = _egdeset[0]
+					var rp_connected: RoadPoint = _egdeset[1]
+					hint_source_nodes.append(rp_connected) # or rp_local?
+					hint_source_points.append(camera.unproject_position(rp_connected.global_transform.origin))
+					hint_target_nodes.append(rp_local) # what is considered for the action
+					hint_target_points.append(camera.unproject_position(rp_local.global_transform.origin))
+					_insert_edge_hint(rp_local, camera)
+			else:
+				var snappable_pts: Array = [] # anything that we could connect to
+				var closest_pt: RoadPoint
+				var cloest_dist: float = -1
+				var local_edge: RoadPoint
+				for _edge in container.get_open_edges():
+					var _snap_point := _get_nearest_edge_roadpoint(_edge, true, true)
+					if not is_instance_valid(_snap_point):
+						continue
+					var this_dist:float = (_edge.global_position - _snap_point.global_position).length()
+					if not is_instance_valid(closest_pt) or this_dist < cloest_dist:
+						closest_pt = _snap_point
+						cloest_dist = this_dist
+						local_edge = _edge
+				# Now display snapping option
+				if is_instance_valid(closest_pt) and closest_pt.container != selection:
+					hinting = HintState.SNAP
+					snapping = SnapState.HINTING
+					hint_source_nodes.append(local_edge) # but need to actuall pass along the local_edge for the tool action....
+					hint_source_points.append(camera.unproject_position(local_edge.global_transform.origin))
+					hint_target_nodes.append(closest_pt)
+					hint_target_points.append(camera.unproject_position(closest_pt.global_transform.origin))
+					_insert_edge_hint(closest_pt, camera)
+				else:
+					hinting = HintState.NONE
+					snapping = SnapState.MOVING
+		plg.update_overlays()
+		return INPUT_PASS
+	
+	_clear_targets()
 	plg.update_overlays()
 	return INPUT_PASS
 
@@ -442,8 +661,62 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			hint_source_nodes.append(selection)
 			hinting = HintState.CREATE_RP
 		elif selection is RoadContainer:
-			if selection.is_subscene():
-				pass
+			#if selection.is_subscene():
+			if hover_roadnode is RoadPoint:
+				var rp_hover:RoadPoint = hover_roadnode
+				var rp_hover_filled:bool = rp_hover.is_prior_connected() and rp_hover.is_next_connected()
+				var rp_hover_pos: Vector2 = camera.unproject_position(rp_hover.global_transform.origin)
+				
+				var closest_rp:RoadPoint = plg.get_nearest_edge_road_point(selection, camera, cursor)
+				var closest_filled:bool = closest_rp.is_prior_connected() and closest_rp.is_next_connected()
+				var closest_pos: Vector2 = camera.unproject_position(closest_rp.global_transform.origin)
+				
+				if closest_rp == rp_hover:
+					pass
+				elif closest_filled:
+					var hover_prior = rp_hover.get_prior_road_node()
+					var hover_next = rp_hover.get_next_road_node()
+					var prior_same = is_instance_valid(hover_prior) and hover_prior.container == selection
+					var next_same = is_instance_valid(hover_next) and hover_next.container == selection
+					if closest_rp.container == rp_hover.container and closest_rp.container.is_subscene():
+						pass
+					elif (prior_same or next_same):
+						hint_source_nodes.append(closest_rp)
+						hint_source_points.append(closest_pos)
+						hint_target_nodes.append(rp_hover)
+						hint_target_points.append(rp_hover_pos)
+						_insert_edge_hint(closest_rp, camera)
+						_insert_edge_hint(rp_hover, camera)
+						hinting = HintState.DISCONNECT
+				elif not rp_hover_filled and not closest_filled:
+					if closest_rp.container == rp_hover.container and selection.is_subscene():
+						pass # can't can't modify internals of subscene container
+					elif selection.is_subscene():
+						if rp_hover.container.is_subscene():
+							pass # TODO: support this workflow, bridge "between" intersections
+						else:
+							# Add child of other same-scene container
+							hint_source_nodes.append(rp_hover)
+							hint_source_points.append(rp_hover_pos)
+							hint_target_nodes.append(closest_rp)
+							hint_target_points.append(closest_pos)
+							_insert_edge_hint(closest_rp, camera)
+							_insert_edge_hint(rp_hover, camera)
+							hinting = HintState.CONNECT
+					else:
+						# Add node as child of this container
+						hint_source_nodes.append(closest_rp)
+						hint_source_points.append(closest_pos)
+						hint_target_nodes.append(rp_hover)
+						hint_target_points.append(rp_hover_pos)
+						_insert_edge_hint(closest_rp, camera)
+						_insert_edge_hint(rp_hover, camera)
+						hinting = HintState.CONNECT
+			elif selection.is_subscene():
+				# TODO: In future, could also suggest connecting to closest edge
+				hint_source_nodes.append(selection.get_manager())
+				hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
+				hinting = HintState.CREATE_RP
 			else:
 				hint_source_nodes.append(selection)
 				hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
@@ -631,24 +904,41 @@ func _perform_action(camera: Camera3D) -> int:
 				else:
 					plg._connect_rp_on_click(hint_source_nodes[idx], hint_target_nodes[idx])
 			return INPUT_STOP
+		HintState.SNAP:
+			if hint_target_nodes[0] is RoadPoint: # really is a snapping of a RoadContainer
+				# Source will
+				# must rely on connected signals, due to translation completing on its own
+				var other_rp: RoadPoint = hint_target_nodes[0]
+				var tgt_rp: RoadPoint = hint_source_nodes[0]
+				plg.snap_container_to_road_point(tgt_rp, other_rp, pre_snap_trans) # init transform?
+			elif hint_target_nodes[0] is RoadIntersection:
+				pass  # would only be for overwriting translation intention of siblings
+			return INPUT_STOP
+		HintState.UNSNAP:
+			var selection: Node = plg.get_selected_node()
+			if selection is RoadContainer:
+				print("Unsnapping container")
+				var container: RoadContainer = selection
+				plg.unsnap_container(container, pre_snap_trans)
+			return INPUT_STOP
 		HintState.CREATE_RP:
 			if hint_source_nodes[0] is RoadPoint or hint_source_nodes[0] is RoadContainer:
 				var selection = hint_source_nodes[0]
-				var res: Array = plg.get_click_point_with_context(
+				var res: Array = get_click_point_with_context(
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, selection)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
 				plg._add_next_rp_on_click(pos, nrm, hint_source_nodes[0], null)
 			elif hint_source_nodes[0] is RoadIntersection:
 				var inter = hint_source_nodes[0]
-				var res: Array = plg.get_click_point_with_context(
+				var res: Array = get_click_point_with_context(
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, inter)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
 				plg.add_and_connect_rp_to_intersection(inter, pos, nrm)
 			elif hint_source_nodes[0] is RoadManager:
 				var mgr: RoadManager = hint_source_nodes[0]
-				var res: Array = plg.get_click_point_with_context(
+				var res: Array = get_click_point_with_context(
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, mgr)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
@@ -663,6 +953,8 @@ func _perform_action(camera: Camera3D) -> int:
 		HintState.DISCONNECT:
 			if hint_target_nodes[0] is RoadIntersection:
 				plg.disconnect_rp_from_intersection(hint_target_nodes[0], hint_source_nodes[0])
+			elif hint_target_nodes[0] is RoadContainer:
+				pass # Workflow not implemented
 			else:
 				plg._disconnect_rp_on_click(hint_source_nodes[0], hint_target_nodes[0])
 			return INPUT_STOP
@@ -778,6 +1070,47 @@ func _hint_intersection_creation(rp_hover: RoadPoint, rp_sel: RoadPoint, camera:
 			hint_target_nodes.append(rp_hover)
 			hint_target_points.append(rp_hover_pos)
 		hinting = HintState.CREATE_INTERSECTION
+
+
+## Returns a RoadPoint that is the closest to the input one within the manager.
+##
+## source_rp: The reference point to search near
+## ignore_same_cont: If true, don't include RoadPoints from the same container
+## only_edges: Only consider open edge RoadPoints, not interior/connected ones
+func _get_nearest_edge_roadpoint(source_rp: RoadPoint, ignore_same_cont: bool, only_edges: bool) -> RoadPoint:
+	var cont: RoadContainer = source_rp.container
+	var containers: Array[RoadContainer]
+	var mng := cont.get_manager()
+	if is_instance_valid(mng):
+		containers = cont.get_all_road_containers(mng)
+	else:
+		if ignore_same_cont:
+			# If ignoring the same container and others can't be identified, nothing to do
+			return null
+		containers = [cont]
+	
+	var min_dist: float
+	var nearest_rp: RoadPoint
+	for _cont in containers:
+		if ignore_same_cont and _cont == cont:
+			continue
+		var tgt_edge: RoadPoint
+		# TODO: could short circuit based on aabb/distance on any axis
+		if only_edges:
+			tgt_edge = _cont.get_closest_edge_road_point(source_rp.global_position, source_rp)
+		else:
+			tgt_edge = _cont.get_closest_graphnode(source_rp.global_position, source_rp)
+		if not is_instance_valid(tgt_edge):
+			continue
+		var dist = (source_rp.global_position - tgt_edge.global_position).length()
+		if dist > snap_threshold:
+			continue
+		if min_dist and dist > min_dist:
+			continue
+		min_dist = dist
+		nearest_rp = tgt_edge
+	return nearest_rp
+
 
 #endregion
 # ------------------------------------------------------------------------------
