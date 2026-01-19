@@ -959,7 +959,7 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 ## - edge_rp_target_dirs
 ## - edge_rp_locals -> Already set locally, for reading only
 ## - edge_rp_local_dirs -> Already set locally, for reading only
-func connect_container(this_direction: int, target_rp: Node, target_direction: int) -> bool:
+func connect_container(this_direction: int, target_rp: RoadPoint, target_direction: int) -> bool:
 	if not target_rp.has_method("is_road_point"):
 		push_error("Second input must be a valid RoadPoint")
 		return false
