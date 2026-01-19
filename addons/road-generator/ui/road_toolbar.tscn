@@ -1,46 +1,52 @@
-[gd_scene load_steps=4 format=3 uid="uid://b7r8ejy8iua8t"]
+[gd_scene load_steps=3 format=3 uid="uid://b7r8ejy8iua8t"]
 
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" id="2"]
-[ext_resource type="Texture2D" uid="uid://44gbdq5cb18e" path="res://addons/road-generator/ui/gizmo_blue_handle.png" id="6"]
 
 [node name="RoadToolbar" type="HBoxContainer"]
 script = ExtResource("1")
 
 [node name="select_mode" type="Button" parent="."]
 layout_mode = 2
-tooltip_text = "Select RoadPoint
+tooltip_text = "Select Road Mode
 
-Click on a road mesh to select
-nearest RoadPoint, directly click
-a RoadPoint blue square control"
+Use left click to select and drag road nodes around to use snapping
+functionality using the built-in transform gizmos. Click directly onto blue
+control widgets to select a given RoadPoint or RoadIntersection.
+
+You can also use the RoadPoint gizmo in this mode to adjust the lane count and
+prior/next handle magnitudes to adjust easing between points.
+
+Press alt to temporarily toggle to Add Road Mode."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="add_mode" type="Button" parent="."]
 layout_mode = 2
-tooltip_text = "Add & Connect RoadPoints
+tooltip_text = "Add and Connect Mode
 
-Click in empty space to add a RoadPoint,
-snapped to a collider if any. Hover over
-and connect RoadPoints with open ends,
-or disconnect a connected RoadPoint."
+Perform actions to extend your roads with mouse hover and left click:
+- Click on empty space to add a RoadPoint, snapped to a collider if any
+- Hover and click to connect to the currently selected RoadPoint/Intersection
+- Hover over and click one of the selected node's connected road nodes to disconnect
+- Convert afully connected RoadPoint into a RoadIntersection by selecting and
+  hovering over another RoadPoint or vice versa
+
+Press alt to temporarily toggle to Select Road Mode."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="delete_mode" type="Button" parent="."]
 layout_mode = 2
-tooltip_text = "Delete & Dissolve RoadPoint
+tooltip_text = "Delete & Dissolve Road Mode
 
-Will operate in a \"dissolve\" mode if
-RoadPoints are attached on both sides
-without breaking the connection in
-the road."
+Delete a road nodes such as individual RoadPoints or RoadIntersections using
+left click.
+
+Hold alt to enable dissolve mode, which will attempt to connect
+adjacent RoadPoints if relevant."
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-icon = ExtResource("6")
 
 [node name="CreateMenu" type="MenuButton" parent="."]
 layout_mode = 2
