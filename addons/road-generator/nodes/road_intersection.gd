@@ -50,6 +50,11 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		if value == true:
 			emit_transform()
 
+## Flatten terrain when updating or transforming this Intersection.[br][br]
+##
+## Warning: Not yet implemented
+@export var flatten_terrain: bool = true
+
 @export_group("Internal")
 
 @export var force_mesh_refresh_toggle: bool = true:
