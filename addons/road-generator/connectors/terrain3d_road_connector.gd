@@ -183,14 +183,22 @@ func refresh_roadsegments(segments: Array) -> void:
 			# but will be invalid by the time this function actually runs as
 			# they are destroyed right away after a direct call to this func
 			continue
+		if _seg is RoadIntersection:
+			var inter := _seg as RoadIntersection
+			if inter.container.flatten_terrain or inter.flatten_terrain:
+				flatten_terrain_via_intersection(inter)
+			continue
 		_seg = _seg as RoadSegment
+		if not _seg:
+			print("Unexpected non-RoadSegment element")
+			continue
 
 		# check if this segment should be ignored
 		if (
 			not _seg.container.flatten_terrain
 			or (not _seg.start_point.flatten_terrain and not _seg.end_point.flatten_terrain)
 		):
-			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
+			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
@@ -205,6 +213,10 @@ func get_road_width(point: RoadPoint) -> float:
 		+ point.shoulder_width_r
 		+ point.lane_width * point.lanes.size()
 	)
+
+
+func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
+	push_warning("Intersection flattening not yet implemented")
 
 
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
