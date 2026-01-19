@@ -220,8 +220,8 @@ func _flatten_curve(curve: Curve3D, normalization_value: float):
 		# Instead of setting pos.y to 0 we divide it by a large enough value so that it becomes effectively flat
 		# This is necessary so we can retrieve the height at a later point. 
 		pos.y /= normalization_value 
-		pos_in.y = 0
-		pos_out.y = 0
+		pos_in.y /= normalization_value 
+		pos_out.y /= normalization_value 
 		
 		curve.set_point_position(i,pos)
 		curve.set_point_in(i,pos_in)
