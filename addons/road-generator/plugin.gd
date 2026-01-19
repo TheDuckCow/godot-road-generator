@@ -1063,8 +1063,8 @@ func delete_roadpoint(rp: RoadPoint) -> void:
 	# Update do/undo selections
 	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
 	if editor_selected == [rp]:
-		var next_rp = rp.get_next_road_node()
-		var prior_rp = rp.get_next_road_node()
+		var next_rp = rp.get_next_road_node(true) # true = don't try to select another container's RP
+		var prior_rp = rp.get_next_road_node(true)
 		if is_instance_valid(next_rp):
 			undo_redo.add_do_method(self, "set_selection", next_rp)
 		elif is_instance_valid(prior_rp):

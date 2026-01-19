@@ -582,7 +582,7 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		# Update drag state to show connection/disconnection, no actions performed
 		# if selection = cotnianer, check nearest poitns and so forth.
 		# _physics_post_input = true needed?
-		_clear_targets()
+		_clear_targets() # do NOT clear snapping here
 		var selection:Node = plg.get_selected_node()
 
 		if selection is RoadPoint:
@@ -643,6 +643,7 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
 func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
+	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
 		#print("_handle_add_mode_input relevanat")
@@ -806,6 +807,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	elif event.pressed:
 		var res = _perform_action(camera)
 		_clear_targets()
+		snapping = SnapState.IDLE
 		plg.update_overlays()
 		return res
 
@@ -830,6 +832,7 @@ func _handle_dissolve_mode_input(camera: Camera3D, event: InputEvent) -> int:
 
 ## Common utility for both deleting and dissolving, which are otherwise quite similar
 func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int) -> int:
+	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
 		var point: RoadGraphNode = _hover_graphnode
@@ -882,6 +885,7 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 	elif event.pressed:
 		var res = _perform_action(camera)
 		_clear_targets()
+		snapping = SnapState.IDLE
 		plg.update_overlays()
 		return res
 
@@ -995,6 +999,7 @@ func _clear_targets() -> void:
 	hint_edges_r = []
 	hint_edges_f = []
 	hinting = HintState.NONE
+	# Do NOT clear snapping
 
 
 func _insert_edge_hint(rp: RoadPoint, camera: Camera3D) -> void:
