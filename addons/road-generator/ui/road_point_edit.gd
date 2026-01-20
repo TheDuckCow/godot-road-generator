@@ -12,6 +12,7 @@ var copy_ref:RoadPoint  # For use in panel to copy settings
 func _init(editor_plugin: EditorPlugin):
 	_editor_plugin = editor_plugin
 
+
 func _can_handle(object):
 	# Only road points are supported.
 	# TODO: Add RoadContainer and RoadManager in future for bulk ops.
@@ -98,15 +99,19 @@ func _handle_add_connected_rp(selection, point_init_type):
 
 func _assign_copy_target(target) -> void:
 	_editor_plugin.copy_attributes = {
+		# Lanes group
 		"traffic_dir": target.traffic_dir,
 		"auto_lanes": target.auto_lanes,
 		"lanes": target.lanes,
+		# Road gen group
+		"create_geo": target.create_geo,
+		"flatten_terrain": target.flatten_terrain,
 		"lane_width": target.lane_width,
 		"shoulder_width_l": target.shoulder_width_l,
 		"shoulder_width_r": target.shoulder_width_r,
 		"gutter_profile": target.gutter_profile,
-		"create_geo": target.create_geo,
-		"alignment": target.alignment
+		"alignment": target.alignment,
+		"underside_thickness": target.underside_thickness,
 	}
 
 
@@ -141,4 +146,3 @@ func _flip_roadpoint(rp:RoadPoint) -> void:
 	undo_redo.create_action("Flip RoadPoint")
 	_editor_plugin.subaction_flip_roadpoint(rp, undo_redo)
 	undo_redo.commit_action()
-	

@@ -1,7 +1,7 @@
 @tool
 @icon("res://addons/road-generator/resources/road_point.png")
 class_name RoadPoint
-extends Node3D
+extends RoadGraphNode
 ## Definition for a single point handle, which 2+ road segments connect to.
 ##
 ## Functionally equivalent to a point along a curve, it defines the cross section
@@ -59,6 +59,7 @@ const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
+const DEFAULT_LANE_WIDTH: float = 4.0
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -125,7 +126,7 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 @export var flatten_terrain: bool = true
 
 ## Width of each lane in meters in meters.
-@export var lane_width := 4.0: get = _get_lane_width, set = _set_lane_width
+@export var lane_width := DEFAULT_LANE_WIDTH: get = _get_lane_width, set = _set_lane_width
 ## Width of the left shoulder in meters.
 @export var shoulder_width_l := 2.0: get = _get_shoulder_width_l, set = _set_shoulder_width_l
 ## Width of the right shoulder in meters.
@@ -153,11 +154,11 @@ const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPo
 # TODO: convert these into direct node reference export vars instead of nodepaths
 ## Considered private, not meant for editor or script interaction.[br][br]
 ##
-## Path to prior [RoadPoint], relative to this [RoadPoint] itself.
+## Path to prior [RoadPoint] or [RoadIntersection], relative to this [RoadPoint] itself.
 @export var prior_pt_init: NodePath: get = _get_prior_pt_init, set = _set_prior_pt_init
 ## Considered private, not meant for editor or script interaction.[br][br]
 ##
-## Path to next [RoadPoint], relative to this [RoadPoint] itself.
+## Path to next [RoadPoint] or [RoadIntersection], relative to this [RoadPoint] itself.
 @export var next_pt_init: NodePath: get = _get_next_pt_init, set = _set_next_pt_init
 
 var rev_width_mag := -8.0
@@ -168,7 +169,6 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var container:RoadContainer ## The managing container node for this road segment (direct parent).
 var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
 #var refresh_geom := true
 
@@ -367,6 +367,7 @@ func _set_terminated(value: bool) -> void:
 	if is_instance_valid(container):
 		container.update_edges()
 
+
 func _get_next_pt_init():
 	return next_pt_init
 
@@ -448,7 +449,7 @@ func emit_transform(low_poly=false):
 		var _gizmo:Node3DGizmo = _gizmos[0]
 		if is_instance_valid(_gizmo):
 			_gizmo.get_plugin().refresh_gizmo(_gizmo)
-	emit_signal("on_transform", self, low_poly)
+	on_transform.emit(self, low_poly)
 
 
 # ------------------------------------------------------------------------------
@@ -471,10 +472,10 @@ func is_on_edge() -> bool:
 func cross_container_connected() -> bool:
 	if not is_on_edge():
 		return false
-	var _pr = get_prior_rp()
+	var _pr = get_prior_road_node()
 	if is_instance_valid(_pr) and _pr.container != self.container:
 		return true
-	var _nt = get_next_rp()
+	var _nt = get_next_road_node()
 	if is_instance_valid(_nt) and _nt.container != self.container:
 		return true
 	return false
@@ -512,10 +513,17 @@ func is_next_connected() -> bool:
 	return false
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_prior_rp():
+	return get_prior_road_node()
+
+
+## Returns prior RP direct reference, accounting for cross-container connections
+func get_prior_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.prior_pt_init:
 		return get_node(prior_pt_init)
+	if limit_same_container:
+		return null
 	# If no sibling point, could still have a cross-container connection
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
@@ -527,15 +535,22 @@ func get_prior_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_prior_rp)")
+		push_warning("RP should have been present in container edge list (get_prior_road_node)")
 	return null
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_next_rp():
+	return get_next_road_node()
+
+
+## Returns next RP direct reference, accounting for cross-container connections
+func get_next_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.next_pt_init:
 		return get_node(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
+	if limit_same_container:
+		return null
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
 			continue
@@ -546,7 +561,7 @@ func get_next_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_next_rp)")
+		push_warning("RP should have been present in container edge list (get_next_road_node)")
 	return null
 
 
@@ -944,7 +959,7 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 ## - edge_rp_target_dirs
 ## - edge_rp_locals -> Already set locally, for reading only
 ## - edge_rp_local_dirs -> Already set locally, for reading only
-func connect_container(this_direction: int, target_rp: Node, target_direction: int) -> bool:
+func connect_container(this_direction: int, target_rp: RoadPoint, target_direction: int) -> bool:
 	if not target_rp.has_method("is_road_point"):
 		push_error("Second input must be a valid RoadPoint")
 		return false
@@ -1105,14 +1120,10 @@ func validate_junctions():
 ## Returns true if at least one of them references THIS RoadPoint, or if both
 ## are empty. Otherwise, returns false.
 func _is_junction_valid(point: RoadPoint)->bool:
-	var prior_point: RoadPoint
-	var next_point: RoadPoint
 
 	# Get valid Prior and Next RoadPoints for INPUT RoadPoint
-	if not point.prior_pt_init.is_empty():
-		prior_point = get_node(point.prior_pt_init)
-	if not point.next_pt_init.is_empty():
-		next_point = get_node(point.next_pt_init)
+	var prior_point:RoadGraphNode = get_node_or_null(point.prior_pt_init)
+	var next_point:RoadGraphNode = get_node_or_null(point.next_pt_init)
 
 	# Verify THIS RoadPoint is identified as Prior or Next
 	if is_instance_valid(prior_point):
@@ -1160,6 +1171,8 @@ func _autofix_noncyclic_references(
 		var connection = get_node(new_point_path)
 		if connection.has_method("is_road_container"):
 			return # Nothing further to update now.
+		elif connection.has_method("is_road_intersection"):
+			return # Nothing further to update now.
 		else:
 			point = connection
 	else:
@@ -1168,6 +1181,8 @@ func _autofix_noncyclic_references(
 		var connection = get_node(old_point_path)
 		if connection.has_method("is_road_container"):
 			return # Nothing further to update now.
+		elif connection.has_method("is_road_intersection"):
+			return  # Nothing further to update now.
 		point = connection
 
 	if not is_instance_valid(point):
@@ -1228,5 +1243,18 @@ func get_thickness():
 	return -1.0
 
 
+## Get the distance from shoulder to shoulder
+func get_width_without_shoulders():
+	# TODO should use get_road_width() instead?
+	var total_width = lane_width * len(lanes)
+	return total_width
+
+
+## Gets the total width of the road including shoulders, but not gutters
+func get_width_with_shoulders():
+	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
+	return total_width
+
+# ------------------------------------------------------------------------------
 #endregion
 # ------------------------------------------------------------------------------
