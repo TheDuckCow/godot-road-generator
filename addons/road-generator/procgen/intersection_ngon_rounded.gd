@@ -670,19 +670,20 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			next_vertices_row_length_in_lanes = next_curr_border_vertex.distance_to(next_prev_border_vertex) / curr_edge.lane_width
 
 
-	print("offset_borders for %s:" % intersection.get_parent_node_3d().name)
-	for edge_border in edge_offset_border_vertices_included:
-		print(edge_border)
-		print("    - length: %d" % edge_border.size())
+	# DEBUGGING PRINTS: =====
+	# print("offset_borders for %s:" % intersection.get_parent_node_3d().name)
+	# for edge_border in edge_offset_border_vertices_included:
+	# 	print(edge_border)
+	# 	print("    - length: %d" % edge_border.size())
 
-	print("to_next_edge_borders for %s:" % intersection.get_parent_node_3d().name)
-	for i in range(to_next_edge_border_vertices_included.size()):
-		var edge_border = to_next_edge_border_vertices_included[i]
-		print(edge_border)
-		print("    - length: %d" % edge_border.size())
-		print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
-		print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
-
+	# print("to_next_edge_borders for %s:" % intersection.get_parent_node_3d().name)
+	# for i in range(to_next_edge_border_vertices_included.size()):
+	# 	var edge_border = to_next_edge_border_vertices_included[i]
+	# 	print(edge_border)
+	# 	print("    - length: %d" % edge_border.size())
+	# 	print("    - eaten start: %d" % to_next_edge_border_eaten_start[i])
+	# 	print("    - eaten end: %d" % to_next_edge_border_eaten_end[i])
+	# =======================
 
 	
 	
@@ -719,8 +720,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 			evenly_spaced_border_vertices.append(point)
 	center_border_vertices = evenly_spaced_border_vertices
 
-	print("Filling center with border vertices:")
-	print(center_border_vertices)
+	# print("Filling center with border vertices:")
+	# print(center_border_vertices)
 
 	# We want to fill the center with a grid. To make the process easier,
 	# We project the center border vertices on a best-fit plane to work in 2D.
@@ -728,11 +729,11 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	var center_plane: Plane = Plane(parent_transform.basis.y.normalized(), parent_transform.origin)
 	var x_parallel_plane: Plane = Plane(parent_transform.basis.z.normalized(), parent_transform.origin)
 	var z_parallel_plane: Plane = Plane(parent_transform.basis.x.normalized(), parent_transform.origin)
-	print("Center plane center: %s" % center_plane.get_center())
-	print("Intersection position: %s" % parent_transform.origin)
-	print("Center plane normal: %s" % center_plane.normal)
-	print("Intersection up vector: %s" % parent_transform.basis.y.normalized())
-	print("planes intersection: %s" % center_plane.intersect_3(x_parallel_plane, z_parallel_plane))
+	# print("Center plane center: %s" % center_plane.get_center())
+	# print("Intersection position: %s" % parent_transform.origin)
+	# print("Center plane normal: %s" % center_plane.normal)
+	# print("Intersection up vector: %s" % parent_transform.basis.y.normalized())
+	# print("planes intersection: %s" % center_plane.intersect_3(x_parallel_plane, z_parallel_plane))
 
 	# We go from the road container's 3D basis (vertices are built from edges local positions which
 	# are children of the container), to the plane's 2D basis.
@@ -745,8 +746,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		var z: float = projected_z.distance_to(parent_transform.origin) * sign((projected_z - parent_transform.origin).dot(parent_transform.basis.z))
 		projected_center_border_vertices_2d.append(Vector2(x, z))
 
-	print("Projected center border vertices 2D:")
-	print(projected_center_border_vertices_2d)
+	# print("Projected center border vertices 2D:")
+	# print(projected_center_border_vertices_2d)
 
 	# We find grid boundaries...
 	var min_z: float = 100_000_000
@@ -763,7 +764,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 		if p.y < min_z:
 			min_z = p.y
 	
-	print("Center fill grid bounds: X[%d, %d], Z[%d, %d]" % [min_x, max_x, min_z, max_z])
+	# print("Center fill grid bounds: X[%d, %d], Z[%d, %d]" % [min_x, max_x, min_z, max_z])
 	
 	# ...then generate the grid, figuring out which points are inside the polygon.
 	# Array[Array[bool]]
@@ -773,14 +774,11 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	var grid_width: int = int(floor((max_x - min_x + 1) / density))
 	var grid_height: int = int(floor((max_z - min_z + 1) / density))
 
-	print(projected_center_border_vertices_2d)
 	# We inset the polygon to avoid edge cases when filling the ring hole.
 	var inset_polygons: Array[PackedVector2Array] = Geometry2D.offset_polygon(
 		projected_center_border_vertices_2d,
 		-density * 0.5,
 	)
-	print("now:")
-	print(projected_center_border_vertices_2d)
 
 	for i in range(grid_width):
 		var row: Array[bool] = []
@@ -798,7 +796,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				points += 1
 		grid.append(row)
 
-	print("Center fill grid generated with %d points." % points)
+	# print("Center fill grid generated with %d points." % points)
 	# _debug_add_grid_mesh(grid, surface_tool, parent_transform, min_x, min_z, grid_density)
 	# _debug_add_polygon_2D(surface_tool, parent_transform, projected_center_border_vertices_2d)
 	# _debug_add_polygon_3D(surface_tool, parent_transform, center_border_vertices)
@@ -958,7 +956,7 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	# on the closest distance pairs between the current and next vertices, and their closest border vertices.
 	# We still work in 2D for simplicity.
 
-	print("border length: %d, ring length: %d" % [projected_center_border_vertices_2d.size(), grid_ring_vertices_2d.size()])
+	# print("border length: %d, ring length: %d" % [projected_center_border_vertices_2d.size(), grid_ring_vertices_2d.size()])
 	# _debug_add_polygon_2D(surface_tool, parent_transform, grid_ring_vertices_2d)
 	var center_border_ring_start_index: int = -1
 	var closest_distance: float = 100_000_000.0
@@ -974,8 +972,8 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	const APPROX_ISLAND_SHAPE_STEP: int = 5
 	for i in range(0, grid_ring_vertices_2d.size(), APPROX_ISLAND_SHAPE_STEP):
 		approx_island_shape.append(grid_ring_vertices_2d[(center_border_ring_start_index + i) % grid_ring_vertices_2d.size()])
-	print("Approx island shape vertices:")
-	print(approx_island_shape)
+	# print("Approx island shape vertices:")
+	# print(approx_island_shape)
 
 
 	## every 3 vertices make a triangle
@@ -1320,14 +1318,14 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 
 
 	# commit triangles
-	print("Filling border ring with %d triangles." % (index_triangles.size() / 3))
+	# print("Filling border ring with %d triangles." % (index_triangles.size() / 3))
 	
 	var grid_ring_vertices_3d: Array[Vector3] = []
 	for index in grid_ring_indices:
 		grid_ring_vertices_3d.append(grid_positions_3d[int(index.x)][int(index.y)])
 	
-	print("Grid ring vertices 3D length: %d" % grid_ring_vertices_3d.size())
-	print("Center border vertices length: %d" % center_border_vertices.size())
+	# print("Grid ring vertices 3D length: %d" % grid_ring_vertices_3d.size())
+	# print("Center border vertices length: %d" % center_border_vertices.size())
 
 	for i in range(0, index_triangles.size(), 3):
 		var iv1: IndexVertex = index_triangles[i]
