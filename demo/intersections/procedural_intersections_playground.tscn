@@ -204,3 +204,30 @@ settings = SubResource("Resource_xh6hw")
 force_mesh_refresh_toggle = false
 edge_points = [NodePath("../E3"), NodePath("../E2"), NodePath("../E1"), NodePath("../E4")]
 force_edges_sort_toggle = false
+
+[node name="Road_002" type="Node3D" parent="RoadManager"]
+script = ExtResource("2_5r4g7")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="Road_003" type="Node3D" parent="RoadManager"]
+script = ExtResource("2_5r4g7")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath(""), NodePath(""), NodePath("RP_003"), NodePath("RP_003")])
+edge_rp_local_dirs = Array[int]([0, 1, 0, 1])
+
+[node name="Road_004" type="Node3D" parent="RoadManager"]
+script = ExtResource("2_5r4g7")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_local_dirs = Array[int]([0, 1])
