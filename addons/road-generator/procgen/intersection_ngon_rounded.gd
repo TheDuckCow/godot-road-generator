@@ -1,7 +1,7 @@
 @tool
 @icon("res://addons/road-generator/resources/road_intersection.png")
 
-class_name IntersectionNGon
+class_name IntersectionNGonRounded
 extends IntersectionSettings
 ## Defines an intersection where each edge is connected
 ## to its siblings with curve shoulders, forming a filled n-gon.
