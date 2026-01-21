@@ -75,7 +75,7 @@ prior_pt_init = NodePath("../RoadIntersection")
 next_pt_init = NodePath("../RP_003")
 
 [node name="RoadIntersection" type="Node3D" parent="RoadManager/RoadTempHardcoding" node_paths=PackedStringArray("edge_points")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0306, 25.988, -58.6679)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0306, 34.0445, -58.6679)
 script = ExtResource("5_ggulu")
 settings = SubResource("Resource_b586n")
 force_mesh_refresh_toggle = false

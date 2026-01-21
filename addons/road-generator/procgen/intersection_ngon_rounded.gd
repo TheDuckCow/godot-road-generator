@@ -816,10 +816,16 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 	for vertex in center_border_vertices:
 		var distance: float = center_plane.distance_to(vertex)
 		vertices_distances.append(distance)
+	vertices_distances.append(0.0) # intersection point distance
 	
+	var weight_points: Array[Vector2] = []
+	for vertex_2d in projected_center_border_vertices_2d:
+		weight_points.append(vertex_2d)
+	weight_points.append(Vector2.ZERO) # intersection point (which is the origin)
+
 	for i in range(grid.size()):
 		for j in range(grid[i].size()):
-			# if grid[i][j]: # TODO restore
+			if grid[i][j]:
 				var px: float = min_x + i * density
 				var pz: float = min_z + j * density
 				var p_2d: Vector2 = Vector2(px, pz)
@@ -827,13 +833,14 @@ func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], containe
 				# weighted average distance
 				var total_weights: float = 0.0
 				var weights: Array[float] = []
-				for k in range(projected_center_border_vertices_2d.size()):
-					var distance: float = p_2d.distance_to(projected_center_border_vertices_2d[k])
+				for k in range(weight_points.size()):
+					var distance: float = p_2d.distance_to(weight_points[k])
 					# the power of distance changes the smoothing behaviour
 					var weight: float = 1 / max(pow(distance, 3) - density, 0.00001)
 
 					weights.append(weight)
 					total_weights += weight
+				
 
 				var weighted_distance: float = 0.0
 				for w in range(weights.size()):
