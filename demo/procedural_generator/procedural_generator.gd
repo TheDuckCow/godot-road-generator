@@ -67,7 +67,7 @@ func update_road() -> void:
 
 ## Manually clear prior/next points to ensure it gets fully disconnected
 func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
-	var next_edge_rp: RoadPoint = edge_rp.get_next_rp() if dir == RoadPoint.PointInit.PRIOR else edge_rp.get_prior_rp()
+	var next_edge_rp: RoadPoint = edge_rp.get_next_road_node() if dir == RoadPoint.PointInit.PRIOR else edge_rp.get_prior_road_node()
 	var flip_dir: int = RoadPoint.PointInit.NEXT if dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 	var spawner = edge_rp.get_node("ActorSpawner")
 	assert(spawner)

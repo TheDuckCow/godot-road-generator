@@ -472,10 +472,10 @@ func is_on_edge() -> bool:
 func cross_container_connected() -> bool:
 	if not is_on_edge():
 		return false
-	var _pr = get_prior_rp()
+	var _pr = get_prior_road_node()
 	if is_instance_valid(_pr) and _pr.container != self.container:
 		return true
-	var _nt = get_next_rp()
+	var _nt = get_next_road_node()
 	if is_instance_valid(_nt) and _nt.container != self.container:
 		return true
 	return false
@@ -513,10 +513,17 @@ func is_next_connected() -> bool:
 	return false
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_prior_rp():
+	return get_prior_road_node()
+
+
+## Returns prior RP direct reference, accounting for cross-container connections
+func get_prior_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.prior_pt_init:
 		return get_node(prior_pt_init)
+	if limit_same_container:
+		return null
 	# If no sibling point, could still have a cross-container connection
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
@@ -528,15 +535,22 @@ func get_prior_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_prior_rp)")
+		push_warning("RP should have been present in container edge list (get_prior_road_node)")
 	return null
 
 
-## Returns prior RP direct reference, accounting for cross-container connections
+## Deprecated in favor of get_next_graphnode
 func get_next_rp():
+	return get_next_road_node()
+
+
+## Returns next RP direct reference, accounting for cross-container connections
+func get_next_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.next_pt_init:
 		return get_node(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
+	if limit_same_container:
+		return null
 	for _idx in range(len(container.edge_rp_locals)):
 		if container.get_node_or_null(container.edge_rp_locals[_idx]) != self:
 			continue
@@ -547,7 +561,7 @@ func get_next_rp():
 		var target_container = container.get_node(container.edge_containers[_idx])
 		return target_container.get_node(container.edge_rp_targets[_idx])
 	if not self.terminated:
-		push_warning("RP should have been present in container edge list (get_next_rp)")
+		push_warning("RP should have been present in container edge list (get_next_road_node)")
 	return null
 
 
@@ -945,7 +959,7 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 ## - edge_rp_target_dirs
 ## - edge_rp_locals -> Already set locally, for reading only
 ## - edge_rp_local_dirs -> Already set locally, for reading only
-func connect_container(this_direction: int, target_rp: Node, target_direction: int) -> bool:
+func connect_container(this_direction: int, target_rp: RoadPoint, target_direction: int) -> bool:
 	if not target_rp.has_method("is_road_point"):
 		push_error("Second input must be a valid RoadPoint")
 		return false
@@ -1233,6 +1247,12 @@ func get_thickness():
 func get_width_without_shoulders():
 	# TODO should use get_road_width() instead?
 	var total_width = lane_width * len(lanes)
+	return total_width
+
+
+## Gets the total width of the road including shoulders, but not gutters
+func get_width_with_shoulders():
+	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
 	return total_width
 
 # ------------------------------------------------------------------------------

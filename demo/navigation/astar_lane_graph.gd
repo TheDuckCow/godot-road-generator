@@ -32,17 +32,22 @@ var id_path: PackedInt64Array
 @onready var path_search_radius_squared := pow(path_search_radius, 2)
 @onready var lane_connection_distance_squared := pow(lane_connection_distance, 2)
 
+## Workaround to forward actions from unhandled input to _physics_process to
+## safely perform raycasts
+var _raycast_next_phys_frame: bool = false
+var _triggering_event: InputEvent
 
 func _ready() -> void:
 	reload_graph()
 	return
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if (
-			event is InputEventMouseButton and event.is_pressed() and not
-			event.is_echo() and event.button_index == MOUSE_BUTTON_LEFT
-	):
+func _physics_process(delta: float) -> void:
+	if not _raycast_next_phys_frame:
+		return
+	_raycast_next_phys_frame = false
+	
+	if _triggering_event.button_index == MOUSE_BUTTON_LEFT:
 		var space_state = get_world_3d().direct_space_state
 		var ray_params := PhysicsRayQueryParameters3D.new()
 		ray_params.from = camera.project_ray_origin(
@@ -57,11 +62,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			path_start_marker.position = result.position
 			path_start_marker.position.y += 2
 			id_path = plot_route()
-
-	if (
-			event is InputEventMouseButton and event.is_pressed() and not
-			event.is_echo() and event.button_index == MOUSE_BUTTON_RIGHT
-	):
+	else:
 		var space_state = get_world_3d().direct_space_state
 		var ray_params := PhysicsRayQueryParameters3D.new()
 		ray_params.from = camera.project_ray_origin(
@@ -76,7 +77,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			path_end_marker.position = result.position
 			path_end_marker.position.y += 2
 			id_path = plot_route()
-	return
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or not event.is_pressed() or event.is_echo():
+		return
+	elif event.button_index == MOUSE_BUTTON_LEFT:
+		_raycast_next_phys_frame = true
+		_triggering_event = event
+		get_viewport().set_input_as_handled()
+	elif event.button_index == MOUSE_BUTTON_RIGHT:
+		_raycast_next_phys_frame = true
+		_triggering_event = event
+		get_viewport().set_input_as_handled()
+
 
 ## Reload our astar graph.
 func reload_graph() -> void:

@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bfuav67ol2p2c"]
+
+[ext_resource type="Shader" path="res://addons/road-generator/ui/hidden_gizmo.gdshader" id="1_ipkjx"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_ipkjx")
