@@ -835,10 +835,10 @@ func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return start_point.transform.basis.y * _start_flip_mult
+		return start_point.transform.basis.y
 	elif sample_position >= 1.0 - offset_amount * 0.5:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return end_point.transform.basis.y * _end_flip_mult
+		return end_point.transform.basis.y
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
