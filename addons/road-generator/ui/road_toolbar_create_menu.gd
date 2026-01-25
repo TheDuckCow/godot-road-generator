@@ -200,7 +200,7 @@ func _create_menu_item_clicked(id: int) -> void:
 		CreateMenu.LOCK_ROTATION_Z:
 			var new_checked = _toggle_check_item(id)
 			lock_rotation_z_toggled.emit(new_checked)
-    CreateMenu.FEEDBACK:
+		CreateMenu.FEEDBACK:
 			feedback_pressed.emit()
 		CreateMenu.REPORT_ISSUE:
 			report_issue_pressed.emit()
