@@ -16,6 +16,8 @@ godot_versions.txt
 .import/
 export.cfg
 export_presets.cfg
+# files resulting from Godot crashes (backups?)
+*.tmp
 
 # Imported translations (automatically generated from CSV files)
 *.translation
@@ -25,3 +27,6 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 local_dev
+
+# IDE specific ignores
+.vscode/

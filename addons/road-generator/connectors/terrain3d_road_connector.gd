@@ -1,4 +1,5 @@
 @tool
+class_name RoadTerrain3DConnector
 extends Node
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
@@ -13,11 +14,15 @@ const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 	set(value):
 		terrain = value
 		configure_road_update_signal()
+		if is_node_ready():
+			_skip_scene_load = false
 ## Reference to the RoadManager instance, read only
 @export var road_manager:RoadManager:
 	set(value):
 		road_manager = value
 		configure_road_update_signal()
+		if is_node_ready():
+			_skip_scene_load = false
 ## Vertical offset to help avoid z-fighting, negative values will sink the terrain underneath the road
 @export var offset:float = -0.25
 ## Additional flattening to do beyond the edge of the road in meters
@@ -34,7 +39,9 @@ const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 		auto_refresh = value
 		configure_road_update_signal()
 
+
 ## Immediately level the terrain to match roads
+## Only supported in Godot 4.4+, re-enable if that applies to you
 #@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
@@ -43,7 +50,7 @@ var refresh_timer: float = 0.05
 var _pending_updates:Dictionary = {} # TODO: type as RoadSegments, need to update internal typing
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
-
+var _skip_scene_load: bool = true
 
 func _ready() -> void:
 	configure_road_update_signal()
@@ -66,20 +73,18 @@ func configure_road_update_signal() -> void:
 		return
 	if not is_instance_valid(road_manager):
 		return
-	# TODO: Primary road generator project to expose this on the manager level, to bubble up from
-	# individual containers
-	for _cont in road_manager.get_containers():
-		_cont = _cont as RoadContainer
-		if auto_refresh and not _cont.on_road_updated.is_connected(_schedule_refresh):
-			_cont.on_road_updated.connect(_schedule_refresh)
-		elif not auto_refresh and _cont.on_road_updated.is_connected(_schedule_refresh):
-			_cont.on_road_updated.disconnect(_schedule_refresh)
-			
-		# Handle transforms on containers themelves:
-		if auto_refresh and not _cont.on_transform.is_connected(_on_container_transform):
-			_cont.on_transform.connect(_on_container_transform)
-		elif not auto_refresh and _cont.on_transform.is_connected(_on_container_transform):
-			_cont.on_transform.disconnect(_on_container_transform)
+
+	# Handle signals from each RoadContainer when there are updated segments
+	if auto_refresh and not road_manager.on_road_updated.is_connected(_on_manager_road_updated):
+		road_manager.on_road_updated.connect(_on_manager_road_updated)
+	elif not auto_refresh and road_manager.on_road_updated.is_connected(_on_manager_road_updated):
+		road_manager.on_road_updated.disconnect(_on_manager_road_updated)
+		
+	# Handle transforms on containers themelves
+	if auto_refresh and not road_manager.on_container_transformed.is_connected(_on_container_transform):
+		road_manager.on_container_transformed.connect(_on_container_transform)
+	elif not auto_refresh and road_manager.on_container_transformed.is_connected(_on_container_transform):
+		road_manager.on_container_transformed.disconnect(_on_container_transform)
 
 
 func do_full_refresh() -> void:
@@ -106,6 +111,7 @@ func do_full_refresh() -> void:
 		for _rc in restart_geo_off:
 			_rc.create_geo = false
 
+
 ## Workaround helper to transform geo for intersection scenes or other
 ## scenarios where "create_geo" is turned off, by temporairly turning it on.
 func _on_container_transform(container:RoadContainer) -> void:
@@ -121,8 +127,19 @@ func _on_container_transform(container:RoadContainer) -> void:
 	container.create_geo = false
 
 
+func _on_manager_road_updated(segments: Array) -> void:
+	if not road_manager.is_node_ready() or not terrain.is_node_ready():
+		# Likely loading scene for the first time, and thus roads will be
+		# generated but it's not expected to perform flattening
+		return
+	_schedule_refresh(segments)
+
+
 ## Accumulates road segments to be refreshed while an operation is in progress
 func _schedule_refresh(segments: Array) -> void:
+	if _skip_scene_load:
+		_skip_scene_load = false
+		return
 	_mutex.lock()
 	for _seg in segments:
 		# Using a dictionary to accumulate updates to process
@@ -149,7 +166,7 @@ func _refresh_scheduled_segments() -> void:
 	_timer = null
 	_mutex.unlock()
 	refresh_roadsegments(_segs)
-	
+
 
 func refresh_roadsegments(segments: Array) -> void:
 	if not is_configured():
@@ -166,15 +183,22 @@ func refresh_roadsegments(segments: Array) -> void:
 			# but will be invalid by the time this function actually runs as
 			# they are destroyed right away after a direct call to this func
 			continue
+		if _seg is RoadIntersection:
+			var inter := _seg as RoadIntersection
+			if inter.container.flatten_terrain or inter.flatten_terrain:
+				flatten_terrain_via_intersection(inter)
+			continue
 		_seg = _seg as RoadSegment
-
+		if not _seg:
+			print("Unexpected non-RoadSegment element")
+			continue
 
 		# check if this segment should be ignored
 		if (
 			not _seg.container.flatten_terrain
 			or (not _seg.start_point.flatten_terrain and not _seg.end_point.flatten_terrain)
 		):
-			print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
+			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 
 		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
@@ -189,6 +213,10 @@ func get_road_width(point: RoadPoint) -> float:
 		+ point.shoulder_width_r
 		+ point.lane_width * point.lanes.size()
 	)
+
+
+func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
+	push_warning("Intersection flattening not yet implemented")
 
 
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:

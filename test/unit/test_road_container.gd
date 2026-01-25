@@ -2,11 +2,15 @@ extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
-@onready var road_util := RoadUtils.new()
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+
+var road_util: RoadUtils
 
 
 func before_each():
 	gut.p("ran setup", 2)
+	road_util = RoadUtils.new()
+	road_util.gut = gut
 
 func after_each():
 	gut.p("ran teardown", 2)
@@ -19,33 +23,6 @@ func after_all():
 
 
 # ------------------------------------------------------------------------------
-
-
-## Utility to create a single segment container (2 points)
-func create_oneseg_container(container):
-	container.setup_road_container()
-
-	assert_eq(container.get_child_count(), 0, "No initial point children")
-
-	var p1 = autoqfree(RoadPoint.new())
-	var p2 = autoqfree(RoadPoint.new())
-
-	container.add_child(p1)
-	container.add_child(p2)
-	assert_eq(container.get_child_count(), 2, "Both RPs added")
-
-	p1.next_pt_init = p1.get_path_to(p2)
-	p2.prior_pt_init = p2.get_path_to(p1)
-
-
-func create_two_containers(container_a, container_b):
-	create_oneseg_container(container_a)
-	create_oneseg_container(container_b)
-
-	assert_eq(len(container_a.edge_containers), 2, "Cont A should have 2 empty edge container slots")
-	assert_eq(len(container_b.edge_containers), 2, "Cont B should have 2 empty edge container slots")
-	#container_a.update_edges() # should be auto-called
-	#container_b.update_edges() # should be auto-called
 
 
 func validate_edges_equal_size(container):
@@ -134,7 +111,7 @@ func test_on_road_updated_single_segment():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	create_oneseg_container(container)
+	road_util.create_oneseg_container(container)
 
 	# Now trigger the update, to see that a single segment was made
 	watch_signals(container)
@@ -143,14 +120,15 @@ func test_on_road_updated_single_segment():
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+	assert_is(segments_updated[0], RoadSegment, "Should be a RoadSegment")
 
 
 ## Ensure that users can manually assign two points to connect with auto_refresh
-func test_RoadContainer_validations_with_autorefresh():
+func test_roadcontainer_validations_with_autorefresh():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = true  # Will kick in validation
 
-	create_oneseg_container(container)
+	road_util.create_oneseg_container(container)
 
 	# Now trigger the update, to see that a single segment was made
 	watch_signals(container)
@@ -204,7 +182,7 @@ func test_update_edges():
 	validate_edges_equal_size(container)
 
 	# Second case: 2 edges over 2 points
-	create_oneseg_container(container)
+	road_util.create_oneseg_container(container)
 	assert_eq(len(container.edge_rp_locals), 2, "Should have two edges")
 	validate_edges_equal_size(container)
 
@@ -241,7 +219,7 @@ func test_container_connection():
 	cont_a._auto_refresh = false
 	cont_b._auto_refresh = false
 
-	create_two_containers(cont_a, cont_b)
+	road_util.create_two_containers(cont_a, cont_b)
 	var pt1 = cont_a.get_roadpoints()[0]
 	var pt2 = cont_b.get_roadpoints()[1]
 
@@ -284,7 +262,7 @@ func test_container_disconnection():
 	cont_a._auto_refresh = false
 	cont_b._auto_refresh = false
 
-	create_two_containers(cont_a, cont_b)
+	road_util.create_two_containers(cont_a, cont_b)
 	var pt1 = cont_a.get_roadpoints()[0]
 	var pt2 = cont_b.get_roadpoints()[1]
 
@@ -336,7 +314,7 @@ func test_container_snap_unsnap():
 	cont_a._auto_refresh = false
 	cont_b._auto_refresh = false
 
-	create_two_containers(cont_a, cont_b)
+	road_util.create_two_containers(cont_a, cont_b)
 	var pt1:RoadPoint = cont_a.get_roadpoints()[0]
 	var pt2:RoadPoint = cont_b.get_roadpoints()[1]
 
@@ -349,7 +327,7 @@ func test_collider_assignmens():
 	var container = add_child_autofree(RoadContainer.new())
 	container.collider_group_name = "test_collider_group"
 	container.collider_meta_name = "test_meta_name"
-	create_oneseg_container(container)
+	road_util.create_oneseg_container(container)
 
 	var _members = get_tree().get_nodes_in_group(container.collider_group_name)
 	assert_true(len(_members)>0, "Should have 1+ segmetns in test group name")

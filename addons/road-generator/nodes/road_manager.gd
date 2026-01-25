@@ -17,6 +17,18 @@ extends Node3D
 #region Signals/Enums/Const/Exports
 # ------------------------------------------------------------------------------
 
+
+## Emitted when a road segment has been (re)generated, returning the list
+## of updated segments of type Array.
+##
+## Elements can be either RoadSegments or RoadIntersections. These always have
+## a child node which is the mesh of the road itself.
+signal on_road_updated(updated_segments: Array[Node3D])
+
+## For internal purposes, to handle drag events in the editor.
+signal on_container_transformed(updated_segments: RoadContainer)
+
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
 
 
@@ -31,10 +43,11 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 ##
 ## Can be overridden by each [RoadContainer].
 @export
-var material_resource: Material:
+var material_resource: Material = RoadMaterial:
 	set(value):
 		material_resource = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 ## The material applied to the underside of the generated meshes.[br][br]
 ##
@@ -52,10 +65,11 @@ var material_underside: Material:
 ##
 ## Can be overridden by each [RoadContainer].
 @export
-var density: float = 4.0:
+var density: float = RoadSegment.DEFAULT_DENSITY:
 	set(value):
 		density = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 
 ## Defines the thickness in meters of the underside part of the road.[br][br]
@@ -79,7 +93,8 @@ var density: float = 4.0:
 var physics_material: PhysicsMaterial:
 	set(value):
 		physics_material = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 ## Group name to assign to the staic bodies created by a RoadSegment.[br][br]
 ##
@@ -88,7 +103,8 @@ var physics_material: PhysicsMaterial:
 var collider_group_name := "":
 	set(value):
 		collider_group_name = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 ## Meta name to assign to the static bodies created by a RoadSegment.[br][br]
 ##
@@ -97,7 +113,8 @@ var collider_group_name := "":
 var collider_meta_name := "":
 	set(value):
 		collider_meta_name = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 ## Collision layer to assign to the StaticBody3D's own collision_layer.[br][br]
 ##
@@ -106,7 +123,8 @@ var collider_meta_name := "":
 @export_flags_3d_physics var collision_layer: int = 1:
 	set(value):
 		collision_layer = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 ## Collision mask to assign to the StaticBody3D's own collision_mask.[br][br]
 ##
@@ -115,7 +133,8 @@ var collider_meta_name := "":
 @export_flags_3d_physics var collision_mask: int = 1:
 	set(value):
 		collision_mask = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 # ------------------------------------------------------------------------------
 # Properties relating to how RoadLanes and AI tooling is set up
@@ -130,7 +149,8 @@ var collider_meta_name := "":
 var ai_lane_group := "road_lanes":
 	set(value):
 		ai_lane_group = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 
 # ------------------------------------------------------------------------------
@@ -146,7 +166,7 @@ var auto_refresh: bool = true: set = _ui_refresh_set
 
 
 # ------------------------------------------------------------------------------
-# Internal flags
+# Internal flags and setup
 # ------------------------------------------------------------------------------
 
 
@@ -165,8 +185,15 @@ func _ready():
 	# it would default to true even if auto refresh is false here.
 	_ui_refresh_set(auto_refresh)
 
-	# setup_road_container won't work in _ready unless call_deferred is used
-	assign_default_material.call_deferred()
+	rebuild_all_containers(true)
+
+
+func _enter_tree() -> void:
+	pass
+
+
+func _exit_tree() -> void:
+	pass
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -195,10 +222,10 @@ func is_road_manager() -> bool:
 # ------------------------------------------------------------------------------
 
 
-func get_containers() -> Array:
-	var res := []
+func get_containers() -> Array[RoadContainer]:
+	var res:Array[RoadContainer] = []
 	for ch in get_children():
-		if ch.has_method("is_road_container"):
+		if ch is RoadContainer:
 			res.append(ch)
 	return res
 
@@ -222,14 +249,17 @@ func rebuild_all_containers_deferred() -> void:
 # ------------------------------------------------------------------------------
 
 
-func assign_default_material() -> void:
-	if not material_resource:
-		material_resource = RoadMaterial
+## Propogates upwards signals emitted by child RoadContainers
+##
+## Note: this function is called directly by each RoadContainer, and results
+## are not accumulated across multiple updates but rather one at a time.
+func on_container_update(updated_segments: Array) -> void:
+	on_road_updated.emit(updated_segments)
 
 
 func _ui_refresh_set(value: bool) -> void:
 	if value:
-		call_deferred("rebuild_all_containers")
+		call_deferred("rebuild_all_containers") # Call with true?
 	auto_refresh = value
 	for ch in get_containers():
 		# Not an exposed setting on child.
