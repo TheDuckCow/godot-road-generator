@@ -34,6 +34,10 @@ var _last_point: Node
 var _last_lane: Node
 var _export_file_dialog: FileDialog
 
+var _lock_x_rotation := false
+var _lock_y_rotation := false
+var _lock_z_rotation := false
+
 var _edi_debug := false
 
 # For use by road_point_edit and panel, keys are props on RoadPoint
@@ -317,7 +321,7 @@ func _handles(object: Object):
 
 func _show_road_toolbar() -> void:
 	_road_toolbar.mode = tool_mode
-	_road_toolbar.on_show(_eds.get_selected_nodes())
+	_road_toolbar.on_show(_eds.get_selected_nodes(), _lock_x_rotation, _lock_y_rotation, _lock_z_rotation)
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
@@ -335,11 +339,22 @@ func _show_road_toolbar() -> void:
 
 		# Specials / prefabs
 		_road_toolbar.create_menu.create_2x2_road.connect(_create_2x2_road_pressed)
-		
+
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
 		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
+
+		# Locking rotations
+		_road_toolbar.create_menu.lock_rotation_x_toggled.connect(
+			func(value): _lock_x_rotation = value
+		)
+		_road_toolbar.create_menu.lock_rotation_y_toggled.connect(
+			func(value): _lock_y_rotation = value
+		)
+		_road_toolbar.create_menu.lock_rotation_z_toggled.connect(
+			func(value): _lock_z_rotation = value
+		)
 
 
 func _hide_road_toolbar() -> void:
@@ -651,7 +666,14 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 			else:
 				look_pos += selection.global_transform.basis.z * selection.prior_mag
 			next_rp.look_at(look_pos, nrm)
-	
+
+			if _lock_x_rotation:
+				next_rp.global_rotation.x = 0.0
+			if _lock_y_rotation:
+				next_rp.global_rotation.y = 0.0
+			if _lock_z_rotation:
+				next_rp.global_rotation.z = 0.0
+
 	next_rp._is_internal_updating = false
 	set_selection(next_rp)
 
