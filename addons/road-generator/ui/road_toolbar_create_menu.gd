@@ -60,6 +60,10 @@ func _enter_tree() -> void:
 		load_submenu()
 
 
+func _exit_tree() -> void:
+	get_popup().id_pressed.disconnect(_create_menu_item_clicked)
+
+
 func load_submenu() -> void:
 	var pup: Popup = get_popup()
 	rc_submenu = RcSubMenu.new()
@@ -67,9 +71,7 @@ func load_submenu() -> void:
 	pup.add_child(rc_submenu)
 
 
-func on_toolbar_show(
-	primary_sel: Node, x_rotation_locked: bool, y_rotation_locked: bool, z_rotation_locked: bool
-) -> void:
+func on_toolbar_show(primary_sel: Node) -> void:
 	if primary_sel.has_method("is_subscene") and primary_sel.is_subscene():
 		menu_mode = MenuMode.SAVED_SUBSCENE
 	else:
@@ -140,21 +142,6 @@ func on_toolbar_show(
 	pup.add_submenu_item("RoadContainer presets", "rc_items", idx)
 	idx += 1
 
-	pup.add_separator("Lock new node rotation?")
-	idx += 1
-
-	pup.add_check_item("Lock X", CreateMenu.LOCK_ROTATION_X)
-	pup.set_item_checked(idx, x_rotation_locked)
-	idx += 1
-
-	pup.add_check_item("Lock Y", CreateMenu.LOCK_ROTATION_Y)
-	pup.set_item_checked(idx, y_rotation_locked)
-	idx += 1
-
-	pup.add_check_item("Lock Z", CreateMenu.LOCK_ROTATION_Z)
-	pup.set_item_checked(idx, z_rotation_locked)
-	idx += 1
-
 	pup.add_separator()
 	idx += 1
 
@@ -167,10 +154,6 @@ func on_toolbar_show(
 	idx += 1
 	pup.add_item("Share feedback", CreateMenu.FEEDBACK)
 	idx += 1
-
-
-func _exit_tree() -> void:
-	get_popup().id_pressed.disconnect(_create_menu_item_clicked)
 
 
 func _create_menu_item_clicked(id: int) -> void:

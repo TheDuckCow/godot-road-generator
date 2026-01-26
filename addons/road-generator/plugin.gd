@@ -74,6 +74,8 @@ func _enter_tree():
 
 	# Update toolbar connections
 	_road_toolbar.mode_changed.connect(_on_mode_change)
+	_road_toolbar.rotation_lock_toggled.connect(_on_rotation_lock_toggled)
+	_road_toolbar.snap_distance_updated.connect(_on_snap_distance_updated)
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT
@@ -142,7 +144,7 @@ func _on_selection_changed() -> void:
 	if not selected_node:
 		road_point_gizmo.set_hidden()
 		road_intersection_gizmo.set_hidden()
-		_hide_road_toolbar()
+		_hide_road_toolbar() # hiding too soon
 		return
 
 	if _last_lane and is_instance_valid(_last_lane):
@@ -180,10 +182,8 @@ func _on_selection_changed() -> void:
 func _on_scene_changed(scene_root: Node) -> void:
 	var selected := get_selected_node()
 	var eligible := is_road_node(selected)
-	if selected and eligible:
-		_show_road_toolbar()
-	else:
-		_hide_road_toolbar()
+	# We do not need ot reshow/hide the toolbar, this is handled via node
+	# deselection/selection on scene change by the editor itself
 
 
 func _on_scene_closed(_value) -> void:
@@ -207,6 +207,38 @@ func get_plugin_version() -> String:
 	if config.load(addon_path) == OK:
 		return config.get_value("plugin", "version", "")
 	return ""
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Editor setting callabls
+# ------------------------------------------------------------------------------
+
+## Finds and returns the most relevant connector if any in this scene
+func get_connector() -> Node:
+	var scene_root := EditorInterface.get_edited_scene_root()
+	var connector: Node = _find_connector_recursive(scene_root)
+	print("Best fitting conenctor: ", connector)
+	return connector
+
+
+## Depth-first search for connector nodes
+func _find_connector_recursive(node) -> Node:
+	for ch in node.get_children():
+		if ch is RoadTerrain3DConnector:
+			return ch
+		else:
+			var res = _find_connector_recursive(ch)
+			if res == null:
+				continue
+	return null
+
+## Returns the snapping threshold from the connection tool
+func get_snapping_distance() -> float:
+	return connection_tool.snap_threshold
+
+
+func set_snapping_distance(value: float) -> void:
+	connection_tool.snap_threshold = value
 
 
 # ------------------------------------------------------------------------------
@@ -273,6 +305,7 @@ func set_selection(node: Node) -> void:
 	_edi.get_selection().clear()
 	_edi.get_selection().add_node(node)
 	_edi.edit_node(node) # Necessary?
+	print("Editing single node ", node)
 
 
 func set_selection_list(nodes: Array) -> void:
@@ -280,6 +313,7 @@ func set_selection_list(nodes: Array) -> void:
 	for _nd in nodes:
 		_edi.get_selection().add_node(_nd)
 		_edi.edit_node(_nd)
+		print("Editing list, node ", _nd)
 
 
 ## Get the nearest edge RoadPoint for the given container
@@ -321,7 +355,13 @@ func _handles(object: Object):
 
 func _show_road_toolbar() -> void:
 	_road_toolbar.mode = tool_mode
-	_road_toolbar.on_show(_eds.get_selected_nodes(), _lock_x_rotation, _lock_y_rotation, _lock_z_rotation)
+	_road_toolbar.on_show(
+		_eds.get_selected_nodes(),
+		connection_tool.snap_threshold,
+		get_connector, # Passes in the callable directly, to defer search to submenu open
+		_lock_x_rotation,
+		_lock_y_rotation,
+		_lock_z_rotation)
 
 	if not _road_toolbar.get_parent():
 		add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
@@ -379,6 +419,20 @@ func _hide_road_toolbar() -> void:
 		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
 		_road_toolbar.create_menu.feedback_pressed.disconnect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.disconnect(_on_report_issue_pressed)
+
+
+func _on_rotation_lock_toggled(axis_id: int, state: bool) -> void:
+	match axis_id:
+		0:
+			_lock_x_rotation = state
+		1:
+			_lock_y_rotation = state
+		2:
+			_lock_z_rotation = state
+
+
+func _on_snap_distance_updated(value: float) -> void:
+	connection_tool.snap_threshold = value
 
 
 func _on_regenerate_pressed() -> void:
