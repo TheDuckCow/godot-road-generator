@@ -79,10 +79,14 @@ text = "Snapping distance"
 [node name="snap_distance" type="SpinBox" parent="settings_panel/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Distance in meters for UI snapping.
+tooltip_text = "Distance for UI snapping.
 
-When two Road nodes (such as open RoadPoints or RoadIntersections are within
-this distance, they will be considered for snapping together."
+When two Road nodes (such
+as open RoadPoints or
+RoadIntersections are within
+this distance, they will be
+considered for snapping
+together."
 step = 0.1
 value = 25.0
 allow_greater = true
@@ -98,19 +102,22 @@ text = "On add RoadPoint"
 [node name="lock_rot_x" type="CheckBox" parent="settings_panel/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Zero out any X-rotation when adding RoadPoints"
+tooltip_text = "Zero X-rotation on
+new RoadPoint added"
 text = "Lock X"
 
 [node name="lock_rot_y" type="CheckBox" parent="settings_panel/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Zero out any Y-rotation when adding RoadPoints"
+tooltip_text = "Zero Y-rotation on
+new RoadPoint added"
 text = "Lock Y"
 
 [node name="lock_rot_z" type="CheckBox" parent="settings_panel/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Zero out any Z-rotation when adding RoadPoints"
+tooltip_text = "Zero Z-rotation on
+new RoadPoint added"
 text = "Lock Z"
 
 [node name="HSeparator2" type="HSeparator" parent="settings_panel/VBoxContainer"]
@@ -124,6 +131,7 @@ text = "Terrain3D Connector"
 layout_mode = 2
 
 [node name="terrain3d" type="Button" parent="settings_panel/VBoxContainer/terrain3d_bar"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Select"
@@ -131,6 +139,8 @@ text = "Select"
 [node name="terrain3d_tut" type="Button" parent="settings_panel/VBoxContainer/terrain3d_bar"]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Open tutorial
+for connector"
 
 [node name="rc items (?)" type="PopupMenu" parent="."]
 
@@ -141,4 +151,5 @@ layout_mode = 2
 [connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_x" to="." method="_on_lock_rot_x_toggled"]
 [connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_y" to="." method="_on_lock_rot_y_toggled"]
 [connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_z" to="." method="_on_lock_rot_z_toggled"]
+[connection signal="pressed" from="settings_panel/VBoxContainer/terrain3d_bar/terrain3d" to="." method="_on_terrain_3d_pressed"]
 [connection signal="pressed" from="settings_panel/VBoxContainer/terrain3d_bar/terrain3d_tut" to="." method="_on_terrain_3d_tut_pressed"]

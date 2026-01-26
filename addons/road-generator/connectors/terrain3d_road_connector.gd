@@ -56,6 +56,15 @@ func _ready() -> void:
 	configure_road_update_signal()
 
 
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = []
+	if not is_instance_valid(road_manager):
+		warnings.append("Road manager not assigned for terrain flattening")
+	if not is_instance_valid(terrain):
+		warnings.append("Terrain not assigned for terrain flattening")
+	return warnings
+
+
 func is_configured() -> bool:
 	var has_error:bool = false
 	if not is_instance_valid(road_manager):

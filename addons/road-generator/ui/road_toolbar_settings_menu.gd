@@ -4,6 +4,7 @@ extends Button
 @onready var popup: PopupPanel = get_node("../settings_panel")
 
 var get_connector: Callable
+var terrain3d_select: Button
 var _connector: Node
 
 var _connector_parent: HBoxContainer
@@ -32,7 +33,20 @@ func _on_pressed():
 
 func populate_connector() -> void:
 	if not _connector:
+		terrain3d_select.disabled = true
+		terrain3d_select.text = "Not found"
+		terrain3d_select.icon = null
+		terrain3d_select.tooltip_text = "First add\nRoadTerrain\n3DConnector\nto scene"
 		return
+	terrain3d_select.disabled = false
+	if _connector.is_configured():
+		terrain3d_select.text = "Select connector"
+		terrain3d_select.icon = null
+		terrain3d_select.tooltip_text = "Select connector\nin scene tree"
+	else:
+		terrain3d_select.text = "Not configured"
+		terrain3d_select.icon = EditorInterface.get_editor_theme().get_icon("NodeWarning", "EditorIcons")
+		terrain3d_select.tooltip_text = "Press to select\nand connect\nRoadManager and\nterrain nodes"
 	
 	# Configure columns for labels + export var inputs
 	var vbox := %terrain3d_tut.get_parent().get_parent()

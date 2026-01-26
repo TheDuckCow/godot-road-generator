@@ -7,11 +7,9 @@ signal create_container
 signal create_roadpoint
 signal create_lane
 signal create_lane_agent
+signal create_terrain3d_connector
 signal create_2x2_road
 signal export_mesh
-signal lock_rotation_x_toggled(locked: bool)
-signal lock_rotation_y_toggled(locked: bool)
-signal lock_rotation_z_toggled(locked: bool)
 signal feedback_pressed
 signal report_issue_pressed
 
@@ -26,11 +24,9 @@ enum CreateMenu {
 	POINT,
 	LANE,
 	LANEAGENT,
+	TERRAIN3D_CONNECTOR,
 	TWO_X_TWO,
 	EXPORT_MESH,
-	LOCK_ROTATION_X,
-	LOCK_ROTATION_Y = 90,  # for some reason, this being `9` breaks the checkbox
-	LOCK_ROTATION_Z,
 	FEEDBACK,
 	REPORT_ISSUE
 }
@@ -126,6 +122,10 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadLaneAgent to follow RoadLane paths")
 	idx += 1
+	
+	pup.add_item("RoadTerrain3DConnector", CreateMenu.TERRAIN3D_CONNECTOR)
+	pup.set_item_tooltip(idx, "Adds node to flatten Terrain3D surface based on roads")
+	idx += 1
 
 	pup.add_separator()
 	idx += 1
@@ -170,19 +170,12 @@ func _create_menu_item_clicked(id: int) -> void:
 			create_lane.emit()
 		CreateMenu.LANEAGENT:
 			create_lane_agent.emit()
+		CreateMenu.TERRAIN3D_CONNECTOR:
+			create_terrain3d_connector.emit()
 		CreateMenu.TWO_X_TWO:
 			create_2x2_road.emit()
 		CreateMenu.EXPORT_MESH:
 			export_mesh.emit()
-		CreateMenu.LOCK_ROTATION_X:
-			var new_checked = _toggle_check_item(id)
-			lock_rotation_x_toggled.emit(new_checked)
-		CreateMenu.LOCK_ROTATION_Y:
-			var new_checked = _toggle_check_item(id)
-			lock_rotation_y_toggled.emit(new_checked)
-		CreateMenu.LOCK_ROTATION_Z:
-			var new_checked = _toggle_check_item(id)
-			lock_rotation_z_toggled.emit(new_checked)
 		CreateMenu.FEEDBACK:
 			feedback_pressed.emit()
 		CreateMenu.REPORT_ISSUE:

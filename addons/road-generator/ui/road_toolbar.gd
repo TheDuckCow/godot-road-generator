@@ -11,6 +11,7 @@ extends HBoxContainer
 signal mode_changed
 signal rotation_lock_toggled(axis_id: int, state: bool)
 signal snap_distance_updated(value: float)
+signal select_terrain_3d_pressed()
 
 enum InputMode {
 	NONE,  # e.g. if a Road*Node is not selected.
@@ -68,6 +69,7 @@ func update_refs():
 	lock_rot_y = %lock_rot_y
 	lock_rot_z = %lock_rot_z
 	terrain_tut = %terrain3d_tut
+	settings_menu.terrain3d_select = %terrain3d
 
 
 func on_show(
@@ -84,13 +86,14 @@ func on_show(
 	var is_subscene := false
 	if len(selected_nodes) > 0:
 		primary_sel = selected_nodes[0]
-	create_menu.on_toolbar_show(primary_sel)
 
 	snap_distance.value = _snapping_distance
 	lock_rot_x.button_pressed = x_rotation_locked
 	lock_rot_y.button_pressed = y_rotation_locked
 	lock_rot_z.button_pressed = z_rotation_locked
 	settings_menu.get_connector = _get_connector
+	
+	create_menu.on_toolbar_show(primary_sel)
 
 
 func update_icons():
@@ -165,6 +168,11 @@ func _on_lock_rot_z_toggled(value: bool) -> void:
 func _on_terrain_3d_tut_pressed() -> void:
 	var url := "https://github.com/TheDuckCow/godot-road-generator/wiki/Using-the-Terrain3D-Connector"
 	OS.shell_open(url)
+
+
+func _on_terrain_3d_pressed() -> void:
+	settings_menu.popup.hide()
+	select_terrain_3d_pressed.emit()
 
 
 #endregion

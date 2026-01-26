@@ -76,6 +76,7 @@ func _enter_tree():
 	_road_toolbar.mode_changed.connect(_on_mode_change)
 	_road_toolbar.rotation_lock_toggled.connect(_on_rotation_lock_toggled)
 	_road_toolbar.snap_distance_updated.connect(_on_snap_distance_updated)
+	_road_toolbar.select_terrain_3d_pressed.connect(_on_select_terrain_3d_pressed)
 
 	# Initial mode
 	tool_mode = _road_toolbar.InputMode.SELECT
@@ -216,18 +217,17 @@ func get_plugin_version() -> String:
 ## Finds and returns the most relevant connector if any in this scene
 func get_connector() -> Node:
 	var scene_root := EditorInterface.get_edited_scene_root()
-	var connector: Node = _find_connector_recursive(scene_root)
-	print("Best fitting conenctor: ", connector)
+	var connector: Node = _find_nodetype_recursive(scene_root, "RoadTerrain3DConnector")
 	return connector
 
 
 ## Depth-first search for connector nodes
-func _find_connector_recursive(node) -> Node:
+func _find_nodetype_recursive(node, target_type) -> Node:
 	for ch in node.get_children():
-		if ch is RoadTerrain3DConnector:
+		if ch.get_class() == target_type:
 			return ch
 		else:
-			var res = _find_connector_recursive(ch)
+			var res = _find_nodetype_recursive(ch, target_type)
 			if res == null:
 				continue
 	return null
@@ -259,7 +259,7 @@ func get_selected_node() -> Node:
 
 
 ## Returns the next highest level RoadManager from current primary selection.
-func get_manager_from_selection(): # -> Optional[RoadManager]
+func get_manager_from_selection() -> RoadManager:
 	var selected_node := get_selected_node()
 
 	if not is_instance_valid(selected_node):
@@ -269,7 +269,7 @@ func get_manager_from_selection(): # -> Optional[RoadManager]
 		return selected_node
 	elif selected_node is RoadContainer:
 		return selected_node.get_manager()
-	elif selected_node is RoadPoint:
+	elif selected_node is RoadGraphNode:
 		if is_instance_valid(selected_node.container):
 			return selected_node.container.get_manager()
 		else:
@@ -384,17 +384,7 @@ func _show_road_toolbar() -> void:
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
 		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
-
-		# Locking rotations
-		_road_toolbar.create_menu.lock_rotation_x_toggled.connect(
-			func(value): _lock_x_rotation = value
-		)
-		_road_toolbar.create_menu.lock_rotation_y_toggled.connect(
-			func(value): _lock_y_rotation = value
-		)
-		_road_toolbar.create_menu.lock_rotation_z_toggled.connect(
-			func(value): _lock_z_rotation = value
-		)
+		_road_toolbar.create_menu.create_terrain3d_connector.connect(add_and_configure_terrain3d_connector)
 
 
 func _hide_road_toolbar() -> void:
@@ -419,6 +409,7 @@ func _hide_road_toolbar() -> void:
 		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
 		_road_toolbar.create_menu.feedback_pressed.disconnect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.disconnect(_on_report_issue_pressed)
+		_road_toolbar.create_menu.create_terrain3d_connector.disconnect(add_and_configure_terrain3d_connector)
 
 
 func _on_rotation_lock_toggled(axis_id: int, state: bool) -> void:
@@ -433,6 +424,12 @@ func _on_rotation_lock_toggled(axis_id: int, state: bool) -> void:
 
 func _on_snap_distance_updated(value: float) -> void:
 	connection_tool.snap_threshold = value
+
+
+func _on_select_terrain_3d_pressed() -> void:
+	var connector := get_connector()
+	if is_instance_valid(connector):
+		set_selection(connector)
 
 
 func _on_regenerate_pressed() -> void:
@@ -1209,6 +1206,44 @@ func delete_roadcontainer(container: RoadContainer) -> void:
 		if is_instance_valid(mgr):
 			undo_redo.add_do_method(self, "set_selection", mgr)
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.commit_action()
+
+
+func add_and_configure_terrain3d_connector() -> void:
+	var undo_redo = get_undo_redo()
+	var connector := RoadTerrain3DConnector.new()
+	connector.name = "RoadTerrain3DConnector"
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+
+	# First, find manager and determine node parent
+	var target_parent: Node = EditorInterface.get_edited_scene_root()
+	var init_node: Node = get_selected_node()
+	var manager := get_manager_from_selection()
+	if not is_instance_valid(manager):
+		manager = _find_nodetype_recursive(target_parent, "RoadManager")
+
+	if is_instance_valid(manager):
+		connector.road_manager = manager
+		target_parent = manager
+	else:
+		manager = null
+		target_parent = EditorInterface.get_edited_scene_root()
+
+	# Now find and assign Terrain3D if found
+	var terrain_node: Node = _find_nodetype_recursive(target_parent, "Terrain3D")
+	if is_instance_valid(terrain_node):
+		connector.terrain = terrain_node
+
+	undo_redo.create_action("Add RoadTerrain3DConnector")
+	undo_redo.add_do_method(target_parent, "add_child", connector, true)
+	if is_instance_valid(manager):
+		undo_redo.add_do_method(target_parent, "move_child", connector, 0)
+	undo_redo.add_do_method(connector, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_method(self, "set_selection", connector)
+	undo_redo.add_undo_method(target_parent, "remove_child", connector)
+	undo_redo.add_undo_method(connector, "set_owner", null)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	undo_redo.add_do_reference(connector)
 	undo_redo.commit_action()
 
 
