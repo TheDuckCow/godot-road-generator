@@ -224,12 +224,16 @@ func get_connector() -> Node:
 ## Depth-first search for connector nodes
 func _find_nodetype_recursive(node, target_type) -> Node:
 	for ch in node.get_children():
-		if ch.get_class() == target_type:
-			return ch
+		var nd: Node = ch
+		var script = nd.get_script()
+		if script and script.get_global_name() == target_type:
+			return nd
+		elif nd.get_class() == target_type:
+			return nd
 		else:
-			var res = _find_nodetype_recursive(ch, target_type)
-			if res == null:
-				continue
+			var res = _find_nodetype_recursive(nd, target_type)
+			if res != null:
+				return res
 	return null
 
 ## Returns the snapping threshold from the connection tool
@@ -305,7 +309,6 @@ func set_selection(node: Node) -> void:
 	_edi.get_selection().clear()
 	_edi.get_selection().add_node(node)
 	_edi.edit_node(node) # Necessary?
-	print("Editing single node ", node)
 
 
 func set_selection_list(nodes: Array) -> void:
@@ -313,7 +316,6 @@ func set_selection_list(nodes: Array) -> void:
 	for _nd in nodes:
 		_edi.get_selection().add_node(_nd)
 		_edi.edit_node(_nd)
-		print("Editing list, node ", _nd)
 
 
 ## Get the nearest edge RoadPoint for the given container
