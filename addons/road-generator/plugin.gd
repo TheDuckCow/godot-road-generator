@@ -1218,11 +1218,12 @@ func add_and_configure_terrain3d_connector() -> void:
 	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
 
 	# First, find manager and determine node parent
-	var target_parent: Node = EditorInterface.get_edited_scene_root()
+	var scene_root: Node = EditorInterface.get_edited_scene_root()
+	var target_parent: Node = scene_root
 	var init_node: Node = get_selected_node()
 	var manager := get_manager_from_selection()
 	if not is_instance_valid(manager):
-		manager = _find_nodetype_recursive(target_parent, "RoadManager")
+		manager = _find_nodetype_recursive(scene_root, "RoadManager")
 
 	if is_instance_valid(manager):
 		connector.road_manager = manager
@@ -1232,7 +1233,7 @@ func add_and_configure_terrain3d_connector() -> void:
 		target_parent = EditorInterface.get_edited_scene_root()
 
 	# Now find and assign Terrain3D if found
-	var terrain_node: Node = _find_nodetype_recursive(target_parent, "Terrain3D")
+	var terrain_node: Node = _find_nodetype_recursive(scene_root, "Terrain3D")
 	if is_instance_valid(terrain_node):
 		connector.terrain = terrain_node
 
