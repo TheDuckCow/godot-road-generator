@@ -50,10 +50,21 @@ var refresh_timer: float = 0.05
 var _pending_updates:Dictionary = {} # TODO: type as RoadSegments, need to update internal typing
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
-var _skip_scene_load: bool = true
+var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
+
 
 func _ready() -> void:
 	configure_road_update_signal()
+
+
+func _enter_tree() -> void:
+	if is_node_ready():
+		configure_road_update_signal.call_deferred()
+
+
+func _exit_tree() -> void:
+	_disconnect_signals()
+	_skip_scene_load = true
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -96,6 +107,14 @@ func configure_road_update_signal() -> void:
 		road_manager.on_container_transformed.disconnect(_on_container_transform)
 
 
+## Disconnects signals so avoid excessive refreshing if scene tab is opened again in the editor
+func _disconnect_signals() -> void:
+	if is_instance_valid(road_manager) and road_manager.on_road_updated.is_connected(_on_manager_road_updated):
+		road_manager.on_road_updated.disconnect(_on_manager_road_updated)
+	if is_instance_valid(road_manager) and road_manager.on_container_transformed.is_connected(_on_container_transform):
+		road_manager.on_container_transformed.disconnect(_on_container_transform)
+
+
 func do_full_refresh() -> void:
 	if not is_configured():
 		return
@@ -106,7 +125,6 @@ func do_full_refresh() -> void:
 		_container = _container as RoadContainer
 
 		if not _container.create_geo:
-			#print("Temp enabling geo on RoadContainer:", _container.name)
 			init_auto_refresh = false
 			_container.create_geo = true
 			_container.rebuild_segments(true)
@@ -212,7 +230,7 @@ func refresh_roadsegments(segments: Array) -> void:
 			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 
-		print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
+		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
 
