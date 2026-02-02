@@ -8,7 +8,7 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 
-# Terrain3D
+
 ## Reference to the Terrain3D instance, to be flattened
 @export var terrain:Node3D: #Terrain3D:
 	set(value):
@@ -54,6 +54,15 @@ var _skip_scene_load: bool = true
 
 func _ready() -> void:
 	configure_road_update_signal()
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = []
+	if not is_instance_valid(road_manager):
+		warnings.append("Road manager not assigned for terrain flattening")
+	if not is_instance_valid(terrain):
+		warnings.append("Terrain not assigned for terrain flattening")
+	return warnings
 
 
 func is_configured() -> bool:
@@ -128,6 +137,8 @@ func _on_container_transform(container:RoadContainer) -> void:
 
 
 func _on_manager_road_updated(segments: Array) -> void:
+	if not road_manager or not terrain:
+		return # one or the other is not defined
 	if not road_manager.is_node_ready() or not terrain.is_node_ready():
 		# Likely loading scene for the first time, and thus roads will be
 		# generated but it's not expected to perform flattening

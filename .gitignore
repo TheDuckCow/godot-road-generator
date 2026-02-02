@@ -1,6 +1,7 @@
 # Addon-specific ignores
 addons/godot-plugin-refresher/
 addons/godot-reload-scene/
+addons/terrain_3d/
 *.DS_store
 # Place where local instances of godot go, for automated testing
 godot_versions.txt

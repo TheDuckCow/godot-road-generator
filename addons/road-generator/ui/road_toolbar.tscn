@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b7r8ejy8iua8t"]
+[gd_scene load_steps=4 format=3 uid="uid://b7r8ejy8iua8t"]
 
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar.gd" id="1"]
 [ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" id="2"]
+[ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_settings_menu.gd" id="3_ldoh5"]
 
 [node name="RoadToolbar" type="HBoxContainer"]
 script = ExtResource("1")
@@ -50,11 +51,105 @@ toggle_mode = true
 
 [node name="CreateMenu" type="MenuButton" parent="."]
 layout_mode = 2
+focus_neighbor_left = NodePath("../delete_mode")
+focus_neighbor_right = NodePath("../SettingsMenu")
 text = "Roads"
 script = ExtResource("2")
+
+[node name="SettingsMenu" type="Button" parent="."]
+layout_mode = 2
+focus_neighbor_left = NodePath("../CreateMenu")
+flat = true
+script = ExtResource("3_ldoh5")
+
+[node name="settings_panel" type="PopupPanel" parent="."]
+gui_embed_subwindows = true
+size = Vector2i(194, 288)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="settings_panel"]
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 190.0
+offset_bottom = 284.0
+
+[node name="Label" type="Label" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+text = "Snapping distance"
+
+[node name="snap_distance" type="SpinBox" parent="settings_panel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Distance for UI snapping.
+
+When two Road nodes (such
+as open RoadPoints or
+RoadIntersections are within
+this distance, they will be
+considered for snapping
+together."
+step = 0.1
+value = 25.0
+allow_greater = true
+suffix = "m"
+
+[node name="HSeparator" type="HSeparator" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+text = "On add RoadPoint"
+
+[node name="lock_rot_x" type="CheckBox" parent="settings_panel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Zero X-rotation on
+new RoadPoint added"
+text = "Lock X"
+
+[node name="lock_rot_y" type="CheckBox" parent="settings_panel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Zero Y-rotation on
+new RoadPoint added"
+text = "Lock Y"
+
+[node name="lock_rot_z" type="CheckBox" parent="settings_panel/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Zero Z-rotation on
+new RoadPoint added"
+text = "Lock Z"
+
+[node name="HSeparator2" type="HSeparator" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label3" type="Label" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+text = "Terrain3D Connector"
+
+[node name="terrain3d_bar" type="HBoxContainer" parent="settings_panel/VBoxContainer"]
+layout_mode = 2
+
+[node name="terrain3d" type="Button" parent="settings_panel/VBoxContainer/terrain3d_bar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Select"
+
+[node name="terrain3d_tut" type="Button" parent="settings_panel/VBoxContainer/terrain3d_bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Open tutorial
+for connector"
 
 [node name="rc items (?)" type="PopupMenu" parent="."]
 
 [connection signal="pressed" from="select_mode" to="." method="_on_select_mode_pressed"]
 [connection signal="pressed" from="add_mode" to="." method="_on_add_mode_pressed"]
 [connection signal="pressed" from="delete_mode" to="." method="_on_delete_mode_pressed"]
+[connection signal="value_changed" from="settings_panel/VBoxContainer/snap_distance" to="." method="_on_snap_distance_changed"]
+[connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_x" to="." method="_on_lock_rot_x_toggled"]
+[connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_y" to="." method="_on_lock_rot_y_toggled"]
+[connection signal="toggled" from="settings_panel/VBoxContainer/lock_rot_z" to="." method="_on_lock_rot_z_toggled"]
+[connection signal="pressed" from="settings_panel/VBoxContainer/terrain3d_bar/terrain3d" to="." method="_on_terrain_3d_pressed"]
+[connection signal="pressed" from="settings_panel/VBoxContainer/terrain3d_bar/terrain3d_tut" to="." method="_on_terrain_3d_tut_pressed"]
