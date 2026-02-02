@@ -34,7 +34,7 @@ const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 ##
 ## WARNING: if left on, each time scene is opened (tabbed over to), the terrain
 ## will continue to be flattened, eventually making the smooth falloff not so smooth
-@export var auto_refresh:bool = false:
+@export var auto_refresh:bool = true:
 	set(value):
 		auto_refresh = value
 		configure_road_update_signal()

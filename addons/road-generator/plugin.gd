@@ -437,7 +437,7 @@ func _on_select_terrain_3d_pressed() -> void:
 func _on_regenerate_pressed() -> void:
 	var nd := get_selected_node()
 	
-	# In case we just changed scenes, clear the state meant to avoid unnecessary reloading
+	# In case we just changed scenes, clear the state used to avoid unnecessary reloading
 	var connector = get_connector()
 	if is_instance_valid(connector):
 		connector._skip_scene_load = false 
