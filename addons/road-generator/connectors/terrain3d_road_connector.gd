@@ -3,6 +3,7 @@ class_name RoadTerrain3DConnector
 extends Node
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+const IntersectionNGon = preload("res://addons/road-generator/procgen/intersection_ngon.gd")
 
 ## Workaround to avoid typing errors for people who aren't this connector
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
@@ -131,8 +132,11 @@ func do_full_refresh() -> void:
 			init_auto_refresh = init_auto_refresh
 			restart_geo_off.append(_container)
 			
-		var segs:Array = _container.get_segments()
-		refresh_roadsegments(segs)
+		var mesh_parents: Array = []
+		for inter in _container.get_intersections():
+			mesh_parents.append(inter)
+		mesh_parents += _container.get_segments() # Always add RoadSegments last
+		refresh_roads(mesh_parents)
 		
 		# Restore the geo setting where temporarily turned on
 		for _rc in restart_geo_off:
@@ -150,7 +154,11 @@ func _on_container_transform(container:RoadContainer) -> void:
 	container.rebuild_segments(true)
 	# Must directly update terrain now on these segments, before they get
 	# removed again when geo is turned off
-	refresh_roadsegments(container.get_segments())
+	var mesh_parents: Array
+	for inter in container.get_intersections():
+		mesh_parents.append(inter)
+	mesh_parents += container.get_segments()
+	refresh_roads(mesh_parents) # Always add RoadSegments last
 	container.create_geo = false
 
 
@@ -190,21 +198,31 @@ func _refresh_scheduled_segments() -> void:
 		_mutex.unlock()
 		return
 	_mutex.lock()
-	var _segs := _pending_updates.keys()
+	var _mesh_parents := _pending_updates.keys()
 	_pending_updates.clear()
 	_timer = null
 	_mutex.unlock()
-	refresh_roadsegments(_segs)
+	refresh_roads(_mesh_parents)
 
 
-func refresh_roadsegments(segments: Array) -> void:
+## Refreshes all segments of road identified
+##
+## Order of segments should be first intersections if any, then road segments
+## so that the combined flattening is proper.
+func refresh_roads(mesh_parents: Array) -> void:
 	if not is_configured():
 		push_warning("Terrain-Road configuration invalid")
 		return
 	if not terrain.data:
 		push_warning("No terrain data available (yet)")
 		return
-	for _seg in segments:
+
+	var skip_repeat_refreshes: Array = []
+	
+	var segs: Array = [] # RoadSegment
+
+	# First flatten all road intersections and gather their adjacent segments
+	for _seg in mesh_parents:
 		if not is_instance_valid(_seg):
 			# Will happen (at a minimum) when handling RoadContainers which have
 			# create geo turned off AND auto_refresh is on; creates an extra
@@ -216,12 +234,31 @@ func refresh_roadsegments(segments: Array) -> void:
 			var inter := _seg as RoadIntersection
 			if inter.container.flatten_terrain or inter.flatten_terrain:
 				flatten_terrain_via_intersection(inter)
+				# Since the intersection flattening is a little too greedy,
+				# must post-flatten the adjacent segments too, even if they
+				# weren't scheduled
+				var adj_segs = intersection_adjacent_segments(inter)
+				segs += adj_segs
+				# In case these segmetns were already in the list, avoid repeat
+				# flattening them
+				# TODO: handle case where one segment is directly connected to
+				# two intersections
+				skip_repeat_refreshes += inter.edge_points
+			continue
+		elif _seg is RoadSegment:
+			segs.append(_seg)
+	
+	# Now flatten all accumulated segments
+	for _seg in segs:
+		if not is_instance_valid(_seg):
 			continue
 		_seg = _seg as RoadSegment
 		if not _seg:
 			print("Unexpected non-RoadSegment element")
 			continue
-
+		if _seg in skip_repeat_refreshes:
+			print("Skipped repeat refresh: ", _seg)
+			continue
 		# check if this segment should be ignored
 		if (
 			not _seg.container.flatten_terrain
@@ -229,9 +266,10 @@ func refresh_roadsegments(segments: Array) -> void:
 		):
 			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
-
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		flatten_terrain_via_roadsegment(_seg)
+		skip_repeat_refreshes.append(_seg)
+	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
 
 
@@ -242,6 +280,33 @@ func get_road_width(point: RoadPoint) -> float:
 		+ point.shoulder_width_r
 		+ point.lane_width * point.lanes.size()
 	)
+
+
+## Returns the distance from a 2D point to a line segment (XZ plane).
+func _distance_point_to_segment_2d(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var v := b - a
+	var u := p - a
+	var v_len_sq := v.length_squared()
+	if is_zero_approx(v_len_sq):
+		return p.distance_to(a)
+	var t := clampf(u.dot(v) / v_len_sq, 0.0, 1.0)
+	var closest := a + t * v
+	return p.distance_to(closest)
+
+
+## Returns the minimum distance from a 2D point to any edge of the polygon.
+## Used for points outside the polygon to compute margin/falloff.
+func _distance_to_polygon_boundary_2d(point: Vector2, polygon: PackedVector2Array) -> float:
+	if polygon.size() < 2:
+		return INF
+	var min_dist := INF
+	for i in range(polygon.size()):
+		var a := polygon[i]
+		var b := polygon[(i + 1) % polygon.size()]
+		var d := _distance_point_to_segment_2d(point, a, b)
+		if d < min_dist:
+			min_dist = d
+	return min_dist
 
 
 func _flatten_curve(curve: Curve3D, normalization_value: float):
@@ -266,7 +331,97 @@ func _flatten_curve(curve: Curve3D, normalization_value: float):
 
 
 func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
-	push_warning("Intersection flattening not yet implemented")
+	if not is_instance_valid(inter):
+		return
+	if not inter.settings is IntersectionNGon:
+		push_warning("Intersection flattening only supported for IntersectionNGon. Skipping.")
+		return
+	if not inter.edge_points.size():
+		push_warning("Intersection has no edge points. Skipping terrain flatten.")
+		return
+	print("Flattening ", inter)
+
+	var center_global: Vector3 = inter.global_position
+	var center_y: float = center_global.y + offset
+	var vertex_spacing: float = terrain.vertex_spacing
+
+	# Build triangle-fan boundary in world space: [side_l_0, side_r_0, side_l_1, side_r_1, ...]
+	var boundary_world: PackedVector2Array = PackedVector2Array()
+	var edge_heights: Array[float] = [center_y]
+	for edge in inter.edge_points:
+		if not is_instance_valid(edge):
+			continue
+		var width: float = get_road_width(edge)
+		var perp: Vector3 = edge.global_transform.basis.x.normalized()
+		# TODO: Account for alignment offset once intersections do as well.
+		var side_l: Vector3 = edge.global_position - perp * (width * 0.5)
+		var side_r: Vector3 = edge.global_position + perp * (width * 0.5)
+		boundary_world.append(Vector2(side_l.x, side_l.z))
+		boundary_world.append(Vector2(side_r.x, side_r.z))
+		edge_heights.append(edge.global_position.y + offset)
+	
+	var min_height:float = edge_heights.min()
+
+	if boundary_world.size() < 3:
+		return
+
+	# AABB from center and all boundary points, expanded by margin + falloff
+	var aabb_min := center_global
+	var aabb_max := center_global
+	for i in range(boundary_world.size()):
+		var v := Vector3(boundary_world[i].x, center_global.y, boundary_world[i].y)
+		aabb_min = aabb_min.min(v)
+		aabb_max = aabb_max.max(v)
+	var offsets := Vector3(edge_margin + edge_falloff, 0.0, edge_margin + edge_falloff)
+	aabb_min -= offsets
+	aabb_max += offsets
+
+	var min_xz := Vector3(aabb_min.x, 0.0, aabb_min.z).snapped(Vector3(vertex_spacing, 0.0, vertex_spacing))
+	var max_xz := Vector3(aabb_max.x, 0.0, aabb_max.z).snapped(Vector3(vertex_spacing, 0.0, vertex_spacing)) + Vector3(vertex_spacing, 0.0, vertex_spacing)
+
+	var x := min_xz.x
+	while x <= max_xz.x:
+		var z := min_xz.z
+		while z <= max_xz.z:
+			var pt_2d := Vector2(x, z)
+			
+			var road_y: float = min_height # center_y
+			# TODO: Iprove by finding the edge which this point is pointing towards,
+			# interpolating the cloesting matching point along that edge,
+			# then interpolate along to the center.
+			# Instead, for now, we'll just pick the lowest point between them all
+			
+			var inside: bool = Geometry2D.is_point_in_polygon(pt_2d, boundary_world)
+			var dist_to_boundary: float
+			if inside:
+				dist_to_boundary = 0.0
+			else:
+				dist_to_boundary = _distance_to_polygon_boundary_2d(pt_2d, boundary_world)
+
+			if dist_to_boundary <= edge_margin:
+				var terrain_pos := Vector3(x, road_y, z)
+				terrain.data.set_height(terrain_pos, road_y)
+			elif dist_to_boundary <= edge_margin + edge_falloff:
+				var terrain_pos := Vector3(x, road_y, z)
+				var reference_height: float = terrain.data.get_height(terrain_pos)
+				var factor: float = (dist_to_boundary - edge_margin) / edge_falloff
+				var smoothed_height: float = _lerp_smoothed_height(road_y, reference_height, factor)
+				terrain.data.set_height(terrain_pos, smoothed_height)
+
+			z += vertex_spacing
+		x += vertex_spacing
+
+
+## Called after intersection flattening has completed, to avoid overlap
+func intersection_adjacent_segments(inter: RoadIntersection) -> Array:
+	var segs: Array = []
+	for _edge in inter.edge_points:
+		var rp: RoadPoint = _edge as RoadPoint
+		if rp.prior_seg:
+			segs.append(rp.prior_seg)
+		if rp.next_seg:
+			segs.append(rp.next_seg)
+	return segs
 
 
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
@@ -276,7 +431,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		return
 	if not is_instance_valid(segment.road_mesh):
 		return
-
+	print("Flattening ", segment)
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
 		return
@@ -358,8 +513,13 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				var terrain_pos := Vector3(x, road_y, z)
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
-				var smoothed_height := lerpf(road_y, reference_height, ease(factor, -1.5))
+				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
 				terrain.data.set_height(terrain_pos, smoothed_height)
 
 			z += vertex_spacing
 		x += vertex_spacing
+
+
+## Reusable function to perform consistent falloff rate
+func _lerp_smoothed_height(road_y: float, terrain_y: float, factor: float) -> float:
+	return lerpf(road_y, terrain_y, ease(factor, -1.5))
