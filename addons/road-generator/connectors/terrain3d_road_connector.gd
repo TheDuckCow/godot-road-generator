@@ -254,10 +254,8 @@ func refresh_roads(mesh_parents: Array) -> void:
 			continue
 		_seg = _seg as RoadSegment
 		if not _seg:
-			print("Unexpected non-RoadSegment element")
 			continue
 		if _seg in skip_repeat_refreshes:
-			print("Skipped repeat refresh: ", _seg)
 			continue
 		# check if this segment should be ignored
 		if (
@@ -339,7 +337,6 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 	if not inter.edge_points.size():
 		push_warning("Intersection has no edge points. Skipping terrain flatten.")
 		return
-	print("Flattening ", inter)
 
 	var center_global: Vector3 = inter.global_position
 	var center_y: float = center_global.y + offset
@@ -439,7 +436,6 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		return
 	if not is_instance_valid(segment.road_mesh):
 		return
-	print("Flattening ", segment)
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
 		return
