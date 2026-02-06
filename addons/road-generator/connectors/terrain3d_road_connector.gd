@@ -54,7 +54,8 @@ enum Flatten_terrain_option {CURVED, RAYCAST}
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
 var refresh_timer: float = 0.05
 
-var _pending_updates:Dictionary[RoadSegment,bool] = {} # Hashset of RoadSegments to be updated
+
+var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -351,8 +352,8 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 
 
 	# Cache the raycasts for missed hits to reduce the number of raycasts
-	var recorded: Dictionary[Vector2,float] = {}
-	var missed: Dictionary[Vector2, bool] = {}
+	var recorded: Dictionary = {} # 4.4 typing: Dictionary[Vector2,float]
+	var missed: Dictionary = {} # 4.4 typing: Dictionary[Vector2, bool]
 	
 	# iterate over the xz plane of the curve
 	var x = min.x
@@ -640,10 +641,6 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		x += vertex_spacing
 
 
-## Reusable function to perform consistent falloff rate
-func _lerp_smoothed_height(road_y: float, terrain_y: float, factor: float) -> float:
-	return lerpf(road_y, terrain_y, ease(factor, -1.5))
-		
 func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	if not validate_segment(segment):
 		print_debug("not valid for culling")
@@ -691,7 +688,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
 
 	# hashset for xz plane where the road overlaps the Terrain
-	var intersect_coords: Dictionary[Vector2,bool]
+	var intersect_coords: Dictionary # 4.4 typing: Dictionary[Vector2,bool]
 	
 	# itterate over the xz plane of the curve to find intersecting points which are hidden
 	var x = min.x
