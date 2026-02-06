@@ -232,7 +232,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 			continue
 		if _seg is RoadIntersection:
 			var inter := _seg as RoadIntersection
-			if inter.container.flatten_terrain or inter.flatten_terrain:
+			if inter.container.flatten_terrain and inter.flatten_terrain:
 				flatten_terrain_via_intersection(inter)
 				# Since the intersection flattening is a little too greedy,
 				# must post-flatten the adjacent segments too, even if they
@@ -346,6 +346,7 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 	var vertex_spacing: float = terrain.vertex_spacing
 
 	# Build triangle-fan boundary in world space: [side_l_0, side_r_0, side_l_1, side_r_1, ...]
+	# This relies on the fact that edge_points should already be in a clockwise order
 	var boundary_world: PackedVector2Array = PackedVector2Array()
 	var edge_heights: Array[float] = [center_y]
 	for edge in inter.edge_points:
@@ -353,15 +354,22 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 			continue
 		var width: float = get_road_width(edge)
 		var perp: Vector3 = edge.global_transform.basis.x.normalized()
+		
 		# TODO: Account for alignment offset once intersections do as well.
 		var side_l: Vector3 = edge.global_position - perp * (width * 0.5)
 		var side_r: Vector3 = edge.global_position + perp * (width * 0.5)
+		if edge.get_prior_road_node(true) == inter:
+			# Must insert in the clockwise order, so depends on RP orientation
+			var tmp: Vector3 = side_l
+			side_l = side_r
+			side_r = tmp
+
 		boundary_world.append(Vector2(side_l.x, side_l.z))
 		boundary_world.append(Vector2(side_r.x, side_r.z))
 		edge_heights.append(edge.global_position.y + offset)
 	
+	# Simplification for now to just use the lowest y-height amongst all points
 	var min_height:float = edge_heights.min()
-
 	if boundary_world.size() < 3:
 		return
 
@@ -384,13 +392,13 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 		var z := min_xz.z
 		while z <= max_xz.z:
 			var pt_2d := Vector2(x, z)
-			
-			var road_y: float = min_height # center_y
-			# TODO: Iprove by finding the edge which this point is pointing towards,
+
+			# TODO: Improve by finding the edge which this point is pointing towards,
 			# interpolating the cloesting matching point along that edge,
 			# then interpolate along to the center.
 			# Instead, for now, we'll just pick the lowest point between them all
-			
+			var road_y: float = min_height
+
 			var inside: bool = Geometry2D.is_point_in_polygon(pt_2d, boundary_world)
 			var dist_to_boundary: float
 			if inside:

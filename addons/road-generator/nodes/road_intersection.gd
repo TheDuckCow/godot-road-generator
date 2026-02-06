@@ -52,7 +52,7 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 
 ## Flatten terrain when updating or transforming this Intersection.[br][br]
 ##
-## Warning: Not yet implemented
+## To work, the RoadContainer must also have flatten_terrain enabled.
 @export var flatten_terrain: bool = true
 
 @export_group("Internal")
