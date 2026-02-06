@@ -19,6 +19,78 @@ enum _IntersectNGonFacing {
 
 const SegGeo := preload("res://addons/road-generator/procgen/segment_geo.gd")
 
+## Model to store the different points useful for mesh generation.
+class EdgePositions:
+	## Array[Array[Vector3][2]]
+	var edge_shoulders: Array[Array] = []
+	## Array[Array[Vector3][2]]
+	var edge_gutters: Array[Array] = []
+	## Array[Array[Vector3][2]]
+	var edge_road_sides: Array[Array] = []
+	func _init() -> void:
+		edge_shoulders = []
+		edge_gutters = []
+		edge_road_sides = []
+
+class Edge:
+	var p1: Vector2i
+	var p2: Vector2i
+	func _init(p1: Vector2i, p2: Vector2i) -> void:
+		self.p1 = p1
+		self.p2 = p2
+	static func up(i: int, j: int) -> Edge:
+		return Edge.new(Vector2i(i, j), Vector2i(i + 1, j))
+	
+	static func right(i: int, j: int) -> Edge:
+		return Edge.new(Vector2i(i + 1, j), Vector2i(i + 1, j + 1))
+
+	static func down(i: int, j: int) -> Edge:
+		return Edge.new(Vector2i(i, j + 1), Vector2i(i + 1, j + 1))
+
+	static func left(i: int, j: int) -> Edge:
+		return Edge.new(Vector2i(i, j), Vector2i(i, j + 1))
+
+	func _to_string() -> String:
+		return "Edge(%s -> %s)" % [p1, p2]
+	static func array_to_string(edges: Array[Edge]) -> String:
+		var strs: Array[String] = []
+		for edge in edges:
+			strs.append(edge._to_string())
+		return "[" + ", ".join(strs) + "]"
+
+	## Returns true if the given edge is in the edges array
+	## (p1 and p2 equals on both instances).
+	static func array_has_edge(edges: Array[Edge], edge: Edge) -> bool:
+		for e in edges:
+			if e.p1 == edge.p1 and e.p2 == edge.p2:
+				return true
+		return false
+
+	## Removes the given edge from the edges array if found
+	## (p1 and p2 equals on both instances).
+	static func array_remove_edge(edges: Array[Edge], edge: Edge) -> void:
+		for i in range(edges.size()):
+			var e: Edge = edges[i]
+			if e.p1 == edge.p1 and e.p2 == edge.p2:
+				edges.remove_at(i) # OK as we stop the loop
+				return
+
+enum IndexVertexType {
+	GRID_RING,
+	EDGE_RING
+}
+
+## Represents the vertex of the associated ring array `vertex_type`.
+## Its index associated to the ring array allows to retrieve the actual vertex position.
+## (in 2D or 3D depending of the used ring array).
+## It is the user responsibility to keep both in sync.
+class IndexVertex:
+	var vertex_type: IndexVertexType
+	var index: int
+	func _init(vertex_type: IndexVertexType, index: int) -> void:
+		self.vertex_type = vertex_type
+		self.index = index
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Abstract overrides
@@ -34,7 +106,10 @@ func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: Roa
 	if not intersection.has_method("is_road_intersection"):
 		push_error("intersection is not an intersection node. Returning an empty mesh.")
 		return Mesh.new() # Empty mesh.
-	return _generate_debug_mesh(intersection, edges, container)
+
+	# TODO if low poly:
+	# return _generate_debug_mesh(intersection, edges, container)
+	return _generate_full_mesh(intersection, edges, container)
 
 
 func get_min_distance_from_intersection_point(rp: RoadPoint) -> float:
@@ -68,47 +143,19 @@ func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFa
 		facing = _IntersectNGonFacing.OTHER
 	return facing
 
-
-## Generates a triangles from shoulders to intersection point,
-## and triangles from an edge's shoulders to the intersection point.
-## The end result is a very low-poly n-gon.[br][br]
-## Edges MUST have been sorted by angle from intersection beforehand.
-func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+func _generate_stop_rows_and_get_positions(edges: Array[RoadPoint], intersection: Node3D, stop_row_size: float, surface_tool: SurfaceTool, uv_width: float, uv_gutter_width: float) -> EdgePositions:
 	if not intersection.has_method("is_road_intersection"):
-		push_error("intersection is not an intersection node. Returning an empty mesh.")
-		return Mesh.new() # Empty mesh.
+		push_error("intersection is not an intersection node. Cannot generate stop rows on mesh.")
+		return null
 
+	var edge_positions: EdgePositions = EdgePositions.new()
 	var parent_transform: Transform3D = intersection.transform
-	
-	# origin is the intersection position, coords are relative to it.
-	var surface_tool: SurfaceTool = SurfaceTool.new()
-	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	const TOPSIDE_SMOOTHING_GROUP = 1
-	surface_tool.set_smooth_group(TOPSIDE_SMOOTHING_GROUP)
-
-	const STOP_ROW_SIZE: float = 2.0  # TODO: make proportional to density
-	
-	# First, add an additional row of quads to each edge,
-	# to give a UV space for stop marks or other markings.
-	# We also prepare the intersection by storing appropriate
-	# shoulder and gutter positions.
-
-	## Array[Array[Vector3][2]]
-	var edge_shoulders: Array[Array] = []
-	## Array[Array[Vector3][2]]
-	var edge_gutters: Array[Array] = []
-	## Array[Array[Vector3][2]]
-	var edge_road_sides: Array[Array] = []
-	
-	const uv_width := 0.125 # 1/8 for breakdown of texture.
-	const uv_gutter_width := uv_width * SegGeo.UV_MID_SHOULDER
-	var density := container.effective_density()
 
 	for edge: RoadPoint in edges:
 		var facing: _IntersectNGonFacing = _get_edge_facing(edge, intersection)
 		if facing == _IntersectNGonFacing.OTHER:
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
-			return Mesh.new() # Empty mesh.
+			return null
 		
 		var lane_width: float = edge.lane_width
 		var lanes_count = edge.lanes.size()
@@ -119,7 +166,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		
 		# Aim for real-world texture proportions width:height of 2:1 matching texture,
 		# but then the hight of 1 full UV is half the with across all lanes, so another 2x
-		var uv_height := STOP_ROW_SIZE / lane_width / 8.0 # ratio of 1/4th down vs width of image to be square
+		var uv_height := stop_row_size / lane_width / 8.0 # ratio of 1/4th down vs width of image to be square
 
 		var perpendicular_v: Vector3 = (edge.transform.basis.x).normalized()
 		var up_vector: Vector3 = (edge.transform.basis.y).normalized()
@@ -141,21 +188,21 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		if facing == _IntersectNGonFacing.ORIGIN:	
 			parallel_v = -parallel_v
 
-		var shoulder_l_stop: Vector3 = shoulder_l + parallel_v * STOP_ROW_SIZE
-		var shoulder_r_stop: Vector3 = shoulder_r + parallel_v * STOP_ROW_SIZE
-		var gutter_l_stop: Vector3 = gutter_l + parallel_v * STOP_ROW_SIZE
-		var gutter_r_stop: Vector3 = gutter_r + parallel_v * STOP_ROW_SIZE
-		var road_side_l_stop: Vector3 = road_side_l + parallel_v * STOP_ROW_SIZE
-		var road_side_r_stop: Vector3 = road_side_r + parallel_v * STOP_ROW_SIZE
+		var shoulder_l_stop: Vector3 = shoulder_l + parallel_v * stop_row_size
+		var shoulder_r_stop: Vector3 = shoulder_r + parallel_v * stop_row_size
+		var gutter_l_stop: Vector3 = gutter_l + parallel_v * stop_row_size
+		var gutter_r_stop: Vector3 = gutter_r + parallel_v * stop_row_size
+		var road_side_l_stop: Vector3 = road_side_l + parallel_v * stop_row_size
+		var road_side_r_stop: Vector3 = road_side_r + parallel_v * stop_row_size
 
 		if facing == _IntersectNGonFacing.ORIGIN:	
-			edge_shoulders.append([shoulder_l_stop, shoulder_r_stop])
-			edge_gutters.append([gutter_l_stop, gutter_r_stop])
-			edge_road_sides.append([road_side_l_stop, road_side_r_stop])
+			edge_positions.edge_shoulders.append([shoulder_l_stop, shoulder_r_stop])
+			edge_positions.edge_gutters.append([gutter_l_stop, gutter_r_stop])
+			edge_positions.edge_road_sides.append([road_side_l_stop, road_side_r_stop])
 		else: # facing == _IntersectNGonFacing.AWAY
-			edge_shoulders.append([shoulder_r_stop, shoulder_l_stop])
-			edge_gutters.append([gutter_r_stop, gutter_l_stop])
-			edge_road_sides.append([road_side_r_stop, road_side_l_stop])
+			edge_positions.edge_shoulders.append([shoulder_r_stop, shoulder_l_stop])
+			edge_positions.edge_gutters.append([gutter_r_stop, gutter_l_stop])
+			edge_positions.edge_road_sides.append([road_side_r_stop, road_side_l_stop])
 
 		# swap sides if needed
 		if facing == _IntersectNGonFacing.ORIGIN:
@@ -215,8 +262,8 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 				current_perpendicular_v = -perpendicular_v
 			var lane_left_side: Vector3 = road_side_l + current_perpendicular_v * (lane_width * i)
 			var lane_right_side: Vector3 = road_side_l + current_perpendicular_v * (lane_width * (i + 1))
-			var lane_left_side_stop: Vector3 = lane_left_side + parallel_v * STOP_ROW_SIZE
-			var lane_right_side_stop: Vector3 = lane_right_side + parallel_v * STOP_ROW_SIZE
+			var lane_left_side_stop: Vector3 = lane_left_side + parallel_v * stop_row_size
+			var lane_right_side_stop: Vector3 = lane_right_side + parallel_v * stop_row_size
 
 			# Lane quad
 			var u_near := uv_width*6
@@ -265,6 +312,45 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		surface_tool.add_vertex(shoulder_r_stop - parent_transform.origin)
 		surface_tool.set_uv(Vector2(uv_gutter_width, 0.0))
 		surface_tool.add_vertex(shoulder_r - parent_transform.origin)
+
+	return edge_positions
+
+
+## Generates a triangles from shoulders to intersection point,
+## and triangles from an edge's shoulders to the intersection point.
+## The end result is a very low-poly n-gon.[br][br]
+## Edges MUST have been sorted by angle from intersection beforehand.
+func _generate_full_mesh(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> Mesh:
+	if not intersection.has_method("is_road_intersection"):
+		push_error("intersection is not an intersection node. Returning an empty mesh.")
+		return Mesh.new() # Empty mesh.
+
+	var parent_transform: Transform3D = intersection.transform
+	
+	# origin is the intersection position, coords are relative to it.
+	var surface_tool: SurfaceTool = SurfaceTool.new()
+	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const TOPSIDE_SMOOTHING_GROUP = 1
+	surface_tool.set_smooth_group(TOPSIDE_SMOOTHING_GROUP)
+
+	const STOP_ROW_SIZE: float = 2.0  # TODO: make proportional to density
+	
+	# First, add an additional row of quads to each edge,
+	# to give a UV space for stop marks or other markings.
+	# We also prepare the intersection by storing appropriate
+	# shoulder and gutter positions.
+	
+	const uv_width := 0.125 # 1/8 for breakdown of texture.
+	const uv_gutter_width := uv_width * SegGeo.UV_MID_SHOULDER
+	var density := container.effective_density()
+
+	var edge_positions: EdgePositions = _generate_stop_rows_and_get_positions(edges, intersection, STOP_ROW_SIZE, surface_tool, uv_width, uv_gutter_width)
+	if edge_positions == null:
+		push_error("Failed to generate stop rows and positions for IntersectionNGon mesh generation. Returning an empty mesh.")
+		return Mesh.new() # Empty mesh.
+	var edge_shoulders: Array[Array] = edge_positions.edge_shoulders
+	var edge_gutters: Array[Array] = edge_positions.edge_gutters
+	var edge_road_sides: Array[Array] = edge_positions.edge_road_sides
 
 	# Then, connect edges with its siblings (gutters and shoulders quads).
 	# At the same time, create triangles from shoulders to intersection point;
@@ -363,6 +449,8 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 	var mesh: ArrayMesh = surface_tool.commit()  # should be MeshInstance3D?
 	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh
+
+
 
 
 #endregion
