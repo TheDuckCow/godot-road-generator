@@ -121,8 +121,10 @@ const DEFAULT_LANE_WIDTH: float = 4.0
 
 ## Flatten terrain when updating or transforming this RoadPoint.[br][br]
 ##
+## To work, the RoadContainer must also have flatten_terrain enabled.[br][br]
+##
 ## NOTE: Must disable this setting on both RoadPoints around a given [br]
-## road segment to disable flattening.
+## road segment to disable flattening for that segment.
 @export var flatten_terrain: bool = true
 
 ## Width of each lane in meters in meters.
