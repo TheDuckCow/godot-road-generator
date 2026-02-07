@@ -260,7 +260,7 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 	var nrm = camera.project_ray_normal(point) # Normal camera is facing
 	var old_mag_vector # Handle's old local position.
 
-	if index == 0:
+	if index == HandleType.PRIOR_MAG:
 		old_mag_vector = Vector3(0, 0, -roadpoint.prior_mag)
 	else:
 		old_mag_vector = Vector3(0, 0, roadpoint.next_mag)
@@ -282,7 +282,7 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 	if init_handle == null:
 		init_handle = new_mag
 		set_init = true
-	if index == 0:
+	if index == HandleType.PRIOR_MAG:
 		roadpoint.prior_mag = -new_mag
 		if set_init:
 			init_handle_mirror = roadpoint.next_mag

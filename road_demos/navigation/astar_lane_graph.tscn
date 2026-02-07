@@ -1,11 +1,11 @@
 [gd_scene load_steps=18 format=3 uid="uid://buus3nw81afbr"]
 
-[ext_resource type="Script" path="res://demo/navigation/astar_lane_graph.gd" id="1_g562n"]
+[ext_resource type="Script" path="res://road_demos/navigation/astar_lane_graph.gd" id="1_g562n"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_o8koi"]
-[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="2_1qex7"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="3_uojm1"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4_4lmnd"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="5_p8dyk"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="5_vs6qx"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1dpoc"]
 shading_mode = 0
@@ -67,7 +67,6 @@ shape = SubResource("BoxShape3D_ye8u6")
 [node name="RoadManager" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 script = ExtResource("1_o8koi")
-material_resource = ExtResource("2_1qex7")
 collision_layer = 0
 collision_mask = 0
 
@@ -79,6 +78,7 @@ edge_rp_target_dirs = Array[int]([0, 1, 0, 1])
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -115,6 +115,7 @@ edge_rp_target_dirs = Array[int]([0, -1, 0, 1])
 
 [node name="Road_002" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -207,6 +208,7 @@ edge_rp_target_dirs = Array[int]([0, 0, 0, -1])
 
 [node name="Road_003" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -243,6 +245,7 @@ edge_rp_target_dirs = Array[int]([-1, 1, 0, 1])
 
 [node name="Road_004" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -272,6 +275,7 @@ next_pt_init = NodePath("../Node3D")
 
 [node name="Road_005" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -308,6 +312,7 @@ edge_rp_target_dirs = Array[int]([-1, 1, -1, 1])
 
 [node name="Road_006" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true
@@ -344,6 +349,7 @@ edge_rp_target_dirs = Array[int]([0, 1, -1, 1])
 
 [node name="Road_007" type="Node3D" parent="RoadManager"]
 script = ExtResource("3_uojm1")
+material_resource = ExtResource("5_vs6qx")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 draw_lanes_editor = true

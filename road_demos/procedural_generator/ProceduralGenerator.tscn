@@ -4,10 +4,10 @@
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="2"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
-[ext_resource type="Script" path="res://demo/procedural_generator/road_actor_manager.gd" id="4_jhbve"]
-[ext_resource type="Script" path="res://demo/procedural_generator/procedural_generator.gd" id="5"]
-[ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="7"]
-[ext_resource type="Script" path="res://demo/procedural_generator/road_actor_spawner.gd" id="7_2hqjq"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_manager.gd" id="4_jhbve"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/procedural_generator.gd" id="5"]
+[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/actors/RoadActor.tscn" id="7"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_spawner.gd" id="7_2hqjq"]
 
 [sub_resource type="Environment" id="Environment_v4pga"]
 background_mode = 1

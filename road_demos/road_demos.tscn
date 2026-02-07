@@ -1,0 +1,42 @@
+[gd_scene load_steps=2 format=3 uid="uid://duokst1f0w8yc"]
+
+[ext_resource type="Script" path="res://road_demos/road_demos.gd" id="1_ivavu"]
+
+[node name="RoadDemos" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ivavu")
+demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/ProceduralGenerator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.753984, 0.753984, 0.753984, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="vbox" type="VBoxContainer" parent="MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/vbox"]
+layout_mode = 2
+text = "Godot Road Generator Demos"
