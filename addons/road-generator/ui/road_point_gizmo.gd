@@ -34,11 +34,7 @@ var lane_divider_mesh := BoxMesh.new()
 var road_width_line_mesh := BoxMesh.new()
 
 var prior_lane_width: float = -1
-
-## Workaround for pre-selected RP on project open to show correct handles.
-## Only needed once per editor sessions, changing or opening scenes does not
-## have this issue.
-var first_draw: bool = true
+var _last_id: int  ## Workaround to ensure initial draw pulls values from RP
 
 func get_name() -> String:
 	return "RoadPoint"
@@ -152,10 +148,10 @@ func _redraw(gizmo) -> void:
 	var width_handles = PackedVector3Array()
 	var rev_width_idle = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	var fwd_width_idle = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	if need_size_update or first_draw:
+	if need_size_update or _last_id != point.get_instance_id():
 		point.rev_width_mag = rev_width_idle
 		point.fwd_width_mag = fwd_width_idle
-		first_draw = false
+		_last_id = point.get_instance_id()
 	var rev_width_mag = point.rev_width_mag
 	var fwd_width_mag = point.fwd_width_mag
 	width_handles.push_back(Vector3(rev_width_mag, 0, 0))
