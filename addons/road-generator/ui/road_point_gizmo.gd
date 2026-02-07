@@ -245,10 +245,9 @@ func _set_handle(
 	match handle_id:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 			set_mag_handle(gizmo, handle_id, camera, screen_pos)
-			_redraw(gizmo)
 		HandleType.REV_WIDTH_MAG, HandleType.FWD_WIDTH_MAG:
 			set_width_handle(gizmo, handle_id, camera, screen_pos)
-			_redraw(gizmo)
+	gizmo.get_node_3d().update_gizmos()
 
 
 func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, point: Vector2) -> void:
@@ -298,7 +297,6 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 			roadpoint.prior_mag = new_mag
 		else:
 			roadpoint.prior_mag = init_handle_mirror
-	_redraw(gizmo)
 
 
 ## Function called when user drags the roadpoint left/right lane handle.
@@ -337,7 +335,6 @@ func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, po
 				roadpoint.rev_width_mag = new_mag
 			HandleType.FWD_WIDTH_MAG:
 				roadpoint.fwd_width_mag = new_mag
-	_redraw(gizmo)
 
 
 func _commit_handle(gizmo: EditorNode3DGizmo,
@@ -351,7 +348,6 @@ func _commit_handle(gizmo: EditorNode3DGizmo,
 			commit_width_handle(gizmo, index, restore, cancel)
 		_:
 			push_warning("Unknown gizmo handle %s, %s" % [index, gizmo])
-	_redraw(gizmo)
 
 
 func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
@@ -360,7 +356,13 @@ func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bo
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
-		print("Cancel")
+		if index == HandleType.PRIOR_MAG:
+			point.prior_mag = -init_handle
+		elif index == HandleType.NEXT_MAG:
+			point.next_mag = init_handle
+		else:
+			return
+		point.container.on_point_update(point, false)
 	else:
 		if init_handle == null:
 			init_handle = current_value
@@ -383,8 +385,6 @@ func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bo
 				undo_redo.add_undo_property(point, "prior_mag", -init_handle_mirror)
 
 		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
-		undo_redo.add_do_method(self, "_redraw", gizmo)
-		undo_redo.add_undo_method(self, "_redraw", gizmo)
 		# Ensure that on undo/redo, the point update is triggered to force
 		# regeneration/placement of RoadLanes.
 		undo_redo.add_do_method(point.container, "on_point_update", point, false)
@@ -401,7 +401,7 @@ func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: 
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
-		refresh_gizmo(gizmo)
+		pass
 	else:
 		if init_handle == null:
 			init_handle = current_value
@@ -466,10 +466,8 @@ func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: 
 							undo_redo.add_undo_method(
 								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
 
-
-		refresh_gizmo(gizmo)
-
 		undo_redo.commit_action()
+		gizmo.get_node_3d().update_gizmos()
 		init_handle = null
 		init_handle_mirror = null
 
@@ -487,11 +485,13 @@ func _intersect_2D_point_with_3D_plane(spatial, target, camera, screen_point) ->
 
 
 ## Sets width handles to outside lane edges, hides lane widget, and redraws.
+##
+## Used by RoadPoint
 func refresh_gizmo(gizmo: EditorNode3DGizmo):
 	var point = gizmo.get_node_3d()
 	point.rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	point.fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	_redraw(gizmo)
+	point.update_gizmos()
 
 
 func set_visible():
