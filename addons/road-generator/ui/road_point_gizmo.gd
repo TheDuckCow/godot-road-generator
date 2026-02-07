@@ -53,6 +53,7 @@ func _init(editor_plugin: EditorPlugin):
 	var mat_blue_handles = get_material("blue_handles")
 	mat_blue_handles.albedo_color = Color.AQUA
 	init_handle = null
+	init_handle_mirror = null
 	collider.size = BaseColliderSize
 	collider_tri_mesh = collider.generate_triangle_mesh()
 	setup_lane_widgets()
@@ -390,6 +391,8 @@ func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bo
 		undo_redo.add_undo_method(point.container, "on_point_update", point, false)
 
 		undo_redo.commit_action()
+	init_handle = null
+	init_handle_mirror = null
 
 
 func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
@@ -468,6 +471,7 @@ func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: 
 
 		undo_redo.commit_action()
 		init_handle = null
+		init_handle_mirror = null
 
 
 ## Calculate intersection between screen point clicked and a camera-aligned
