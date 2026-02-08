@@ -37,3 +37,7 @@ func load_scene(path:String) -> void:
 	var error = get_tree().change_scene_to_file(path)
 	if error != OK:
 		print("Failed to change scene: ", error)
+
+
+func _on_quit_pressed() -> void:
+	get_tree().quit()

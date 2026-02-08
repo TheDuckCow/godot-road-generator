@@ -1,8 +1,8 @@
 [gd_scene load_steps=6 format=3 uid="uid://duokst1f0w8yc"]
 
-[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_7msrg"]
-[ext_resource type="Script" path="res://road_demos/road_demos.gd" id="1_ivavu"]
-[ext_resource type="Texture2D" uid="uid://cn8naqbbkbdm2" path="res://icon.png" id="3_egifp"]
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_nvna4"]
+[ext_resource type="Script" path="res://road_demos/demo_menu.gd" id="2_22uuf"]
+[ext_resource type="Texture2D" uid="uid://cn8naqbbkbdm2" path="res://icon.png" id="3_ronpq"]
 
 [sub_resource type="Gradient" id="Gradient_higwd"]
 colors = PackedColorArray(1, 1, 1, 1, 0.31555, 0.3659, 0.432188, 1)
@@ -18,8 +18,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = ExtResource("1_7msrg")
-script = ExtResource("1_ivavu")
+theme = ExtResource("1_nvna4")
+script = ExtResource("2_22uuf")
 demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
 
 [node name="graident" type="TextureRect" parent="."]
@@ -45,7 +45,7 @@ theme_override_constants/separation = 15
 
 [node name="logo" type="TextureRect" parent="HBoxContainer"]
 layout_mode = 2
-texture = ExtResource("3_egifp")
+texture = ExtResource("3_ronpq")
 stretch_mode = 3
 
 [node name="version_label" type="Label" parent="HBoxContainer"]
@@ -98,3 +98,14 @@ fit_content = true
 [node name="spacer" type="Control" parent="MarginContainer/vbox/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="quit" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = -1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 120.0
+offset_bottom = 46.0
+text = "Quit"
+
+[connection signal="pressed" from="quit" to="." method="_on_quit_pressed"]
