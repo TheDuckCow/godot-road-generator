@@ -84,6 +84,9 @@ func _enter_tree():
 	
 	# Load the plugin version, for UI and form-opening purposes
 	plugin_version = get_plugin_version()
+	
+	road_point_gizmo.set_hidden()
+	road_intersection_gizmo.set_hidden()
 
 
 func _exit_tree():
