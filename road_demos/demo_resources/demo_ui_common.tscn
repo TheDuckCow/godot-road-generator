@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://de542wwer561r"]
+
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_05dvw"]
+[ext_resource type="Script" path="res://road_demos/demo_resources/demo_ui_common.gd" id="2_7euph"]
+
+[node name="DemoUiCommon" type="Control"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 3
+anchors_preset = 0
+theme = ExtResource("1_05dvw")
+script = ExtResource("2_7euph")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/separation = 14
+
+[node name="Back" type="Button" parent="HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back"
+
+[node name="Reload" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "Reload"
+
+[connection signal="pressed" from="HBoxContainer/Back" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="HBoxContainer/Reload" to="." method="_on_reload_pressed"]

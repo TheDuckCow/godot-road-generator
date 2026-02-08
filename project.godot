@@ -16,7 +16,7 @@ config/description="An addon for Godot 4.x, which allows you to create roads and
 Designed originally for a highway roaming game called \"Wheel Steal\", this open
 source repository allows you to define complex road networks for 3D games for
 both pre-authored static roads as well as procedural user cases."
-run/main_scene="res://demo/procedural_generator/ProceduralGenerator.tscn"
+run/main_scene="res://road_demos/demo_menu.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://icon.png"
 
