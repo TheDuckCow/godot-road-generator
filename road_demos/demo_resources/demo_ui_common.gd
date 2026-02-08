@@ -1,6 +1,6 @@
 extends Control
 
-const MAIN_SCENE := "res://road_demos/road_demos.tscn"
+const MAIN_SCENE := "res://road_demos/demo_menu.tscn"
 
 @onready var back: Button = %Back
 
