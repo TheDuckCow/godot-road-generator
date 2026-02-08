@@ -33,6 +33,7 @@ var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
 var _export_file_dialog: FileDialog
+var _last_selection_roadnode: bool = false
 
 var _lock_x_rotation := false
 var _lock_y_rotation := false
@@ -143,13 +144,34 @@ func _on_selection_changed() -> void:
 	var selected_node := get_selected_node()
 
 	if not selected_node:
+		if not _last_selection_roadnode:
+			return
 		road_point_gizmo.set_hidden()
 		road_intersection_gizmo.set_hidden()
+		connection_tool._clear_targets()
+		update_overlays()
 		_hide_road_toolbar() # hiding too soon
+		_last_selection_roadnode = false
 		return
 
 	if _last_lane and is_instance_valid(_last_lane):
 		_last_lane.show_fins(false)
+
+	# TOOD: Change show/hide to occur on button-release, for consistency with internal panels.
+	var eligible = is_road_node(selected_node)
+	if eligible:
+		_show_road_toolbar()
+		connection_tool._clear_targets()
+		update_overlays() # In case connection tool active and user used a shorcut key
+		_last_selection_roadnode = true
+	elif _last_selection_roadnode:
+		road_point_gizmo.set_hidden()
+		road_intersection_gizmo.set_hidden()
+		connection_tool._clear_targets()
+		update_overlays()
+		_hide_road_toolbar()
+		_last_selection_roadnode = false
+		return
 
 	if selected_node is RoadPoint:
 		_last_point = selected_node
@@ -168,16 +190,6 @@ func _on_selection_changed() -> void:
 	else:
 		road_point_gizmo.set_hidden()
 		road_intersection_gizmo.set_hidden()
-
-	# Show the panel even if selection is scene root, but not if selection is a
-	# scene instance itself (non editable).
-	# TOOD: Change show/hide to occur on button-release, for consistency with internal panels.
-	var eligible = is_road_node(selected_node)
-	var non_instance = true
-	if eligible and non_instance:
-		_show_road_toolbar()
-	else:
-		_hide_road_toolbar()
 
 
 func _on_scene_changed(scene_root: Node) -> void:
