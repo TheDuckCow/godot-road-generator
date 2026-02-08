@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://dtdqpwngpuys0"]
+[gd_scene load_steps=23 format=3 uid="uid://dtdqpwngpuys0"]
 
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_5ogp4"]
 [ext_resource type="Script" path="res://road_demos/road_zoo/zoo_camera.gd" id="1_510rr"]
@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_intersection.gd" id="10_4oev0"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="10_rstb4"]
 [ext_resource type="Script" path="res://addons/road-generator/procgen/intersection_ngon.gd" id="11_hm2jj"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="14_gqxnn"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nbxyo"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -40,6 +41,7 @@ script = ExtResource("11_hm2jj")
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 20.0
@@ -325,126 +327,103 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0, -120)
 [node name="ConnectedPrefab" type="Node3D" parent="RoadManager"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 340, 0, 0)
 
-[node name="Road_001" type="Node3D" parent="RoadManager/ConnectedPrefab"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.4408, -3.98708, -42.5043)
+[node name="RoadActor5" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.7574, 0, -42.1725)
+
+[node name="RoadActor6" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.7658, 0, -14.277)
+
+[node name="RoadActor7" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.1511, 0, -17.4033)
+
+[node name="RoadActor8" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.24063, 0, -30.223)
+
+[node name="Dynamic" type="Node3D" parent="RoadManager/ConnectedPrefab"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -340, 0, 0)
 script = ExtResource("2_pgtsv")
 use_lowpoly_preview = true
 generate_ai_lanes = true
-edge_containers = Array[NodePath]([NodePath("../3way_2x2"), NodePath("../splitter_2x2")])
-edge_rp_targets = Array[NodePath]([NodePath("RP_003"), NodePath("cap")])
-edge_rp_target_dirs = Array[int]([1, 0])
-edge_rp_locals = Array[NodePath]([NodePath("RP_002"), NodePath("RP_003")])
-edge_rp_local_dirs = Array[int]([0, 1])
+edge_containers = Array[NodePath]([NodePath("../3way_2x2"), NodePath("../3way_2x2b"), NodePath("../3way_2x2b"), NodePath("../3way_2x2")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_002"), NodePath("RP_001"), NodePath("RP_002"), NodePath("RP_001")])
+edge_rp_target_dirs = Array[int]([0, 1, 0, 1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_002"), NodePath("RP_003"), NodePath("RP_005"), NodePath("RP_006")])
+edge_rp_local_dirs = Array[int]([0, 1, 1, 0])
 
-[node name="RP_002" type="Node3D" parent="RoadManager/ConnectedPrefab/Road_001"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.4408, 3.98708, 10.5043)
+[node name="RP_001" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 299.474, 0.25, -28.3407)
 script = ExtResource("4_tgwwo")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
-next_mag = 3.31814
+prior_mag = 18.9124
+next_mag = 18.9124
 prior_pt_init = NodePath("../RP_003")
-
-[node name="RP_003" type="Node3D" parent="RoadManager/ConnectedPrefab/Road_001"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.4408, 3.98708, -11.4957)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
-prior_mag = 1.70326
-next_mag = 16.0
 next_pt_init = NodePath("../RP_002")
 
-[node name="DynamicContainer" type="Node3D" parent="RoadManager/ConnectedPrefab"]
-script = ExtResource("2_pgtsv")
-use_lowpoly_preview = true
-generate_ai_lanes = true
-edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("../3way_2x2")])
-edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("RP_002")])
-edge_rp_target_dirs = Array[int]([-1, -1, -1, 0])
-edge_rp_locals = Array[NodePath]([NodePath("RP_004"), NodePath("RP_006"), NodePath("RP_007"), NodePath("RP_008")])
-edge_rp_local_dirs = Array[int]([0, 0, 0, 1])
-
-[node name="RP_004" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -86)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([2, 2])
-lanes = Array[int]([2, 0])
-next_mag = 19.8784
-prior_pt_init = NodePath("../RP_005")
-
-[node name="RP_005" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(0.0391442, 0.00717122, -0.999208, -2.73344e-11, 0.999974, 0.00717672, 0.999234, -0.000280926, 0.0391432, -1.76425, 0.25, -111.608)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([2, 2])
-lanes = Array[int]([2, 0])
-prior_mag = 19.8784
-next_mag = 19.8784
-prior_pt_init = NodePath("../RP_006")
-next_pt_init = NodePath("../RP_004")
-
-[node name="RP_006" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -86)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([1, 1])
-lanes = Array[int]([0, 2])
-prior_pt_init = NodePath("../RP_005")
-
-[node name="RP_003" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(0.0172214, 0.00388062, -0.999844, 0, 0.999992, 0.0038812, 0.999852, -6.68399e-05, 0.0172213, 0, 0, -140)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
-prior_mag = 54.5338
-next_mag = 54.5338
-prior_pt_init = NodePath("../RP_007")
-next_pt_init = NodePath("../RP_008")
-
-[node name="RP_007" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 16, 0, -16)
-script = ExtResource("4_tgwwo")
-traffic_dir = Array[int]([2, 2, 1, 1])
-lanes = Array[int]([2, 4, 4, 2])
-prior_mag = 32.8648
-next_mag = 8.0
-prior_pt_init = NodePath("../RP_003")
-
-[node name="RP_008" type="Node3D" parent="RoadManager/ConnectedPrefab/DynamicContainer"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -16, 0, -16)
+[node name="RP_002" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 324, 0, -12)
 script = ExtResource("4_tgwwo")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_mag = 8.0
-next_mag = 34.0558
-next_pt_init = NodePath("../RP_003")
+next_mag = 8.0
+prior_pt_init = NodePath("../RP_001")
 
-[node name="splitter_2x2" parent="RoadManager/ConnectedPrefab" instance=ExtResource("10_rstb4")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -70)
-edge_containers = Array[NodePath]([NodePath("../DynamicContainer"), NodePath("../DynamicContainer"), NodePath("../Road_001")])
-edge_rp_targets = Array[NodePath]([NodePath("RP_006"), NodePath("RP_004"), NodePath("RP_003")])
+[node name="RP_003" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 324, 0, -44)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 382.911, 0.25, -29.2059)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 18.1707
+next_mag = 18.1707
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../RP_006")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 356, 0, -44)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+next_pt_init = NodePath("../RP_004")
+
+[node name="RP_006" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 356, 0, -12)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+prior_pt_init = NodePath("../RP_004")
+
+[node name="3way_2x2" type="Node3D" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, -12)
+script = ExtResource("2_pgtsv")
+create_geo = false
+material_resource = ExtResource("14_gqxnn")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+edge_containers = Array[NodePath]([NodePath("../Dynamic"), NodePath("../Dynamic"), NodePath("../3way_2x2b")])
+edge_rp_targets = Array[NodePath]([NodePath("../Dynamic/RP_006"), NodePath("RP_002"), NodePath("RP_003")])
 edge_rp_target_dirs = Array[int]([0, 0, 1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_002"), NodePath("RP_003")])
+edge_rp_local_dirs = Array[int]([1, 0, 1])
 
-[node name="3way_2x2" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, -16)
-edge_containers = Array[NodePath]([NodePath("../DynamicContainer"), NodePath("../DynamicContainer"), NodePath("../Road_001")])
-edge_rp_targets = Array[NodePath]([NodePath("RP_007"), NodePath("RP_008"), NodePath("RP_002")])
-edge_rp_target_dirs = Array[int]([0, 1, 0])
-
-[node name="RoadActor8" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.9047, -5.72205e-06, -26.9706)
-
-[node name="RoadActor9" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.9463, -5.72205e-06, -123.33)
-
-[node name="RoadActor10" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.55521, -5.72205e-06, -67.9633)
-
-[node name="RoadActor11" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.78687, -5.72205e-06, -39.5517)
-
-[node name="RoadActor12" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.6106, -5.72205e-06, -34.7169)
-
-[node name="RoadActor13" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.0532, -5.72205e-06, -104.999)
+[node name="3way_2x2b" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, -44)
+edge_containers = Array[NodePath]([NodePath("../Dynamic"), NodePath("../Dynamic"), NodePath("../3way_2x2")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_003"), NodePath("../Dynamic/RP_005"), NodePath("RP_003")])
+edge_rp_target_dirs = Array[int]([1, 1, 1])
 
 [node name="ProcIntersection" type="Node3D" parent="RoadManager"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 420, 0, 0)

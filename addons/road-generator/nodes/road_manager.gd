@@ -227,6 +227,10 @@ func get_containers() -> Array[RoadContainer]:
 	for ch in get_children():
 		if ch is RoadContainer:
 			res.append(ch)
+		else:
+			for subch in ch.get_children():
+				if subch is RoadContainer:
+					res.append(subch)
 	return res
 
 
