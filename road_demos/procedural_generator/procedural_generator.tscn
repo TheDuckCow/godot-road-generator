@@ -1,30 +1,32 @@
-[gd_scene load_steps=10 format=3 uid="uid://c57yq8evxe3w3"]
+[gd_scene load_steps=12 format=3 uid="uid://c57yq8evxe3w3"]
 
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
-[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="2"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="3"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
-[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_manager.gd" id="4_jhbve"]
-[ext_resource type="Script" path="res://road_demos/procedural_generator/procedural_generator.gd" id="5"]
-[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/actors/RoadActor.tscn" id="7"]
-[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_spawner.gd" id="7_2hqjq"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/procedural_generator.gd" id="1_hjcst"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="2_066ph"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_manager.gd" id="3_18wel"]
+[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/RoadActor.tscn" id="4_re2kk"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="5_pvynn"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="6_11u7d"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="7_qlg0i"]
+[ext_resource type="Script" path="res://road_demos/procedural_generator/road_actor_spawner.gd" id="8_8qnhs"]
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="9_055ar"]
+[ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="10_farmj"]
 
 [sub_resource type="Environment" id="Environment_v4pga"]
 background_mode = 1
 background_color = Color(0.609661, 0.733591, 0.806032, 1)
 
 [node name="ProceduralGenerator" type="Node3D"]
-script = ExtResource("5")
+script = ExtResource("1_hjcst")
 target_node = NodePath("RoadManager/vehicles/Player/Camera3D")
 
 [node name="RoadManager" type="Node3D" parent="."]
-script = ExtResource("3")
+script = ExtResource("2_066ph")
 
 [node name="vehicles" type="Node3D" parent="RoadManager"]
-script = ExtResource("4_jhbve")
-road_actor_scenes = Array[PackedScene]([ExtResource("7")])
+script = ExtResource("3_18wel")
+road_actor_scenes = Array[PackedScene]([ExtResource("4_re2kk")])
 
-[node name="Player" parent="RoadManager/vehicles" instance=ExtResource("7")]
+[node name="Player" parent="RoadManager/vehicles" instance=ExtResource("4_re2kk")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281)
 drive_state = 2
 target_speed = 100
@@ -36,8 +38,8 @@ transform = Transform3D(1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, 
 far = 300.0
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]
-script = ExtResource("1")
-material_resource = ExtResource("2")
+script = ExtResource("5_pvynn")
+material_resource = ExtResource("6_11u7d")
 use_lowpoly_preview = true
 generate_ai_lanes = true
 auto_free_vehicles = false
@@ -50,7 +52,7 @@ edge_rp_local_dirs = Array[int]([0, 1])
 
 [node name="RP_001" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 21.9997)
-script = ExtResource("4")
+script = ExtResource("7_qlg0i")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_mag = 15.0
@@ -59,12 +61,12 @@ alignment = 1
 prior_pt_init = NodePath("../RP_002")
 
 [node name="ActorSpawner" type="Node3D" parent="RoadManager/Road_001/RP_001"]
-script = ExtResource("7_2hqjq")
+script = ExtResource("8_8qnhs")
 actor_manager_path = NodePath("../../../vehicles")
 
 [node name="RP_002" type="Node3D" parent="RoadManager/Road_001"]
 transform = Transform3D(0.999842, -0.000116941, 0.0178009, 0, 0.999978, 0.00656924, -0.0178013, -0.0065682, 0.99982, -0.677433, 0.25, -16.0496)
-script = ExtResource("4")
+script = ExtResource("7_qlg0i")
 traffic_dir = Array[int]([2, 2, 1, 1])
 lanes = Array[int]([2, 4, 4, 2])
 prior_mag = 15.0
@@ -73,7 +75,7 @@ alignment = 1
 next_pt_init = NodePath("../RP_001")
 
 [node name="ActorSpawner" type="Node3D" parent="RoadManager/Road_001/RP_002"]
-script = ExtResource("7_2hqjq")
+script = ExtResource("8_8qnhs")
 actor_manager_path = NodePath("../../../vehicles")
 
 [node name="UI" type="Control" parent="."]
@@ -87,27 +89,33 @@ offset_right = -10.0
 offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("9_055ar")
 
-[node name="info_label" type="Label" parent="UI"]
-unique_name_in_owner = true
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 14.0
-theme_override_colors/font_color = Color(0, 0, 0, 1)
-text = "Cars: ##"
-
-[node name="instructions" type="Label" parent="UI"]
+[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
 layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -187.0
-offset_bottom = 49.0
-grow_horizontal = 0
+anchors_preset = -1
+anchor_right = 0.5
+
+[node name="DemoUiCommon" parent="UI/VBoxContainer" instance=ExtResource("10_farmj")]
+layout_mode = 2
+
+[node name="instructions" type="Label" parent="UI/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "up/down arrow to move
 left/right to change lane"
 horizontal_alignment = 1
+
+[node name="spacer" type="Control" parent="UI/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="info_label" type="Label" parent="UI/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+text = "Cars: ##"
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 0, 3.50568, 0)

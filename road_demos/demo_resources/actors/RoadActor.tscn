@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://bo55v7mk1vavq"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_lane_agent.gd" id="1"]
-[ext_resource type="Script" path="res://road_demos/actors/road_actor.gd" id="2"]
+[ext_resource type="Script" path="res://road_demos/demo_resources/actors/road_actor.gd" id="2"]
 
 [sub_resource type="BoxMesh" id="1"]
 size = Vector3(1.78, 0.7, 4.5)

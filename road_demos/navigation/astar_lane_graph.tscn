@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://buus3nw81afbr"]
+[gd_scene load_steps=19 format=3 uid="uid://buus3nw81afbr"]
 
 [ext_resource type="Script" path="res://road_demos/navigation/astar_lane_graph.gd" id="1_g562n"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_o8koi"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4_4lmnd"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="5_p8dyk"]
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="5_vs6qx"]
+[ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="7_xun5x"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1dpoc"]
 shading_mode = 0
@@ -409,10 +410,20 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="instructions" type="Label" parent="UI"]
+[node name="stack" type="VBoxContainer" parent="UI"]
 layout_mode = 1
-offset_right = 187.0
-offset_bottom = 49.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DemoUiCommon" parent="UI/stack" instance=ExtResource("7_xun5x")]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="instructions" type="Label" parent="UI/stack"]
+layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 24
 text = "Left click: place start market

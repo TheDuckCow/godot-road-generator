@@ -1,6 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://duokst1f0w8yc"]
+[gd_scene load_steps=6 format=3 uid="uid://duokst1f0w8yc"]
 
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_7msrg"]
 [ext_resource type="Script" path="res://road_demos/road_demos.gd" id="1_ivavu"]
+[ext_resource type="Texture2D" uid="uid://cn8naqbbkbdm2" path="res://icon.png" id="3_egifp"]
+
+[sub_resource type="Gradient" id="Gradient_higwd"]
+colors = PackedColorArray(1, 1, 1, 1, 0.31555, 0.3659, 0.432188, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1dhmt"]
+gradient = SubResource("Gradient_higwd")
+fill_to = Vector2(0, 0.989316)
 
 [node name="RoadDemos" type="Control"]
 layout_mode = 3
@@ -9,17 +18,42 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("1_7msrg")
 script = ExtResource("1_ivavu")
-demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/ProceduralGenerator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
+demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
 
-[node name="ColorRect" type="ColorRect" parent="."]
+[node name="graident" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.753984, 0.753984, 0.753984, 1)
+texture = SubResource("GradientTexture2D_1dhmt")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -180.0
+offset_right = 180.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_constants/separation = 15
+
+[node name="logo" type="TextureRect" parent="HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("3_egifp")
+stretch_mode = 3
+
+[node name="version_label" type="Label" parent="HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.156863, 0.156863, 0.207843, 1)
+theme_override_font_sizes/font_size = 60
+text = "v1.2.3"
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -39,4 +73,28 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="MarginContainer/vbox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 40
 text = "Godot Road Generator Demos"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/vbox"]
+layout_mode = 2
+
+[node name="spacer2" type="Control" parent="MarginContainer/vbox/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="overview" type="RichTextLabel" parent="MarginContainer/vbox/HBoxContainer"]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+theme_override_colors/default_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/normal_font_size = 24
+text = "The following are demo scenes that show off current capabilities (or limitations) of the Godot Road Generator. Each demo generally has its own Readme doc as well with more explanations."
+fit_content = true
+
+[node name="spacer" type="Control" parent="MarginContainer/vbox/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
