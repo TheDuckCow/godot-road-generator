@@ -595,12 +595,16 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 
 	undo_redo.create_action("Add next RoadPoint")
 	if handle_mag > 0:
+		undo_redo.add_do_property(_sel, "_is_internal_updating", true)
+		undo_redo.add_undo_property(_sel, "_is_internal_updating", true)
 		if not selection.next_pt_init:
 			undo_redo.add_do_property(_sel, "next_mag", handle_mag)
 			undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
 		elif not selection.prior_pt_init:
 			undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
 			undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
+		undo_redo.add_do_property(_sel, "_is_internal_updating", false)
+		undo_redo.add_undo_property(_sel, "_is_internal_updating", false)
 	if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
 		# Special case: the starting point is not connected to anything, then the user is
 		# probably wanting it to be rotated towards the new point being placed anyways
@@ -744,6 +748,8 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 	next_rp._is_internal_updating = false
 	set_selection(next_rp)
+	next_rp._skip_next_on_transform = true # Skip one transform, else will be lowpoly
+	next_rp.container.on_point_update(next_rp, false) # But still trigger the generation
 
 
 ## Assume, potentially badly, that last node is the one to delete
