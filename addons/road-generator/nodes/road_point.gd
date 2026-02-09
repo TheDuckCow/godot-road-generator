@@ -857,7 +857,6 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 					target_rp.name, target_rp.prior_pt_init])
 				return false
 
-
 	# Now do actual property setting
 	match this_direction:
 		PointInit.NEXT:
@@ -886,9 +885,8 @@ func connect_roadpoint(this_direction: int, target_rp: Node, target_direction: i
 
 	self._is_internal_updating = false
 	target_rp._is_internal_updating = false
-
+	target_rp.container.on_point_update(target_rp, false)
 	container.update_edges()
-	emit_transform()
 	return true
 
 
