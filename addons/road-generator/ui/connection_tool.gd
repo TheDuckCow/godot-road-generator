@@ -348,11 +348,19 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 	# it not as convinient for viewport manipulation.
 
 	if not intersect.is_empty():
-		return [intersect["position"], intersect["normal"]]
+		# If we hit a collider, offset the road upwards by half the gutter profile
+		# (if negative) so that the road's edges can sink into the terrain to
+		# avoid gaps.
+		var half_gutter := 0.0
+		if selection is RoadPoint:
+			half_gutter = max(0.0, -0.5 * selection.gutter_profile.y)
+		var nrm: Vector3 = intersect["normal"].normalized()
+		var pos: Vector3 = intersect["position"] + nrm*half_gutter
+		return [pos, nrm]
 
 	# if we couldn't directly intersect with something, then place the next
 	# point in the same plane as the initial selection which is also facing
-	# the camera, or in the plane of that object's
+	# the camera, or in the plane of that object's.
 
 	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
 

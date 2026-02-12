@@ -665,7 +665,6 @@ func _call_update_edges(container: RoadContainer) -> void:
 
 
 func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float) -> void:
-
 	var next_rp = RoadPoint.new()
 	next_rp._is_internal_updating = true
 	var adding_to_next = true
@@ -721,8 +720,7 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 	if nrm == Vector3.ZERO:
 		pass
 	else:
-		var half_gutter: float = -0.5 * next_rp.gutter_profile.y
-		next_rp.global_transform.origin = pos + nrm * half_gutter
+		next_rp.global_transform.origin = pos
 
 		# Rotate this rp towards the initial selected node
 		if selection is RoadPoint:
@@ -737,7 +735,9 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 				look_pos += selection.global_transform.basis.z * selection.next_mag
 			else:
 				look_pos += selection.global_transform.basis.z * selection.prior_mag
-			next_rp.look_at(look_pos, nrm)
+			next_rp.look_at(look_pos, next_rp.transform.basis.y.normalized())
+			# Workaround, as look_at for some reason doesn't *actually* constrain the the provided axis
+			next_rp.global_transform.basis.y = nrm.normalized()
 
 			if _lock_x_rotation:
 				next_rp.global_rotation.x = 0.0
@@ -745,6 +745,8 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 				next_rp.global_rotation.y = 0.0
 			if _lock_z_rotation:
 				next_rp.global_rotation.z = 0.0
+			
+			next_rp.global_transform.basis = next_rp.global_transform.basis.orthonormalized()
 
 	next_rp._is_internal_updating = false
 	set_selection(next_rp)
