@@ -341,7 +341,7 @@ func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mou
 	var closest_rp:RoadPoint
 	var closest_dist: float
 	for pth in container.edge_rp_locals:
-		var rp = container.get_node(pth)
+		var rp = container.get_node_or_null(pth)
 		#print("\tChecking dist to %s" % rp.name)
 		if not is_instance_valid(rp):
 			continue
@@ -1298,8 +1298,10 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 	var next_rp: RoadPoint
 	var next_samedir: bool = true
 	if source_rp.prior_pt_init:
-		prior_graph = source_rp.get_node(source_rp.prior_pt_init)
-		if prior_graph.next_pt_init == prior_graph.get_path_to(source_rp):
+		prior_graph = source_rp.get_node_or_null(source_rp.prior_pt_init)
+		if not prior_graph:
+			push_warning("Invalid prior_pt_init reference %s on %s" % [source_rp.prior_pt_init, source_rp.name])
+		elif prior_graph.next_pt_init == prior_graph.get_path_to(source_rp):
 			prior_rp = prior_graph
 			prior_samedir = true
 			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.PRIOR, RoadPoint.PointInit.NEXT) # one should be flipped?
@@ -1312,8 +1314,10 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 			pass # not actually mutually connected?
 	
 	if source_rp.next_pt_init:
-		next_graph = source_rp.get_node(source_rp.next_pt_init)
-		if next_graph.prior_pt_init == next_graph.get_path_to(source_rp):
+		next_graph = source_rp.get_node_or_null(source_rp.next_pt_init)
+		if not next_graph:
+			push_warning("Invalid next_pt_init reference %s on %s" % [source_rp.next_pt_init, source_rp.name])
+		elif next_graph.prior_pt_init == next_graph.get_path_to(source_rp):
 			next_rp = next_graph
 			next_samedir = true
 			undo_redo.add_do_method(source_rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR) # one should be flipped?
@@ -1377,8 +1381,10 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 	var next_inter: RoadIntersection
 	
 	if rp.prior_pt_init:
-		prior_graph = rp.get_node(rp.prior_pt_init)
-		if prior_graph is RoadIntersection:
+		prior_graph = rp.get_node_or_null(rp.prior_pt_init)
+		if not is_instance_valid(prior_graph):
+			push_warning("Prior graph node path invalid on %s" % rp.name)
+		elif prior_graph is RoadIntersection:
 			prior_inter = prior_graph
 			undo_redo.add_do_method(prior_inter, "remove_branch", rp)
 		elif prior_graph.next_pt_init == prior_graph.get_path_to(rp):
@@ -1396,8 +1402,10 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 		pass # TODO: check if cross-container selected, if so need to sever the edge
 	
 	if rp.next_pt_init:
-		next_graph = rp.get_node(rp.next_pt_init)
-		if next_graph is RoadIntersection:
+		next_graph = rp.get_node_or_null(rp.next_pt_init)
+		if not is_instance_valid(next_graph):
+			push_warning("Prior graph node path invalid on %s" % rp.name)
+		elif next_graph is RoadIntersection:
 			next_inter = next_graph
 			undo_redo.add_do_method(next_inter, "remove_branch", rp)
 		elif next_graph.prior_pt_init == next_graph.get_path_to(rp):
@@ -1673,7 +1681,7 @@ func subaction_flip_roadpoint(rp: RoadPoint, undo_redo:EditorUndoRedoManager) ->
 		var edge_rp_local_dirs_old:Array[int] = rp.container.edge_rp_local_dirs.duplicate(true)
 		var edge_rp_local_dirs_new:Array[int] = edge_rp_local_dirs_old.duplicate(true)
 		for _idx in range(len(rp.container.edge_rp_locals)):
-			if rp.container.get_node(rp.container.edge_rp_locals[_idx]) == rp:
+			if rp.container.get_node_or_null(rp.container.edge_rp_locals[_idx]) == rp:
 				edge_rp_local_dirs_new[_idx] = 0 if edge_rp_local_dirs_new[_idx] == 1 else 1
 		undo_redo.add_do_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_new)
 		undo_redo.add_undo_property(rp.container, "edge_rp_local_dirs", edge_rp_local_dirs_old)
@@ -1692,9 +1700,9 @@ func subaction_flip_roadpoint(rp: RoadPoint, undo_redo:EditorUndoRedoManager) ->
 			var edge_rp_target_dirs_old:Array[int] = other_cont.edge_rp_target_dirs.duplicate(true)
 			var edge_rp_target_dirs_new:Array[int] = edge_rp_target_dirs_old.duplicate(true)
 			for _idx in range(len(other_cont.edge_rp_target_dirs)):
-				if other_cont.get_node(other_cont.edge_containers[_idx]) != rp.container:
+				if other_cont.get_node_or_null(other_cont.edge_containers[_idx]) != rp.container:
 					continue
-				if rp.container.get_node(other_cont.edge_rp_targets[_idx]) == rp:
+				if rp.container.get_node_or_null(other_cont.edge_rp_targets[_idx]) == rp:
 					edge_rp_target_dirs_new[_idx] = 0 if edge_rp_target_dirs_new[_idx] == 1 else 1
 			undo_redo.add_do_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_new)
 			undo_redo.add_undo_property(other_cont, "edge_rp_target_dirs", edge_rp_target_dirs_old)

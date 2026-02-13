@@ -521,7 +521,7 @@ func get_prior_rp():
 ## Returns prior RP direct reference, accounting for cross-container connections
 func get_prior_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.prior_pt_init:
-		return get_node(prior_pt_init)
+		return get_node_or_null(prior_pt_init)
 	if limit_same_container:
 		return null
 	# If no sibling point, could still have a cross-container connection
@@ -532,8 +532,15 @@ func get_prior_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 			continue
 		if not container.edge_containers[_idx]:
 			return null
-		var target_container = container.get_node(container.edge_containers[_idx])
-		return target_container.get_node(container.edge_rp_targets[_idx])
+		var target_container = container.get_node_or_null(container.edge_containers[_idx])
+		if not is_instance_valid(target_container):
+			push_warning("Invalid edge container on %s, refresh roads" % container.name)
+			return null
+		var reverse_rp = target_container.get_node_or_null(container.edge_rp_targets[_idx])
+		if not is_instance_valid(reverse_rp):
+			push_warning("Invalid reciprocal edge RP on container %s, refresh roads" % target_container.name)
+			return null
+		return reverse_rp
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (get_prior_road_node)")
 	return null
@@ -547,7 +554,7 @@ func get_next_rp():
 ## Returns next RP direct reference, accounting for cross-container connections
 func get_next_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 	if self.next_pt_init:
-		return get_node(next_pt_init)
+		return get_node_or_null(next_pt_init)
 	# If no sibling point, could still have a cross-container connection
 	if limit_same_container:
 		return null
@@ -558,8 +565,15 @@ func get_next_road_node(limit_same_container: bool = false) -> RoadGraphNode:
 			continue
 		if not container.edge_containers[_idx]:
 			return null
-		var target_container = container.get_node(container.edge_containers[_idx])
-		return target_container.get_node(container.edge_rp_targets[_idx])
+		var target_container = container.get_node_or_null(container.edge_containers[_idx])
+		if not is_instance_valid(target_container):
+			push_warning("Invalid edge container on %s, refresh roads" % container.name)
+			return null
+		var reverse_rp = target_container.get_node_or_null(container.edge_rp_targets[_idx])
+		if not is_instance_valid(reverse_rp):
+			push_warning("Invalid reciprocal edge RP on container %s, refresh roads" % target_container.name)
+			return null
+		return reverse_rp
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (get_next_road_node)")
 	return null
@@ -902,15 +916,20 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 			if not self.next_pt_init:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Next direction")
 				return false
-			disconnect_from = get_node(next_pt_init)
+			disconnect_from = get_node_or_null(next_pt_init)
+			if not is_instance_valid(disconnect_from):
+				push_warning("Invalid prior connection, need to clear %s's next_pt_init" % self.name)
+				return false
 			seg = self.next_seg
 		PointInit.PRIOR:
 			if not self.prior_pt_init:
 				push_error("Failed to disconnect, not already connected to target RoadPoint in the Prior direction")
 				return false
-			disconnect_from = get_node(prior_pt_init)
+			disconnect_from = get_node_or_null(prior_pt_init)
+			if not is_instance_valid(disconnect_from):
+				push_warning("Invalid prior connection, need to clear %s's prior_pt_init" % self.name)
+				return false
 			seg = self.prior_seg
-
 	if self.container != disconnect_from.container:
 		push_warning("Wrong function: Disconnecting roadpoints from different RoadContainers, should use disconnect_container")
 		return false
@@ -973,13 +992,13 @@ func connect_container(this_direction: int, target_rp: RoadPoint, target_directi
 	for idx in range(len(container.edge_rp_locals)):
 		var _rp_local = container.edge_rp_locals[idx]
 		var _rp_localdir = container.edge_rp_local_dirs[idx]
-		if container.get_node(_rp_local) == self and _rp_localdir == this_direction:
+		if container.get_node_or_null(_rp_local) == self and _rp_localdir == this_direction:
 			this_idx = idx
 			break
 	for idx in range(len(target_ct.edge_rp_locals)):
 		var _rp_local = target_ct.edge_rp_locals[idx]
 		var _rp_localdir = target_ct.edge_rp_local_dirs[idx]
-		if target_ct.get_node(_rp_local) == target_rp and _rp_localdir == target_direction:
+		if target_ct.get_node_or_null(_rp_local) == target_rp and _rp_localdir == target_direction:
 			target_idx = idx
 			break
 
@@ -1027,7 +1046,7 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 	for idx in range(len(container.edge_rp_locals)):
 		var _rp_local = container.edge_rp_locals[idx]
 		var _rp_localdir = container.edge_rp_local_dirs[idx]
-		if container.get_node(_rp_local) == self and _rp_localdir == this_direction:
+		if container.get_node_or_null(_rp_local) == self and _rp_localdir == this_direction:
 			this_idx = idx
 			break
 
@@ -1048,8 +1067,14 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 		push_error("Failed to disconnect container, empty path to target point")
 		return false
 	else:
-		target_ct = container.get_node(target_ct_path)
-		target_pt = target_ct.get_node(target_pt_path)
+		target_ct = container.get_node_or_null(target_ct_path)
+		target_pt = target_ct.get_node_or_null(target_pt_path)
+		if not is_instance_valid(target_ct):
+			push_error("Invalid target path %s on %s, can't disconnect" % [target_ct_path, container.name])
+			return false
+		if not is_instance_valid(target_pt):
+			push_error("Invalid point %s on %s, can't disconnect" % [target_pt_path, container.name])
+			return false
 		for idx in range(len(target_ct.edge_rp_locals)):
 			var _rp_local = target_ct.edge_rp_locals[idx]
 			var _rp_localdir = target_ct.edge_rp_local_dirs[idx]
@@ -1096,13 +1121,13 @@ func validate_junctions():
 	# Get valid Prior and Next RoadPoints for THIS RoadPoint
 	var _tmp_ref
 	if not prior_pt_init.is_empty():
-		_tmp_ref = get_node(prior_pt_init)
+		_tmp_ref = get_node_or_null(prior_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
 			prior_point = _tmp_ref
 	if not next_pt_init.is_empty():
-		_tmp_ref = get_node(next_pt_init)
+		_tmp_ref = get_node_or_null(next_pt_init)
 		if is_instance_valid(_tmp_ref) and _tmp_ref.has_method("is_road_point"):
-			next_point = get_node(next_pt_init)
+			next_point = get_node_or_null(next_pt_init)
 
 	# Clear invalid junctions
 	if is_instance_valid(prior_point):
