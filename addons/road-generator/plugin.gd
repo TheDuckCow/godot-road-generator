@@ -1069,6 +1069,99 @@ func connect_rp_to_intersection(inter: RoadIntersection, rp: RoadPoint) -> void:
 	undo_redo.commit_action()
 
 
+func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
+	var undo_redo = get_undo_redo()
+	if rpa.container == rpb.container:
+		push_error("Same RoadContainer, just directly connect")
+		return
+	# Check that rpa and rpb are indeed edge RP's?
+	
+	var new_cont := RoadContainer.new()
+	var new_rpa := RoadPoint.new() # TODO: need to copy settings from rpa
+	new_rpa.copy_settings_from(rpa)
+	var new_rpb := RoadPoint.new()
+	new_cont.name = "Road_001"
+	new_rpb.copy_settings_from(rpb)
+	new_rpa.name = rpa.name
+	new_rpb.name = rpb.name
+	
+	var new_cont_parent = rpa.container.get_parent()
+	var cont_transform: Transform3D = rpa.container.global_transform
+	cont_transform.origin = (rpa.global_position + rpb.global_position) / 2.0
+	var rpa_trans: Transform3D = rpa.global_transform
+	var rpb_trans: Transform3D = rpb.global_transform
+	
+	# Action setup
+	
+	undo_redo.create_action("Bridge RoadPoints with new RoadContainer")
+	
+	undo_redo.add_do_method(new_cont_parent, "add_child", new_cont, true)
+	undo_redo.add_do_method(new_cont, "set_owner", new_cont_parent.owner)
+	undo_redo.add_do_property(new_cont, "global_transform", cont_transform)
+	undo_redo.add_do_method(new_cont, "add_child", new_rpa, true)
+	undo_redo.add_do_method(new_cont, "add_child", new_rpb, true)
+	undo_redo.add_do_method(new_rpa, "set_owner", new_cont_parent.owner)
+	undo_redo.add_do_method(new_rpb, "set_owner", new_cont_parent.owner)
+	
+	# Position and connect (being sure to flip RP's around to avoid inter-container issues)
+	undo_redo.add_do_property(new_rpa, "global_transform", rpa_trans)
+	undo_redo.add_do_property(new_rpb, "global_transform", rpb_trans)
+	
+	# Connect RPs and containers "flipping" the direction to keep it in order
+	
+	var a_dir: RoadPoint.PointInit
+	var a_edge: RoadPoint.PointInit
+	var b_dir: RoadPoint.PointInit
+	var b_edge: RoadPoint.PointInit
+	if rpa.prior_pt_init.is_empty():
+		a_dir = RoadPoint.PointInit.PRIOR
+		a_edge = RoadPoint.PointInit.NEXT
+	elif rpa.next_pt_init.is_empty():
+		a_dir = RoadPoint.PointInit.NEXT
+		a_edge = RoadPoint.PointInit.PRIOR
+	else:
+		push_error("Initial RoadPoint % should not be fully connected" % rpa.name)
+		return
+	if rpb.prior_pt_init.is_empty():
+		b_dir = RoadPoint.PointInit.PRIOR
+		b_edge = RoadPoint.PointInit.NEXT
+	elif rpb.next_pt_init.is_empty():
+		b_dir = RoadPoint.PointInit.NEXT
+		b_edge = RoadPoint.PointInit.PRIOR
+	else:
+		push_error("Initial RoadPoint % should not be fully connected" % rpb.name)
+	undo_redo.add_do_method(new_rpa, "connect_roadpoint", a_dir, new_rpb, b_dir)
+	
+	# Finally, connect the two containers together
+	undo_redo.add_do_method(self, "_call_update_edges", new_cont)
+	undo_redo.add_do_method(new_rpa, "connect_container", a_edge, rpa, a_dir)
+	undo_redo.add_do_method(new_rpb, "connect_container", b_edge, rpb, b_dir)
+	
+	# TODO: update prior/next magnitudes so they aren't overlapping
+	
+	undo_redo.add_do_reference(new_cont)
+	undo_redo.add_do_reference(new_rpa)
+	undo_redo.add_do_reference(new_rpb)
+	
+	# Undo steps
+	undo_redo.add_undo_method(self, "_call_update_edges", new_cont)
+	undo_redo.add_undo_method(new_rpa, "disconnect_container", a_edge, a_dir)
+	undo_redo.add_undo_method(new_rpb, "disconnect_container", b_edge, b_dir)
+	
+	undo_redo.add_undo_method(new_cont, "remove_child", new_rpa)
+	undo_redo.add_undo_method(new_cont, "remove_child", new_rpb)
+	undo_redo.add_undo_method(new_cont_parent, "remove_child", new_cont)
+	undo_redo.add_undo_method(new_rpa, "set_owner", null)
+	undo_redo.add_undo_method(new_rpb, "set_owner", null)
+	undo_redo.add_undo_method(new_cont, "set_owner", null)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", new_cont)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	
+	undo_redo.commit_action()
+
+
 ## Snap this selected sel_rp's container onto the tgt_rp of another container
 ##
 ## Only results in translating the whole RoadContainer, not RPs.
