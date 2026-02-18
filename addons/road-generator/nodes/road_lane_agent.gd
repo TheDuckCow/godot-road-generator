@@ -204,7 +204,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 		groups_checked.append(_cont.ai_lane_group)
 
 	for lane in all_lanes:
-		if not lane is RoadLane:
+		if not lane is RoadLane or not is_instance_valid(lane):
 			push_warning("Non RoadLane in lanes list (%s)" % lane)
 			continue
 		var this_lane_closest = get_closest_path_point(lane, pos)
