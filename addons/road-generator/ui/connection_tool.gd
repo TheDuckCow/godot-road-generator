@@ -613,6 +613,8 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			pass # Not implemented yet (drag road_edges along with self)
 		elif selection is RoadContainer:
 			# Identify if snapping or unsnapping
+			if snapping == SnapState.IDLE or pre_snap_trans[0].origin == selection.global_transform.origin:
+					return INPUT_PASS
 			var container: RoadContainer = selection
 			var cont_connections: Array = container.get_connected_edges()
 			if cont_connections.size() > 0:
