@@ -55,16 +55,12 @@ func _get_edge_facing(edge: RoadPoint, intersection: Node3D) -> _IntersectNGonFa
 		return _IntersectNGonFacing.OTHER
 
 	var facing: _IntersectNGonFacing = _IntersectNGonFacing.OTHER
-	# TODO detect the intersection node instead of checking for null.
-	# The above todo (related to the two below) can only be done once
-	# intersections are properly linked to road points.
-	# TODO should be: if edge.get_node(edge.prior_pt_init) == intersection:
 	if edge.get_node_or_null(edge.prior_pt_init) == intersection:
 		facing = _IntersectNGonFacing.ORIGIN
-	# TODO should be: elif edge.get_node(edge.next_pt_init) == intersection:
 	elif edge.get_node_or_null(edge.next_pt_init) == intersection:
 		facing = _IntersectNGonFacing.AWAY
 	else:
+		push_warning("Failed to find intersection connection between %s and %s" % [edge.name, intersection.name])
 		facing = _IntersectNGonFacing.OTHER
 	return facing
 

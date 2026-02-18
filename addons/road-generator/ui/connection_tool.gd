@@ -13,6 +13,7 @@ signal assign_mode(mode: int)
 enum HintState {
 	NONE, ## No interactions active
 	CONNECT, ## Connect from source node to target node
+	BRIDGE, ## Create new road container and bridge the gap betweem
 	SNAP, ## Snap the source to the target, action should keep track of initial transforms
 	UNSNAP, ## User is pulling 2+ elements apart, shoudl keep track of initial transforms
 	CREATE_RP, ## Add a new node such as a RoadPoint
@@ -135,6 +136,8 @@ func forward_3d_draw_over_viewport(overlay: Control):
 	match hinting:
 		HintState.CONNECT:
 			draw_hint_connect(overlay)
+		HintState.BRIDGE:
+			draw_hint_bridge(overlay)
 		HintState.SNAP:
 			draw_hint_snap(overlay)
 		HintState.UNSNAP:
@@ -348,11 +351,19 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 	# it not as convinient for viewport manipulation.
 
 	if not intersect.is_empty():
-		return [intersect["position"], intersect["normal"]]
+		# If we hit a collider, offset the road upwards by half the gutter profile
+		# (if negative) so that the road's edges can sink into the terrain to
+		# avoid gaps.
+		var half_gutter := 0.0
+		if selection is RoadPoint:
+			half_gutter = max(0.0, -0.5 * selection.gutter_profile.y)
+		var nrm: Vector3 = intersect["normal"].normalized()
+		var pos: Vector3 = intersect["position"] + nrm*half_gutter
+		return [pos, nrm]
 
 	# if we couldn't directly intersect with something, then place the next
 	# point in the same plane as the initial selection which is also facing
-	# the camera, or in the plane of that object's
+	# the camera, or in the plane of that object's.
 
 	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
 
@@ -411,6 +422,16 @@ func draw_hint_connect(overlay: Control) -> void:
 		var trg := hint_target_points[idx]
 		_draw_connector(overlay, src, trg, col)
 	_draw_mouse_label(overlay, col, "Connect")
+	_draw_edges(overlay, col, false)
+
+
+func draw_hint_bridge(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	for idx in hint_source_points.size():
+		var src := hint_source_points[idx]
+		var trg := hint_target_points[idx]
+		_draw_connector(overlay, src, trg, col)
+	_draw_mouse_label(overlay, col, "Bridge")
 	_draw_edges(overlay, col, false)
 
 
@@ -592,6 +613,8 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			pass # Not implemented yet (drag road_edges along with self)
 		elif selection is RoadContainer:
 			# Identify if snapping or unsnapping
+			if snapping == SnapState.IDLE or pre_snap_trans[0].origin == selection.global_transform.origin:
+					return INPUT_PASS
 			var container: RoadContainer = selection
 			var cont_connections: Array = container.get_connected_edges()
 			if cont_connections.size() > 0:
@@ -694,7 +717,14 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 						pass # can't can't modify internals of subscene container
 					elif selection.is_subscene():
 						if rp_hover.container.is_subscene():
-							pass # TODO: support this workflow, bridge "between" intersections
+							# Add a new container with two roadpoints + a connection
+							hint_source_nodes.append(rp_hover)
+							hint_source_points.append(rp_hover_pos)
+							hint_target_nodes.append(closest_rp)
+							hint_target_points.append(closest_pos)
+							_insert_edge_hint(closest_rp, camera)
+							_insert_edge_hint(rp_hover, camera)
+							hinting = HintState.BRIDGE
 						else:
 							# Add child of other same-scene container
 							hint_source_nodes.append(rp_hover)
@@ -735,7 +765,6 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			hint_source_points.append(camera.unproject_position(selection.global_transform.origin))
 			hinting = HintState.CREATE_RP
 		elif hover_roadnode is RoadPoint and selection is RoadPoint:
-			#print("Hover and selection are both RPs")
 			# TODO - extract into func handle_add_rp2rp?
 			# Connection context, but need to check if same container and if 
 			var rp_sel: RoadPoint = selection
@@ -907,6 +936,9 @@ func _perform_action(camera: Camera3D) -> int:
 					plg.connect_rp_to_intersection(hint_target_nodes[idx], hint_source_nodes[idx])
 				else:
 					plg._connect_rp_on_click(hint_source_nodes[idx], hint_target_nodes[idx])
+			return INPUT_STOP
+		HintState.BRIDGE:
+			plg.bridge_rps_with_new_container(hint_source_nodes[0], hint_target_nodes[0])
 			return INPUT_STOP
 		HintState.SNAP:
 			if hint_target_nodes[0] is RoadPoint: # really is a snapping of a RoadContainer
