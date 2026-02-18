@@ -333,15 +333,15 @@ func set_selection_list(nodes: Array) -> void:
 		_edi.edit_node(_nd)
 
 
-## Get the nearest edge RoadPoint for the given container
+## Get the nearest (open) edge RoadPoint for the given container
 func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mouse_pos: Vector2):
 	if _edi_debug:
 		print_debug("get_nearest_edge_road_point")
 
 	var closest_rp:RoadPoint
 	var closest_dist: float
-	for pth in container.edge_rp_locals:
-		var rp = container.get_node_or_null(pth)
+	for idx in container.edge_rp_locals.size():
+		var rp = container.get_node_or_null(container.edge_rp_locals[idx])
 		#print("\tChecking dist to %s" % rp.name)
 		if not is_instance_valid(rp):
 			continue
@@ -353,8 +353,13 @@ func get_nearest_edge_road_point(container: RoadContainer, camera: Camera3D, mou
 		var this_dist = mouse_pos.distance_squared_to(rp_screen_pos)
 		#print("\trp_screen_pos: %s:%s - %s to mouse at %s" % [
 		#	rp.name, rp_screen_pos, this_dist, mouse_pos])
-		if not closest_dist or this_dist < closest_dist:
-			closest_dist = this_dist
+		# Always return at least one valid RP, but if there's another that is either closer OR
+		if not closest_dist or (this_dist < closest_dist):
+			if not container.edge_containers[idx]:
+				# If there's another RP that isn't cross connected, prefer that one
+				closest_dist = this_dist
+			elif closest_rp != null:
+				continue # don't set a new closest if this one isn't open
 			closest_rp = rp
 	return closest_rp
 
