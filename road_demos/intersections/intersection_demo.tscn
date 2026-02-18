@@ -1,16 +1,18 @@
-[gd_scene load_steps=15 format=3 uid="uid://005t8goo85uh"]
+[gd_scene load_steps=17 format=3 uid="uid://005t8goo85uh"]
 
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_8fvl2"]
+[ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="1_jtmt7"]
 [ext_resource type="PackedScene" uid="uid://b63rq4jeigte2" path="res://addons/road-generator/custom_containers/4way_2x2.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://cbw5410mk0wgq" path="res://addons/road-generator/custom_containers/highway_offramp.tscn" id="3"]
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="4"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="4"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://dfggtpn3gyrn0" path="res://addons/road-generator/custom_containers/3way_2x2.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://carf53o7nq0qh" path="res://addons/road-generator/custom_containers/highway_onramp.tscn" id="8"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="9"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="10"]
-[ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="11"]
+[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/RoadActor.tscn" id="11"]
 
 [sub_resource type="Environment" id="Environment_sc7xi"]
 background_mode = 1
@@ -35,21 +37,28 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 10.0
-offset_top = 10.0
-offset_right = -10.0
-offset_bottom = -10.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_8fvl2")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="instructions" type="Label" parent="UI"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -187.0
-offset_bottom = 49.0
-grow_horizontal = 0
+[node name="DemoUiCommon" parent="UI/VBoxContainer" instance=ExtResource("1_jtmt7")]
+layout_mode = 2
+
+[node name="instructions" type="Label" parent="UI/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "up/down arrow to move
 left/right to change lane"
@@ -64,7 +73,6 @@ surface_material_override/0 = SubResource("StandardMaterial3D_gomn4")
 [node name="RoadManager" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -110.138, -3.05176e-05, 47.3471)
 script = ExtResource("5")
-material_resource = ExtResource("4")
 
 [node name="vehicles" type="Node3D" parent="RoadManager"]
 

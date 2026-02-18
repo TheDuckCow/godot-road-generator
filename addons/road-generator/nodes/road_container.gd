@@ -265,17 +265,11 @@ func _enter_tree() -> void:
 ## Cleanup the road segments specifically, in case they aren't children.
 func _exit_tree():
 	# TODO: Verify we don't get orphans below.
-	# However, at the time of this early exit, doing this prevented roads
-	# from being drawn on scene load due to errors unloading against
+	# However, at the time of this early exit, queueing free segments prevented
+	# roads from being drawn on scene load due to errors unloading against
 	# freed instances.
 	segid_map = {}
 	return
-
-	#segid_map = {}
-	#if not segments or not is_instance_valid(get_node(segments)):
-	#	return
-	#for seg in get_node(segments).get_children():
-	#	seg.queue_free()
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -1106,9 +1100,12 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		point.prior_seg.is_dirty = true
 		point.prior_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.prior_seg)  # Track an updated RoadSegment
-	elif point.prior_pt_init and point.get_node(point.prior_pt_init).visible:
-		var prior = point.get_node(point.prior_pt_init)
-		if prior.has_method("is_road_point"):  # ie skip road container.
+	elif point.get_node_or_null(point.prior_pt_init) and point.get_node_or_null(point.prior_pt_init).visible:
+		var prior = point.get_node_or_null(point.prior_pt_init)
+		if not is_instance_valid(prior):
+			push_warning("Auto-cleared invalid prior_pt_init %s on %s" % [point.prior_pt_init, point.name])
+			point.prior_pt_init = ^""
+		elif prior.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(prior, point, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment
@@ -1124,9 +1121,12 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 		point.next_seg.is_dirty = true
 		point.next_seg.call_deferred("check_rebuild")
 		segs_updated.append(point.next_seg)  # Track an updated RoadSegment
-	elif point.next_pt_init and point.get_node(point.next_pt_init).visible:
-		var next = point.get_node(point.next_pt_init)
-		if next.has_method("is_road_point"):  # ie skip road container.
+	elif point.get_node_or_null(point.next_pt_init) and point.get_node_or_null(point.next_pt_init).visible:
+		var next = point.get_node_or_null(point.next_pt_init)
+		if not is_instance_valid(next):
+			push_warning("Auto-cleared invalid next_pt_init %s on %s" % [point.next_pt_init, point.name])
+			point.next_pt_init = ^""
+		elif next.has_method("is_road_point"):  # ie skip road container.
 			res = _process_seg(point, next, use_lowpoly)
 			if res[0] == true:
 				segs_updated.append(res[1])  # Track an updated RoadSegment

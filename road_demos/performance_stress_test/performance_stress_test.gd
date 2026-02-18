@@ -1,5 +1,6 @@
 extends Node3D
 
+@export var label: Label
 
 @onready var manager:RoadManager = $RoadManager
 
@@ -17,8 +18,11 @@ func _ready() -> void:
 	var _time_start := Time.get_ticks_msec()
 	manager.rebuild_all_containers(true)
 	var _time_postgen = Time.get_ticks_msec()
-	print("Time to generate containers: %s ms" % (_time_postgen - _time_start))
-	print("%sx segment rebuilds compared to %s actual segments" % [rebuild_count, seg_counts])
+	var line1 = "Time to generate containers: %s ms" % (_time_postgen - _time_start)
+	var line2 = "%sx segment rebuilds compared to %s actual segments" % [rebuild_count, seg_counts]
+	print(line1)
+	print(line1)
+	label.text = "%s\n%s" % [line1, line2]
 	assert(rebuild_count == seg_counts)
 
 

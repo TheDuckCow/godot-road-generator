@@ -34,6 +34,7 @@ var lane_divider_mesh := BoxMesh.new()
 var road_width_line_mesh := BoxMesh.new()
 
 var prior_lane_width: float = -1
+var _last_id: int  ## Workaround to ensure initial draw pulls values from RP
 
 func get_name() -> String:
 	return "RoadPoint"
@@ -53,6 +54,7 @@ func _init(editor_plugin: EditorPlugin):
 	var mat_blue_handles = get_material("blue_handles")
 	mat_blue_handles.albedo_color = Color.AQUA
 	init_handle = null
+	init_handle_mirror = null
 	collider.size = BaseColliderSize
 	collider_tri_mesh = collider.generate_triangle_mesh()
 	setup_lane_widgets()
@@ -146,9 +148,10 @@ func _redraw(gizmo) -> void:
 	var width_handles = PackedVector3Array()
 	var rev_width_idle = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	var fwd_width_idle = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	if need_size_update:
+	if need_size_update or _last_id != point.get_instance_id():
 		point.rev_width_mag = rev_width_idle
 		point.fwd_width_mag = fwd_width_idle
+		_last_id = point.get_instance_id()
 	var rev_width_mag = point.rev_width_mag
 	var fwd_width_mag = point.fwd_width_mag
 	width_handles.push_back(Vector3(rev_width_mag, 0, 0))
@@ -244,10 +247,9 @@ func _set_handle(
 	match handle_id:
 		HandleType.PRIOR_MAG, HandleType.NEXT_MAG:
 			set_mag_handle(gizmo, handle_id, camera, screen_pos)
-			_redraw(gizmo)
 		HandleType.REV_WIDTH_MAG, HandleType.FWD_WIDTH_MAG:
 			set_width_handle(gizmo, handle_id, camera, screen_pos)
-			_redraw(gizmo)
+	gizmo.get_node_3d().update_gizmos()
 
 
 func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, point: Vector2) -> void:
@@ -258,7 +260,7 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 	var nrm = camera.project_ray_normal(point) # Normal camera is facing
 	var old_mag_vector # Handle's old local position.
 
-	if index == 0:
+	if index == HandleType.PRIOR_MAG:
 		old_mag_vector = Vector3(0, 0, -roadpoint.prior_mag)
 	else:
 		old_mag_vector = Vector3(0, 0, roadpoint.next_mag)
@@ -280,7 +282,7 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 	if init_handle == null:
 		init_handle = new_mag
 		set_init = true
-	if index == 0:
+	if index == HandleType.PRIOR_MAG:
 		roadpoint.prior_mag = -new_mag
 		if set_init:
 			init_handle_mirror = roadpoint.next_mag
@@ -297,7 +299,6 @@ func set_mag_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, poin
 			roadpoint.prior_mag = new_mag
 		else:
 			roadpoint.prior_mag = init_handle_mirror
-	_redraw(gizmo)
 
 
 ## Function called when user drags the roadpoint left/right lane handle.
@@ -336,7 +337,6 @@ func set_width_handle(gizmo: EditorNode3DGizmo, index: int, camera: Camera3D, po
 				roadpoint.rev_width_mag = new_mag
 			HandleType.FWD_WIDTH_MAG:
 				roadpoint.fwd_width_mag = new_mag
-	_redraw(gizmo)
 
 
 func _commit_handle(gizmo: EditorNode3DGizmo,
@@ -350,7 +350,6 @@ func _commit_handle(gizmo: EditorNode3DGizmo,
 			commit_width_handle(gizmo, index, restore, cancel)
 		_:
 			push_warning("Unknown gizmo handle %s, %s" % [index, gizmo])
-	_redraw(gizmo)
 
 
 func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
@@ -359,7 +358,13 @@ func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bo
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
-		print("Cancel")
+		if index == HandleType.PRIOR_MAG:
+			point.prior_mag = -init_handle
+		elif index == HandleType.NEXT_MAG:
+			point.next_mag = init_handle
+		else:
+			return
+		point.container.on_point_update(point, false)
 	else:
 		if init_handle == null:
 			init_handle = current_value
@@ -382,14 +387,14 @@ func commit_mag_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bo
 				undo_redo.add_undo_property(point, "prior_mag", -init_handle_mirror)
 
 		# Either way, force gizmo redraw with do/undo (otherwise waits till hover)
-		undo_redo.add_do_method(self, "_redraw", gizmo)
-		undo_redo.add_undo_method(self, "_redraw", gizmo)
 		# Ensure that on undo/redo, the point update is triggered to force
 		# regeneration/placement of RoadLanes.
 		undo_redo.add_do_method(point.container, "on_point_update", point, false)
 		undo_redo.add_undo_method(point.container, "on_point_update", point, false)
 
 		undo_redo.commit_action()
+	init_handle = null
+	init_handle_mirror = null
 
 
 func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: bool = false) -> void:
@@ -398,7 +403,7 @@ func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: 
 	var undo_redo = _editor_plugin.get_undo_redo()
 
 	if cancel:
-		refresh_gizmo(gizmo)
+		pass
 	else:
 		if init_handle == null:
 			init_handle = current_value
@@ -463,11 +468,10 @@ func commit_width_handle(gizmo: EditorNode3DGizmo, index: int, restore, cancel: 
 							undo_redo.add_undo_method(
 								pt, "update_traffic_dir", RoadPoint.TrafficUpdate.ADD_FORWARD)
 
-
-		refresh_gizmo(gizmo)
-
 		undo_redo.commit_action()
+		gizmo.get_node_3d().update_gizmos()
 		init_handle = null
+		init_handle_mirror = null
 
 
 ## Calculate intersection between screen point clicked and a camera-aligned
@@ -483,14 +487,16 @@ func _intersect_2D_point_with_3D_plane(spatial, target, camera, screen_point) ->
 
 
 ## Sets width handles to outside lane edges, hides lane widget, and redraws.
+##
+## Used by RoadPoint
 func refresh_gizmo(gizmo: EditorNode3DGizmo):
 	var point = gizmo.get_node_3d()
 	point.rev_width_mag = _get_handle_value(gizmo, HandleType.REV_WIDTH_MAG, false)
 	point.fwd_width_mag = _get_handle_value(gizmo, HandleType.FWD_WIDTH_MAG, false)
-	_redraw(gizmo)
+	point.update_gizmos()
 
 
-func set_visible():
+func set_visible() -> void:
 	prior_lane_width = -1
 	lane_widget.visible = true
 
