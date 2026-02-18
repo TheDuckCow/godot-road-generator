@@ -2,12 +2,19 @@
 class_name RoadTerrain3DConnector
 extends Node
 
+enum Flatten_terrain_option {
+	APPROXIMATE, ## Faster and supports falloff, but doesn't handle tilting well
+	RAYCAST, ## Accurate and handles tilting, but doesn't have smooth falloth
+	BOTH ## Apply the approximate method first, then the raycast method
+}
+
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const IntersectionNGon = preload("res://addons/road-generator/procgen/intersection_ngon.gd")
 
-## Workaround to avoid typing errors for people who aren't this connector
+## Workaround to avoid typing errors for people who aren't using this connector
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
+const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 
 
 ## Reference to the Terrain3D instance, to be flattened
@@ -40,15 +47,21 @@ const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 		auto_refresh = value
 		configure_road_update_signal()
 
+@export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.APPROXIMATE
+
+## Layer/mask used for editor raycasting, can be different from the runtime collision layers
+@export_flags_3d_physics var raycast_layer:int = 2
 
 ## Immediately level the terrain to match roads
 ## Only supported in Godot 4.4+, re-enable if that applies to you
 #@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+#@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
 var refresh_timer: float = 0.05
 
-var _pending_updates:Dictionary = {} # TODO: type as RoadSegments, need to update internal typing
+
+var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -142,6 +155,17 @@ func do_full_refresh() -> void:
 		for _rc in restart_geo_off:
 			_rc.create_geo = false
 
+## Removes mesh under roads as a baking process.
+func bake_holes() -> void:
+	if not is_configured():
+		return
+	for _container in road_manager.get_containers():
+		_container = _container as RoadContainer
+		var segs:Array = _container.get_segments()
+		for _seg in segs:
+			cull_terrain_via_roadsegment(_seg)
+			
+	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_CONTROL)
 
 ## Workaround helper to transform geo for intersection scenes or other
 ## scenarios where "create_geo" is turned off, by temporairly turning it on.
@@ -188,7 +212,6 @@ func _schedule_refresh(segments: Array) -> void:
 	if not _timer.timeout.is_connected(_refresh_scheduled_segments):
 		_timer.timeout.connect(_refresh_scheduled_segments)
 	_mutex.unlock()
-
 
 func _refresh_scheduled_segments() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -265,19 +288,108 @@ func refresh_roads(mesh_parents: Array) -> void:
 			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
-		flatten_terrain_via_roadsegment(_seg)
+
+		match flatten_terrain_method:
+			Flatten_terrain_option.APPROXIMATE:
+				flatten_terrain_via_roadsegment(_seg)
+			Flatten_terrain_option.RAYCAST:
+				flatten_terrain_via_roadsegment_raycast(_seg)
+			Flatten_terrain_option.BOTH:
+				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_raycast(_seg)
+			_:
+				flatten_terrain_via_roadsegment(_seg)
 		skip_repeat_refreshes.append(_seg)
 	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
 
 
-# TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
-func get_road_width(point: RoadPoint) -> float:
-	return (point.gutter_profile.x*2
-		+ point.shoulder_width_l
-		+ point.shoulder_width_r
-		+ point.lane_width * point.lanes.size()
-	)
+## Flatten and Culling Methods
+func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
+	if not validate_segment(segment):
+		return
+	
+	# add extra width to the shoulders for the raycasting,
+	# TODO: Account for alignment options
+	var buffer = edge_margin
+	
+	var mesh := segment.road_mesh.mesh
+	if mesh == null:
+		return
+	
+	# create new collision mesh for eventual raycasting
+	# TODO: This MUST be done in the process_physics function to avoid errors
+	# for users with physics processing on another thread.
+	var space_states: Array[PhysicsDirectSpaceState3D] = []
+	var revert_layers: Array[StaticBody3D] = []
+	for ch in segment.road_mesh.get_children():
+		var sbody := ch as StaticBody3D # Set to null if casting fails
+		if not sbody:
+			continue
+		# TODO: This may override the native assigned layers
+		sbody.collision_layer = segment.container.collision_layer
+		sbody.collision_mask = segment.container.collision_mask
+		revert_layers.append(sbody)
+		space_states.append(sbody.get_world_3d().direct_space_state)
+
+	# Create a 2D Mask for segment to reduce 3D raycasts
+	var curve: Curve3D = segment.curve
+	var boundingCurve: Curve2D = curve_3d_to_2d(curve)
+	var start_width: float = get_road_width(segment.start_point)
+	var end_width: float = get_road_width(segment.end_point)
+	var bounding_box_offset = Vector2(segment.start_point.global_position.x, segment.start_point.global_position.z)
+	var bounding_polygon: PackedVector2Array = curve_2d_to_boundingbox(boundingCurve,start_width,end_width, bounding_box_offset)
+	
+	var vertex_spacing: float = terrain.vertex_spacing
+
+	# Get global bounding box from mesh, expanded by affected smoothing radius
+	var offsets := Vector3(buffer, 0, buffer)
+	var aabb: AABB = segment.road_mesh.global_transform * segment.road_mesh.get_aabb()
+	var aabb_min := aabb.position - offsets
+	var aabb_max := aabb.position + aabb.size + offsets
+
+	# Snap bounds to terrain grid
+	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
+	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
+
+
+	# Cache the raycasts for missed hits to reduce the number of raycasts
+	var recorded: Dictionary = {} # 4.4 typing: Dictionary[Vector2,float]
+	var missed: Dictionary = {} # 4.4 typing: Dictionary[Vector2, bool]
+	
+	# iterate over the xz plane of the curve
+	var x = min.x
+	while x <= max.x:
+		var z = min.z
+		while z <= max.z:
+			if not Geometry2D.is_point_in_polygon(Vector2(x,z), bounding_polygon):
+				z+= vertex_spacing
+				continue
+			
+			# create raycast to check the height at the (x,z) coords
+			var height := get_road_height(x,z,aabb_min.y,aabb_max.y,space_states)
+			if height.size() > 0:
+				terrain.data.set_height(Vector3(x, height[0], z), height[0] + offset)
+				recorded[Vector2(x,z)] = height[0]
+			else:
+				missed[Vector2(x,z)] = true
+				#print("Missed: ", Vector2(x,z))
+			z += vertex_spacing
+		x += vertex_spacing
+
+	var neighbour_range:float = vertex_spacing * 10
+	for _m in missed:
+		var heights: Array[float] = []
+		var neighbour = Vector2(_m.x+neighbour_range,_m.y)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x-neighbour_range,_m.y)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x,_m.y+neighbour_range)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		neighbour = Vector2(_m.x,_m.y-neighbour_range)
+		if recorded.has(neighbour): heights.append(recorded[neighbour])
+		if heights.size() > 0:
+			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
 
 
 ## Returns the distance from a 2D point to a line segment (XZ plane).
@@ -430,11 +542,7 @@ func intersection_adjacent_segments(inter: RoadIntersection) -> Array:
 
 
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
-	if not is_instance_valid(segment):
-		return
-	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
-		return
-	if not is_instance_valid(segment.road_mesh):
+	if not validate_segment(segment):
 		return
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
@@ -522,6 +630,187 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 
 			z += vertex_spacing
 		x += vertex_spacing
+
+
+func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
+	if not validate_segment(segment):
+		print_debug("not valid for culling")
+		return
+
+	var mesh := segment.road_mesh.mesh
+	if mesh == null:
+		print_debug("no mesh found for road, won't cut")
+		return
+	
+	# clean up any lingering collision meshes
+	for ch in segment.road_mesh.get_children():
+		ch.queue_free()  # Prior collision meshes
+	
+	# create new colission mesh for eventual raycasting
+	print_debug("creating trimesh for hole culling")
+	segment.road_mesh.create_trimesh_collision()
+	var space_states: Array[PhysicsDirectSpaceState3D] = []
+	for ch in segment.road_mesh.get_children():
+		var sbody := ch as StaticBody3D # Set to null if casting fails
+		if not sbody:
+			continue
+		sbody.collision_layer = raycast_layer
+		sbody.collision_mask = raycast_layer
+		space_states.append(sbody.get_world_3d().direct_space_state)
+	
+	# Create a 2D Mask for segment to reduce 3D raycasts	
+	var curve: Curve3D = segment.curve
+	var boundingCurve: Curve2D = curve_3d_to_2d(curve)
+	var start_width: float = get_road_width(segment.start_point)
+	var end_width: float = get_road_width(segment.end_point)
+	var bounding_box_offset = Vector2(segment.start_point.global_position.x,segment.start_point.global_position.z)
+	var bounding_polygon: PackedVector2Array = curve_2d_to_boundingbox(boundingCurve,start_width,end_width, bounding_box_offset)
+	
+	var vertex_spacing: float = terrain.vertex_spacing
+
+	# Get global bounding box from mesh, expanded by affected smoothing radius
+	var offsets := Vector3(edge_margin+edge_falloff, 0, edge_margin+edge_falloff)
+	var aabb: AABB = segment.road_mesh.global_transform * segment.road_mesh.get_aabb()
+	var aabb_min := aabb.position - offsets
+	var aabb_max := aabb.position + aabb.size + offsets
+
+	# Snap bounds to terrain grid
+	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
+	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
+
+	# hashset for xz plane where the road overlaps the Terrain
+	var intersect_coords: Dictionary # 4.4 typing: Dictionary[Vector2,bool]
+	
+	# itterate over the xz plane of the curve to find intersecting points which are hidden
+	var x = min.x
+	while x <= max.x:
+		var z = min.z
+		while z <= max.z:
+			# ignore the coords outside of the bounding polygon
+			if not Geometry2D.is_point_in_polygon(Vector2(x,z), bounding_polygon):
+				z+= vertex_spacing
+				continue
+			# check that the road does infact cover the terrain on (x,z)
+			if get_road_height(x,z,aabb_min.y,aabb_max.y,space_states).size() > 0:
+				intersect_coords[Vector2(x,z)] = true
+			z += vertex_spacing
+		x += vertex_spacing
+		
+	# free the temporary collision meshs we created
+	for ch in segment.road_mesh.get_children():
+		ch.queue_free()
+	
+	print(str(intersect_coords.keys()))
+	# add hole for each point which has all 8 neighbours on x-z plane
+	for point in intersect_coords.keys():
+		if intersect_coords.has(Vector2(point.x - vertex_spacing,point.y)) \
+		and intersect_coords.has(Vector2(point.x + vertex_spacing,point.y)) \
+		and intersect_coords.has(Vector2(point.x,point.y - vertex_spacing)) \
+		and intersect_coords.has(Vector2(point.x,point.y + vertex_spacing)) \
+		and intersect_coords.has(Vector2(point.x - vertex_spacing,point.y - vertex_spacing)) \
+		and intersect_coords.has(Vector2(point.x + vertex_spacing,point.y + vertex_spacing)) \
+		and intersect_coords.has(Vector2(point.x + vertex_spacing,point.y - vertex_spacing)) \
+		and intersect_coords.has(Vector2(point.x - vertex_spacing,point.y + vertex_spacing)): 
+			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
+
+## Helper Methods
+# TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
+func get_road_width(point: RoadPoint) -> float:
+	return (point.gutter_profile.x*2
+		+ point.shoulder_width_l
+		+ point.shoulder_width_r
+		+ point.lane_width * point.lanes.size()
+	)
+
+## Used to create a "Mask" 
+func curve_3d_to_2d(curve: Curve3D) -> Curve2D:
+	var curve2d := Curve2D.new()
+	var point_count := curve.get_point_count()
+	
+	for i in point_count:
+		var pos3 = curve.get_point_position(i)
+		var in3 = curve.get_point_in(i)
+		var out3 = curve.get_point_out(i)
+		var tilt = curve.get_point_tilt(i)
+
+		# Project to XZ plane (drop Y)
+		var pos2 = Vector2(pos3.x, pos3.z)
+		var in2 = Vector2(in3.x, in3.z)
+		var out2 = Vector2(out3.x, out3.z)
+
+		curve2d.add_point(pos2, in2, out2)
+
+	return curve2d
+
+func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: float, offset: Vector2) -> PackedVector2Array:
+	var baked := curve.get_baked_points()
+	var count := baked.size()
+	var result := PackedVector2Array()
+	if count < 2:
+		return result
+
+	var left_points: Array[Vector2] = []
+	var right_points: Array[Vector2] = []
+
+	
+	# first tangent
+	var extrapolated_neg_1 = baked[0] - baked[1]
+	var tangent: Vector2 = (baked[0] - extrapolated_neg_1).normalized()
+	var perpendicular_right = tangent.rotated(deg_to_rad(90))
+	var perpendicular_left = tangent.rotated(deg_to_rad(-90))
+	left_points.append(extrapolated_neg_1 + perpendicular_left * start_width + offset)
+	right_points.append(extrapolated_neg_1 + perpendicular_right * start_width + offset)
+		
+	for i in count:
+		if i == 0:
+			tangent = (baked[1] - baked[0]).normalized()
+		elif i == count - 1:
+			tangent = (baked[i] - baked[i - 1]).normalized()
+		else:
+			tangent = (baked[i+1] - baked[i-1]).normalized()
+		perpendicular_right = tangent.rotated(deg_to_rad(90))
+		perpendicular_left = tangent.rotated(deg_to_rad(-90))
+		var t := float(i) / float(count - 1)
+		var width := lerpf(start_width, end_width, t) * 0.5
+		left_points.append(baked[i] + perpendicular_left * width + offset)
+		right_points.append(baked[i] + perpendicular_right * width + offset)
+		
+	var extrapolated_last = baked[count - 1] + (baked[count - 1] - baked[count - 2])
+	tangent = (extrapolated_last - baked[count - 1]).normalized()
+	perpendicular_right = tangent.rotated(deg_to_rad(90))
+	perpendicular_left = tangent.rotated(deg_to_rad(-90))
+	left_points.append(extrapolated_last + perpendicular_left * end_width + offset)
+	right_points.append(extrapolated_last + perpendicular_right * end_width + offset)
+		
+	right_points.reverse()
+	result.append_array(PackedVector2Array(left_points))
+	result.append_array(PackedVector2Array(right_points))
+	return result
+
+func validate_segment(segment: RoadSegment) -> bool:
+	if not is_instance_valid(segment):
+		return false
+	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
+		return false
+	return is_instance_valid(segment.road_mesh)
+
+# can't be nullable so an empty array indicates null (failed to find a height)
+func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D]) -> Array[float]:
+	var ray := PhysicsRayQueryParameters3D.create(Vector3(x, max_y, z),Vector3(x, min_y, z))
+	ray.collision_mask = raycast_layer
+	var set_height := false
+	var height:float = 0.0 
+	for state in space_states:
+		var result = state.intersect_ray(ray)
+		if not result.is_empty() and result.has("position"):
+			if not set_height: 
+				set_height = true
+				height = result["position"].y
+			else:
+				height = max(height, result["position"].y)
+	if set_height:
+		return [height]
+	return []
 
 
 ## Reusable function to perform consistent falloff rate
