@@ -2,6 +2,8 @@
 class_name RoadTerrain3DConnector
 extends Node
 
+enum Flatten_terrain_option {APPROXIMATE, RAYCAST}
+
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const IntersectionNGon = preload("res://addons/road-generator/procgen/intersection_ngon.gd")
 
@@ -9,7 +11,6 @@ const IntersectionNGon = preload("res://addons/road-generator/procgen/intersecti
 ## https://github.com/TokisanGames/Terrain3D/blob/bbef16d70f7553caad9da956651336f592512406/src/terrain_3d_region.h#L17C3-L17C14
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
-@export var raycast_layer = 2
 
 
 ## Reference to the Terrain3D instance, to be flattened
@@ -42,9 +43,10 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 		auto_refresh = value
 		configure_road_update_signal()
 
-enum Flatten_terrain_option {CURVED, RAYCAST}
+@export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.APPROXIMATE
 
-@export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.CURVED
+## Layer/mask used for editor raycasting, can be different from the runtime collision layers
+@export_flags_3d_physics var raycast_layer:int = 2
 
 ## Immediately level the terrain to match roads
 ## Only supported in Godot 4.4+, re-enable if that applies to you
@@ -284,7 +286,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 
 		match flatten_terrain_method:
-			Flatten_terrain_option.CURVED:
+			Flatten_terrain_option.APPROXIMATE:
 				flatten_terrain_via_roadsegment(_seg)
 			Flatten_terrain_option.RAYCAST:
 				flatten_terrain_via_roadsegment_raycast(_seg)
