@@ -2,7 +2,11 @@
 class_name RoadTerrain3DConnector
 extends Node
 
-enum Flatten_terrain_option {APPROXIMATE, RAYCAST}
+enum Flatten_terrain_option {
+	APPROXIMATE, ## Faster and supports falloff, but doesn't handle tilting well
+	RAYCAST, ## Accurate and handles tilting, but doesn't have smooth falloth
+	BOTH ## Apply the approximate method first, then the raycast method
+}
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const IntersectionNGon = preload("res://addons/road-generator/procgen/intersection_ngon.gd")
@@ -290,6 +294,9 @@ func refresh_roads(mesh_parents: Array) -> void:
 				flatten_terrain_via_roadsegment(_seg)
 			Flatten_terrain_option.RAYCAST:
 				flatten_terrain_via_roadsegment_raycast(_seg)
+			Flatten_terrain_option.BOTH:
+				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_raycast(_seg)
 			_:
 				flatten_terrain_via_roadsegment(_seg)
 		skip_repeat_refreshes.append(_seg)
@@ -302,42 +309,35 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	if not validate_segment(segment):
 		return
 	
-	road_manager.on_road_updated.disconnect(_on_manager_road_updated)
-	road_manager.on_container_transformed.disconnect(_on_container_transform)
-	
 	# add extra width to the shoulders for the raycasting,
-	var buffer = edge_margin + edge_falloff
-	segment.start_point.shoulder_width_l += buffer
-	segment.start_point.shoulder_width_r += buffer
-	segment.end_point.shoulder_width_l += buffer
-	segment.end_point.shoulder_width_r += buffer
-	segment.container.rebuild_segments()
+	# TODO: Account for alignment options
+	var buffer = edge_margin
 	
 	var mesh := segment.road_mesh.mesh
 	if mesh == null:
 		return
 	
-	# clean up any lingering collision meshes
-	for ch in segment.road_mesh.get_children():
-		ch.queue_free()  # Prior collision meshes
-	
 	# create new collision mesh for eventual raycasting
-	segment.road_mesh.create_trimesh_collision()
+	# TODO: This MUST be done in the process_physics function to avoid errors
+	# for users with physics processing on another thread.
 	var space_states: Array[PhysicsDirectSpaceState3D] = []
+	var revert_layers: Array[StaticBody3D] = []
 	for ch in segment.road_mesh.get_children():
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
-		sbody.collision_layer = raycast_layer
-		sbody.collision_mask = raycast_layer
+		# TODO: This may override the native assigned layers
+		sbody.collision_layer = segment.container.collision_layer
+		sbody.collision_mask = segment.container.collision_mask
+		revert_layers.append(sbody)
 		space_states.append(sbody.get_world_3d().direct_space_state)
 
-	# Create a 2D Mask for segment to reduce 3D raycasts	
+	# Create a 2D Mask for segment to reduce 3D raycasts
 	var curve: Curve3D = segment.curve
 	var boundingCurve: Curve2D = curve_3d_to_2d(curve)
 	var start_width: float = get_road_width(segment.start_point)
 	var end_width: float = get_road_width(segment.end_point)
-	var bounding_box_offset = Vector2(segment.start_point.global_position.x,segment.start_point.global_position.z)
+	var bounding_box_offset = Vector2(segment.start_point.global_position.x, segment.start_point.global_position.z)
 	var bounding_polygon: PackedVector2Array = curve_2d_to_boundingbox(boundingCurve,start_width,end_width, bounding_box_offset)
 	
 	var vertex_spacing: float = terrain.vertex_spacing
@@ -373,35 +373,24 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 				recorded[Vector2(x,z)] = height[0]
 			else:
 				missed[Vector2(x,z)] = true
+				#print("Missed: ", Vector2(x,z))
 			z += vertex_spacing
 		x += vertex_spacing
-		
+
+	var neighbour_range:float = vertex_spacing * 10
 	for _m in missed:
 		var heights: Array[float] = []
-		var neighbour = Vector2(_m.x+vertex_spacing,_m.y)
+		var neighbour = Vector2(_m.x+neighbour_range,_m.y)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
-		neighbour = Vector2(_m.x-vertex_spacing,_m.y)
+		neighbour = Vector2(_m.x-neighbour_range,_m.y)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
-		neighbour = Vector2(_m.x,_m.y+vertex_spacing)
+		neighbour = Vector2(_m.x,_m.y+neighbour_range)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
-		neighbour = Vector2(_m.x,_m.y-vertex_spacing)
+		neighbour = Vector2(_m.x,_m.y-neighbour_range)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
 		if heights.size() > 0:
 			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
 
-	# free the temporary collision meshs we created
-	for ch in segment.road_mesh.get_children():
-		ch.queue_free()
-		
-	# cleanup the extra shoulder width and rebuild the original mesh
-	segment.start_point.shoulder_width_l -= buffer
-	segment.start_point.shoulder_width_r -= buffer
-	segment.end_point.shoulder_width_l -= buffer
-	segment.end_point.shoulder_width_r -= buffer
-	segment.container.rebuild_segments()
-	
-	#re-enable the signal for road updates since they were turned off prior
-	configure_road_update_signal()
 
 ## Returns the distance from a 2D point to a line segment (XZ plane).
 func _distance_point_to_segment_2d(p: Vector2, a: Vector2, b: Vector2) -> float:
