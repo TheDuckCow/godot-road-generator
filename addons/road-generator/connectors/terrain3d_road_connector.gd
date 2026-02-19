@@ -62,6 +62,7 @@ var refresh_timer: float = 0.05
 
 
 var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
+var _next_refresh_parents:Array = [] # Arra[Mesh]
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -79,6 +80,16 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_disconnect_signals()
 	_skip_scene_load = true
+
+
+## Any raycasting must be done from this function in case physics are threaded
+func _physics_process(_delta:float) -> void:
+	if _next_refresh_parents:
+		_mutex.lock()
+		var _mesh_parents = _next_refresh_parents.duplicate(true)
+		_next_refresh_parents = []
+		_mutex.unlock()
+		refresh_roads(_mesh_parents)
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -164,7 +175,7 @@ func bake_holes() -> void:
 		var segs:Array = _container.get_segments()
 		for _seg in segs:
 			cull_terrain_via_roadsegment(_seg)
-			
+	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_CONTROL)
 
 ## Workaround helper to transform geo for intersection scenes or other
@@ -215,6 +226,7 @@ func _schedule_refresh(segments: Array) -> void:
 
 func _refresh_scheduled_segments() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		# updates may still be in progress, so just reset
 		_mutex.lock()
 		_timer = null
 		call_deferred("_schedule_refresh", [])
@@ -224,8 +236,10 @@ func _refresh_scheduled_segments() -> void:
 	var _mesh_parents := _pending_updates.keys()
 	_pending_updates.clear()
 	_timer = null
+	# Assigning to _next_refresh_parents effectively means the meshes will be
+	# refreshed the next time the physics thread runs
+	_next_refresh_parents += _mesh_parents
 	_mutex.unlock()
-	refresh_roads(_mesh_parents)
 
 
 ## Refreshes all segments of road identified
