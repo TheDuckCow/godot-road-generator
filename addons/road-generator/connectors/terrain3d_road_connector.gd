@@ -98,6 +98,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnings.append("Road manager not assigned for terrain flattening")
 	if not is_instance_valid(terrain):
 		warnings.append("Terrain not assigned for terrain flattening")
+	elif not terrain.data or terrain.data.region_locations.size() == 0:
+		warnings.append("No Terrain3D regions defined yet, add regions in Terrain3D first")
 	return warnings
 
 
@@ -108,6 +110,9 @@ func is_configured() -> bool:
 		has_error = true
 	if not is_instance_valid(terrain):
 		push_warning("Terrain not assigned for terrain flattening")
+		has_error = true
+	elif not terrain.data or terrain.data.region_locations.size() == 0:
+		push_warning("No Terrain3D regions defined yet, add regions in Terrain3D first")
 		has_error = true
 	return not has_error
 
@@ -224,6 +229,7 @@ func _schedule_refresh(segments: Array) -> void:
 		_timer.timeout.connect(_refresh_scheduled_segments)
 	_mutex.unlock()
 
+
 func _refresh_scheduled_segments() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		# updates may still be in progress, so just reset
@@ -253,6 +259,8 @@ func refresh_roads(mesh_parents: Array) -> void:
 	if not terrain.data:
 		push_warning("No terrain data available (yet)")
 		return
+	if terrain.data.region_locations.size() == 0:
+		push_warning("Refreshw arning: No Terrain3D regions defined yet, add regions in Terrain3D first")
 
 	var skip_repeat_refreshes: Array = []
 	
@@ -302,7 +310,6 @@ func refresh_roads(mesh_parents: Array) -> void:
 			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
-
 		match flatten_terrain_method:
 			Flatten_terrain_option.APPROXIMATE:
 				flatten_terrain_via_roadsegment(_seg)
@@ -555,6 +562,7 @@ func intersection_adjacent_segments(inter: RoadIntersection) -> Array:
 	return segs
 
 
+## Approximate method, will have issues with tilting
 func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	if not validate_segment(segment):
 		return
@@ -641,6 +649,7 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
 				terrain.data.set_height(terrain_pos, smoothed_height)
+				
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -714,7 +723,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	for ch in segment.road_mesh.get_children():
 		ch.queue_free()
 	
-	print(str(intersect_coords.keys()))
+	#print(str(intersect_coords.keys()))
 	# add hole for each point which has all 8 neighbours on x-z plane
 	for point in intersect_coords.keys():
 		if intersect_coords.has(Vector2(point.x - vertex_spacing,point.y)) \
@@ -727,6 +736,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		and intersect_coords.has(Vector2(point.x - vertex_spacing,point.y + vertex_spacing)): 
 			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
 
+
 ## Helper Methods
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
 func get_road_width(point: RoadPoint) -> float:
@@ -735,6 +745,7 @@ func get_road_width(point: RoadPoint) -> float:
 		+ point.shoulder_width_r
 		+ point.lane_width * point.lanes.size()
 	)
+
 
 ## Used to create a "Mask" 
 func curve_3d_to_2d(curve: Curve3D) -> Curve2D:
@@ -753,8 +764,8 @@ func curve_3d_to_2d(curve: Curve3D) -> Curve2D:
 		var out2 = Vector2(out3.x, out3.z)
 
 		curve2d.add_point(pos2, in2, out2)
-
 	return curve2d
+
 
 func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: float, offset: Vector2) -> PackedVector2Array:
 	var baked := curve.get_baked_points()
@@ -801,12 +812,14 @@ func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: floa
 	result.append_array(PackedVector2Array(right_points))
 	return result
 
+
 func validate_segment(segment: RoadSegment) -> bool:
 	if not is_instance_valid(segment):
 		return false
 	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
 		return false
 	return is_instance_valid(segment.road_mesh)
+
 
 # can't be nullable so an empty array indicates null (failed to find a height)
 func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D]) -> Array[float]:
