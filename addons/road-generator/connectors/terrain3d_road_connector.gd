@@ -49,6 +49,12 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 
 @export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.APPROXIMATE
 
+## Create data for new terrain tiles when necessary.[br][br]
+##
+## If disabled, roads will only adjust heights for pre-existing data tiles.
+# TODO: Add in future when feasible
+#@export var expand_boundaries:bool = true
+
 ## Layer/mask used for editor raycasting, can be different from the runtime collision layers
 @export_flags_3d_physics var raycast_layer:int = 2
 
@@ -293,6 +299,11 @@ func refresh_roads(mesh_parents: Array) -> void:
 		elif _seg is RoadSegment:
 			segs.append(_seg)
 	
+	# TODO: For improved undo/redo handling, implement something like this
+	#var teditor = terrain.get_editor() # but, editor must have been opened once first
+	#teditor.set_terrain(terrain)
+	#teditor.start_operation(Vector3.ZERO)
+	
 	# Now flatten all accumulated segments
 	for _seg in segs:
 		if not is_instance_valid(_seg):
@@ -322,7 +333,12 @@ func refresh_roads(mesh_parents: Array) -> void:
 				flatten_terrain_via_roadsegment(_seg)
 		skip_repeat_refreshes.append(_seg)
 	
-	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
+	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT) # set 2nd arg false to be optimal
+	
+	# TODO: For better undo/redo handling, implement something like this
+	#teditor.stop_operation()
+	#for _region in edited_regions:
+	#region.set_edited(false)
 
 
 ## Flatten and Culling Methods
@@ -640,11 +656,30 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+					#continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("SKipping not region, todo: expand_boundaries")
+					#continue 
 				terrain.data.set_height(terrain_pos, road_y)
+				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
 				# Smoothly interpolate height beyon shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
+				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
+				# severley. Howeve, errors for attempting to set heights for
+				# invalid regions is very fast, just noisy in the console.
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+				#	continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("Skipping region")
+					#continue
+				#region.set_edited(true)
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
