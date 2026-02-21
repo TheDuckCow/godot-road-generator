@@ -168,8 +168,7 @@ func do_full_refresh() -> void:
 			restart_geo_off.append(_container)
 			
 		var mesh_parents: Array = []
-		for inter in _container.get_intersections():
-			mesh_parents.append(inter)
+		mesh_parents += _container.get_intersections()
 		mesh_parents += _container.get_segments() # Always add RoadSegments last
 		refresh_roads(mesh_parents)
 		
@@ -192,7 +191,7 @@ func bake_holes() -> void:
 ## Workaround helper to transform geo for intersection scenes or other
 ## scenarios where "create_geo" is turned off, by temporairly turning it on.
 func _on_container_transform(container:RoadContainer) -> void:
-	if container.create_geo or not auto_refresh:
+	if not auto_refresh:
 		return
 	container.create_geo = true
 	# This will trigger deferred updates which will have invalid instances,
@@ -200,11 +199,10 @@ func _on_container_transform(container:RoadContainer) -> void:
 	container.rebuild_segments(true)
 	# Must directly update terrain now on these segments, before they get
 	# removed again when geo is turned off
-	var mesh_parents: Array
-	for inter in container.get_intersections():
-		mesh_parents.append(inter)
-	mesh_parents += container.get_segments()
-	refresh_roads(mesh_parents) # Always add RoadSegments last
+	var mesh_parents: Array = []
+	mesh_parents += container.get_intersections()
+	mesh_parents += container.get_segments() # Always add RoadSegments last
+	refresh_roads(mesh_parents)
 	container.create_geo = false
 
 
