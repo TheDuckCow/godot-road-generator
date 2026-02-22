@@ -230,6 +230,8 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 ## Get the next position along the RoadLane based on moving this amount
 ## from the current position (in meters)
 func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
+	if not is_instance_valid(current_lane):
+		current_lane = null
 	var pos = actor.global_transform.origin
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
 	# Find how much space is left along the RoadLane in this direction
