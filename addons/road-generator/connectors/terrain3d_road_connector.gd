@@ -31,6 +31,11 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 		configure_road_update_signal()
 		if is_node_ready():
 			_skip_scene_load = false
+## If enabled, auto refresh the terrain while manipulating roads.
+@export var auto_refresh:bool = true:
+	set(value):
+		auto_refresh = value
+		configure_road_update_signal()
 ## Vertical offset to help avoid z-fighting, negative values will sink the terrain underneath the road
 @export var offset:float = -0.25
 ## Additional flattening to do beyond the edge of the road in meters
@@ -38,14 +43,6 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 ## The falloff to apply for height changes from the edge of the road.
 ## This falloff range begins beyond the edge of the road + edge margin
 @export var edge_falloff:float = 2
-## If enabled, auto refresh the terrain while manipulating roads. 
-##
-## WARNING: if left on, each time scene is opened (tabbed over to), the terrain
-## will continue to be flattened, eventually making the smooth falloff not so smooth
-@export var auto_refresh:bool = true:
-	set(value):
-		auto_refresh = value
-		configure_road_update_signal()
 
 @export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.APPROXIMATE
 
@@ -68,7 +65,7 @@ var refresh_timer: float = 0.05
 
 
 var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
-var _next_refresh_parents:Array = [] # Arra[Mesh]
+var _next_refresh_parents:Array = [] # Array[Mesh]
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -188,15 +185,19 @@ func bake_holes() -> void:
 	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_CONTROL)
 
+
 ## Workaround helper to transform geo for intersection scenes or other
 ## scenarios where "create_geo" is turned off, by temporairly turning it on.
 func _on_container_transform(container:RoadContainer) -> void:
 	if not auto_refresh:
 		return
-	container.create_geo = true
-	# This will trigger deferred updates which will have invalid instances,
-	# but will be safely ignored
-	container.rebuild_segments(true)
+	var did_set_geo := false
+	if not container.create_geo:
+		did_set_geo = true
+		container.create_geo = true
+		# This will trigger deferred updates which will have invalid instances,
+		# but will be safely ignored
+		container.rebuild_segments(true)
 	# Must directly update terrain now on these segments, before they get
 	# removed again when geo is turned off
 	var mesh_parents: Array = []
@@ -204,6 +205,9 @@ func _on_container_transform(container:RoadContainer) -> void:
 	mesh_parents += container.get_segments() # Always add RoadSegments last
 	refresh_roads(mesh_parents)
 	container.create_geo = false
+	if did_set_geo:
+		print("Future unset ", container.name)
+		container.create_geo = false
 
 
 func _on_manager_road_updated(segments: Array) -> void:
@@ -321,14 +325,14 @@ func refresh_roads(mesh_parents: Array) -> void:
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
 		match flatten_terrain_method:
 			Flatten_terrain_option.APPROXIMATE:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 			Flatten_terrain_option.RAYCAST:
 				flatten_terrain_via_roadsegment_raycast(_seg)
 			Flatten_terrain_option.BOTH:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 				flatten_terrain_via_roadsegment_raycast(_seg)
 			_:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 		skip_repeat_refreshes.append(_seg)
 	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT) # set 2nd arg false to be optimal
@@ -581,7 +585,7 @@ func intersection_adjacent_segments(inter: RoadIntersection) -> Array:
 
 
 ## Approximate method, will have issues with tilting
-func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
+func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 	if not validate_segment(segment):
 		return
 	var mesh := segment.road_mesh.mesh
