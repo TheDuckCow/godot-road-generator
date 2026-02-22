@@ -356,15 +356,15 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	# TODO: This MUST be done in the process_physics function to avoid errors
 	# for users with physics processing on another thread.
 	var space_states: Array[PhysicsDirectSpaceState3D] = []
-	var revert_layers: Array[StaticBody3D] = []
+	var revert_layers: Array = []
 	for ch in segment.road_mesh.get_children():
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
 		# TODO: This may override the native assigned layers
-		sbody.collision_layer = segment.container.collision_layer
-		sbody.collision_mask = segment.container.collision_mask
-		revert_layers.append(sbody)
+		revert_layers.append([sbody, sbody.collision_layer, sbody.collision_mask])
+		sbody.collision_layer = raycast_layer
+		sbody.collision_mask = raycast_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 
 	# Create a 2D Mask for segment to reduce 3D raycasts
@@ -386,7 +386,6 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	# Snap bounds to terrain grid
 	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
 	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
-
 
 	# Cache the raycasts for missed hits to reduce the number of raycasts
 	var recorded: Dictionary = {} # 4.4 typing: Dictionary[Vector2,float]
@@ -425,6 +424,11 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
 		if heights.size() > 0:
 			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
+	
+	for _itemset in revert_layers:
+		var sbody: StaticBody3D = _itemset[0]
+		sbody.collision_layer = _itemset[1]
+		sbody.collision_mask = _itemset[1]
 
 
 ## Returns the distance from a 2D point to a line segment (XZ plane).
