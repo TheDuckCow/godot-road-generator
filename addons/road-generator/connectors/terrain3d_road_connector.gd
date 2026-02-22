@@ -66,6 +66,7 @@ var refresh_timer: float = 0.05
 
 var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
 var _next_refresh_parents:Array = [] # Array[Mesh]
+var _container_unset_geo: Array[RoadContainer] = []
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -89,10 +90,15 @@ func _exit_tree() -> void:
 func _physics_process(_delta:float) -> void:
 	if _next_refresh_parents:
 		_mutex.lock()
-		var _mesh_parents = _next_refresh_parents.duplicate(true)
+		var _mesh_parents := _next_refresh_parents.duplicate(true)
+		var _unset_geo := _container_unset_geo.duplicate(true)
 		_next_refresh_parents = []
+		_container_unset_geo = []
 		_mutex.unlock()
 		refresh_roads(_mesh_parents)
+		# Restore the geo setting where temporarily turned on
+		for _rc in _unset_geo:
+			_rc.create_geo = false
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -157,6 +163,7 @@ func do_full_refresh() -> void:
 	for _container in road_manager.get_containers():
 		_container = _container as RoadContainer
 
+		_mutex.lock()
 		if not _container.create_geo:
 			init_auto_refresh = false
 			_container.create_geo = true
@@ -164,14 +171,10 @@ func do_full_refresh() -> void:
 			init_auto_refresh = init_auto_refresh
 			restart_geo_off.append(_container)
 			
-		var mesh_parents: Array = []
-		mesh_parents += _container.get_intersections()
-		mesh_parents += _container.get_segments() # Always add RoadSegments last
-		refresh_roads(mesh_parents)
-		
-		# Restore the geo setting where temporarily turned on
-		for _rc in restart_geo_off:
-			_rc.create_geo = false
+		#var mesh_parents: Array = []
+		_next_refresh_parents += _container.get_intersections()
+		_next_refresh_parents += _container.get_segments() # Always add RoadSegments last
+		_mutex.unlock()
 
 ## Removes mesh under roads as a baking process.
 func bake_holes() -> void:
@@ -200,14 +203,12 @@ func _on_container_transform(container:RoadContainer) -> void:
 		container.rebuild_segments(true)
 	# Must directly update terrain now on these segments, before they get
 	# removed again when geo is turned off
-	var mesh_parents: Array = []
-	mesh_parents += container.get_intersections()
-	mesh_parents += container.get_segments() # Always add RoadSegments last
-	refresh_roads(mesh_parents)
-	container.create_geo = false
+	_mutex.lock()
+	_next_refresh_parents += container.get_intersections()
+	_next_refresh_parents += container.get_segments() # Always add RoadSegments last
 	if did_set_geo:
-		print("Future unset ", container.name)
-		container.create_geo = false
+		_container_unset_geo.append(container)
+	_mutex.unlock()
 
 
 func _on_manager_road_updated(segments: Array) -> void:
