@@ -204,21 +204,21 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 # ------------------------------------------------------------------------------
 
 
-# Mapping maintained of individual segments and their corresponding resources.
+## Mapping maintained of individual segments and their corresponding resources.
 var segid_map = {}
 
-# Non-exposed developer control, which allows showing all nodes (including generated) in the scene
-# tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
-# or making changes that get immediately removed as soon as a road is regenerated.
+## Non-exposed developer control, which allows showing all nodes (including generated) in the scene
+## tree. Typcially we don't want to do this, so that users don't accidentally start adding nodes
+## or making changes that get immediately removed as soon as a road is regenerated.
 var debug_scene_visible:bool = false
 
-# Flag used to defer calls to setup_road_container via _dirty_rebuild_deferred,
-# important during scene startup whereby class properties are called in
-# succession during scene init and otherwise would lead to duplicate calls.
+## Flag used to defer calls to setup_road_container via _dirty_rebuild_deferred,
+## important during scene startup whereby class properties are called in
+## succession during scene init and otherwise would lead to duplicate calls.
 var _dirty:bool = false
 
-# Flag to auto rebuild specific segments under any relevant setting change.
-# Default to true, but should be set by the parent RoadManager
+## Flag to auto rebuild specific segments under any relevant setting change.
+## Default to true, but should be set by the parent RoadManager
 var _auto_refresh = true
 var _needs_refresh = false
 
@@ -228,11 +228,11 @@ var _draw_lanes_game:bool = false
 ## Refernce to the parent road manager if any.
 var _manager:RoadManager
 
-# Edge-related error state
+## Edge-related error state
 var _edge_error: String = ""
 
-# Variables for internal handling of drag events
-# Constants used for adhoc meta tags for internal state assignments
+## Variables for internal handling of drag events
+## Constants used for adhoc meta tags for internal state assignments
 var _drag_init_transform # : Transform3D can't type as it needs to be nullable
 var _drag_source_rp: RoadPoint
 var _drag_target_rp: RoadPoint

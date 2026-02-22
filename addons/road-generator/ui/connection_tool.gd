@@ -91,7 +91,7 @@ func _init(plugin: EditorPlugin) -> void:
 
 
 ## This must be called by a parent process with an actual _physics_process hook
-func _physics_process(_delta) -> void:
+func _physics_process(_delta:float) -> void:
 	# TODO: Technically safer to wrap in a mutex lock, but unsetting is one-sided anyways.
 	if not _physics_post_input:
 		return
