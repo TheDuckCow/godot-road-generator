@@ -465,11 +465,18 @@ func _on_regenerate_pressed() -> void:
 	if nd is RoadManager:
 		for ch_container in nd.get_containers():
 			ch_container.rebuild_segments(true)
+			if not ch_container.create_geo:
+				# This ensures terrain flattening can happen for geo-disabled sections
+				nd.on_container_transformed.emit(ch_container)
 		return
 	var t_container = get_container_from_selection()
 	if t_container:
 		t_container.rebuild_segments(true)
-		return
+		if not t_container.create_geo:
+			# This ensures terrain flattening can happen for geo-disabled sections
+			var mgr: RoadManager = t_container.get_manager()
+			if is_instance_valid(mgr):
+				mgr.on_container_transformed.emit(t_container)
 
 
 # ------------------------------------------------------------------------------

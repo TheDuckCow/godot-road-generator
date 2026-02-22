@@ -31,6 +31,11 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 		configure_road_update_signal()
 		if is_node_ready():
 			_skip_scene_load = false
+## If enabled, auto refresh the terrain while manipulating roads.
+@export var auto_refresh:bool = true:
+	set(value):
+		auto_refresh = value
+		configure_road_update_signal()
 ## Vertical offset to help avoid z-fighting, negative values will sink the terrain underneath the road
 @export var offset:float = -0.25
 ## Additional flattening to do beyond the edge of the road in meters
@@ -38,16 +43,14 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 ## The falloff to apply for height changes from the edge of the road.
 ## This falloff range begins beyond the edge of the road + edge margin
 @export var edge_falloff:float = 2
-## If enabled, auto refresh the terrain while manipulating roads. 
-##
-## WARNING: if left on, each time scene is opened (tabbed over to), the terrain
-## will continue to be flattened, eventually making the smooth falloff not so smooth
-@export var auto_refresh:bool = true:
-	set(value):
-		auto_refresh = value
-		configure_road_update_signal()
 
 @export var flatten_terrain_method :Flatten_terrain_option = Flatten_terrain_option.APPROXIMATE
+
+## Create data for new terrain tiles when necessary.[br][br]
+##
+## If disabled, roads will only adjust heights for pre-existing data tiles.
+# TODO: Add in future when feasible
+#@export var expand_boundaries:bool = true
 
 ## Layer/mask used for editor raycasting, can be different from the runtime collision layers
 @export_flags_3d_physics var raycast_layer:int = 2
@@ -62,7 +65,8 @@ var refresh_timer: float = 0.05
 
 
 var _pending_updates:Dictionary = {} # Hashset of RoadSegments to be updated; 4.4+ typing: RoadSegment,bool
-var _next_refresh_parents:Array = [] # Arra[Mesh]
+var _next_refresh_parents:Array = [] # Array[Mesh]
+var _container_unset_geo: Array[RoadContainer] = []
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
@@ -86,10 +90,15 @@ func _exit_tree() -> void:
 func _physics_process(_delta:float) -> void:
 	if _next_refresh_parents:
 		_mutex.lock()
-		var _mesh_parents = _next_refresh_parents.duplicate(true)
+		var _mesh_parents := _next_refresh_parents.duplicate(true)
+		var _unset_geo := _container_unset_geo.duplicate(true)
 		_next_refresh_parents = []
+		_container_unset_geo = []
 		_mutex.unlock()
 		refresh_roads(_mesh_parents)
+		# Restore the geo setting where temporarily turned on
+		for _rc in _unset_geo:
+			_rc.create_geo = false
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -98,6 +107,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnings.append("Road manager not assigned for terrain flattening")
 	if not is_instance_valid(terrain):
 		warnings.append("Terrain not assigned for terrain flattening")
+	elif not terrain.data or terrain.data.region_locations.size() == 0:
+		warnings.append("No Terrain3D regions defined yet, add regions in Terrain3D first")
 	return warnings
 
 
@@ -108,6 +119,9 @@ func is_configured() -> bool:
 		has_error = true
 	if not is_instance_valid(terrain):
 		push_warning("Terrain not assigned for terrain flattening")
+		has_error = true
+	elif not terrain.data or terrain.data.region_locations.size() == 0:
+		push_warning("No Terrain3D regions defined yet, add regions in Terrain3D first")
 		has_error = true
 	return not has_error
 
@@ -149,6 +163,7 @@ func do_full_refresh() -> void:
 	for _container in road_manager.get_containers():
 		_container = _container as RoadContainer
 
+		_mutex.lock()
 		if not _container.create_geo:
 			init_auto_refresh = false
 			_container.create_geo = true
@@ -156,15 +171,10 @@ func do_full_refresh() -> void:
 			init_auto_refresh = init_auto_refresh
 			restart_geo_off.append(_container)
 			
-		var mesh_parents: Array = []
-		for inter in _container.get_intersections():
-			mesh_parents.append(inter)
-		mesh_parents += _container.get_segments() # Always add RoadSegments last
-		refresh_roads(mesh_parents)
-		
-		# Restore the geo setting where temporarily turned on
-		for _rc in restart_geo_off:
-			_rc.create_geo = false
+		#var mesh_parents: Array = []
+		_next_refresh_parents += _container.get_intersections()
+		_next_refresh_parents += _container.get_segments() # Always add RoadSegments last
+		_mutex.unlock()
 
 ## Removes mesh under roads as a baking process.
 func bake_holes() -> void:
@@ -178,23 +188,27 @@ func bake_holes() -> void:
 	
 	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_CONTROL)
 
+
 ## Workaround helper to transform geo for intersection scenes or other
 ## scenarios where "create_geo" is turned off, by temporairly turning it on.
 func _on_container_transform(container:RoadContainer) -> void:
-	if container.create_geo or not auto_refresh:
+	if not auto_refresh:
 		return
-	container.create_geo = true
-	# This will trigger deferred updates which will have invalid instances,
-	# but will be safely ignored
-	container.rebuild_segments(true)
+	var did_set_geo := false
+	if not container.create_geo:
+		did_set_geo = true
+		container.create_geo = true
+		# This will trigger deferred updates which will have invalid instances,
+		# but will be safely ignored
+		container.rebuild_segments(true)
 	# Must directly update terrain now on these segments, before they get
 	# removed again when geo is turned off
-	var mesh_parents: Array
-	for inter in container.get_intersections():
-		mesh_parents.append(inter)
-	mesh_parents += container.get_segments()
-	refresh_roads(mesh_parents) # Always add RoadSegments last
-	container.create_geo = false
+	_mutex.lock()
+	_next_refresh_parents += container.get_intersections()
+	_next_refresh_parents += container.get_segments() # Always add RoadSegments last
+	if did_set_geo:
+		_container_unset_geo.append(container)
+	_mutex.unlock()
 
 
 func _on_manager_road_updated(segments: Array) -> void:
@@ -223,6 +237,7 @@ func _schedule_refresh(segments: Array) -> void:
 	if not _timer.timeout.is_connected(_refresh_scheduled_segments):
 		_timer.timeout.connect(_refresh_scheduled_segments)
 	_mutex.unlock()
+
 
 func _refresh_scheduled_segments() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -253,6 +268,8 @@ func refresh_roads(mesh_parents: Array) -> void:
 	if not terrain.data:
 		push_warning("No terrain data available (yet)")
 		return
+	if terrain.data.region_locations.size() == 0:
+		push_warning("Refreshw arning: No Terrain3D regions defined yet, add regions in Terrain3D first")
 
 	var skip_repeat_refreshes: Array = []
 	
@@ -285,6 +302,11 @@ func refresh_roads(mesh_parents: Array) -> void:
 		elif _seg is RoadSegment:
 			segs.append(_seg)
 	
+	# TODO: For improved undo/redo handling, implement something like this
+	#var teditor = terrain.get_editor() # but, editor must have been opened once first
+	#teditor.set_terrain(terrain)
+	#teditor.start_operation(Vector3.ZERO)
+	
 	# Now flatten all accumulated segments
 	for _seg in segs:
 		if not is_instance_valid(_seg):
@@ -302,20 +324,24 @@ func refresh_roads(mesh_parents: Array) -> void:
 			# print("Skipping ignored segment %s/%s" % [_seg.get_parent().name, _seg.name])
 			continue
 		#print("Refreshing %s/%s" % [_seg.get_parent().name, _seg.name])
-
 		match flatten_terrain_method:
 			Flatten_terrain_option.APPROXIMATE:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 			Flatten_terrain_option.RAYCAST:
 				flatten_terrain_via_roadsegment_raycast(_seg)
 			Flatten_terrain_option.BOTH:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 				flatten_terrain_via_roadsegment_raycast(_seg)
 			_:
-				flatten_terrain_via_roadsegment(_seg)
+				flatten_terrain_via_roadsegment_approx(_seg)
 		skip_repeat_refreshes.append(_seg)
 	
-	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT)
+	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT) # set 2nd arg false to be optimal
+	
+	# TODO: For better undo/redo handling, implement something like this
+	#teditor.stop_operation()
+	#for _region in edited_regions:
+	#region.set_edited(false)
 
 
 ## Flatten and Culling Methods
@@ -335,15 +361,15 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	# TODO: This MUST be done in the process_physics function to avoid errors
 	# for users with physics processing on another thread.
 	var space_states: Array[PhysicsDirectSpaceState3D] = []
-	var revert_layers: Array[StaticBody3D] = []
+	var revert_layers: Array = []
 	for ch in segment.road_mesh.get_children():
 		var sbody := ch as StaticBody3D # Set to null if casting fails
 		if not sbody:
 			continue
 		# TODO: This may override the native assigned layers
-		sbody.collision_layer = segment.container.collision_layer
-		sbody.collision_mask = segment.container.collision_mask
-		revert_layers.append(sbody)
+		revert_layers.append([sbody, sbody.collision_layer, sbody.collision_mask])
+		sbody.collision_layer = raycast_layer
+		sbody.collision_mask = raycast_layer
 		space_states.append(sbody.get_world_3d().direct_space_state)
 
 	# Create a 2D Mask for segment to reduce 3D raycasts
@@ -365,7 +391,6 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 	# Snap bounds to terrain grid
 	var min := Vector3(aabb_min.x, 0, aabb_min.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing))
 	var max := Vector3(aabb_max.x, 0, aabb_max.z).snapped(Vector3(vertex_spacing, 0, vertex_spacing)) + Vector3(vertex_spacing, 0, vertex_spacing)
-
 
 	# Cache the raycasts for missed hits to reduce the number of raycasts
 	var recorded: Dictionary = {} # 4.4 typing: Dictionary[Vector2,float]
@@ -404,6 +429,11 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
 		if heights.size() > 0:
 			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
+	
+	for _itemset in revert_layers:
+		var sbody: StaticBody3D = _itemset[0]
+		sbody.collision_layer = _itemset[1]
+		sbody.collision_mask = _itemset[1]
 
 
 ## Returns the distance from a 2D point to a line segment (XZ plane).
@@ -555,7 +585,8 @@ func intersection_adjacent_segments(inter: RoadIntersection) -> Array:
 	return segs
 
 
-func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
+## Approximate method, will have issues with tilting
+func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 	if not validate_segment(segment):
 		return
 	var mesh := segment.road_mesh.mesh
@@ -632,15 +663,35 @@ func flatten_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+					#continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("SKipping not region, todo: expand_boundaries")
+					#continue 
 				terrain.data.set_height(terrain_pos, road_y)
+				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
 				# Smoothly interpolate height beyon shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
+				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
+				# severley. Howeve, errors for attempting to set heights for
+				# invalid regions is very fast, just noisy in the console.
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+				#	continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("Skipping region")
+					#continue
+				#region.set_edited(true)
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
 				terrain.data.set_height(terrain_pos, smoothed_height)
+				
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -714,7 +765,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	for ch in segment.road_mesh.get_children():
 		ch.queue_free()
 	
-	print(str(intersect_coords.keys()))
+	#print(str(intersect_coords.keys()))
 	# add hole for each point which has all 8 neighbours on x-z plane
 	for point in intersect_coords.keys():
 		if intersect_coords.has(Vector2(point.x - vertex_spacing,point.y)) \
@@ -727,6 +778,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 		and intersect_coords.has(Vector2(point.x - vertex_spacing,point.y + vertex_spacing)): 
 			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
 
+
 ## Helper Methods
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
 func get_road_width(point: RoadPoint) -> float:
@@ -735,6 +787,7 @@ func get_road_width(point: RoadPoint) -> float:
 		+ point.shoulder_width_r
 		+ point.lane_width * point.lanes.size()
 	)
+
 
 ## Used to create a "Mask" 
 func curve_3d_to_2d(curve: Curve3D) -> Curve2D:
@@ -753,8 +806,8 @@ func curve_3d_to_2d(curve: Curve3D) -> Curve2D:
 		var out2 = Vector2(out3.x, out3.z)
 
 		curve2d.add_point(pos2, in2, out2)
-
 	return curve2d
+
 
 func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: float, offset: Vector2) -> PackedVector2Array:
 	var baked := curve.get_baked_points()
@@ -801,12 +854,14 @@ func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: floa
 	result.append_array(PackedVector2Array(right_points))
 	return result
 
+
 func validate_segment(segment: RoadSegment) -> bool:
 	if not is_instance_valid(segment):
 		return false
 	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
 		return false
 	return is_instance_valid(segment.road_mesh)
+
 
 # can't be nullable so an empty array indicates null (failed to find a height)
 func get_road_height(x: float, z: float, min_y: float, max_y: float, space_states: Array[PhysicsDirectSpaceState3D]) -> Array[float]:
