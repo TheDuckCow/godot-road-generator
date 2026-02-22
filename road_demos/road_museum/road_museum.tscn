@@ -1,7 +1,7 @@
-[gd_scene load_steps=23 format=3 uid="uid://dtdqpwngpuys0"]
+[gd_scene load_steps=22 format=3 uid="uid://dtdqpwngpuys0"]
 
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_5ogp4"]
-[ext_resource type="Script" path="res://road_demos/road_zoo/zoo_camera.gd" id="1_510rr"]
+[ext_resource type="Script" path="res://road_demos/road_museum/sidescroll_camera.gd" id="1_510rr"]
 [ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="1_q0j0e"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_xlvno"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2_pgtsv"]
@@ -15,7 +15,6 @@
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_intersection.gd" id="10_4oev0"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="10_rstb4"]
 [ext_resource type="Script" path="res://addons/road-generator/procgen/intersection_ngon.gd" id="11_hm2jj"]
-[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="14_gqxnn"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nbxyo"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -406,18 +405,11 @@ prior_mag = 8.0
 next_mag = 8.0
 prior_pt_init = NodePath("../RP_004")
 
-[node name="3way_2x2" type="Node3D" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
+[node name="3way_2x2" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, -12)
-script = ExtResource("2_pgtsv")
-create_geo = false
-material_resource = ExtResource("14_gqxnn")
-use_lowpoly_preview = true
-generate_ai_lanes = true
 edge_containers = Array[NodePath]([NodePath("../Dynamic"), NodePath("../Dynamic"), NodePath("../3way_2x2b")])
 edge_rp_targets = Array[NodePath]([NodePath("../Dynamic/RP_006"), NodePath("RP_002"), NodePath("RP_003")])
 edge_rp_target_dirs = Array[int]([0, 0, 1])
-edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_002"), NodePath("RP_003")])
-edge_rp_local_dirs = Array[int]([1, 0, 1])
 
 [node name="3way_2x2b" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, -44)

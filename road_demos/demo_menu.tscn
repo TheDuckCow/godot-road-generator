@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_nvna4")
 script = ExtResource("2_22uuf")
-demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
+demo_scenes = Array[String](["res://road_demos/road_museum/road_museum.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
 
 [node name="graident" type="TextureRect" parent="."]
 layout_mode = 1
