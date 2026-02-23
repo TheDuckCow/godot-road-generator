@@ -786,19 +786,19 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 		return
 	var added_node = initial_children[-1]
 	if added_node.prior_pt_init:
-		prior_selection = added_node.get_node(added_node.prior_pt_init)
+		prior_selection = added_node.get_node_or_null(added_node.prior_pt_init)
 		was_next_pt = true
 	elif added_node.next_pt_init:
-		prior_selection = added_node.get_node(added_node.next_pt_init)
+		prior_selection = added_node.get_node_or_null(added_node.next_pt_init)
 		was_next_pt = false
 	initial_children[-1].queue_free()
 
 	if is_instance_valid(prior_selection):
 		# Clean up the new old connection.
 		if was_next_pt:
-			prior_selection.next_pt_init = ""
+			prior_selection.next_pt_init = ^""
 		else:
-			prior_selection.prior_pt_init = ""
+			prior_selection.prior_pt_init = ^""
 		set_selection(prior_selection)
 
 

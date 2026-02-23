@@ -124,7 +124,9 @@ func sel_rp_next_pressed():
 	if not sel_road_point.next_pt_init:
 		return
 
-	var next_pt = sel_road_point.get_node(sel_road_point.next_pt_init)
+	var next_pt = sel_road_point.get_node_or_null(sel_road_point.next_pt_init)
+	if not next_pt:
+		return
 	if Input.is_key_pressed(KEY_SHIFT):
 		# Jump to to the "end" roadpoint in this direction (if it loops around, returns the same)
 		next_pt = next_pt.get_last_rp(RoadPoint.PointInit.NEXT)
@@ -136,7 +138,9 @@ func sel_rp_prior_pressed():
 	if not sel_road_point.prior_pt_init:
 		return
 
-	var prior_pt = sel_road_point.get_node(sel_road_point.prior_pt_init)
+	var prior_pt = sel_road_point.get_node_or_null(sel_road_point.prior_pt_init)
+	if not prior_pt:
+		return
 	if Input.is_key_pressed(KEY_SHIFT):
 		# Jump to to the "end" roadpoint in this direction (if it loops around, returns the same)
 		prior_pt = prior_pt.get_last_rp(RoadPoint.PointInit.PRIOR)
