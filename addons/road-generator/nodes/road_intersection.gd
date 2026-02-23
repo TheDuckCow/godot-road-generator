@@ -47,7 +47,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		if value == create_geo:
 			return
 		create_geo = value
-		if value == true:
+		_do_roadmesh_creation() # Adds or removes mesh accordingly
+		if create_geo:
 			emit_transform()
 
 ## Flatten terrain when updating or transforming this Intersection.[br][br]
