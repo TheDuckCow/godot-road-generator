@@ -689,13 +689,13 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 		for dir in RoadLane.LaneDirection.values():
 			var dir_back := RoadLane.reverse_move_dir(dir)
 			var lane_next := lane.get_sequential_lane(dir)
-			if lane_next && lane_next.sequential_lanes[dir_back] == lane_next.get_path_to(lane):
-				lane_next.connect_sequential(dir_back, null)
+			if lane_next && lane_next.get_sequential_lane(dir_back) == lane:
+				lane.connect_next(null)
 		for dir in RoadLane.LaneSideways.values():
 			var dir_back := RoadLane.flip_side(dir)
 			var lane_side := lane.get_side_lane(dir)
-			if lane_side && lane_side.side_lanes[dir_back] == lane_side.get_path_to(lane):
-				lane_next.side_lanes[dir_back] = NodePath("")
+			if lane_side && lane_side.get_side_lane(dir_back) == lane:
+				lane_side.side_lanes[dir_back] = NodePath("")
 		lane.queue_free()
 
 
