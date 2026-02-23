@@ -365,7 +365,7 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 	# point in the same plane as the initial selection which is also facing
 	# the camera, or in the plane of that object's.
 
-	var use_obj_plane = selection is RoadPoint or selection is RoadContainer
+	var use_obj_plane = selection is RoadPoint or selection is RoadContainer or selection is RoadIntersection
 
 	# Points used to define offset used to construct a valid Plane
 	var point_y_offset:Vector3
