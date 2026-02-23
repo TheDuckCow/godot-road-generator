@@ -1193,8 +1193,12 @@ func _autofix_noncyclic_references(
 	if not new_point_path.is_empty():
 		# Use the just recently set value.
 		is_clearing = false
-		var connection = get_node(new_point_path)
-		if connection.has_method("is_road_container"):
+		var connection = get_node_or_null(new_point_path)
+		if not connection:
+			# Don't clear, as this lets the editor undo step work well, can
+			# happen after e.g. deleting a connected RoadIntersection
+			return
+		elif connection.has_method("is_road_container"):
 			return # Nothing further to update now.
 		elif connection.has_method("is_road_intersection"):
 			return # Nothing further to update now.
@@ -1203,8 +1207,10 @@ func _autofix_noncyclic_references(
 	else:
 		# we are in clearing mode, so use the value that was just overwritten
 		is_clearing = true
-		var connection = get_node(old_point_path)
-		if connection.has_method("is_road_container"):
+		var connection = get_node_or_null(old_point_path)
+		if not connection:
+			return # Could be a connected node was just deleted, e.g. RoadIntersection
+		elif connection.has_method("is_road_container"):
 			return # Nothing further to update now.
 		elif connection.has_method("is_road_intersection"):
 			return  # Nothing further to update now.

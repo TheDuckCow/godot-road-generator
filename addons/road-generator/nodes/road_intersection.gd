@@ -47,7 +47,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 		if value == create_geo:
 			return
 		create_geo = value
-		if value == true:
+		_do_roadmesh_creation() # Adds or removes mesh accordingly
+		if create_geo:
 			emit_transform()
 
 ## Flatten terrain when updating or transforming this Intersection.[br][br]
@@ -211,10 +212,8 @@ func remove_branch(road_point: RoadPoint) -> void:
 	edge_points.erase(road_point)
 	if road_point.get_node_or_null(road_point.prior_pt_init) == self:
 		road_point.prior_pt_init = ^""
-		print("removed prior dir")
 	if road_point.get_node_or_null(road_point.next_pt_init) == self:
 		road_point.next_pt_init = ^""
-		print("removed next dir")
 	_sort_edges_clockwise()
 	container.update_edges()
 	is_dirty = true
@@ -223,8 +222,17 @@ func remove_branch(road_point: RoadPoint) -> void:
 
 ## Sort edges, then refresh the mesh.
 func sort_branches() -> void:
-	_sort_edges_clockwise()
-	emit_transform()
+	var new_edges: Array[RoadPoint] = []
+	var any_skipped: bool = false
+	for _edge in edge_points:
+		if is_instance_valid(_edge) and _edge.is_inside_tree() and _edge is RoadPoint:
+			new_edges.append(_edge)
+		else:
+			any_skipped = true
+	if any_skipped:
+		edge_points = new_edges
+	else:
+		_sort_edges_clockwise()
 
 
 ## Check if mesh needs to be rebuilt.[br][br]
@@ -262,21 +270,11 @@ func _rebuild() -> void:
 	if not container.create_geo:
 		return
 
-	# To support debugging in editor now, allow for temporary invalid paths
-	# while manually populating. In the future, this shoudl auto-correct and
-	# clear invalid edges or empty ids in array.
-	var valid_edges: Array[RoadPoint] = []
-	for _pt in edge_points:
-		if not is_instance_valid(_pt):
-			continue
-		if not _pt is RoadPoint:
-			continue
-		valid_edges.append(_pt)
-	
-	if not valid_edges:
+	sort_branches() # Also clears invalid branches
+
+	if not edge_points: # would be cleared if invalid
 		return
-	
-	var mesh: Mesh = settings.generate_mesh(self, valid_edges, container)
+	var mesh: Mesh = settings.generate_mesh(self, edge_points, container)
 	_mesh.mesh = mesh
 	container._create_collisions(_mesh)
 

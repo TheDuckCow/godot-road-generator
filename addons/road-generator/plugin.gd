@@ -786,19 +786,19 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 		return
 	var added_node = initial_children[-1]
 	if added_node.prior_pt_init:
-		prior_selection = added_node.get_node(added_node.prior_pt_init)
+		prior_selection = added_node.get_node_or_null(added_node.prior_pt_init)
 		was_next_pt = true
 	elif added_node.next_pt_init:
-		prior_selection = added_node.get_node(added_node.next_pt_init)
+		prior_selection = added_node.get_node_or_null(added_node.next_pt_init)
 		was_next_pt = false
 	initial_children[-1].queue_free()
 
 	if is_instance_valid(prior_selection):
 		# Clean up the new old connection.
 		if was_next_pt:
-			prior_selection.next_pt_init = ""
+			prior_selection.next_pt_init = ^""
 		else:
-			prior_selection.prior_pt_init = ""
+			prior_selection.prior_pt_init = ^""
 		set_selection(prior_selection)
 
 
@@ -1050,12 +1050,13 @@ func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, n
 		nrm = Vector3.UP	 # workaround? should this ever be null?
 		print("nrm was null for create branch from road container")
 
-	var half_gutter: float = -0.5 * rp.gutter_profile.y
-	var new_transform = inter.global_transform # weird to do this, use direct method to assign global?
-	new_transform.origin = pos + nrm * half_gutter
-	new_transform.basis.y = nrm # legal????
+	var new_transform = inter.global_transform # weird to do this, use direct method to assign global
+	new_transform.origin = pos
+	new_transform.basis.y = nrm
 	undo_redo.add_do_property(rp, "global_transform", new_transform)
 	undo_redo.add_do_method(rp, "look_at", inter.global_transform.origin, new_transform.basis.y)
+	# Workaround, as look_at for some reason doesn't *actually* constrain the the provided axis
+	undo_redo.add_do_property(rp, "global_transform.basis.y", new_transform.basis.y) # Added
 	undo_redo.add_do_method(inter, "add_branch", rp)
 	
 	undo_redo.add_do_reference(rp)
