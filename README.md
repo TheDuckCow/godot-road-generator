@@ -60,20 +60,20 @@ In addition to each point above, each scenario requires you to make your own cus
 
 | Feature | Demo |
 | ------- | -----|
-| **Scenetree-based building blocks.** Cross-sectional RoadPoint's define interpolating properties about road shape. Lane-control gizmo adjusts lane count, per RoadPoint or (holding shift) per entire RoadContainer. | ![roadpoint widget](./demo/gifs/roadpoint_widget.gif) |
-| **RoadContainer organization.** Group sibling RoadPoints, and snap together with other RoadContainers. Save a RoadContainer to a scene for reuse. | ![Containers](./demo/gifs/containers.gif) |
-| **RoadPoint inspector panel**. Define lane width, shoulder, and more. Hold shift to affect all RoadPoints within same container. | ![inspector panel](./demo/gifs/inspector_panel.gif) |
-| **Click-to draw with collision snapping**. Fine tune placement after using native 3D gizmo as needed. | ![click to draw](./demo/gifs/click_to_draw.gif) |
-| **Procedural intersections.** Dynamically connect RoadPoints to create RoadIntersections. Supports non-planar setups. (RoadLane/edge curve support coming soon)| ![procedural intersections](./demo/gifs/intersection.gif) |
-| **Prefab intersection RoadContainers.** Snap together built-in four way, three way, and highway on/off ramps with ease. | ![Prefab containers](./demo/gifs/prefab_roadcontainers.gif) |
-| **Terrain3D integration.** Flatten terrain to meet the level of your roads with options for margins and falloff. Format extendable for other terrain generators too. | ![Terrain3D integration]() |
-| **Multi-material support.** Separate surface and underside materials per RoadContainer. Source trim-sheet provided to guide creation of customized materials. | ![Material swap](./demo/gifs/material_swap.gif) |
-| **Auto-generated AI paths.** Enable for automatic RoadLane placement, or hand place in your scene. Use the RoadLaneAgent helper to help agents follow roads, handling transitions between segments. | ![AI path demo](./demo/gifs/ai_lanes.gif) |
-| **Decoration edge curves.** Once enabled on a RoadContainer, add CSG path geometry or make your own scripts to instance assets along left, right, and center curves. | ![Decorations demo](./demo/gifs/decorations.gif) |
-| **Runtime-available functions for procedural use.** Operations apply on single RoadSegments at a time to be performant. | ![Procedural demo](./demo/gifs/procedural_demo.gif) |
-| **Export RoadContainers to gLTF/glb.** Output sections of your road network to edit further in a 3D software, without exporting your whole scene. | ![Export road mesh](./demo/gifs/export_geo.png) |
-| **Support for custom-made meshes.** Turn off "Create Geo", then drop in your own meshes + colliders. AI paths remain connected. | ![Custom road meshes demo](./demo/gifs/custom_geo.gif) |
-| **GDScript-only (for now)**. No extra compiling or dependencies to worry about. | ![GDScript only](./demo/gifs/gdscript-only.png) |
+| **Scenetree-based building blocks.** Cross-sectional RoadPoint's define interpolating properties about road shape. Lane-control gizmo adjusts lane count, per RoadPoint or (holding shift) per entire RoadContainer. | ![roadpoint widget](./road_demos/gifs/roadpoint_widget.gif) |
+| **RoadContainer organization.** Group sibling RoadPoints, and snap together with other RoadContainers. Save a RoadContainer to a scene for reuse. | ![Containers](./road_demos/gifs/containers.gif) |
+| **RoadPoint inspector panel**. Define lane width, shoulder, and more. Hold shift to affect all RoadPoints within same container. | ![inspector panel](./road_demos/gifs/inspector_panel.gif) |
+| **Click-to draw with collision snapping**. Fine tune placement after using native 3D gizmo as needed. | ![click to draw](./road_demos/gifs/click_to_draw.gif) |
+| **Procedural intersections.** Dynamically connect RoadPoints to create RoadIntersections. Supports non-planar setups. (RoadLane/edge curve support coming soon)| ![procedural intersections](./road_demos/gifs/intersection.gif) |
+| **Prefab intersection RoadContainers.** Snap together built-in four way, three way, and highway on/off ramps with ease. | ![Prefab containers](./road_demos/gifs/prefab_roadcontainers.gif) |
+| **Terrain3D integration.** Flatten terrain to meet the level of your roads with options for margins and falloff. Format extendable for other terrain generators too. | ![Terrain3D integration](./road_demos/gifs/terrain3d-demo.gif) |
+| **Multi-material support.** Separate surface and underside materials per RoadContainer. Source trim-sheet provided to guide creation of customized materials. | ![Material swap](./road_demos/gifs/material_swap.gif) |
+| **Auto-generated AI paths.** Enable for automatic RoadLane placement, or hand place in your scene. Use the RoadLaneAgent helper to help agents follow roads, handling transitions between segments. | ![AI path demo](./road_demos/gifs/ai_lanes.gif) |
+| **Decoration edge curves.** Once enabled on a RoadContainer, add CSG path geometry or make your own scripts to instance assets along left, right, and center curves. | ![Decorations demo](./road_demos/gifs/decorations.gif) |
+| **Runtime-available functions for procedural use.** Operations apply on single RoadSegments at a time to be performant. | ![Procedural demo](./road_demos/gifs/procedural_demo.gif) |
+| **Export RoadContainers to gLTF/glb.** Output sections of your road network to edit further in a 3D software, without exporting your whole scene. | ![Export road mesh](./road_demos/gifs/export_geo.png) |
+| **Support for custom-made meshes.** Turn off "Create Geo", then drop in your own meshes + colliders. AI paths remain connected. | ![Custom road meshes demo](./road_demos/gifs/custom_geo.gif) |
+| **GDScript-only (for now)**. No extra compiling or dependencies to worry about. | ![GDScript only](./road_demos/gifs/gdscript-only.png) |
 
 
 ## Credits
