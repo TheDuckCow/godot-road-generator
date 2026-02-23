@@ -39,9 +39,9 @@ glow_enabled = true
 [sub_resource type="Resource" id="Resource_ansse"]
 script = ExtResource("11_hm2jj")
 
-[sub_resource type="Curve3D" id="Curve3D_0v5t6"]
+[sub_resource type="Curve3D" id="Curve3D_5vw3u"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 16.1037, -8.2, 0, 0, 4.3721e-07, 0, -4.89011, -34.8453, 0, 24.4224, -7.62224, 0, 42.5478),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 16.0769, -6.2, 0, 0, 0, 0, -4.91692, -34.8453, 0, 24.4224, -5.62221, 0, 42.5478),
 "tilts": PackedFloat32Array(0, 0)
 }
 point_count = 2
@@ -49,38 +49,38 @@ point_count = 2
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stsme"]
 albedo_color = Color(0.137725, 0.260995, 0.142001, 1)
 
-[sub_resource type="Curve3D" id="Curve3D_twfvw"]
+[sub_resource type="Curve3D" id="Curve3D_l4jy4"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 15.8839, 8.2, 0, 0, 4.5686e-07, 0, -5.10989, -34.8453, 0, 24.4224, 8.77776, 0, 42.5478),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 15.8571, 10.2, 0, 0, 0, 0, -5.13669, -34.8453, 0, 24.4224, 10.7778, 0, 42.5478),
 "tilts": PackedFloat32Array(0, 0)
 }
 point_count = 2
 
-[sub_resource type="Curve3D" id="Curve3D_g4q54"]
+[sub_resource type="Curve3D" id="Curve3D_ehsx3"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 15.9938, 0, 0, 0, 4.47035e-07, 0, -5, -34.8453, 0, 24.4224, 0.577759, 0, 42.5478),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 15.9938, 0, 0, 0, 0, 0, -5, -34.8453, 0, 24.4224, 0.577789, 0, 42.5478),
 "tilts": PackedFloat32Array(0, 0)
 }
 point_count = 2
 
-[sub_resource type="Curve3D" id="Curve3D_xpv3c"]
+[sub_resource type="Curve3D" id="Curve3D_rpgj5"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 34.5836, -8.2, -2.44379e-07, 0, 23.0895, -16.3907, 10.591, 19.3417, -21.9194, 79.8574, -54.4258, 11.7548, 54.1993),
-"tilts": PackedFloat32Array(-2.98023e-08, -0.195835)
+"points": PackedVector3Array(0, 0, 0, 4.12268e-06, 4.12268e-06, 34.5836, -8.2, 5.37634e-06, -9.77516e-07, 24.4836, -17.3803, 11.2304, 19.3418, -21.9194, 79.8571, -54.997, 12.1602, 56.0724),
+"tilts": PackedFloat32Array(6.97654e-07, -0.206548)
 }
 point_count = 2
 
-[sub_resource type="Curve3D" id="Curve3D_drr63"]
+[sub_resource type="Curve3D" id="Curve3D_jqmwt"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 40.132, 8.2, 2.44379e-07, 0, 34.5218, -24.5062, 15.8349, 19.3417, -21.9194, 79.8574, -59.1108, 15.0805, 69.56),
-"tilts": PackedFloat32Array(-2.98023e-08, -0.152803)
+"points": PackedVector3Array(0, 0, 0, 4.78411e-06, 4.78411e-06, 40.132, 8.2, -5.37634e-06, 9.77516e-07, 35.916, -25.4959, 16.4743, 19.3418, -21.9194, 79.8571, -59.6819, 15.486, 71.4331),
+"tilts": PackedFloat32Array(6.97654e-07, -0.161082)
 }
 point_count = 2
 
-[sub_resource type="Curve3D" id="Curve3D_0hx1t"]
+[sub_resource type="Curve3D" id="Curve3D_g106h"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 37.3578, 0, 0, 0, 28.8056, -20.4484, 13.2129, 19.3417, -21.9194, 79.8574, -56.7683, 13.4176, 61.8797),
-"tilts": PackedFloat32Array(-2.98023e-08, -0.17078)
+"points": PackedVector3Array(0, 0, 0, 4.4534e-06, 4.4534e-06, 37.3578, 0, 0, 0, 28.8056, -20.4484, 13.2129, 19.3418, -21.9194, 79.8571, -56.7681, 13.4175, 61.8795),
+"tilts": PackedFloat32Array(6.97654e-07, -0.170778)
 }
 point_count = 2
 
@@ -650,6 +650,7 @@ prior_pt_init = NodePath("../RP_003")
 [node name="DecorationsDemo" type="Node3D" parent="RoadManager"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 600, 0, 0)
 script = ExtResource("2_pgtsv")
+use_lowpoly_preview = true
 create_edge_curves = true
 edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
@@ -664,6 +665,7 @@ traffic_dir = Array[int]([2, 1, 1])
 lanes = Array[int]([5, 4, 2])
 next_mag = 30.0195
 gutter_profile = Vector2(0.2, 0)
+alignment = 1
 prior_pt_init = NodePath("../RP_002")
 
 [node name="RP_002" type="Node3D" parent="RoadManager/DecorationsDemo"]
@@ -674,11 +676,12 @@ lanes = Array[int]([5, 4, 2])
 prior_mag = 37.7158
 next_mag = 15.9938
 gutter_profile = Vector2(0.2, 0)
+alignment = 1
 prior_pt_init = NodePath("../RP_003")
 next_pt_init = NodePath("../RP_001")
 
 [node name="edge_R" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
-curve = SubResource("Curve3D_0v5t6")
+curve = SubResource("Curve3D_5vw3u")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_R" instance=ExtResource("17_7n47g")]
@@ -699,7 +702,7 @@ path_joined = false
 material = SubResource("StandardMaterial3D_stsme")
 
 [node name="edge_F" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
-curve = SubResource("Curve3D_twfvw")
+curve = SubResource("Curve3D_l4jy4")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_F" instance=ExtResource("17_7n47g")]
@@ -720,7 +723,7 @@ path_joined = false
 material = SubResource("StandardMaterial3D_stsme")
 
 [node name="edge_C" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
-curve = SubResource("Curve3D_g4q54")
+curve = SubResource("Curve3D_ehsx3")
 metadata/_edit_lock_ = true
 
 [node name="RP_003" type="Node3D" parent="RoadManager/DecorationsDemo"]
@@ -734,7 +737,7 @@ gutter_profile = Vector2(0.2, 0)
 next_pt_init = NodePath("../RP_002")
 
 [node name="edge_R" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
-curve = SubResource("Curve3D_xpv3c")
+curve = SubResource("Curve3D_rpgj5")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_R" instance=ExtResource("17_7n47g")]
@@ -755,7 +758,7 @@ path_joined = false
 material = SubResource("StandardMaterial3D_stsme")
 
 [node name="edge_F" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
-curve = SubResource("Curve3D_drr63")
+curve = SubResource("Curve3D_jqmwt")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_F" instance=ExtResource("17_7n47g")]
@@ -776,5 +779,5 @@ path_joined = false
 material = SubResource("StandardMaterial3D_stsme")
 
 [node name="edge_C" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
-curve = SubResource("Curve3D_0hx1t")
+curve = SubResource("Curve3D_g106h")
 metadata/_edit_lock_ = true
