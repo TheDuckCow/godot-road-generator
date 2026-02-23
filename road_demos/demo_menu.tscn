@@ -142,6 +142,7 @@ size_flags_horizontal = 3
 text = "Give Feedback"
 
 [node name="quit" type="Button" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 offset_left = 20.0

@@ -6,9 +6,13 @@ const PLUGIN_CFG := "res://addons/road-generator/plugin.cfg"
 
 @onready var vbox := %vbox
 @onready var version := %version_label
+@onready var quit_btn := %quit
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	if OS.get_name() == "Web":
+		quit_btn.queue_free()
+
 	var config = ConfigFile.new()
 	var res = config.load(PLUGIN_CFG)
 	if res == OK:
