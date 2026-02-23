@@ -1159,6 +1159,7 @@ func rebuild_segments(clear_existing := false):
 			return
 	update_edges()
 	validate_edges(clear_existing)
+	
 	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments %s" % self.name)
@@ -1207,6 +1208,7 @@ func rebuild_segments(clear_existing := false):
 
 	for _inter in get_intersections():
 		var inter:RoadIntersection = _inter
+		inter.sort_branches()
 		if clear_existing:
 			inter.is_dirty = true
 		var was_rebuilt := inter.check_rebuild()
