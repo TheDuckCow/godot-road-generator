@@ -211,10 +211,8 @@ func remove_branch(road_point: RoadPoint) -> void:
 	edge_points.erase(road_point)
 	if road_point.get_node_or_null(road_point.prior_pt_init) == self:
 		road_point.prior_pt_init = ^""
-		print("removed prior dir")
 	if road_point.get_node_or_null(road_point.next_pt_init) == self:
 		road_point.next_pt_init = ^""
-		print("removed next dir")
 	_sort_edges_clockwise()
 	container.update_edges()
 	is_dirty = true

@@ -802,18 +802,22 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			elif not rp_hover_filled and rp_sel_filled:
 				_hint_intersection_creation(rp_sel, rp_hover, camera)
 		elif hover_roadnode is RoadIntersection and selection is RoadPoint:
-			var inter: RoadIntersection = hover_roadnode
-			var rp: RoadPoint = selection
-			if inter.container == rp.container:
-				hint_source_nodes.append(rp)
-				hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
-				hint_target_nodes.append(inter)
-				hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
-				_insert_edge_hint(rp, camera)
-				if rp in inter.edge_points:
-					hinting = HintState.DISCONNECT
-				else:
-					hinting = HintState.CONNECT
+			if selection.is_prior_connected() and selection.is_next_connected():
+				# Fully connected
+				pass
+			else:
+				var inter: RoadIntersection = hover_roadnode
+				var rp: RoadPoint = selection
+				if inter.container == rp.container:
+					hint_source_nodes.append(rp)
+					hint_source_points.append(camera.unproject_position(rp.global_transform.origin))
+					hint_target_nodes.append(inter)
+					hint_target_points.append(camera.unproject_position(inter.global_transform.origin))
+					_insert_edge_hint(rp, camera)
+					if rp in inter.edge_points:
+						hinting = HintState.DISCONNECT
+					else:
+						hinting = HintState.CONNECT
 		elif hover_roadnode is RoadPoint and selection is RoadIntersection:
 			var inter: RoadIntersection = selection
 			var rp: RoadPoint = hover_roadnode
