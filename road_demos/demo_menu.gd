@@ -28,6 +28,7 @@ func _ready() -> void:
 			load_scene(scn_path)
 		btn.pressed.connect(on_btn_press)
 		vbox.add_child(btn)
+		vbox.move_child(btn, -3)
 		if not focussed:
 			btn.grab_focus()
 			focussed = true
@@ -41,3 +42,23 @@ func load_scene(path:String) -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+
+func _on_wiki_pressed() -> void:
+	const WIKI_URL := "https://github.com/TheDuckCow/godot-road-generator/wiki"
+	OS.shell_open(WIKI_URL)
+
+
+func _on_bug_report_pressed() -> void:
+	const BUG_REPORT_URL := "https://github.com/TheDuckCow/godot-road-generator/issues"
+	OS.shell_open(BUG_REPORT_URL)
+
+
+func _on_feedback_survey_pressed() -> void:
+	const FORM_BASE_URL := "https://docs.google.com/forms/d/e/1FAIpQLSdNbtXvw0FYQGEKpnqhpJZyujxFsabTk4i3SHPXYA6UGRdG9w/viewform"
+	OS.shell_open(FORM_BASE_URL)
+
+
+func _on_patreon_pressed() -> void:
+	const PATREON_URL := "https://www.patreon.com/c/wheelstealgame/collections"
+	OS.shell_open(PATREON_URL)

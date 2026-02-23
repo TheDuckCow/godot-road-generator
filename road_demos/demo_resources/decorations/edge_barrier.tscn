@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://dya4uwn8d2iq6"]
+
+[node name="barrier" type="CSGPolygon3D"]
+polygon = PackedVector2Array(-0.2, -0.4, -0.1, 1, 0.1, 1, 0.2, -0.4)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_local = true
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false

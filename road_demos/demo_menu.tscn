@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_nvna4")
 script = ExtResource("2_22uuf")
-demo_scenes = Array[String](["res://road_demos/road_zoo/road_zoo.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
+demo_scenes = Array[String](["res://road_demos/road_museum/road_museum.tscn", "res://road_demos/procedural_generator/procedural_generator.tscn", "res://road_demos/intersections/intersection_demo.tscn", "res://road_demos/navigation/astar_lane_graph.tscn", "res://road_demos/performance_stress_test/performance_stress_test.tscn"])
 
 [node name="graident" type="TextureRect" parent="."]
 layout_mode = 1
@@ -35,10 +35,11 @@ texture = SubResource("GradientTexture2D_1dhmt")
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 20.0
-offset_top = -180.0
-offset_right = 180.0
+offset_top = -90.0
+offset_right = -20.0
 offset_bottom = -20.0
 grow_vertical = 0
 theme_override_constants/separation = 15
@@ -46,30 +47,45 @@ theme_override_constants/separation = 15
 [node name="logo" type="TextureRect" parent="HBoxContainer"]
 layout_mode = 2
 texture = ExtResource("3_ronpq")
-stretch_mode = 3
+expand_mode = 2
 
 [node name="version_label" type="Label" parent="HBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.156863, 0.156863, 0.207843, 1)
-theme_override_font_sizes/font_size = 60
+theme_override_font_sizes/font_size = 30
 text = "v1.2.3"
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="spacer" type="Control" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="support_label" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.156863, 0.156863, 0.207843, 1)
+theme_override_font_sizes/font_size = 30
+text = "Support on"
+
+[node name="patreon" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "Patreon"
+
+[node name="MarginContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -100.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
 
 [node name="vbox" type="VBoxContainer" parent="MarginContainer"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="Label" type="Label" parent="MarginContainer/vbox"]
 layout_mode = 2
@@ -99,6 +115,32 @@ fit_content = true
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="top_spacer" type="Control" parent="MarginContainer/vbox"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+
+[node name="bottom_spacer" type="Control" parent="MarginContainer/vbox"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+
+[node name="footer" type="HBoxContainer" parent="MarginContainer/vbox"]
+layout_mode = 2
+
+[node name="wiki" type="Button" parent="MarginContainer/vbox/footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Open Wiki"
+
+[node name="bug_report" type="Button" parent="MarginContainer/vbox/footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Report bug"
+
+[node name="feedback_survey" type="Button" parent="MarginContainer/vbox/footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Give Feedback"
+
 [node name="quit" type="Button" parent="."]
 layout_mode = 1
 anchors_preset = -1
@@ -108,4 +150,8 @@ offset_right = 120.0
 offset_bottom = 46.0
 text = "Quit"
 
+[connection signal="pressed" from="HBoxContainer/patreon" to="." method="_on_patreon_pressed"]
+[connection signal="pressed" from="MarginContainer/vbox/footer/wiki" to="." method="_on_wiki_pressed"]
+[connection signal="pressed" from="MarginContainer/vbox/footer/bug_report" to="." method="_on_bug_report_pressed"]
+[connection signal="pressed" from="MarginContainer/vbox/footer/feedback_survey" to="." method="_on_feedback_survey_pressed"]
 [connection signal="pressed" from="quit" to="." method="_on_quit_pressed"]
