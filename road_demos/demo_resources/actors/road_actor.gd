@@ -175,7 +175,7 @@ func _physics_process(delta: float) -> void:
 
 	var obstacle:RoadLane.Obstacle = self.agent.agent_pos.sequential_obstacles[move_dir]
 	var obstacle_dist = self.agent.agent_pos.distance_to(obstacle) if obstacle else INF
-	#if self.agent.agent_pos_secondary.check_valid():
+	#if self.agent.agent_pos_secondary.check_sanity():
 	#	assert(false) #TODO if closer on seconary
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z

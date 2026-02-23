@@ -60,7 +60,7 @@ var _spawn_delays: Array[float] = [] # how soon to spawn
 
 var _attached_to :RoadPoint = null
 
-const DEBUG_OUT: bool = true
+const DEBUG_OUT: bool = false
 
 # Create spawn Timer node child
 # Create new despawn lane node child

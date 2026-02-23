@@ -672,8 +672,8 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 		for dir in RoadLane.MoveDir.values():
 			var dir_back := RoadLane.reverse_move_dir(dir)
 			var lane_next := lane.get_sequential_lane(dir)
-			if lane_next && lane_next.sequential_lanes[dir_back] == lane_next.get_path_to(lane):
-				lane_next.connect_sequential(dir_back, null)
+			if lane_next && lane_next.get_sequential_lane(dir_back) == lane:
+				lane.connect_next(null)
 		lane.queue_free()
 
 

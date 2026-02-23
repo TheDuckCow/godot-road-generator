@@ -1294,12 +1294,10 @@ func connect_segment_lanes() -> void:
 					# TODO: When directionality is made consistent, we should no longer
 					# need to invert the direction assignment here.
 					if prior_ln.lane_next_tag[0] == "F":
-						prior_ln.connect_sequential(RoadLane.MoveDir.BACKWARD, next_ln)
-						next_ln.connect_sequential(RoadLane.MoveDir.FORWARD, prior_ln)
+						next_ln.connect_next(prior_ln)
 					else:
 						assert(prior_ln.lane_next_tag[0] == "R")
-						prior_ln.connect_sequential(RoadLane.MoveDir.FORWARD, next_ln)
-						next_ln.connect_sequential(RoadLane.MoveDir.BACKWARD, prior_ln)
+						prior_ln.connect_next(next_ln)
 
 # ------------------------------------------------------------------------------
 #endregion

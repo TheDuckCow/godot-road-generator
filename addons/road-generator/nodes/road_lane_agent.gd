@@ -80,8 +80,8 @@ func _ready() -> void:
 
 
 func is_lane_position_valid() -> bool:
-	assert( !agent_pos.lane || ( is_instance_valid(agent_pos.lane) && agent_pos.check_valid() ) )
-	return true if agent_pos.lane else false
+	assert( !self.agent_pos.lane || ( is_instance_valid(self.agent_pos.lane) && self.agent_pos.check_sanity() ) )
+	return true if self.agent_pos.lane else false
 
 func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
@@ -274,7 +274,7 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 
 
 func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLane.Obstacle:
-	assert(self.agent_pos.check_valid())
+	assert(self.agent_pos.check_sanity())
 	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
 	var side_lane: RoadLane = self.agent_pos.lane.get_side_lane(to_lane_side(lane_change_dir))
 	if ! side_lane:
@@ -296,7 +296,7 @@ class MoveAlongLane:
 	const DEBUG_OUT := false
 
 	func set_by_agent_pos(agent_pos: RoadLane.Obstacle, move_distance: float) -> void:
-		assert(agent_pos.check_valid())
+		assert(agent_pos.check_sanity(false, false))
 		self.agent_pos = agent_pos
 		self.offset = agent_pos.offset
 		self.lane = agent_pos.lane
