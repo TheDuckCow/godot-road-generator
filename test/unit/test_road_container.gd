@@ -2,6 +2,7 @@ extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
 const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
 var road_util: RoadUtils
 
@@ -119,10 +120,11 @@ func test_on_road_updated_single_segment():
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+	assert_is(segments_updated[0], RoadSegment, "Should be a RoadSegment")
 
 
 ## Ensure that users can manually assign two points to connect with auto_refresh
-func test_RoadContainer_validations_with_autorefresh():
+func test_roadcontainer_validations_with_autorefresh():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = true  # Will kick in validation
 

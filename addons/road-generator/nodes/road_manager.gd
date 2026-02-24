@@ -20,7 +20,10 @@ extends Node3D
 
 ## Emitted when a road segment has been (re)generated, returning the list
 ## of updated segments of type Array.
-signal on_road_updated(updated_segments: Array)
+##
+## Elements can be either RoadSegments or RoadIntersections. These always have
+## a child node which is the mesh of the road itself.
+signal on_road_updated(updated_segments: Array[Node3D])
 
 ## For internal purposes, to handle drag events in the editor.
 signal on_container_transformed(updated_segments: RoadContainer)
@@ -224,6 +227,10 @@ func get_containers() -> Array[RoadContainer]:
 	for ch in get_children():
 		if ch is RoadContainer:
 			res.append(ch)
+		else:
+			for subch in ch.get_children():
+				if subch is RoadContainer:
+					res.append(subch)
 	return res
 
 

@@ -204,7 +204,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 		groups_checked.append(_cont.ai_lane_group)
 
 	for lane in all_lanes:
-		if not lane is RoadLane:
+		if not lane is RoadLane or not is_instance_valid(lane):
 			push_warning("Non RoadLane in lanes list (%s)" % lane)
 			continue
 		var this_lane_closest = get_closest_path_point(lane, pos)
@@ -230,6 +230,8 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 ## Get the next position along the RoadLane based on moving this amount
 ## from the current position (in meters)
 func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
+	if not is_instance_valid(current_lane):
+		current_lane = null
 	var pos = actor.global_transform.origin
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
 	# Find how much space is left along the RoadLane in this direction

@@ -31,6 +31,8 @@ enum LeftRight {
 	RIGHT
 }
 
+const SegGeo := preload("res://addons/road-generator/procgen/segment_geo.gd")
+
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
 const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
@@ -115,7 +117,7 @@ func _is_mesh_generated() -> bool:
 	return len(ref) > 0
 
 
-func should_add_mesh() -> bool:
+func _should_add_mesh() -> bool:
 	var should_add_mesh = true
 	var par = get_parent()
 	if not is_instance_valid(par) or not par is RoadPoint:
@@ -131,14 +133,14 @@ func should_add_mesh() -> bool:
 
 
 func do_roadmesh_creation():
-	var do_create := should_add_mesh()
+	var do_create := _should_add_mesh()
 	if do_create:
-		add_road_mesh()
+		_add_road_mesh()
 	else:
-		remove_road_mesh()
+		_remove_road_mesh()
 
 
-func add_road_mesh() -> void:
+func _add_road_mesh() -> void:
 	if is_instance_valid(road_mesh):
 		return
 	road_mesh = MeshInstance3D.new()
@@ -149,7 +151,7 @@ func add_road_mesh() -> void:
 		road_mesh.owner = container.get_owner()
 
 
-func remove_road_mesh():
+func _remove_road_mesh():
 	if road_mesh == null:
 		return
 	road_mesh.queue_free()
@@ -188,8 +190,6 @@ static func get_id_for_points(_start:RoadPoint, _end:RoadPoint) -> String:
 func _init_start_set(value):
 	start_init = value
 	is_dirty = true
-	if not is_instance_valid(container):
-		return
 func _init_start_get():
 	return start_init
 
@@ -197,8 +197,6 @@ func _init_start_get():
 func _init_end_set(value):
 	end_init = value
 	is_dirty = true
-	if not is_instance_valid(container):
-		return
 func _init_end_get():
 	return end_init
 
@@ -285,10 +283,10 @@ func generate_edge_curves():
 	var edge_R: Path3D = _par.get_node_or_null(EDGE_R_NAME)
 	var edge_F: Path3D = _par.get_node_or_null(EDGE_F_NAME)
 	var extra_offset: float = 0.0
-	start_offset_R += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
-	start_offset_F += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
-	end_offset_R += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
-	end_offset_F += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
+	start_offset_R += start_point.shoulder_width_l + start_point.gutter_profile[0] + extra_offset
+	start_offset_F += start_point.shoulder_width_r + start_point.gutter_profile[0] + extra_offset
+	end_offset_R += end_point.shoulder_width_l + end_point.gutter_profile[0] + extra_offset
+	end_offset_F += end_point.shoulder_width_r + end_point.gutter_profile[0] + extra_offset
 
 	if edge_R == null or not is_instance_valid(edge_R):
 		edge_R = Path3D.new()
@@ -690,15 +688,7 @@ func _rebuild():
 		return
 
 	get_id()
-	var manager:RoadManager = container.get_manager()
-	if not container or not is_instance_valid(container):
-		pass
-	elif container.density > 0.0:
-		density = container.density
-	elif is_instance_valid(manager) and manager.density > 0.0:
-		density = container.get_manager().density
-	else:
-		pass
+	density = container.effective_density()
 
 	# Reset its transform to undo the rotation of the parent
 	var tr = get_parent().transform
@@ -845,10 +835,10 @@ func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -
 	var end_offset: float
 	if sample_position <= 0.0 + offset_amount:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return start_point.transform.basis.y * _start_flip_mult
+		return start_point.transform.basis.y
 	elif sample_position >= 1.0 - offset_amount * 0.5:
 		# Use exact basis of RoadPoint to ensure geometry lines up.
-		return end_point.transform.basis.y * _end_flip_mult
+		return end_point.transform.basis.y
 	else:
 		start_offset = sample_position - offset_amount * 0.5
 		end_offset = sample_position + offset_amount * 0.5
@@ -981,47 +971,7 @@ func _build_geo():
 		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
-	_create_collisions()
-
-
-func _create_collisions() -> void:
-	for ch in road_mesh.get_children():
-		ch.queue_free()  # Prior collision meshes
-
-	var manager:RoadManager = container.get_manager()
-
-	# Could also manually create with Mesh.create_trimesh_shape(),
-	# but this is still advertised as a non-cheap solution.
-	road_mesh.create_trimesh_collision()
-	for ch in road_mesh.get_children():
-		var sbody := ch as StaticBody3D # Set to null if casting fails
-		if not sbody:
-			continue
-
-		if container.collider_group_name != "":
-			sbody.add_to_group(container.collider_group_name)
-		elif is_instance_valid(manager) and manager.collider_group_name != "":
-			sbody.add_to_group(manager.collider_group_name)
-
-		if container.collider_meta_name != "":
-			sbody.set_meta(container.collider_meta_name, true)
-		elif is_instance_valid(manager) and manager.collider_meta_name != "":
-			sbody.set_meta(manager.collider_meta_name, true)
-
-		if container.physics_material != null:
-			sbody.physics_material_override = container.physics_material
-		elif is_instance_valid(manager) and manager.physics_material != null:
-			sbody.physics_material_override = manager.physics_material
-
-		if container.override_collision_layers:
-			sbody.collision_layer = container.collision_layer
-			sbody.collision_mask = container.collision_mask
-		elif is_instance_valid(manager):
-			sbody.collision_layer = manager.collision_layer
-			sbody.collision_mask = manager.collision_mask
-		# else: will just be the godot default.
-
-		sbody.set_meta("_edit_lock_", true)
+	container._create_collisions(road_mesh)
 
 
 # ------------------------------------------------------------------------------
@@ -1227,8 +1177,8 @@ class GeoLoopInfo:
 
 			# Prepare attributes for add_vertex.
 			# Long edge towards origin, p1
-			segment.quad( st, segment.uv_square(uv_l, uv_r, uv_y),
-				segment.pts_square(nf_loop, nf_basis,
+			SegGeo.quad( st, SegGeo.uv_square(uv_l, uv_r, uv_y),
+				SegGeo.pts_square(nf_loop, nf_basis,
 					[(width_offset[LeftRight.RIGHT][NearFar.FAR] + lane_width[NearFar.FAR]),
 					width_offset[LeftRight.RIGHT][NearFar.FAR],
 					width_offset[LeftRight.RIGHT][NearFar.NEAR],
@@ -1259,18 +1209,19 @@ class GeoLoopInfo:
 					pos_r[nf] *= pos_gutter
 
 			# Assume the start and end lanes are the same for now.
-			var uv_mid = 0.8 # should be more like 0.9
-			var uv_m = uv_mid * uv_width # The 'middle' vert, same level as shoulder but to edge.
+			
+			# The 'middle' vert, same level as shoulder but to edge.
+			var uv_m = SegGeo.UV_MID_SHOULDER * uv_width
 			# LEFT (between pos:_s and _m, and between uv:_l and _m)
 			# The flat part of the shoulder on both sides
 
-			segment.quad( st, segment.uv_square(uv_m, uv_width, uv_y) if lr == LeftRight.RIGHT else segment.uv_square(uv_width, uv_m, uv_y),
-				segment.pts_square(nf_loop, nf_basis, [pos_l[NearFar.FAR], pos_r[NearFar.FAR], pos_r[NearFar.NEAR], pos_l[NearFar.NEAR]]) )
+			SegGeo.quad( st, SegGeo.uv_square(uv_m, uv_width, uv_y) if lr == LeftRight.RIGHT else SegGeo.uv_square(uv_width, uv_m, uv_y),
+				SegGeo.pts_square(nf_loop, nf_basis, [pos_l[NearFar.FAR], pos_r[NearFar.FAR], pos_r[NearFar.NEAR], pos_l[NearFar.NEAR]]) )
 
 			# The gutter, lower part of the shoulder on both sides.
 			if lr == LeftRight.RIGHT:
-				segment.quad( st, segment.uv_square(0, uv_m, uv_y),
-					segment.pts_square(nf_loop, nf_basis,
+				SegGeo.quad( st, SegGeo.uv_square(0, uv_m, uv_y),
+					SegGeo.pts_square(nf_loop, nf_basis,
 						[
 							pos_l[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
 							pos_l[NearFar.FAR],
@@ -1286,8 +1237,8 @@ class GeoLoopInfo:
 						nf_top)
 					)
 			else:
-				segment.quad( st, segment.uv_square(uv_m, 0, uv_y),
-					segment.pts_square(nf_loop, nf_basis,
+				SegGeo.quad( st, SegGeo.uv_square(uv_m, 0, uv_y),
+					SegGeo.pts_square(nf_loop, nf_basis,
 						[
 							pos_r[NearFar.FAR],
 							pos_r[NearFar.FAR] + gutr_x[NearFar.FAR] * dir,
@@ -1371,9 +1322,9 @@ class GeoLoopInfo:
 			Vector2(ufac_mult_start, uv_start_v)
 		]
 
-		segment.inverse_quad( st,
+		SegGeo.inverse_quad( st,
 			uvs_center,
-			segment.pts_square(nf_loop, nf_basis,
+			SegGeo.pts_square(nf_loop, nf_basis,
 				[
 					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
 					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR]),
@@ -1389,9 +1340,9 @@ class GeoLoopInfo:
 				nf_top)
 			)
 
-		segment.inverse_quad( st,
+		SegGeo.inverse_quad( st,
 			uvs_left,
-			segment.pts_square(nf_loop, nf_basis,
+			SegGeo.pts_square(nf_loop, nf_basis,
 				[
 					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] ),
 					-(width_offset[LeftRight.LEFT][NearFar.FAR] + w_shoulder[LeftRight.LEFT][NearFar.FAR] + gutr_x[NearFar.FAR]),
@@ -1408,9 +1359,9 @@ class GeoLoopInfo:
 				UNDERSIDE_GUTTER_SMOOTHING_GROUP
 			)
 
-		segment.inverse_quad( st,
+		SegGeo.inverse_quad( st,
 			uvs_right,
-			segment.pts_square(nf_loop, nf_basis,
+			SegGeo.pts_square(nf_loop, nf_basis,
 				[
 					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR] + gutr_x[NearFar.FAR]),
 					(width_offset[LeftRight.RIGHT][NearFar.FAR] + w_shoulder[LeftRight.RIGHT][NearFar.FAR]),
@@ -1436,96 +1387,6 @@ class GeoLoopInfo:
 # ------------------------------------------------------------------------------
 
 
-static func uv_square(uv_lmr1:float, uv_lmr2:float, uv_y: Array) -> Array:
-	assert( len(uv_y) == 2 )
-	return	[
-			Vector2(uv_lmr1, uv_y[NearFar.FAR]),
-			Vector2(uv_lmr2, uv_y[NearFar.FAR]),
-			Vector2(uv_lmr2, uv_y[NearFar.NEAR]),
-			Vector2(uv_lmr1, uv_y[NearFar.NEAR]),
-			]
-
-
-static func pts_square(nf_loop:Array, nf_basis:Array, width_offset: Array, y_offset: Array = [], nf_y_dir = [Vector3.UP, Vector3.UP]) -> Array:
-	assert( len(nf_loop) == 2 && len(nf_basis) == 2 )
-	var ret = [
-			nf_loop[NearFar.FAR] + nf_basis[NearFar.FAR] * width_offset[0],
-			nf_loop[NearFar.FAR] + nf_basis[NearFar.FAR] * width_offset[1],
-			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[2],
-			nf_loop[NearFar.NEAR] + nf_basis[NearFar.NEAR] * width_offset[3],
-			]
-	if y_offset != null and y_offset.size() == 4:
-		ret[0] += nf_y_dir[NearFar.FAR] * y_offset[0]
-		ret[1] += nf_y_dir[NearFar.FAR] * y_offset[1]
-		ret[2] += nf_y_dir[NearFar.NEAR] * y_offset[2]
-		ret[3] += nf_y_dir[NearFar.NEAR] * y_offset[3]
-
-	return ret
-
-
-# Generate a quad with two triangles for a list of 4 points/uvs in a row.
-# For convention, do cloclwise from top-left vert, where the diagonal
-# will go from bottom left to top right.
-static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
-	# Triangle 1.
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[0])
-	# Add normal explicitly?
-	st.add_vertex(pts[0])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[1])
-	st.add_vertex(pts[1])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[3])
-	st.add_vertex(pts[3])
-	# Triangle 2.
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[1])
-	st.add_vertex(pts[1])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[2])
-	st.add_vertex(pts[2])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[3])
-	st.add_vertex(pts[3])
-
-
-static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
-	# Triangle 1.
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[3])
-	# Add normal explicitly?
-	st.add_vertex(pts[3])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[1])
-	st.add_vertex(pts[1])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[0])
-	st.add_vertex(pts[0])
-	# Triangle 2.
-	st.set_uv(uvs[3])
-	st.add_vertex(pts[3])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[2])
-	st.add_vertex(pts[2])
-	st.set_smooth_group(smoothing_group)
-	st.set_uv(uvs[1])
-	st.add_vertex(pts[1])
-
-
-func _flip_traffic_dir(lanes: Array) -> Array:
-	var _spdir:Array = []
-	for itm in lanes:
-		var val = itm
-		if itm == RoadPoint.LaneDir.FORWARD:
-			val = RoadPoint.LaneDir.REVERSE
-		elif itm == RoadPoint.LaneDir.REVERSE:
-			val = RoadPoint.LaneDir.FORWARD
-		_spdir.append(val)
-	_spdir.reverse()
-	return _spdir
-
-
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
 ## the lanes whose directions match and create Add/Remove Transition lanes where
 ## the start or end points are missing lanes. Return an array that includes both
@@ -1547,10 +1408,10 @@ func _match_lanes() -> Array:
 	var ep_traffic_dir:Array = end_point.traffic_dir
 	var anyflip := false
 	if _start_flip:
-		sp_traffic_dir = _flip_traffic_dir(sp_traffic_dir)
+		sp_traffic_dir = SegGeo._flip_traffic_dir(sp_traffic_dir)
 		anyflip = true
 	if _end_flip:
-		ep_traffic_dir = _flip_traffic_dir(ep_traffic_dir)
+		ep_traffic_dir = SegGeo._flip_traffic_dir(ep_traffic_dir)
 		anyflip = true
 
 	if (
@@ -1562,11 +1423,11 @@ func _match_lanes() -> Array:
 		push_warning("Warning: Unable to match lanes on start_point %s (parent: %s)" % [start_point, start_point.get_parent()])
 		return []
 
-	var start_flip_data = _get_lane_flip_data(sp_traffic_dir)
+	var start_flip_data = SegGeo._get_lane_flip_data(sp_traffic_dir)
 	var start_flip_offset = start_flip_data[0]
 	var start_traffic_dir = start_flip_data[1]
 
-	var end_flip_data = _get_lane_flip_data(ep_traffic_dir)
+	var end_flip_data = SegGeo._get_lane_flip_data(ep_traffic_dir)
 	var end_flip_offset = end_flip_data[0]
 	var end_traffic_dir = end_flip_data[1]
 
@@ -1722,41 +1583,6 @@ func _match_lanes() -> Array:
 
 	return lanes
 
-
-## Evaluate the lanes of a RoadPoint and return the index of the direction flip
-## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
-## overall traffic direction of the RoadPoint.
-## Returns: Array[int, RoadPoint.LaneDir]
-func _get_lane_flip_data(traffic_dir: Array) -> Array:
-	# Get lane FORWARD flip offset. If a flip occurs more than once, give
-	# warning.
-	var flip_offset = 0
-	var flip_count = 0
-
-	for i in range(len(traffic_dir)):
-		if (
-				# Save ID of first FORWARD lane
-				traffic_dir[i] == RoadPoint.LaneDir.FORWARD
-				and flip_count == 0
-		):
-			flip_offset = i
-			flip_count += 1
-		if (
-				# Flag unwanted flips. REVERSE always comes before FORWARD.
-				traffic_dir[i] == RoadPoint.LaneDir.REVERSE
-				and flip_count > 0
-		):
-			push_warning("Warning: Unable to detect lane flip on road_point with traffic dirs %s" % traffic_dir)
-			return [-1, RoadPoint.LaneDir.NONE]
-		elif flip_count == 0 and i == len(traffic_dir) - 1:
-			# This must be a REVERSE-only road point
-			flip_offset = len(traffic_dir) - 1
-			return [flip_offset, RoadPoint.LaneDir.REVERSE]
-		elif flip_count == 1 and flip_offset == 0 and i == len(traffic_dir) - 1:
-			# This must be a FORWARD-only road point
-			flip_offset = len(traffic_dir) - 1
-			return [flip_offset, RoadPoint.LaneDir.FORWARD]
-	return [flip_offset, RoadPoint.LaneDir.BOTH]
 
 #endregion
 # ------------------------------------------------------------------------------

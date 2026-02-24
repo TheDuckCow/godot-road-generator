@@ -1,0 +1,783 @@
+[gd_scene load_steps=32 format=3 uid="uid://dtdqpwngpuys0"]
+
+[ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_5ogp4"]
+[ext_resource type="Script" path="res://road_demos/road_museum/sidescroll_camera.gd" id="1_510rr"]
+[ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="1_q0j0e"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_xlvno"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2_pgtsv"]
+[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/RoadActor.tscn" id="4_5p3l5"]
+[ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="4_nf15d"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4_tgwwo"]
+[ext_resource type="PackedScene" uid="uid://dfggtpn3gyrn0" path="res://addons/road-generator/custom_containers/3way_2x2.tscn" id="6_uc067"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="6_x20i1"]
+[ext_resource type="PackedScene" uid="uid://b63rq4jeigte2" path="res://addons/road-generator/custom_containers/4way_2x2.tscn" id="7_5xed5"]
+[ext_resource type="PackedScene" uid="uid://cbw5410mk0wgq" path="res://addons/road-generator/custom_containers/highway_offramp.tscn" id="8_qqxxi"]
+[ext_resource type="PackedScene" uid="uid://carf53o7nq0qh" path="res://addons/road-generator/custom_containers/highway_onramp.tscn" id="9_4m2vf"]
+[ext_resource type="Material" uid="uid://c78y4pkrh2xr1" path="res://addons/road-generator/resources/road_uv.material" id="9_qe0if"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_intersection.gd" id="10_4oev0"]
+[ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="10_rstb4"]
+[ext_resource type="Script" path="res://addons/road-generator/procgen/intersection_ngon.gd" id="11_hm2jj"]
+[ext_resource type="PackedScene" uid="uid://dya4uwn8d2iq6" path="res://road_demos/demo_resources/decorations/edge_barrier.tscn" id="17_7n47g"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nbxyo"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_y0rkt"]
+sky_material = SubResource("ProceduralSkyMaterial_nbxyo")
+
+[sub_resource type="Environment" id="Environment_37l7f"]
+background_mode = 2
+sky = SubResource("Sky_y0rkt")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="BoxShape3D" id="2"]
+
+[sub_resource type="BoxMesh" id="3"]
+
+[sub_resource type="Resource" id="Resource_ansse"]
+script = ExtResource("11_hm2jj")
+
+[sub_resource type="Curve3D" id="Curve3D_5vw3u"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 16.0769, -6.2, 0, 0, 0, 0, -4.91692, -34.8453, 0, 24.4224, -5.62221, 0, 42.5478),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stsme"]
+albedo_color = Color(0.137725, 0.260995, 0.142001, 1)
+
+[sub_resource type="Curve3D" id="Curve3D_l4jy4"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 15.8571, 10.2, 0, 0, 0, 0, -5.13669, -34.8453, 0, 24.4224, 10.7778, 0, 42.5478),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve3D_ehsx3"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 15.9938, 0, 0, 0, 0, 0, -5, -34.8453, 0, 24.4224, 0.577789, 0, 42.5478),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve3D_rpgj5"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 4.12268e-06, 4.12268e-06, 34.5836, -8.2, 5.37634e-06, -9.77516e-07, 24.4836, -17.3803, 11.2304, 19.3418, -21.9194, 79.8571, -54.997, 12.1602, 56.0724),
+"tilts": PackedFloat32Array(6.97654e-07, -0.206548)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve3D_jqmwt"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 4.78411e-06, 4.78411e-06, 40.132, 8.2, -5.37634e-06, 9.77516e-07, 35.916, -25.4959, 16.4743, 19.3418, -21.9194, 79.8571, -59.6819, 15.486, 71.4331),
+"tilts": PackedFloat32Array(6.97654e-07, -0.161082)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve3D_g106h"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 4.4534e-06, 4.4534e-06, 37.3578, 0, 0, 0, 28.8056, -20.4484, 13.2129, 19.3418, -21.9194, 79.8571, -56.7681, 13.4175, 61.8795),
+"tilts": PackedFloat32Array(6.97654e-07, -0.170778)
+}
+point_count = 2
+
+[node name="Node3D" type="Node3D"]
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_5ogp4")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DemoUiCommon" parent="UI/VBoxContainer" instance=ExtResource("1_q0j0e")]
+layout_mode = 2
+
+[node name="instructions" type="Label" parent="UI/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+text = "left/right arrow to move camera"
+horizontal_alignment = 1
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_37l7f")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866024, -0.284613, 0.411094, 0, 0.822183, 0.569223, -0.500003, 0.49296, -0.71203, 0, 33.5348, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="." node_paths=PackedStringArray("range_source")]
+transform = Transform3D(1, 0, 0, 0, 0.920791, 0.390056, 0, -0.390056, 0.920791, 0, 16.0268, 9.35501)
+current = true
+script = ExtResource("1_510rr")
+range_source = NodePath("../RoadManager")
+
+[node name="RoadManager" type="Node3D" parent="."]
+script = ExtResource("1_xlvno")
+
+[node name="LaneChange" type="Node3D" parent="RoadManager"]
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_004")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/LaneChange"]
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 24.3841
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/LaneChange"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16.0454)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 5.92892
+next_mag = 24.3841
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/LaneChange"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -49.0527)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 2, 2, 1])
+lanes = Array[int]([2, 3, 3, 4, 5])
+prior_mag = 16.0
+next_mag = 7.25492
+prior_pt_init = NodePath("../RP_004")
+next_pt_init = NodePath("../RP_002")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/LaneChange"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0696602, 0.25, -64)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 2, 2, 1])
+lanes = Array[int]([2, 3, 3, 4, 5])
+prior_mag = 16.0
+next_mag = 16.0
+next_pt_init = NodePath("../RP_003")
+
+[node name="RoadActor3" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.14783, 3.8147e-06, -3.66865)
+
+[node name="RoadActor4" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2787, -5.72205e-06, -6.82003)
+
+[node name="RoadActor5" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.28377, -3.8147e-06, -57.7748)
+
+[node name="RoadActor6" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3651, -3.8147e-06, -56.673)
+
+[node name="RoadActor7" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.65714, -3.8147e-06, -59.9074)
+
+[node name="Collisions" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("9_qe0if")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_003")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/Collisions"]
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -32)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.78449
+next_mag = 5.5346
+lane_width = 2.0
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/Collisions"]
+transform = Transform3D(0.999859, -0.000120945, 0.0167917, 0, 0.999974, 0.00720247, -0.0167921, -0.00720146, 0.999833, 0.529, 0.727, -64)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 13.6952
+next_mag = 11.5609
+next_pt_init = NodePath("../RP_002")
+
+[node name="RigidBody3D" type="RigidBody3D" parent="RoadManager/Collisions"]
+transform = Transform3D(0.985076, -0.172118, 0, 0.163502, 0.935763, 0.312434, -0.0537757, -0.307772, 0.949939, 1.15038, 8.01015, -16.0742)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RoadManager/Collisions/RigidBody3D"]
+shape = SubResource("2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RoadManager/Collisions/RigidBody3D"]
+transform = Transform3D(1, -1.30385e-08, -3.72529e-09, 5.58794e-09, 1, -2.98023e-08, -3.72529e-09, 0, 1, 0, 0, 0)
+mesh = SubResource("3")
+
+[node name="ClosedRing" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+underside_thickness = 6.165
+generate_ai_lanes = true
+
+[node name="RoadActor" parent="RoadManager/ClosedRing" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.5271, 0, -28.9627)
+
+[node name="RoadActor3" parent="RoadManager/ClosedRing" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.71484, 0, -34.4372)
+
+[node name="RoadActor4" parent="RoadManager/ClosedRing" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.55606, 0, -91.6381)
+
+[node name="RoadActor2" parent="RoadManager/ClosedRing" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -67.1021, 0, -30.1499)
+
+[node name="RP_002" type="Node3D" parent="RoadManager/ClosedRing"]
+transform = Transform3D(0.975149, 0, 0.221548, 0, 1, 0, -0.221549, 0, 0.975149, -62.089, 0, -34.1059)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 20.362
+next_mag = 38.9552
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_005")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/ClosedRing"]
+transform = Transform3D(0.983571, -0.0879387, -0.157651, -7.45058e-09, 0.873322, -0.487143, 0.180519, 0.47914, 0.858974, -39.8721, 0, -73.4797)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 18.1644
+prior_pt_init = NodePath("../RP_004")
+next_pt_init = NodePath("../RP_002")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/ClosedRing"]
+transform = Transform3D(-0.614285, 0, -0.789084, 0, 1, 0, 0.789084, 0, -0.614285, -2.3228, 0, -99.9699)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.1527
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../RP_003")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/ClosedRing"]
+transform = Transform3D(-0.962175, 0, 0.272431, 0, 1, 0, -0.272432, 0, -0.962174, -2.03175, 1.52588e-05, -32.7668)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 22.1102
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_002")
+next_pt_init = NodePath("../RP_004")
+
+[node name="Twist" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 160, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+underside_thickness = 2.565
+generate_ai_lanes = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_003")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="RoadActor" parent="RoadManager/Twist" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.73209, 0, -4.02292)
+target_speed = 20
+
+[node name="RoadActor2" parent="RoadManager/Twist" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.73209, -2.54588, -116.863)
+target_speed = 20
+
+[node name="RP_001" type="Node3D" parent="RoadManager/Twist"]
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 29.0445
+gutter_profile = Vector2(2, 2)
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/Twist"]
+transform = Transform3D(0.5, -0.866025, 0, 0.866025, 0.5, 0, 0, 0, 1, 0, 0, -50)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 20.8337
+next_mag = 29.0445
+gutter_profile = Vector2(2, 2)
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/Twist"]
+transform = Transform3D(-0.5, -0.866024, 0, 0.866025, -0.5, 0, 0, 0, 1, 0, 0, -120)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 20.8337
+next_mag = 20.8337
+gutter_profile = Vector2(9.17, 7.735)
+next_pt_init = NodePath("../RP_002")
+
+[node name="PrefabIntersections" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220, 0, 0)
+
+[node name="4way_1x1" parent="RoadManager/PrefabIntersections" instance=ExtResource("4_nf15d")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16)
+
+[node name="3way_2x2" parent="RoadManager/PrefabIntersections" instance=ExtResource("6_uc067")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -60)
+
+[node name="4way_2x2" parent="RoadManager/PrefabIntersections" instance=ExtResource("7_5xed5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -100)
+
+[node name="highway_offramp" parent="RoadManager/PrefabIntersections" instance=ExtResource("8_qqxxi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0, -16)
+
+[node name="highway_onramp" parent="RoadManager/PrefabIntersections" instance=ExtResource("9_4m2vf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0, -80)
+
+[node name="splitter_2x2" parent="RoadManager/PrefabIntersections" instance=ExtResource("10_rstb4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0, -120)
+
+[node name="ConnectedPrefab" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 340, 0, 0)
+
+[node name="RoadActor5" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.7574, 0, -42.1725)
+
+[node name="RoadActor6" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.7658, 0, -14.277)
+
+[node name="RoadActor7" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.1511, 0, -17.4033)
+
+[node name="RoadActor8" parent="RoadManager/ConnectedPrefab" instance=ExtResource("4_5p3l5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.24063, 0, -30.223)
+
+[node name="Dynamic" type="Node3D" parent="RoadManager/ConnectedPrefab"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -340, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+generate_ai_lanes = true
+edge_containers = Array[NodePath]([NodePath("../3way_2x2"), NodePath("../3way_2x2b"), NodePath("../3way_2x2b"), NodePath("../3way_2x2")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_002"), NodePath("RP_001"), NodePath("RP_002"), NodePath("RP_001")])
+edge_rp_target_dirs = Array[int]([0, 1, 0, 1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_002"), NodePath("RP_003"), NodePath("RP_005"), NodePath("RP_006")])
+edge_rp_local_dirs = Array[int]([0, 1, 1, 0])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 299.474, 0.25, -28.3407)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 18.9124
+next_mag = 18.9124
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 324, 0, -12)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+prior_pt_init = NodePath("../RP_001")
+
+[node name="RP_003" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 324, 0, -44)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 382.911, 0.25, -29.2059)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 18.1707
+next_mag = 18.1707
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../RP_006")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 356, 0, -44)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+next_pt_init = NodePath("../RP_004")
+
+[node name="RP_006" type="Node3D" parent="RoadManager/ConnectedPrefab/Dynamic"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 356, 0, -12)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 8.0
+next_mag = 8.0
+prior_pt_init = NodePath("../RP_004")
+
+[node name="3way_2x2" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 0, -12)
+edge_containers = Array[NodePath]([NodePath("../Dynamic"), NodePath("../Dynamic"), NodePath("../3way_2x2b")])
+edge_rp_targets = Array[NodePath]([NodePath("../Dynamic/RP_006"), NodePath("RP_002"), NodePath("RP_003")])
+edge_rp_target_dirs = Array[int]([0, 0, 1])
+
+[node name="3way_2x2b" parent="RoadManager/ConnectedPrefab" instance=ExtResource("6_uc067")]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, -44)
+edge_containers = Array[NodePath]([NodePath("../Dynamic"), NodePath("../Dynamic"), NodePath("../3way_2x2")])
+edge_rp_targets = Array[NodePath]([NodePath("RP_003"), NodePath("../Dynamic/RP_005"), NodePath("RP_003")])
+edge_rp_target_dirs = Array[int]([1, 1, 1])
+
+[node name="ProcIntersection" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 420, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_005"), NodePath("RP_006"), NodePath("RP_008")])
+edge_rp_local_dirs = Array[int]([0, 1, 0, 0])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/ProcIntersection"]
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 16.6264
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -33.25)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.6264
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(0.969633, -0.0122152, 0.24426, 0.0033023, 0.999315, 0.0368655, -0.244543, -0.0349393, 0.969009, -0.150787, -0.608811, -65.3768)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 10.4962
+next_mag = 24.8934
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../Intersection")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(0.948324, 0, 0.317305, 0, 1, 0, -0.317305, 0, 0.948324, -8.7962, 7.62939e-06, -96.8342)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 18.2511
+next_mag = 10.4113
+next_pt_init = NodePath("../RP_004")
+
+[node name="RP_006" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(-0.771586, 0, 0.636124, 0, 1, 0, -0.636124, 0, -0.771586, 44.4849, 0.25, -97.3149)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1])
+lanes = Array[int]([2, 4, 5])
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_007")
+
+[node name="RP_007" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(-0.579887, -0.00792743, 0.814658, 0, 0.999953, 0.00973053, -0.814697, 0.00564261, -0.57986, 22.0515, 0.5, -58.234)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1])
+lanes = Array[int]([2, 4, 5])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_006")
+
+[node name="Intersection" type="Node3D" parent="RoadManager/ProcIntersection" node_paths=PackedStringArray("edge_points")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.24753, 0.487188, -46.8749)
+script = ExtResource("10_4oev0")
+settings = SubResource("Resource_ansse")
+edge_points = [NodePath("../RP_004"), NodePath("../RP_007"), NodePath("../RP_003"), NodePath("../RP_002")]
+
+[node name="RP_003" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(0.71146, 0.0668347, 0.699542, 1.62236e-09, 0.995467, -0.0951076, -0.702727, 0.0676652, 0.708234, 21.9858, 0.375324, -41.8394)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1])
+lanes = Array[int]([5, 5])
+next_mag = 16.6517
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_008")
+
+[node name="RP_008" type="Node3D" parent="RoadManager/ProcIntersection"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 0)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1])
+lanes = Array[int]([5, 5])
+prior_mag = 16.6517
+next_mag = 16.6517
+prior_pt_init = NodePath("../RP_003")
+
+[node name="ProcIntersectionNotLevel" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 508.416, 0, 0)
+script = ExtResource("2_pgtsv")
+material_resource = ExtResource("6_x20i1")
+use_lowpoly_preview = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1, -1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_005"), NodePath("RP_006"), NodePath("RP_008")])
+edge_rp_local_dirs = Array[int]([0, 1, 0, 0])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+next_mag = 16.6264
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -33.25)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 16.0
+next_mag = 16.6264
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_001")
+
+[node name="RP_004" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(0.969633, 0.116475, 0.215048, 0.0033023, 0.872992, -0.487724, -0.244543, 0.473624, 0.846097, -0.150787, 8.68592, -65.3768)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 10.4962
+next_mag = 24.8934
+prior_pt_init = NodePath("../RP_005")
+next_pt_init = NodePath("../Intersection")
+
+[node name="RP_005" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(0.948324, 0, 0.317305, 0, 1, 0, -0.317305, 0, 0.948324, -8.7962, 11.532, -96.8342)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1, 1])
+lanes = Array[int]([2, 4, 4, 2])
+prior_mag = 18.2511
+next_mag = 10.4113
+next_pt_init = NodePath("../RP_004")
+
+[node name="RP_006" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(-0.771586, 0, 0.636124, 0, 1, 0, -0.636124, 0, -0.771586, 44.4849, 0.25, -97.3149)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1])
+lanes = Array[int]([2, 4, 5])
+next_mag = 16.0
+prior_pt_init = NodePath("../RP_007")
+
+[node name="RP_007" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(-0.506659, 0.282186, 0.814658, 0.498449, 0.866865, 0.00973053, -0.703453, 0.410996, -0.57986, 22.0515, 0.5, -58.234)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 2, 1])
+lanes = Array[int]([2, 4, 5])
+prior_mag = 16.0
+next_mag = 16.0
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_006")
+
+[node name="Intersection" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel" node_paths=PackedStringArray("edge_points")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.24753, 1.45163, -46.8749)
+script = ExtResource("10_4oev0")
+settings = SubResource("Resource_ansse")
+edge_points = [NodePath("../RP_004"), NodePath("../RP_007"), NodePath("../RP_003"), NodePath("../RP_002")]
+
+[node name="RP_003" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(0.71146, 0.330544, 0.620134, 0, 0.882468, -0.470373, -0.702727, 0.334651, 0.62784, 21.9858, -6.20276, -41.8394)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1])
+lanes = Array[int]([5, 5])
+next_mag = 16.6517
+prior_pt_init = NodePath("../Intersection")
+next_pt_init = NodePath("../RP_008")
+
+[node name="RP_008" type="Node3D" parent="RoadManager/ProcIntersectionNotLevel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 0)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1])
+lanes = Array[int]([5, 5])
+prior_mag = 16.6517
+next_mag = 16.6517
+prior_pt_init = NodePath("../RP_003")
+
+[node name="DecorationsDemo" type="Node3D" parent="RoadManager"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 600, 0, 0)
+script = ExtResource("2_pgtsv")
+use_lowpoly_preview = true
+create_edge_curves = true
+edge_containers = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_targets = Array[NodePath]([NodePath(""), NodePath("")])
+edge_rp_target_dirs = Array[int]([-1, -1])
+edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_003")])
+edge_rp_local_dirs = Array[int]([0, 1])
+
+[node name="RP_001" type="Node3D" parent="RoadManager/DecorationsDemo"]
+transform = Transform3D(0.562774, 0, -0.826611, 0, 1, 0, 0.826611, 0, 0.562774, -21.4216, 0, -8.21647)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1, 1])
+lanes = Array[int]([5, 4, 2])
+next_mag = 30.0195
+gutter_profile = Vector2(0.2, 0)
+alignment = 1
+prior_pt_init = NodePath("../RP_002")
+
+[node name="RP_002" type="Node3D" parent="RoadManager/DecorationsDemo"]
+transform = Transform3D(0.562774, 0, -0.826611, 0, 1, 0, 0.826611, 0, 0.562774, 13.4237, 0, -32.6389)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1, 1])
+lanes = Array[int]([5, 4, 2])
+prior_mag = 37.7158
+next_mag = 15.9938
+gutter_profile = Vector2(0.2, 0)
+alignment = 1
+prior_pt_init = NodePath("../RP_003")
+next_pt_init = NodePath("../RP_001")
+
+[node name="edge_R" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
+curve = SubResource("Curve3D_5vw3u")
+metadata/_edit_lock_ = true
+
+[node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_R" instance=ExtResource("17_7n47g")]
+
+[node name="edge_grass_R" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_002/edge_R"]
+transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
+polygon = PackedVector2Array(0, -0.2, 0, 0, 20, 0, 20, -0.2)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_local = true
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+material = SubResource("StandardMaterial3D_stsme")
+
+[node name="edge_F" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
+curve = SubResource("Curve3D_l4jy4")
+metadata/_edit_lock_ = true
+
+[node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_F" instance=ExtResource("17_7n47g")]
+
+[node name="edge_grass_F" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_002/edge_F"]
+transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
+polygon = PackedVector2Array(0, -0.2, 0, 0, -20, 0, -20, -0.2)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_local = true
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+material = SubResource("StandardMaterial3D_stsme")
+
+[node name="edge_C" type="Path3D" parent="RoadManager/DecorationsDemo/RP_002"]
+curve = SubResource("Curve3D_ehsx3")
+metadata/_edit_lock_ = true
+
+[node name="RP_003" type="Node3D" parent="RoadManager/DecorationsDemo"]
+transform = Transform3D(0.470562, -0.33404, 0.816694, 0.578854, 0.815431, 0, -0.665958, 0.472747, 0.577071, -5.91803, 21.9194, -112.496)
+script = ExtResource("4_tgwwo")
+traffic_dir = Array[int]([2, 1, 1])
+lanes = Array[int]([5, 4, 2])
+prior_mag = 37.7158
+next_mag = 37.3578
+gutter_profile = Vector2(0.2, 0)
+next_pt_init = NodePath("../RP_002")
+
+[node name="edge_R" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
+curve = SubResource("Curve3D_rpgj5")
+metadata/_edit_lock_ = true
+
+[node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_R" instance=ExtResource("17_7n47g")]
+
+[node name="edge_grass_R" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_003/edge_R"]
+transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
+polygon = PackedVector2Array(0, -0.2, 0, 0, 20, 0, 20, -0.2)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_local = true
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+material = SubResource("StandardMaterial3D_stsme")
+
+[node name="edge_F" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
+curve = SubResource("Curve3D_jqmwt")
+metadata/_edit_lock_ = true
+
+[node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_F" instance=ExtResource("17_7n47g")]
+
+[node name="edge_grass_F" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_003/edge_F"]
+transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
+polygon = PackedVector2Array(0, -0.2, 0, 0, -20, 0, -20, -0.2)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_local = true
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+material = SubResource("StandardMaterial3D_stsme")
+
+[node name="edge_C" type="Path3D" parent="RoadManager/DecorationsDemo/RP_003"]
+curve = SubResource("Curve3D_g106h")
+metadata/_edit_lock_ = true
