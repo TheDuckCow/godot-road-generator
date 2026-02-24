@@ -100,9 +100,9 @@ func _handle_add_connected_rp(selection, point_init_type):
 func _assign_copy_target(target) -> void:
 	_editor_plugin.copy_attributes = {
 		# Lanes group
-		"traffic_dir": target.traffic_dir,
+		"traffic_dir": target.traffic_dir.duplicate(true),
 		"auto_lanes": target.auto_lanes,
-		"lanes": target.lanes,
+		"lanes": target.lanes.duplicate(true),
 		# Road gen group
 		"create_geo": target.create_geo,
 		"flatten_terrain": target.flatten_terrain,
@@ -128,7 +128,11 @@ func _apply_settings_target(target, all:bool) -> void:
 
 	for itm in _pts:
 		for key in _editor_plugin.copy_attributes.keys():
-			undo_redo.add_do_property(itm, key, _editor_plugin.copy_attributes[key])
+			var val: Variant = _editor_plugin.copy_attributes[key]
+			if val is Array:
+				undo_redo.add_do_property(itm, key, val.duplicate(true))
+			else:
+				undo_redo.add_do_property(itm, key, val)
 			undo_redo.add_undo_property(itm, key, itm.get(key))
 
 	# Ensure geometry gets updated
