@@ -1078,7 +1078,7 @@ func on_point_update(node:RoadGraphNode, low_poly:bool) -> void:
 	if _auto_refresh:
 		point.validate_junctions()
 	var use_lowpoly = low_poly and use_lowpoly_preview
-	
+
 	if is_instance_valid(point.prior_seg):
 		point.prior_seg.low_poly = use_lowpoly
 		point.prior_seg.is_dirty = true
@@ -1146,7 +1146,7 @@ func rebuild_segments(clear_existing := false):
 			return
 	update_edges()
 	validate_edges(clear_existing)
-	
+
 	_needs_refresh = false
 	if debug:
 		print("Rebuilding RoadSegments %s" % self.name)

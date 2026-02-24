@@ -189,7 +189,7 @@ class Obstacle:
 		assert(next)
 		assert(check_sanity(false, false))
 		var dir_back := RoadLane.reverse_move_dir(dir)
-		var prior := next.sequential_obstacles[dir_bacFk]
+		var prior := next.sequential_obstacles[dir_back]
 		if DEBUG_OUT:
 			prints(self, "inserting in obstacle list before", next, "after", prior, "(direction", MoveDir.find_key(dir), ")")
 		next.sequential_obstacles[dir_back] = self

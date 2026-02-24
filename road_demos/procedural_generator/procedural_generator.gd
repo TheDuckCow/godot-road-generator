@@ -76,7 +76,7 @@ func remove_rp(edge_rp: RoadPoint, dir: int) -> void:
 	assert(spawner)
 	despawn_cars(edge_rp) # reusing despawned actors with RoadActorManager, so auto_free_vehicles == false
 	edge_rp.remove_child(spawner)
-	edge_rp.disconnect_roadpoint(back_dir, dir)
+	edge_rp.disconnect_roadpoint(flip_dir, dir)
 	next_edge_rp.add_child(spawner)
 	edge_rp.prior_pt_init = ""
 	edge_rp.next_pt_init = ""
