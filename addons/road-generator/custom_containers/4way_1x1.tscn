@@ -1,9 +1,9 @@
 [gd_scene load_steps=9 format=3 uid="uid://d23s6bfnq6fex"]
 
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="1"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="2"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_lane.gd" id="3"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="4"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="1"]
+[ext_resource type="Script" uid="uid://difs1qg4mpcpw" path="res://addons/road-generator/nodes/road_point.gd" id="2"]
+[ext_resource type="Script" uid="uid://c0mi21wvn0ko0" path="res://addons/road-generator/nodes/road_lane.gd" id="3"]
+[ext_resource type="Script" uid="uid://cph7euje06kel" path="res://addons/road-generator/nodes/road_container.gd" id="4"]
 [ext_resource type="PackedScene" uid="uid://bg7im8h0wkfyv" path="res://addons/road-generator/custom_containers/4way_1x1.glb" id="5_c7omd"]
 
 [sub_resource type="Curve3D" id="Curve3D_yq2lp"]

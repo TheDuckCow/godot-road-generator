@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://de542wwer561r"]
 
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_05dvw"]
-[ext_resource type="Script" path="res://road_demos/demo_resources/demo_ui_common.gd" id="2_7euph"]
+[ext_resource type="Script" uid="uid://o2nqtgjqfo7t" path="res://road_demos/demo_resources/demo_ui_common.gd" id="2_7euph"]
 
 [node name="DemoUiCommon" type="Control"]
 custom_minimum_size = Vector2(0, 80)

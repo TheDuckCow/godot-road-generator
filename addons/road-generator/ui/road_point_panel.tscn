@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dw1vy3b6qmt5r"]
 
-[ext_resource type="Script" path="res://addons/road-generator/ui/road_point_panel.gd" id="1"]
+[ext_resource type="Script" uid="uid://cprhlcin32pyh" path="res://addons/road-generator/ui/road_point_panel.gd" id="1"]
 
 [sub_resource type="Theme" id="1"]
 

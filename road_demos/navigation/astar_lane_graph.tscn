@@ -1,9 +1,9 @@
 [gd_scene load_steps=19 format=3 uid="uid://buus3nw81afbr"]
 
-[ext_resource type="Script" path="res://road_demos/navigation/astar_lane_graph.gd" id="1_g562n"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="1_o8koi"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="3_uojm1"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="4_4lmnd"]
+[ext_resource type="Script" uid="uid://bbndtjvjhk33q" path="res://road_demos/navigation/astar_lane_graph.gd" id="1_g562n"]
+[ext_resource type="Script" uid="uid://bxp3i4cnonh8y" path="res://addons/road-generator/nodes/road_manager.gd" id="1_o8koi"]
+[ext_resource type="Script" uid="uid://cph7euje06kel" path="res://addons/road-generator/nodes/road_container.gd" id="3_uojm1"]
+[ext_resource type="Script" uid="uid://difs1qg4mpcpw" path="res://addons/road-generator/nodes/road_point.gd" id="4_4lmnd"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="5_p8dyk"]
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="5_vs6qx"]
 [ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="7_xun5x"]

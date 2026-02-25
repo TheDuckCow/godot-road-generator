@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3 uid="uid://b7r8ejy8iua8t"]
 
-[ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar.gd" id="1"]
-[ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" id="2"]
-[ext_resource type="Script" path="res://addons/road-generator/ui/road_toolbar_settings_menu.gd" id="3_ldoh5"]
+[ext_resource type="Script" uid="uid://bx3cyeie4oy0w" path="res://addons/road-generator/ui/road_toolbar.gd" id="1"]
+[ext_resource type="Script" uid="uid://d0fw0jr33j5ai" path="res://addons/road-generator/ui/road_toolbar_create_menu.gd" id="2"]
+[ext_resource type="Script" uid="uid://daojwv1kb46t" path="res://addons/road-generator/ui/road_toolbar_settings_menu.gd" id="3_ldoh5"]
 
 [node name="RoadToolbar" type="HBoxContainer"]
 script = ExtResource("1")
