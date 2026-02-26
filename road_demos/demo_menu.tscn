@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://duokst1f0w8yc"]
 
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_nvna4"]
-[ext_resource type="Script" path="res://road_demos/demo_menu.gd" id="2_22uuf"]
+[ext_resource type="Script" uid="uid://bmlwp8xwey43l" path="res://road_demos/demo_menu.gd" id="2_22uuf"]
 [ext_resource type="Texture2D" uid="uid://cn8naqbbkbdm2" path="res://icon.png" id="3_ronpq"]
 
 [sub_resource type="Gradient" id="Gradient_higwd"]

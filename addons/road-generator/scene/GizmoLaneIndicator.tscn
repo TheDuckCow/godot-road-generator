@@ -1,27 +1,27 @@
-[gd_scene load_steps=5 format=2]
+[gd_scene load_steps=5 format=3 uid="uid://rcygpxq0rcpm"]
 
-[sub_resource type="BoxMesh" id=1]
-size = Vector3( 0.5, 0.5, 2 )
+[sub_resource type="BoxMesh" id="1"]
+size = Vector3(0.5, 0.5, 2)
 
-[sub_resource type="StandardMaterial3D" id=2]
-flags_unshaded = true
-params_cull_mode = 1
+[sub_resource type="StandardMaterial3D" id="2"]
+cull_mode = 1
+shading_mode = 0
 
-[sub_resource type="BoxMesh" id=3]
-size = Vector3( 0.5, 0.5, 2 )
+[sub_resource type="BoxMesh" id="3"]
+size = Vector3(0.5, 0.5, 2)
 
-[sub_resource type="StandardMaterial3D" id=4]
-flags_unshaded = true
-albedo_color = Color( 0.0705882, 1, 0.976471, 1 )
+[sub_resource type="StandardMaterial3D" id="4"]
+shading_mode = 0
+albedo_color = Color(0.0705882, 1, 0.976471, 1)
 
 [node name="GizmoLaneIndicator" type="Node3D"]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D( 1.00065, 0, 0, 0, 1.00065, 0, 0, 0, 2.44929, 0.000378732, 0.00273072, 0.000607927 )
-mesh = SubResource( 1 )
-material/0 = SubResource( 2 )
+transform = Transform3D(1.00065, 0, 0, 0, 1.00065, 0, 0, 0, 2.44929, 0.000378732, 0.00273072, 0.000607927)
+mesh = SubResource("1")
+material/0 = SubResource("2")
 
 [node name="MeshInstance2" type="MeshInstance3D" parent="."]
-transform = Transform3D( 0.887933, 0, 0, 0, 0.887933, 0, 0, 0, 2.38737, -1.23619e-07, -8.91276e-07, -1.9843e-07 )
-mesh = SubResource( 3 )
-material/0 = SubResource( 4 )
+transform = Transform3D(0.887933, 0, 0, 0, 0.887933, 0, 0, 0, 2.38737, -1.23619e-07, -8.91276e-07, -1.9843e-07)
+mesh = SubResource("3")
+material/0 = SubResource("4")

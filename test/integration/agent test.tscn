@@ -1,11 +1,22 @@
-[gd_scene load_steps=8 format=3 uid="uid://cgakalkwsj6oy"]
+[gd_scene load_steps=11 format=3 uid="uid://cgakalkwsj6oy"]
 
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
-[ext_resource type="Material" path="res://addons/road-generator/resources/road_texture.material" id="3"]
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="4"]
+[ext_resource type="Script" uid="uid://difs1qg4mpcpw" path="res://addons/road-generator/nodes/road_point.gd" id="1"]
+[ext_resource type="Script" uid="uid://cph7euje06kel" path="res://addons/road-generator/nodes/road_container.gd" id="2"]
+[ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="3"]
+[ext_resource type="Script" uid="uid://bxp3i4cnonh8y" path="res://addons/road-generator/nodes/road_manager.gd" id="4"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="5"]
-[ext_resource type="PackedScene" path="res://demo/procedural_generator/RoadActor.tscn" id="6"]
+
+[sub_resource type="Resource" id="Resource_gy8px"]
+metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+
+[sub_resource type="Resource" id="Resource_ox4bs"]
+metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+
+[sub_resource type="Resource" id="Resource_dx2pt"]
+metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+
+[sub_resource type="Resource" id="Resource_dlcdb"]
+metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
 
 [sub_resource type="Environment" id="Environment_uksjl"]
 background_mode = 1
@@ -18,16 +29,16 @@ script = ExtResource("4")
 
 [node name="vehicles" type="Node" parent="RoadManager"]
 
-[node name="RoadActor" parent="RoadManager/vehicles" instance=ExtResource("6")]
+[node name="RoadActor" parent="RoadManager/vehicles"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.95619, 3.8147e-06, 24.7984)
 
-[node name="RoadActor2" parent="RoadManager/vehicles" instance=ExtResource("6")]
+[node name="RoadActor2" parent="RoadManager/vehicles"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.12656, 0, -19.3747)
 
-[node name="RoadActor3" parent="RoadManager/vehicles" instance=ExtResource("6")]
+[node name="RoadActor3" parent="RoadManager/vehicles"]
 transform = Transform3D(-0.998405, 0, -0.0564662, 0, 1, 0, 0.0564662, 0, -0.998405, -11.2174, 0, -52.6436)
 
-[node name="RoadActor4" parent="RoadManager/vehicles" instance=ExtResource("6")]
+[node name="RoadActor4" parent="RoadManager/vehicles"]
 transform = Transform3D(-0.998405, 0, -0.0564662, 0, 1, 0, 0.0564662, 0, -0.998405, -1.74689, 0, -22.2232)
 
 [node name="splitter_2x2" parent="RoadManager" instance=ExtResource("5")]

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cc8w0puk44el3"]
 
-[ext_resource type="Script" path="res://addons/road-generator/ui/road_container_panel.gd" id="1_1iim1"]
+[ext_resource type="Script" uid="uid://crm0m321yddjf" path="res://addons/road-generator/ui/road_container_panel.gd" id="1_1iim1"]
 
 [node name="RoadContainerPanel" type="VBoxContainer"]
 anchors_preset = 15
