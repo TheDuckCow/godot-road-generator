@@ -95,7 +95,7 @@ You can share you appreciation by:
 1. Joining the [Wheel Steal discord](https://discord.gg/gttJWznb4a)
 1. Becoming a [Patron of the project](https://www.patreon.com/WheelStealGame) (see special Roadside Support tier for hands on support)
 
-Major contributions by [antonkurkin](https://github.com/antonkurkin), [NoJoseJose](https://github.com/NoJoseJose), [Picorims](https://github.com/Picorims), and [more here](https://github.com/theduckcow/godot-road-generator/graphs/contributors).
+Major contributions by [bdog2112](https://github.com/bdog2112), [antonkurkin](https://github.com/antonkurkin), [NoJoseJose](https://github.com/NoJoseJose), [Picorims](https://github.com/Picorims), and [more here](https://github.com/theduckcow/godot-road-generator/graphs/contributors).
 
 Logo designed by [Kenney](https://www.kenney.nl/assets).
 
