@@ -138,7 +138,7 @@ func configure_road_update_signal() -> void:
 		road_manager.on_road_updated.connect(_on_manager_road_updated)
 	elif not auto_refresh and road_manager.on_road_updated.is_connected(_on_manager_road_updated):
 		road_manager.on_road_updated.disconnect(_on_manager_road_updated)
-		
+
 	# Handle transforms on containers themelves
 	if auto_refresh and not road_manager.on_container_transformed.is_connected(_on_container_transform):
 		road_manager.on_container_transformed.connect(_on_container_transform)
@@ -633,7 +633,7 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 			# Check if we are beyond the egde of this RoadSegment, and thus
 			# would overlap with updates done by the next RoadSegment
 			if closest_distance == 0.0:
-				var _offset = world_pos - segment.start_point.global_position 
+				var _offset = world_pos - segment.start_point.global_position
 				var zdist := absf(segment.start_point.global_transform.basis.z.dot(_offset))
 				if zdist > vertex_spacing:
 					z += vertex_spacing
@@ -644,12 +644,12 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 				if zdist > vertex_spacing:
 					z += vertex_spacing
 					continue
-			
+
 			# TODO: project this world position onto the xz plane of the transform
 			# returned at this curvepoint, to account for road tilting
 			# Likely making use of: sample_baked_with_rotation
 			var road_y := world_curve_point.y + offset
-			
+
 			var lateral_vector := world_pos - Vector3(world_curve_point.x, 0.0, world_curve_point.z)
 
 			var t := clamp(closest_distance / flattened_curve.get_baked_length(), 0.0, 1.0)
@@ -658,7 +658,7 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 			# TODO: Need to account for RoadPoint alignment, right now assumes CENTERED
 			# Offset by lane_width * number rev lanes if not centered.
 			var width := lerpf(start_width, end_width, t)
-			
+
 			var lat_dist: float = lateral_vector.length()
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin

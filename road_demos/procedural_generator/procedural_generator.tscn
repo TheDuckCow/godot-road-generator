@@ -29,12 +29,11 @@ road_actor_scenes = Array[PackedScene]([ExtResource("4_re2kk")])
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource("4_re2kk")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.89809, 1.60779, -0.516281)
 drive_state = 2
-target_speed = 100
 visualize_lane = true
 auto_register = false
 
 [node name="Camera3D" type="Camera3D" parent="RoadManager/vehicles/Player"]
-transform = Transform3D(1, 0, 0, 0, 0.956524, 0.291654, 0, -0.291654, 0.956524, -1.89809, 9.55901, 16.5773)
+transform = Transform3D(1, 0, 0, 0, 0.96343, 0.267961, 0, -0.267961, 0.96343, -1.89809, 5.90092, 18.1379)
 far = 300.0
 
 [node name="Road_001" type="Node3D" parent="RoadManager"]

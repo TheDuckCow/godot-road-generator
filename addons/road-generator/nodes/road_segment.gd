@@ -32,6 +32,7 @@ enum LeftRight {
 }
 
 const SegGeo := preload("res://addons/road-generator/procgen/segment_geo.gd")
+const DEBUG_OUT := false
 
 const LOWPOLY_FACTOR = 3.0
 const RAD_NINETY_DEG = PI/2 ## aka 1.5707963267949, used for offset_curve algorithm
@@ -101,7 +102,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	pass
-	
+
 
 # Workaround for cyclic typing
 func is_road_segment() -> bool:
@@ -204,6 +205,8 @@ func _init_end_get():
 ## Check if needing to be rebuilt.
 ## Returns true if rebuild was done, else (including if invalid) false.
 func check_rebuild() -> bool:
+	if DEBUG_OUT:
+		print("executing check_rebuild for ", self)
 	if is_queued_for_deletion():
 		return false
 	if not is_instance_valid(container):
@@ -357,14 +360,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		assert( end_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		end_lane_offset = len(end_point.lanes) / 2.0
 
-	var start_offset = (start_lane_offset - 0.5) * start_point.lane_width
-	var end_offset = (end_lane_offset - 0.5) * end_point.lane_width
+	var start_offset = start_lane_offset - 0.5
+	var end_offset = end_lane_offset - 0.5
 
 	# Tracker used during the loop, to sum offset to apply.
 	var lanes_added := 0
 
 	# Assist var to assign lane_right and lane_left, used by AI for lane changes
-	var last_ln = null
+	var last_ln: RoadLane = null
 	var last_ln_reverse: bool
 
 	# Cache for sparse node removal
@@ -377,13 +380,17 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
 
-	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
 		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
+
+		# Set direction
+		# TODO: When directionality is made consistent, we should no longer
+		# need to invert the direction assignment here.
+		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
@@ -412,20 +419,12 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.lane_next_tag = this_match[3]
 		new_ln.name = ln_name
 
-		var tmp = get_transition_offset(
+		var tmp = get_transition_shift(
 			ln_type, ln_dir, lane_shift)
 		var start_shift:float = tmp[0]
 		var end_shift:float = tmp[1]
-		var in_offset = lanes_added * start_point.lane_width - start_offset + start_shift
-		var out_offset = lanes_added * end_point.lane_width - end_offset + end_shift
-
-		# Set direction
-		# TODO: When directionality is made consistent, we should no longer
-		# need to invert the direction assignment here.
-		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
-
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
-			new_ln.transition = true
+		var in_offset = (lanes_added - start_offset + start_shift) * start_point.lane_width
+		var out_offset = (lanes_added - end_offset + end_shift) * end_point.lane_width
 
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
@@ -446,12 +445,41 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
-			if ln_dir == RoadPoint.LaneDir.FORWARD:
+			if new_ln_reverse:
 				last_ln.lane_right = last_ln.get_path_to(new_ln)
 				new_ln.lane_left = new_ln.get_path_to(last_ln)
 			else:
 				last_ln.lane_left = last_ln.get_path_to(new_ln)
 				new_ln.lane_right = new_ln.get_path_to(last_ln)
+
+		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
+			new_ln.flags = RoadLane.LaneFlags.MERGING if new_ln_reverse else RoadLane.LaneFlags.DIVERGING
+		elif ln_type == RoadPoint.LaneType.TRANSITION_REM:
+			new_ln.flags = RoadLane.LaneFlags.DIVERGING if new_ln_reverse else RoadLane.LaneFlags.MERGING
+		else:
+			new_ln.flags = RoadLane.LaneFlags.NORMAL
+		if last_ln && new_ln_reverse == last_ln_reverse:
+			if new_ln_reverse:
+				if new_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]:
+					assert(last_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					if last_ln.flags == RoadLane.LaneFlags.NORMAL:
+						last_ln.flags = RoadLane.LaneFlags.MERGE_INTO if new_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
+						new_ln.set_primary_lane(primary_lane_dir, last_ln)
+					else:
+						assert(last_ln.flags == new_ln.flags)
+						new_ln.set_primary_lane(primary_lane_dir, last_ln)
+			else:
+				assert(new_ln.flags not in [RoadLane.LaneFlags.MERGE_INTO, RoadLane.LaneFlags.DIVERGE_FROM])
+				if (new_ln.flags == RoadLane.LaneFlags.NORMAL
+					&& last_ln.flags in [RoadLane.LaneFlags.MERGING,RoadLane.LaneFlags.DIVERGING]):
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.MoveDir.BACKWARD
+					new_ln.flags = RoadLane.LaneFlags.MERGE_INTO if last_ln.flags == RoadLane.LaneFlags.MERGING else RoadLane.LaneFlags.DIVERGE_FROM
+					var transition_ln := last_ln
+					while transition_ln:
+						assert(transition_ln.flags == last_ln.flags)
+						transition_ln.set_primary_lane(primary_lane_dir, new_ln)
+						transition_ln = transition_ln.get_side_lane(RoadLane.SideDir.RIGHT)
 
 		# Assign that it was a success.
 		lanes_added += 1
@@ -540,7 +568,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var end_pt_trans: Transform3D
 	var start_ang: float
 	var end_ang: float
-	
+
 	if reverse:
 		dst.add_point(out_pos, out_pt_out, out_pt_in)
 		dst.add_point(in_pos, in_pt_out, in_pt_in)
@@ -549,7 +577,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
 		end_ang = start_pt_trans.basis.y.angle_to(d_gbasis.y)
 		start_ang = end_pt_trans.basis.y.angle_to(a_gbasis.y)
-		
+
 		# TOOD: Somehow here, there's slight jitter when applying the reverse logic,
 		# some rotation/tilts match exactly, others are off by like a degree or so
 		# (not substantial, so seems like a floating point issue, seems
@@ -566,25 +594,25 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
 		start_ang = start_pt_trans.basis.y.angle_to(a_gbasis.y)
 		end_ang = end_pt_trans.basis.y.angle_to(d_gbasis.y)
-	
+
 		# Now apply a corrected tilt to account for interpolating the up vector
 		# if the tilts of both roadpoints are not the same.
 		var tilt_dir:float = 1.0 if start_pt_trans.basis.x.dot(a_gbasis.y) > 0 else -1.0
 		dst.set_point_tilt(0, start_ang*tilt_dir)
 		tilt_dir = 1.0 if end_pt_trans.basis.x.dot(d_gbasis.y) > 0 else -1.0
 		dst.set_point_tilt(1, end_ang*tilt_dir)
-	
+
 	# One assignment at the end, to avoid duplicate curve modified calls
 	road_lane.curve = dst
 
 
-## Offset the curve in/out points based on lane index.
+## shift of the lanes (how many added/removed)
 ##
 ## Track the init (for reverse) or the stacking (fwd) number of
 ## transition lanes to offset.
 ##
 ## Note: lane_shift is passed by reference and mutated.
-func get_transition_offset(
+func get_transition_shift(
 		ln_type: int,
 		ln_dir: int,
 		lane_shift: Dictionary) -> Array:
@@ -617,9 +645,6 @@ func get_transition_offset(
 	#else:
 	# General non transition case, but should be reverse=0 by now.
 
-	start_shift *= start_point.lane_width
-	end_shift *= end_point.lane_width
-
 	return [start_shift, end_shift]
 
 
@@ -639,16 +664,17 @@ func get_lanes() -> Array:
 
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments(ignore_list: Array = []) -> void:
-	for l: RoadLane in self.get_lanes():
-		if l in ignore_list:
+	for lane: RoadLane in self.get_lanes():
+		if DEBUG_OUT:
+			print("removing lane ", lane, " while removing segment ", self)
+		if lane in ignore_list:
 			return
-		var ln:RoadLane = l.get_node_or_null(l.lane_next)
-		if ln && ln.lane_prior == ln.get_path_to(l):
-			ln.lane_prior = NodePath("")
-		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
-		if lp && lp.lane_next == lp.get_path_to(l):
-			lp.lane_next = NodePath("")
-		l.queue_free()
+		for dir in RoadLane.MoveDir.values():
+			var dir_back := RoadLane.reverse_move_dir(dir)
+			var lane_next := lane.get_sequential_lane(dir)
+			if lane_next && lane_next.get_sequential_lane(dir_back) == lane:
+				lane.connect_next(null)
+		lane.queue_free()
 
 
 ## Remove all edge curves attached to this RoadSegment
@@ -787,7 +813,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	# Would be nice, but not producing usable tilting even after using set_point_tilt
 	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.x
-	
+
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -810,7 +836,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
 	var start_up = start_point.transform.basis.y
 	var end_up = end_point.transform.basis.y
-	
+
 	# TODO: calculate influence based on relative lengths of handles,
 	# as this method will perform the same easing regardless of handles
 	var sample_eased = ease(sample_position, smooth_amount)
@@ -829,7 +855,7 @@ func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -
 	# Would be nice, but not producing usable tilting even after using set_point_tilt
 	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.y
-	
+
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -1272,22 +1298,22 @@ class GeoLoopInfo:
 				nf_thickness[nf] = min_thickness
 
 		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
-		
+
 		# Presume the underside material uses seamless textures in both directions,
 		# to avoid stretching we'll presume that 1 UV tile should correspond to
 		# two lane widths. Technically still needs to scale start to end since the
 		# size of the road width could also vary.
-		
+
 		var rwidth_start := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.NEAR])
 		var rwidth_end := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.FAR])
 		var uv_unit_width_start:float = width_offset[LeftRight.LEFT][NearFar.NEAR] + width_offset[LeftRight.RIGHT][NearFar.NEAR]
 		var uv_unit_width_end:float = width_offset[LeftRight.LEFT][NearFar.FAR] + width_offset[LeftRight.RIGHT][NearFar.FAR]
-		
+
 		const UNIT_LANE_COUNT := 4.0  # How many lanes a 0->1 U tile represents
 		# Calc U offset from middle of road (geometric, not lane)
 		var ufac_mult_start = uv_unit_width_start / UNIT_LANE_COUNT / rwidth_start / 2.0
 		var ufac_mult_end = uv_unit_width_end / UNIT_LANE_COUNT / rwidth_end / 2.0
-		
+
 		var uv_start_v:float = per_loop_uv_size * float(loop)
 		var uv_end_v:float = per_loop_uv_size * float(loop + 1)
 		var uvs_center = [
@@ -1296,7 +1322,7 @@ class GeoLoopInfo:
 			Vector2(ufac_mult_start, uv_start_v),
 			Vector2(-ufac_mult_start, uv_start_v)
 		]
-		
+
 		# map width of road to be 0-1, to gutter height ratio
 		var sp:RoadPoint = point[0]
 		var ep:RoadPoint = point[1]
@@ -1308,7 +1334,7 @@ class GeoLoopInfo:
 			lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[NearFar.FAR]),
 			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[1])
 		).length() / UNIT_LANE_COUNT / rwidth_end
-		
+
 		var uvs_right = [
 			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
 			Vector2(ufac_mult_end, uv_end_v),

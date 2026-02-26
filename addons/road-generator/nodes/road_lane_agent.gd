@@ -23,15 +23,6 @@ extends Node
 #region Signals/Enums/Const/Export/Vars
 # ------------------------------------------------------------------------------
 
-
-signal on_lane_changed(old_lane)
-
-enum MoveDir
-{
-	FORWARD = 1,
-	STOP = 0,
-	BACKWARD = -1
-}
 enum LaneChangeDir
 {
 	RIGHT = 1,
@@ -39,15 +30,18 @@ enum LaneChangeDir
 	LEFT = -1
 }
 
+const MoveDir = RoadLane.MoveDir
+const DEBUG_OUT: bool = false
+
+static func to_lane_side(dir : LaneChangeDir) -> RoadLane.SideDir:
+	assert(dir in [LaneChangeDir.LEFT, LaneChangeDir.RIGHT] )
+	return RoadLane.SideDir.RIGHT if dir == LaneChangeDir.RIGHT else RoadLane.SideDir.LEFT
+static func other_side(dir: LaneChangeDir) -> LaneChangeDir:
+	return -1 * dir
 
 ## Directly assign the path to the [RoadManager] instance, otherwise will assume it
 ## is in the parent hierarchy. Should refer to [RoadManager] nodes only.
 @export var road_manager_path: NodePath
-## Automatically register and unregiter this vehicle to RoadLanes as we travel.[br][br]
-##
-## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
-## being removed, but likely should turn off for player agents to avoid freeing.
-@export var auto_register: bool = true
 ## Debug option to mark the current [RoadLane] visible ingame.[br][br]
 ##
 ## Can be slow, best to turn it off for production use.
@@ -58,13 +52,10 @@ var actor: Node3D
 ## The RoadManager instance that is containing all RoadContainers to consider,
 ## primarily needed to fetch the initial nearest RoadLane
 var road_manager: RoadManager
-## The current RoadLane, used as the linking reference to all adjacent lanes
-var current_lane: RoadLane
 
-## Cache just to check whether the prior lane was made visible by visualize_lane
-var _did_make_lane_visible := false
-
-const DEBUG_OUT: bool = false
+var agent_pos := RoadLane.Obstacle.new(visualize_lane)
+var agent_pos_secondary := RoadLane.Obstacle.new() ## for merging/diverging and lane change
+var agent_move := RoadLaneAgent.MoveAlongLane.new()
 
 
 # ------------------------------------------------------------------------------
@@ -79,8 +70,7 @@ func _ready() -> void:
 	res = assign_manager()
 	assert(res == OK)
 	if DEBUG_OUT:
-		print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
-
+		print("Finished setup for road lane agent ", self, " with: ", road_manager)
 
 
 # ------------------------------------------------------------------------------
@@ -89,36 +79,37 @@ func _ready() -> void:
 # ------------------------------------------------------------------------------
 
 
-func assign_lane(new_lane:RoadLane) -> void:
+func is_lane_position_valid() -> bool:
+	assert( !self.agent_pos.lane || ( is_instance_valid(self.agent_pos.lane) && self.agent_pos.check_sanity() ) )
+	return true if self.agent_pos.lane else false
+
+func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
-	# In race conditions, better to have a vehcile registered in two lanes at
-	# once to avoid getting lost in the void if something freed in between
-	if auto_register:
-		new_lane.register_vehicle(actor)
-	if not new_lane.draw_in_game and visualize_lane:
-		new_lane.draw_in_game = true
-		_did_make_lane_visible = true
-	var _initial_lane = unassign_lane()
-	current_lane = new_lane
-	emit_signal("on_lane_changed", _initial_lane)
+	var new_offset = new_lane.curve.get_closest_offset(
+			new_lane.to_local(
+				get_closest_path_point( new_lane,
+					actor.global_transform.origin)))
+	if DEBUG_OUT:
+		print("Found new offset ", new_offset," for ", self )
+	self.agent_pos.assign_position(new_lane, new_offset)
+
+
+func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
+	if not is_instance_valid(new_lane):
+		push_warning("Attempted moving to invalid lane via %s" % self)
+		return
+	self.agent_pos.assign_position(new_lane, new_offset)
 
 
 func unassign_lane() -> RoadLane:
-	var prev_lane: RoadLane = null
-	if is_instance_valid(current_lane) and current_lane is RoadLane:
-		# Even if auto_register is off, no harm in attempt to unregister, in
-		# case the setting had recently changed
-		current_lane.unregister_vehicle(actor)
-		if current_lane.draw_in_game and _did_make_lane_visible:
-			current_lane.draw_in_game = false
-		prev_lane = current_lane
-		current_lane = null
-	return prev_lane
+	var old_lane: RoadLane = self.agent_pos.lane
+	self.agent_pos.unassign_position()
+	return old_lane
 
 
-func assign_actor() -> int:
+func assign_actor() -> Error:
 	var par = get_parent()
 	if not par is Node3D:
 		push_error("RoadLaneAgent should be a child of a spatial")
@@ -127,19 +118,17 @@ func assign_actor() -> int:
 	return OK
 
 
-func assign_manager() -> int:
+func assign_manager() -> Error:
 	# First try the provided manager path if any
 	var _target_manager: Node
 	if road_manager_path:
 		_target_manager = get_node_or_null(road_manager_path)
-		if not is_instance_valid(_target_manager):
-			push_error("road_manager_path is invalid")
-			return FAILED
-		elif not _target_manager is RoadManager:
+		if not is_instance_valid(_target_manager) || not _target_manager is RoadManager:
 			push_error("road_manager_path is invalid")
 			return FAILED
 		road_manager = _target_manager
 		return OK
+
 
 	# Fall back to implied parent
 	var _last_par = get_parent()
@@ -166,12 +155,12 @@ func get_closest_path_point(path: Path3D, pos:Vector3) -> Vector3:
 	return path.to_global(interp_point)
 
 
-func assign_nearest_lane() -> int:
-	var res = find_nearest_lane()
-	if is_instance_valid(res) and res is RoadLane:
-		assign_lane(res)
+func assign_nearest_lane() -> Error:
+	var res := find_nearest_lane()
+	if is_instance_valid(res):
+		assign_closest_lane_position(res)
 		if DEBUG_OUT:
-			print("Assigned nearest lane: ", current_lane)
+			print("Assigned nearest lane: ", agent_pos.lane)
 		return OK
 	else:
 		return FAILED
@@ -191,7 +180,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	var all_lanes:Array = []
 	var groups_checked:Array = [] # Technically, each container could have its own group name
 	var containers := road_manager.get_containers() as Array
-	
+
 	if not road_manager.ai_lane_group in groups_checked:
 		var new_lanes = get_tree().get_nodes_in_group(road_manager.ai_lane_group)
 		all_lanes.append_array(new_lanes)
@@ -218,138 +207,134 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 ## Finds the poistion this many many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
-	return _move_along_lane(move_distance, true)
+	var pos = test_move_along_lane(move_distance)
+	agent_pos.move_along_lane(agent_move.lane, agent_move.offset, MoveDir.FORWARD if agent_move.dir_sign > 0 else MoveDir.BACKWARD)
+	return pos
 
 
 ## Finds the poistion this many many units forward (or backwards, if negative)
+## along the current lane, assigning a new lane if the next one is reached
+func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
+	if ! new_lane:
+		return agent_move.get_position()
+	assign_closest_lane_position(new_lane)
+	return move_along_lane(agent_move.distance_left)
+
+func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
+	if ! new_lane:
+		return agent_move.get_position()
+	var new_offset = _position_on_side_lane(new_lane)
+	assign_lane_position(new_lane, new_offset)
+	return move_along_lane(agent_move.distance_left)
+
+## Finds the position this many many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
-	return _move_along_lane(move_distance, false)
+	if ! is_lane_position_valid():
+		return actor.global_transform.origin
+	agent_move.set_by_agent_pos(agent_pos, move_distance)
+	agent_move.along_lane()
+	return agent_move.get_position()
 
 
-## Get the next position along the RoadLane based on moving this amount
-## from the current position (in meters)
-func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
-	if not is_instance_valid(current_lane):
-		current_lane = null
-	var pos = actor.global_transform.origin
-	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
-	# Find how much space is left along the RoadLane in this direction
-	var init_offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
-	var check_next_offset:float = init_offset + move_distance
-	var _update_lane = current_lane
-	var lane_length = current_lane.curve.get_baked_length()
-	var distance_left = 0
-	if check_next_offset > lane_length:
-		while check_next_offset > lane_length: # Target point is past the end of this curve
-			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_next )
-			if ! is_instance_valid(check_lane):
-				distance_left = check_next_offset - lane_length
-				check_next_offset = lane_length
-				break
-			check_next_offset -= lane_length
-			_update_lane = check_lane
-			lane_length = _update_lane.curve.get_baked_length()
-	else:
-		while check_next_offset < 0:
-			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_prior )
-			if ! is_instance_valid(check_lane):
-				distance_left = check_next_offset - init_offset
-				check_next_offset = 0
-				break
-			init_offset = 0
-			_update_lane = check_lane
-			check_next_offset += _update_lane.curve.get_baked_length()
-	if update_lane && _update_lane != current_lane:
-		assign_lane(_update_lane)
-	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
-	var new_point: Vector3 = _update_lane.to_global(ref_local)
-	if update_lane && distance_left != 0: #workaround for missing connections
-		_update_lane = find_nearest_lane(pos - actor.global_transform.basis.z * sign(move_distance), 1)
-		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
-			assign_lane(_update_lane)
-	return new_point
+## It's a heuristic to search
+func _position_on_side_lane(other_lane: RoadLane) -> float:
+	return clamp(self.agent_pos.offset *
+					other_lane.curve.get_baked_length() / self.agent_pos.lane.curve.get_baked_length(),
+					0, other_lane.curve.get_baked_length() )
 
 
 ## Input of < 0 or > 0 to move abs(direction) amount of left or right lanes accordingly
-func change_lane(direction: int) -> int:
+func change_lane(direction: int) -> Error:
 	if !direction:
 		return OK
-	var _new_lane = current_lane
+	var _new_lane := agent_pos.lane
 	var dec = sign(direction)
 	while direction != 0:
-		var _new_lane_path = _new_lane.lane_right if direction > 0 else _new_lane.lane_left
-		if not _new_lane_path:
-			# push_error("No lane to change to in target direction")
-			return FAILED
-		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
+		_new_lane = _new_lane.get_side_lane(to_lane_side(dec))
 		if not is_instance_valid(_new_lane):
-			push_error("Invalid target lane change nodepath")
-			return FAILED
-		elif not _new_lane is RoadLane:
-			push_error("Target to change lane to is not a RoadLane")
 			return FAILED
 		direction -= dec
-	assign_lane(_new_lane)
+	assign_lane_position(_new_lane, _position_on_side_lane(_new_lane))
 	return OK
-
-
-## Returns true if the current lane is going to end soon
-## proximity is a distance until the end of the lane in forward (move_dir == 1)
-## or backward (move_dir == -1) direction
-## Used for decision to change lanes from transition lanes (as there are no direct connection)
-func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
-	if ! is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
-		return false
-	var link_test = current_lane.lane_next if move_dir == MoveDir.FORWARD else current_lane.lane_prior
-	if link_test:
-		return false
-	var pos = actor.global_transform.origin
-	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
-	# Find how much space is left along the RoadLane in this direction
-	var offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
-	var lane_len = current_lane.curve.get_baked_length()
-	var dist:float
-	if move_dir == MoveDir.FORWARD:
-		dist = current_lane.curve.get_baked_length() - offset
-	else:
-		assert(move_dir == MoveDir.BACKWARD)
-		dist = offset
-	return dist < proximity
-
-
-## Returns how many lanes left (lane_change_dir == -1) or right (lane_change_dir == 1)
-## the road continues forward (move_dir == 1) or backward (move_dir == -1)
-## Used for decision to change lanes from transition lanes (as there are no direct connection)
-func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> int:
-	assert(move_dir != MoveDir.STOP && (lane_change_dir == LaneChangeDir.LEFT || lane_change_dir == LaneChangeDir.RIGHT))
-	var _new_lane = current_lane
-	var count:int = 0
-	while true:
-		var _new_lane_path = _new_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else _new_lane.lane_left
-		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
-		if ! _new_lane:
-			return 0
-		count += lane_change_dir
-		var link_test = _new_lane.lane_next if move_dir == MoveDir.FORWARD else _new_lane.lane_prior
-		if link_test:
-			return count
-	return 0
 
 
 ## Returns how many cars are in the current lane (lane_change_dir == 0)
 ## left lane (lane_change_dir == -1) or right lane (lane_change_dir = 1)
 ## Used for simple heuristic decision making of traffic balancing
 func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
-	if ! is_instance_valid(current_lane):
+	if ! is_lane_position_valid():
 		return -1
 	if lane_change_dir == LaneChangeDir.CURRENT:
-		return len(current_lane.get_vehicles())
-	var _lane_path = current_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else current_lane.lane_left
-	var _lane:RoadLane = current_lane.get_node_or_null(_lane_path)
+		return agent_pos.lane.obstacles.size()
+	var _lane := agent_pos.lane.get_side_lane(to_lane_side(lane_change_dir))
 	if ! _lane:
 		return -1;
-	return len(_lane.get_vehicles())
+	return _lane.obstacles.size()
+
+
+func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLane.Obstacle:
+	assert(self.agent_pos.check_sanity())
+	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
+	var side_lane: RoadLane = self.agent_pos.lane.get_side_lane(to_lane_side(lane_change_dir))
+	if ! side_lane:
+		return null
+	return side_lane.find_next_obstacle( self._position_on_side_lane(side_lane) )
+
+
+class MoveAlongLane:
+	var agent_pos: RoadLane.Obstacle
+	var offset: float
+	var lane: RoadLane
+	var lane_sequence_end: bool
+	var distance_left: float
+
+	var dir_sign: float
+	func move_dir() -> MoveDir:
+		return int(dir_sign < 0)
+
+	const DEBUG_OUT := false
+
+	func set_by_agent_pos(agent_pos: RoadLane.Obstacle, move_distance: float) -> void:
+		assert(agent_pos.check_sanity(false, false))
+		self.agent_pos = agent_pos
+		self.offset = agent_pos.offset
+		self.lane = agent_pos.lane
+		self.lane_sequence_end = false
+		self.distance_left = abs(move_distance)
+		self.dir_sign = sign(move_distance)
+
+	func get_signed_distance_left() -> float:
+		return self.dir_sign * distance_left
+
+	func get_position() -> Vector3:
+		return self.lane.to_global(self.lane.curve.sample_baked(self.offset))
+
+	func along_lane() -> void:
+		var dir := move_dir()
+		if DEBUG_OUT:
+			print(self.agent_pos, " is moving ", MoveDir.find_key(dir), " from offset ", self.offset, " ingoring obstacles, distance to go ", self.distance_left)
+		# Find how much space is left along the RoadLane in this direction
+		if self.distance_left == 0:
+			return
+		var lane_length := agent_pos.distance_to_end(dir)
+		while distance_left >= lane_length:
+			var lane_check := self.lane.get_sequential_lane(dir)
+			if lane_check == null:
+				self.lane_sequence_end = true
+				break
+			self.distance_left -= lane_length
+			self.lane = lane_check
+			lane_length = self.lane.curve.get_baked_length()
+			self.offset = 0 if dir == MoveDir.FORWARD else lane_length
+		var dist_to_end := min(self.distance_left, lane_length)
+		self.distance_left -= dist_to_end
+		self.offset += dist_to_end if dir == MoveDir.FORWARD else -dist_to_end
+		if DEBUG_OUT:
+			if self.distance_left:
+				print(self.agent_pos, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
+			else:
+				print(self.agent_pos, " stopping at ", self.offset, ", all good")
 
 
 ## Returns the expect target position based on the closest target pos
