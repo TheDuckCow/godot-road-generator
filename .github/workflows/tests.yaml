@@ -20,15 +20,16 @@ on:
       - 'test/**'
 
 
-run-name: Test on ${{ inputs.godot_versions }}
+run-name: Test on ${{ github.event.inputs.godot_versions || 'default' }}
 
 jobs:
   test:
     name: Test Godot
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.3.0"]') }}
+        godot-version: ${{ github.event.inputs.godot_versions && fromJSON(github.event.inputs.godot_versions) || fromJSON('["4.4.1", "4.5.1", "4.6.1"]') }}
     steps:
       - uses: actions/checkout@v4
 
