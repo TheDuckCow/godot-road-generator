@@ -87,7 +87,9 @@ In addition to each point above, each scenario requires you to design your own A
 
 ## Credits
 
-This addon is developed by Moo-Ack! Productions as a part of the "Wheel Steal" game project. We poured a lot of effort, time, and money into making this an intuitive, highly functional addon - and we chose to give it away for free to the Godot community.
+This addon is distributed under the MIT license.
+
+It was developed by Moo-Ack! Productions as a part of the "Wheel Steal" game project. We poured a lot of effort, time, and money into making this an intuitive, highly functional addon - and we chose to give it away for free to the Godot community.
 
 You can share you appreciation by:
 
@@ -101,8 +103,7 @@ Logo designed by [Kenney](https://www.kenney.nl/assets).
 
 ## How to install and use
 
-Follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). If you clone the entire repository, you can also see example usage by checking out the "Museum" demo scene.
-
+Follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes - the "Museum" scene being a good starting place.
 
 Then, check out the [wiki pages](https://github.com/TheDuckCow/godot-road-generator/wiki) for more detailed usage.
 
