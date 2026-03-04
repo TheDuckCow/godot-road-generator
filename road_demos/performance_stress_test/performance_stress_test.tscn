@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://crx2pjy5t6xpn"]
+[gd_scene load_steps=10 format=3 uid="uid://crx2pjy5t6xpn"]
 
 [ext_resource type="Script" uid="uid://cph7euje06kel" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="2"]
@@ -8,12 +8,9 @@
 [ext_resource type="Script" uid="uid://difs1qg4mpcpw" path="res://addons/road-generator/nodes/road_point.gd" id="4"]
 [ext_resource type="Script" uid="uid://donsa8sn2uump" path="res://road_demos/performance_stress_test/performance_stress_test.gd" id="5"]
 
-[sub_resource type="Curve" id="Curve_7642f"]
-_data = [Vector2(0.222426, 0), 0.0, 0.0, 0, 0, Vector2(0.900735, 1), 0.0, 0.0, 0, 0]
-point_count = 2
-
-[sub_resource type="CurveTexture" id="CurveTexture_odh0v"]
-curve = SubResource("Curve_7642f")
+[sub_resource type="Theme" id="Theme_7642f"]
+LineEdit/font_sizes/font_size = 30
+SpinBox/constants/buttons_width = 30
 
 [sub_resource type="PlaneMesh" id="1"]
 size = Vector2(800, 700)
@@ -30,22 +27,38 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("2_rn5x3")
 
-[node name="TextureRect" type="TextureRect" parent="UI"]
-modulate = Color(1, 1, 1, 0.360784)
+[node name="TextureRect" type="ColorRect" parent="UI"]
+modulate = Color(1, 1, 1, 0.588235)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = SubResource("CurveTexture_odh0v")
+color = Color(0, 0, 0, 1)
 
-[node name="MarginContainer" type="MarginContainer" parent="UI"]
-custom_minimum_size = Vector2(100, 0)
+[node name="MarginContainer2" type="MarginContainer" parent="UI"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = -20
+theme_override_constants/margin_bottom = -20
+
+[node name="DemoUiCommon" parent="UI/MarginContainer2" instance=ExtResource("2_brvyu")]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.2
+anchor_top = 0.2
+anchor_right = 0.8
+anchor_bottom = 0.8
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 20
@@ -56,10 +69,8 @@ theme_override_constants/margin_bottom = 20
 [node name="VBoxContainer" type="VBoxContainer" parent="UI/MarginContainer"]
 layout_mode = 2
 
-[node name="DemoUiCommon" parent="UI/MarginContainer/VBoxContainer" instance=ExtResource("2_brvyu")]
-layout_mode = 2
-
 [node name="spacer" type="Control" parent="UI/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UI/MarginContainer/VBoxContainer"]
@@ -73,20 +84,32 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/shadow_offset_y = 3
 theme_override_constants/shadow_outline_size = 4
 theme_override_font_sizes/font_size = 30
-text = "Samples"
+text = "Use "
 
 [node name="Control" type="Control" parent="UI/MarginContainer/VBoxContainer/HBoxContainer"]
+visible = false
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 
 [node name="sample_input" type="SpinBox" parent="UI/MarginContainer/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
+theme = SubResource("Theme_7642f")
 min_value = 1.0
 max_value = 99.39
 value = 5.0
 rounded = true
 allow_greater = true
+
+[node name="samples2" type="Label" parent="UI/MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/shadow_outline_size = 4
+theme_override_font_sizes/font_size = 30
+text = "samples"
 
 [node name="enable" type="Label" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -100,19 +123,7 @@ text = "Enable features"
 
 [node name="options" type="HBoxContainer" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 15
-
-[node name="edges" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
-unique_name_in_owner = true
-layout_mode = 2
-toggle_mode = true
-text = "Edge curves"
-
-[node name="lanes" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
-unique_name_in_owner = true
-layout_mode = 2
-toggle_mode = true
-text = "AI Lanes"
+theme_override_constants/separation = 10
 
 [node name="geo" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
 unique_name_in_owner = true
@@ -127,24 +138,37 @@ layout_mode = 2
 toggle_mode = true
 text = "Underside"
 
+[node name="edges" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Edge curves"
+
+[node name="lanes" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "AI Lanes"
+
 [node name="spacer2" type="Control" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
 [node name="update" type="Button" parent="UI/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 text = "Regenerate"
 
-[node name="results" type="Label" parent="UI/MarginContainer/VBoxContainer"]
+[node name="spacer3" type="Control" parent="UI/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="results" type="RichTextLabel" parent="UI/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/shadow_offset_y = 3
-theme_override_constants/shadow_outline_size = 4
-theme_override_font_sizes/font_size = 30
-text = "Loading..."
+theme_override_font_sizes/normal_font_size = 30
+text = "Pending results..."
+fit_content = true
 
 [node name="RoadManager" type="Node3D" parent="."]
 script = ExtResource("3")

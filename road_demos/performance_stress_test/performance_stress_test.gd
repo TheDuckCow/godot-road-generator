@@ -9,12 +9,13 @@ extends Node3D
 @onready var update_btn := %update
 @onready var sample_input := %sample_input
 
+var init_update_btn_txt: String
 var rebuild_count := 0
 var samples := []
 
 
 func _ready() -> void:
-	run_rebuild()
+	init_update_btn_txt = update_btn.text
 
 
 func update_settings() -> void:
@@ -26,11 +27,12 @@ func update_settings() -> void:
 		rc.create_edge_curves = edges_btn.button_pressed
 		rc.create_geo = geo_btn.button_pressed
 		rc.underside_thickness = 2 if underside_btn.button_pressed else -1
-		
+		# Always ensure using full geo
 		rc.use_lowpoly_preview = false
 
 
 func run_rebuild() -> void:
+	set_update_disabled()
 	print("Running rebuild")
 	update_settings()
 	var containers := manager.get_containers()
@@ -60,12 +62,13 @@ func run_rebuild() -> void:
 		"underside" if underside_btn.button_pressed else "no underside",
 		
 	]
-	var line1 := "Averge time to generate containers: %s ms over %s samples" % [
+	var line1 := "Generation time: %s ms over %s samples" % [
 		total_sample_time / samples.size(), samples.size()]
-	var line2 := "%sx segment rebuilds with %s" % [rebuild_count, settings_txt]
-	print(line1)
-	print(line2)
-	label.text = "%s\n%s" % [line1, line2]
+	var line2 := "%sx segments built across %s containers" % [rebuild_count, containers.size()]
+	var line3 := "Configuration: %s" % settings_txt
+	var msg = "%s\n\n%s\n%s" % [line1, line2, line3]
+	label.text = msg
+	print(msg)
 	assert(rebuild_count == seg_counts)
 
 
@@ -75,6 +78,12 @@ func _roads_updated(segments: Array) -> void:
 
 func _on_update_pressed() -> void:
 	samples = []
+	set_update_disabled()
+
+
+func set_update_disabled() -> void:
+	update_btn.disabled
+	update_btn.text = "Generating..."
 
 
 func _physics_process(delta: float) -> void:
@@ -82,3 +91,5 @@ func _physics_process(delta: float) -> void:
 		run_rebuild()
 		if samples.size() == sample_input.value:
 			print("Completed samples")
+			update_btn.disabled = false
+			update_btn.text = init_update_btn_txt
