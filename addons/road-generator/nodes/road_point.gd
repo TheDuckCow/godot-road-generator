@@ -202,7 +202,7 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
-	
+
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
 	traffic_dir = traffic_dir.duplicate(true)
@@ -1285,6 +1285,19 @@ func get_width_without_shoulders():
 func get_width_with_shoulders():
 	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
 	return total_width
+
+func connect_segment_lanes() -> void:
+	if self.prior_seg && self.next_seg:
+		for prior_ln in self.prior_seg.get_lanes():
+			for next_ln in self.next_seg.get_lanes():
+				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
+						next_ln.connect_next(prior_ln)
+					else:
+						assert(prior_ln.lane_next_tag[0] == "R")
+						prior_ln.connect_next(next_ln)
 
 # ------------------------------------------------------------------------------
 #endregion
