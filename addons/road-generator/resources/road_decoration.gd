@@ -70,6 +70,8 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 	# Start from the original edge curve and trim it with start/end offsets (same as base)
 	var original_curve: Curve3D = edge.curve
 	var new_curve: Curve3D = Curve3D.new()
+	new_curve.bake_interval = segment.curve.bake_interval
+	original_curve.bake_interval = segment.curve.bake_interval
 
 	var total_length: float = original_curve.get_baked_length()
 

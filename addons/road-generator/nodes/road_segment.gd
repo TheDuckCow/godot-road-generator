@@ -335,6 +335,7 @@ func _build_edge_curve_sampled(road_lane: Path3D, start_offset: float, end_offse
 	var dst_curve: Curve3D = road_lane.curve
 	if dst_curve == null:
 		dst_curve = Curve3D.new()
+		dst_curve.bake_interval = curve.bake_interval
 		road_lane.curve = dst_curve
 	dst_curve.clear_points()
 
@@ -533,6 +534,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = Curve3D.new()
+	dst.bake_interval = road_seg.curve.bake_interval
 
 	# Transformations in local space relative to the road_lane
 	var a_transform := road_lane.global_transform.inverse() * start_point.global_transform
