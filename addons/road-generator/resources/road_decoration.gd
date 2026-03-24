@@ -13,38 +13,46 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 signal decoration_changed()
 
 @export_group("General Decoration Properties")
+
 ## Description used for nodes in scene tree
 @export var description: String = "default":
 	set(value):
 		description = value
 		decoration_changed.emit()
-## which side to place decoration on
-@export var side: RoadDecoration.Side = RoadDecoration.Side.REVERSE:
+
+## Where decoration will be placed
+@export var side: RoadDecoration.Side = RoadDecoration.Side.BOTH:
 	set(value):
 		side = value
 		decoration_changed.emit()
-## relative start offset along the segment
+
+## Relative start offset along the segment[br]
 ## 0.2 means that decoration starts after 20% length along the segment
 @export_range(0,1) var offset_start: float = 0.0:
 	set(value):
 		offset_start = value
 		decoration_changed.emit()
-## relative end offset along the segment
+
+## Relative end offset along the segment[br]
 ## 0.2 means that decoration ends at 80% length along the segment
 @export_range(0,1) var offset_end: float = 0.0:
 	set(value):
 		offset_end = value
 		decoration_changed.emit()
-## absolut lateral offset in meters from the edge curve along the whole curve
-## negative values go "inwards", positive values "outwards" from the road
+
+## Absolute lateral offset in meters from the edge curve along the whole curve[br]
+## negative values go "inwards", positive values "outwards" from the road[br]
 ## use offset_lateral_profile for more advanced lateral offsets
 @export var offset_lateral: float = -0.5:
 	set(value):
 		offset_lateral = value
 		decoration_changed.emit()
-## specify lateral offset profile (Curve) from 0..1 along the curb
-## domain needs to be between 0 and 1, they describe the relative position along the curve.
-## The value offset is the same as in parameter offset_lateral, just that you can vary it along the curve.
+
+## Specify lateral offset profile (Curve) from 0..1 along the curb.[br][br]
+##
+## Domain needs to be between 0 and 1 and describes the relative position along[br]
+## the curve. The value offset is the same as in parameter offset_lateral, just[br]
+## that you can vary it along the curve.
 @export var offset_lateral_profile: Curve = null:
 	set(value):
 		offset_lateral_profile = value
@@ -62,6 +70,8 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 	# Start from the original edge curve and trim it with start/end offsets (same as base)
 	var original_curve: Curve3D = edge.curve
 	var new_curve: Curve3D = Curve3D.new()
+	new_curve.bake_interval = segment.curve.bake_interval / segment.DENSITY_FAC
+	original_curve.bake_interval = segment.curve.bake_interval / segment.DENSITY_FAC
 
 	var total_length: float = original_curve.get_baked_length()
 

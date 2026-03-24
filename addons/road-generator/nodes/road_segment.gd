@@ -39,6 +39,7 @@ const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
 const EDGE_F_NAME = "edge_F" ## Name of forward lane edge curve
 const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge curve
 const DEFAULT_DENSITY := 4.0
+const DENSITY_FAC := 8.0 ## Multiplies the number of cache vs control points, for decoration/roadlane precision
 
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
@@ -335,6 +336,7 @@ func _build_edge_curve_sampled(road_lane: Path3D, start_offset: float, end_offse
 	var dst_curve: Curve3D = road_lane.curve
 	if dst_curve == null:
 		dst_curve = Curve3D.new()
+		dst_curve.bake_interval = curve.bake_interval / DENSITY_FAC
 		road_lane.curve = dst_curve
 	dst_curve.clear_points()
 
@@ -462,6 +464,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child.auto_free_vehicles = container.auto_free_vehicles
 		else:
 			ln_child.curve.clear_points()
+		ln_child.curve.bake_interval = self.curve.bake_interval / DENSITY_FAC
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
 
@@ -533,6 +536,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = Curve3D.new()
+	dst.bake_interval = road_seg.curve.bake_interval / DENSITY_FAC
 
 	# Transformations in local space relative to the road_lane
 	var a_transform := road_lane.global_transform.inverse() * start_point.global_transform
@@ -726,7 +730,7 @@ func clear_edge_curves():
 func hide_edge_curves(hide_edge: bool = false):
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path3D and (ch.name == "edge_R" or ch.name == "edge_F"):
+		if ch is Path3D and (ch.name == "edge_R" or ch.name == "edge_F" or ch.name == "edge_C"):
 			ch.visible = not hide_edge
 
 
@@ -1011,7 +1015,7 @@ func _build_geo():
 	var min_road_width:float = min(start_point.lane_width, end_point.lane_width)
 	# Aim for real-world texture proportions width:height of 2:1 matching texture,
 	# but then the hight of 1 full UV is half the with across all lanes, so another 2x
-	var single_uv_height:float = min_road_width * 4.0
+	var single_uv_height:float = min_road_width * DENSITY_FAC
 	var target_uv_tiles:int = int(clength / single_uv_height)
 	var per_loop_uv_size:float = float(target_uv_tiles) / float(loops)
 	var uv_width := 0.125 # 1/8 for breakdown of texture.
