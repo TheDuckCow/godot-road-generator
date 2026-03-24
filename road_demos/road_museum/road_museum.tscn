@@ -185,15 +185,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.14783, 3.8147e-06, -3.66865
 wrap_lane = true
 
 [node name="RoadActor4" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2787, -5.72205e-06, -6.82003)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2787, -5.72205e-06, -11.8369)
 wrap_lane = true
 
 [node name="RoadActor5" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.28377, -3.8147e-06, -57.7748)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.28377, -3.8147e-06, -52.5929)
 wrap_lane = true
 
 [node name="RoadActor6" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3651, -3.8147e-06, -56.673)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3651, -3.8147e-06, -43.5009)
 wrap_lane = true
 
 [node name="RoadActor7" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
@@ -322,7 +322,7 @@ edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_003")])
 edge_rp_local_dirs = Array[int]([0, 1])
 
 [node name="RoadActor" parent="RoadManager/Twist" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.73209, 0, -4.02292)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.55571, 0, -4.02292)
 target_speed = 20
 wrap_lane = true
 
