@@ -215,21 +215,37 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	return closest_lane
 
 
-## Finds the poistion this many many units forward (or backwards, if negative)
-## along the current lane, assigning a new lane if the next one is reached
-func move_along_lane(move_distance: float) -> Vector3:
+## Finds the position move_distance units forward (or backwards, if negative)
+## along the current lane, assigning a new lane if the next one is reached.[br][br]
+##
+## Identical to move_along_lane, but returns a Transform3D including lane tilt.
+func move_along_lane_with_rotation(move_distance: float) -> Transform3D:
 	return _move_along_lane(move_distance, true)
 
 
-## Finds the poistion this many many units forward (or backwards, if negative)
+## Finds the position move_distance units forward (or backwards, if negative)
+## along the current lane, without assigning a new lane[br][br]
+##
+## Identical to test_move_along_lane, but returns a Transform3D including lane tilt.
+func test_move_along_lane_with_rotation(move_distance: float) -> Transform3D:
+	return _move_along_lane(move_distance, false)
+
+
+## Finds the position move_distance units forward (or backwards, if negative)
+## along the current lane, assigning a new lane if the next one is reached
+func move_along_lane(move_distance: float) -> Vector3:
+	return _move_along_lane(move_distance, true).origin
+
+
+## Finds the position move_distance units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
-	return _move_along_lane(move_distance, false)
+	return _move_along_lane(move_distance, false).origin
 
 
 ## Get the next position along the RoadLane based on moving this amount
 ## from the current position (in meters)
-func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
+func _move_along_lane(move_distance: float, update_lane: bool = true) -> Transform3D:
 	if not is_instance_valid(current_lane):
 		current_lane = null
 	var pos = actor.global_transform.origin
@@ -262,13 +278,14 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 			check_next_offset += _update_lane.curve.get_baked_length()
 	if update_lane && _update_lane != current_lane:
 		assign_lane(_update_lane)
-	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
-	var new_point: Vector3 = _update_lane.to_global(ref_local)
+	var ref_local: Transform3D = _update_lane.curve.sample_baked_with_rotation(check_next_offset)
+	ref_local.origin = _update_lane.curve.sample_baked(check_next_offset)
+	var new_transform: Transform3D = _update_lane.global_transform * ref_local
 	if update_lane && distance_left != 0: #workaround for missing connections
 		_update_lane = find_nearest_lane(pos - actor.global_transform.basis.z * sign(move_distance), 1)
 		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
 			assign_lane(_update_lane)
-	return new_point
+	return new_transform
 
 
 ## Input of < 0 or > 0 to move abs(direction) amount of left or right lanes accordingly
