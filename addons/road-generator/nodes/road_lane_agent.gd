@@ -278,7 +278,7 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Transfo
 			check_next_offset += _update_lane.curve.get_baked_length()
 	if update_lane && _update_lane != current_lane:
 		assign_lane(_update_lane)
-	var ref_local: Transform3D = _update_lane.curve.sample_baked_with_rotation(check_next_offset)
+	var ref_local: Transform3D = _update_lane.curve.sample_baked_with_rotation(check_next_offset, true, true)
 	ref_local.origin = _update_lane.curve.sample_baked(check_next_offset)
 	var new_transform: Transform3D = _update_lane.global_transform * ref_local
 	if update_lane && distance_left != 0: #workaround for missing connections
