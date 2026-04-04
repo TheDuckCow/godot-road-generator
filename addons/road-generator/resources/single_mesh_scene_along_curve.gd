@@ -41,6 +41,8 @@ func _init() -> void:
 	description = "single_scene_mesh_along_curve"
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
+	if not enabled:
+		return
 	if not mesh_source_scene:
 		push_error("No mesh_source_scene assigned for SingleMeshSceneAlongCurve decoration.")
 		return

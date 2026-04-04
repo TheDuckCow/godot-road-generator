@@ -41,6 +41,8 @@ func _init() -> void:
 
 
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
+	if not enabled:
+		return
 	# Create new curbs based on the selected side(s)
 	if side == RoadCurb.Side.BOTH or side == RoadCurb.Side.REVERSE:
 		var edge: Path3D = segment.get_parent().get_node(segment.EDGE_R_NAME)
