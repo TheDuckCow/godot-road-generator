@@ -58,11 +58,20 @@ signal decoration_changed()
 		offset_lateral_profile = value
 		decoration_changed.emit()
 
+## Whether this decoration is enabled or not.[br][br]
+##
+## If false, the decorations are not added to (or are removed from) the scene.
+@export var enabled: bool = true:
+	set(value):
+		enabled = value
+		decoration_changed.emit()
+
 
 # this must be overwritten in subclasses
 # should be translated to abstract class in future Godot versions
 func setup(segment: RoadSegment, decoration_node_wrapper: Node3D) -> void:
-	pass
+	if not enabled:
+		return
 
 
 func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
