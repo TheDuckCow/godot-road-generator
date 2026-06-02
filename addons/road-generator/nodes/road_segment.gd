@@ -39,6 +39,7 @@ const EDGE_R_NAME = "edge_R" ## Name of reverse lane edge curve
 const EDGE_F_NAME = "edge_F" ## Name of forward lane edge curve
 const EDGE_C_NAME = "edge_C" ## Name of road center (direction divider) edge curve
 const DEFAULT_DENSITY := 4.0
+const DENSITY_FAC := 8.0 ## Multiplies the number of cache vs control points, for decoration/roadlane precision
 
 ## Lookup for lane texture multiplier - corresponds to RoadPoint.LaneType enum
 const uv_mul = [7, 0, 1, 2, 3, 4, 5, 6, 7, 7]
@@ -294,10 +295,6 @@ func generate_edge_curves():
 		_par.add_child(edge_R)
 		edge_R.owner = _par.owner
 		edge_R.set_meta("_edit_lock_", true)
-	edge_R.curve = Curve3D.new()
-	# Though this is the reverse edge, we want CSG goemetry to be "positive" going along x,
-	# which means however we have this now needs to be this way around.
-	offset_curve(self, edge_R, -start_offset_R, -end_offset_R, start_point, end_point, false)
 
 	if edge_F == null or not is_instance_valid(edge_F):
 		edge_F = Path3D.new()
@@ -305,15 +302,15 @@ func generate_edge_curves():
 		_par.add_child(edge_F)
 		edge_F.owner = _par.owner
 		edge_F.set_meta("_edit_lock_", true)
-	edge_F.curve = Curve3D.new()
-	# Per comment above, this one needs to be flipped to make +x CSG cross section go outwards
-	# TODO(#293): Set the last arg to true, once flickering issue is resolved.
-	offset_curve(self, edge_F, start_offset_F, end_offset_F, start_point, end_point, false)
+
+	# Build curves via sampling (in road_lane local space)
+	_build_edge_curve_sampled(edge_R, start_offset_R, end_offset_R, false) # LEFT side (reverse)
+	_build_edge_curve_sampled(edge_F, start_offset_F, end_offset_F, true)  # RIGHT side (forward)
 
 	# Add center curve
 	var edge_C: Path3D = _par.get_node_or_null(EDGE_C_NAME)
-	var start_offset_C: float = 0
-	var end_offset_C: float = 0
+	var start_offset_C: float = 0.0
+	var end_offset_C: float = 0.0
 
 	if edge_C == null or not is_instance_valid(edge_C):
 		edge_C = Path3D.new()
@@ -321,8 +318,72 @@ func generate_edge_curves():
 		_par.add_child(edge_C)
 		edge_C.owner = _par.owner
 		edge_C.set_meta("_edit_lock_", true)
-	edge_C.curve = Curve3D.new()
-	offset_curve(self, edge_C, start_offset_C, end_offset_C, start_point, end_point, false)
+
+	_build_edge_curve_sampled(edge_C, start_offset_C, end_offset_C, true)
+
+
+
+## Build an edge curve by sampling the segment curve in *segment local*,
+## then converting the result into the local space of the given Path3D (road_lane).
+##
+## start_offset / end_offset: lateral offset in meters at start/end (already includes shoulder/gutter).
+## is_right_side: true  -> offset in +right direction
+##                 false -> offset in -right direction
+func _build_edge_curve_sampled(road_lane: Path3D, start_offset: float, end_offset: float, is_right_side: bool) -> void:
+	if road_lane == null or not is_instance_valid(road_lane):
+		return
+
+	var dst_curve: Curve3D = road_lane.curve
+	if dst_curve == null:
+		dst_curve = Curve3D.new()
+		dst_curve.bake_interval = curve.bake_interval / DENSITY_FAC
+		road_lane.curve = dst_curve
+	dst_curve.clear_points()
+
+	var src_curve: Curve3D = curve
+	if src_curve == null:
+		return
+
+	var clength := src_curve.get_baked_length()
+	if clength <= 0.0:
+		return
+
+	# Use same density logic as for the mesh loops, so edges line up visually.
+	var loops: int
+	if low_poly:
+		loops = int(max(floor(clength / density / LOWPOLY_FACTOR), 1.0))
+	else:
+		loops = int(max(floor(clength / density), 1.0))
+
+	var side_sign := 1.0 if is_right_side else -1.0
+
+	for i in range(loops + 1):
+		# 0..1 along the segment
+		var t: float = float(i) / float(loops)
+
+		# Same easing as GeoLoopInfo._generate_geo_loop_info()
+		var offset_ease: float = ease(t, smooth_amount)
+		var lateral_offset: float = lerp(start_offset, end_offset, offset_ease)
+
+		# 1) Position & basis in SEGMENT-LOCAL space
+		var dist: float = t * clength
+		var center_seg_local: Vector3 = src_curve.sample_baked(dist)
+
+		# Right vector including banking, same as nf_basis
+		var right_seg_local: Vector3 = _normal_for_offset(src_curve, t)
+		if right_seg_local == Vector3.ZERO:
+			right_seg_local = Vector3.RIGHT
+
+		var pos_seg_local: Vector3 = center_seg_local + right_seg_local * (lateral_offset * side_sign)
+
+		# 2) Convert SEGMENT-LOCAL -> GLOBAL
+		var pos_global: Vector3 = self.to_global(pos_seg_local)
+
+		# 3) Convert GLOBAL -> road_lane-LOCAL
+		var pos_lane_local: Vector3 = road_lane.to_local(pos_global)
+
+		# 4) Store in the destination curve (in road_lane local space)
+		dst_curve.add_point(pos_lane_local)
 
 
 ## Utility to auto generate all road lanes for this road for use by AI.
@@ -406,6 +467,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			is_user_editable = true
 		else:
 			ln_child.curve.clear_points()
+		ln_child.curve.bake_interval = self.curve.bake_interval / DENSITY_FAC
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
 
@@ -484,6 +546,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_offset: float, start_point: Node3D, end_point: Node3D, reverse: bool) -> void:
 	var src: Curve3D = road_seg.curve
 	var dst: Curve3D = Curve3D.new()
+	dst.bake_interval = road_seg.curve.bake_interval / DENSITY_FAC
 
 	# Transformations in local space relative to the road_lane
 	var a_transform := road_lane.global_transform.inverse() * start_point.global_transform
@@ -684,7 +747,7 @@ func clear_edge_curves():
 func hide_edge_curves(hide_edge: bool = false):
 	var _par = get_parent()
 	for ch in _par.get_children():
-		if ch is Path3D and (ch.name == "edge_R" or ch.name == "edge_F"):
+		if ch is Path3D and (ch.name == "edge_R" or ch.name == "edge_F" or ch.name == "edge_C"):
 			ch.visible = not hide_edge
 
 
@@ -729,6 +792,43 @@ func _rebuild():
 		generate_lane_segments()
 	else:
 		clear_lane_segments()
+	
+	# Setup decorations on RoadPoints
+	for point in [start_point]:
+		if self.get_parent() == point:
+			# get rid of previous decorations
+			for child in point.get_children():
+				if child.name.begins_with("decoration_"):
+					point.remove_child(child)
+					child.queue_free()
+
+			# counter allows unique naming of decorations under the RoadSegment
+			var decoration_number: int = 1
+
+			for deco in point.decorations:
+				if not container.create_edge_curves:
+					push_warning("Decoration setup skipped as edge curves disabled: %s" % deco)
+					continue
+				
+				if not deco:
+					# this happens when decoration array element is empty
+					# e.g. when user just clicked on "Add Element" in decorations
+					continue
+				
+				# check if deco has setup function
+				# should be replaced when ported to Godot 4.5 with abstract classes
+				if not deco.has_method("setup"):
+					push_error("Decoration missing setup function: %s" % deco)
+					continue
+
+				var decoration_node_wrapper = Node3D.new()
+				decoration_node_wrapper.name = "decoration_%d_%s" % [decoration_number, deco.description]
+				point.add_child(decoration_node_wrapper)
+				decoration_node_wrapper.set_owner(point.get_tree().get_edited_scene_root())
+				
+				deco.setup(self, decoration_node_wrapper)
+
+				decoration_number += 1
 
 
 func _update_curve():
@@ -932,7 +1032,7 @@ func _build_geo():
 	var min_road_width:float = min(start_point.lane_width, end_point.lane_width)
 	# Aim for real-world texture proportions width:height of 2:1 matching texture,
 	# but then the hight of 1 full UV is half the with across all lanes, so another 2x
-	var single_uv_height:float = min_road_width * 4.0
+	var single_uv_height:float = min_road_width * DENSITY_FAC
 	var target_uv_tiles:int = int(clength / single_uv_height)
 	var per_loop_uv_size:float = float(target_uv_tiles) / float(loops)
 	var uv_width := 0.125 # 1/8 for breakdown of texture.

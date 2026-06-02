@@ -41,48 +41,48 @@ script = ExtResource("11_hm2jj")
 
 [sub_resource type="Curve3D" id="Curve3D_5vw3u"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 16.0769, -6.2, 0, 0, 0, 0, -4.91692, -34.8453, 0, 24.4224, -5.62221, 0, 42.5478),
-"tilts": PackedFloat32Array(0, 0)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -6.2, 0, 1.66893e-06, 0, 0, 0, 0, 0, 0, -6.18655, 0, 4.26224, 0, 0, 0, 0, 0, 0, -6.15481, 0, 8.53787, 0, 0, 0, 0, 0, 0, -6.10851, 0, 12.8189, 0, 0, 0, 0, 0, 0, -6.04924, 0, 17.1007, 0, 0, 0, 0, 0, 0, -5.9816, 0, 21.3783, 0, 0, 0, 0, 0, 0, -5.90758, 0, 25.6454, 0, 0, 0, 0, 0, 0, -5.82882, 0, 29.8987, 0, 0, 0, 0, 0, 0, -5.74895, 0, 34.1324, 0, 0, 0, 0, 0, 0, -5.6746, 0, 38.322, 0, 0, 0, 0, 0, 0, -5.62221, 0, 42.5478),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 11
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stsme"]
 albedo_color = Color(0.137725, 0.260995, 0.142001, 1)
 
 [sub_resource type="Curve3D" id="Curve3D_l4jy4"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 15.8571, 10.2, 0, 0, 0, 0, -5.13669, -34.8453, 0, 24.4224, 10.7778, 0, 42.5478),
-"tilts": PackedFloat32Array(0, 0)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 10.7778, 0, 42.5478, 0, 0, 0, 0, 0, 0, 10.7252, 0, 38.2451, 0, 0, 0, 0, 0, 0, 10.6492, 0, 33.8838, 0, 0, 0, 0, 0, 0, 10.5684, 0, 29.5951, 0, 0, 0, 0, 0, 0, 10.4896, 0, 25.3386, 0, 0, 0, 0, 0, 0, 10.4161, 0, 21.1046, 0, 0, 0, 0, 0, 0, 10.3494, 0, 16.8876, 0, 0, 0, 0, 0, 0, 10.2909, 0, 12.677, 0, 0, 0, 0, 0, 0, 10.245, 0, 8.46499, 0, 0, 0, 0, 0, 0, 10.2134, 0, 4.24363, 0, 0, 0, 0, 0, 0, 10.2, 0, -2.38419e-06),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 11
 
 [sub_resource type="Curve3D" id="Curve3D_ehsx3"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 15.9938, 0, 0, 0, 0, 0, -5, -34.8453, 0, 24.4224, 0.577789, 0, 42.5478),
-"tilts": PackedFloat32Array(0, 0)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0.577793, 0, 42.5478, 0, 0, 0, 0, 0, 0, 0.525328, 0, 38.293, 0, 0, 0, 0, 0, 0, 0.450339, 0, 34.0384, 0, 0, 0, 0, 0, 0, 0.370114, 0, 29.7839, 0, 0, 0, 0, 0, 0, 0.291337, 0, 25.5294, 0, 0, 0, 0, 0, 0, 0.217539, 0, 21.2748, 0, 0, 0, 0, 0, 0, 0.150236, 0, 17.0201, 0, 0, 0, 0, 0, 0, 0.0912614, 0, 12.7653, 0, 0, 0, 0, 0, 0, 0.045126, 0, 8.51032, 0, 0, 0, 0, 0, 0, 0.0134416, 0, 4.25521, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 11
 
 [sub_resource type="Curve3D" id="Curve3D_rpgj5"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 4.12268e-06, 4.12268e-06, 34.5836, -8.2, 5.37634e-06, -9.77516e-07, 24.4836, -17.3803, 11.2304, 19.3418, -21.9194, 79.8571, -54.997, 12.1602, 56.0724),
-"tilts": PackedFloat32Array(6.97654e-07, -0.206548)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -8.2, -2.3365e-05, -1.66893e-06, 0, 0, 0, 0, 0, 0, -8.31191, -0.0239596, 4.01, 0, 0, 0, 0, 0, 0, -8.6167, -0.0833516, 7.93842, 0, 0, 0, 0, 0, 0, -9.10505, -0.168548, 11.7766, 0, 0, 0, 0, 0, 0, -9.76714, -0.269832, 15.5227, 0, 0, 0, 0, 0, 0, -10.593, -0.377542, 19.1725, 0, 0, 0, 0, 0, 0, -11.5729, -0.482231, 22.7259, 0, 0, 0, 0, 0, 0, -12.7166, -0.573531, 26.1744, 0, 0, 0, 0, 0, 0, -14.0028, -0.641206, 29.5172, 0, 0, 0, 0, 0, 0, -15.4173, -0.676337, 32.7491, 0, 0, 0, 0, 0, 0, -16.9485, -0.670414, 35.858, 0, 0, 0, 0, 0, 0, -18.5783, -0.615887, 38.8246, 0, 0, 0, 0, 0, 0, -20.3067, -0.49584, 41.5981, 0, 0, 0, 0, 0, 0, -22.0585, -0.323818, 44.1739, 0, 0, 0, 0, 0, 0, -23.8624, -0.117786, 46.6069, 0, 0, 0, 0, 0, 0, -25.7566, 0.133118, 48.8935, 0, 0, 0, 0, 0, 0, -27.763, 0.430141, 51.0652, 0, 0, 0, 0, 0, 0, -29.9747, 0.809694, 53.1413, 0, 0, 0, 0, 0, 0, -32.5108, 1.37521, 54.9999, 0, 0, 0, 0, 0, 0, -35.3708, 2.16089, 56.5957, 0, 0, 0, 0, 0, 0, -38.5131, 3.24695, 57.7212, 0, 0, 0, 0, 0, 0, -41.8281, 4.59616, 58.3849, 0, 0, 0, 0, 0, 0, -45.204, 6.20682, 58.5043, 0, 0, 0, 0, 0, 0, -48.5601, 8.03634, 58.1155, 0, 0, 0, 0, 0, 0, -51.8339, 10.0297, 57.2914, 0, 0, 0, 0, 0, 0, -54.9969, 12.1602, 56.0724),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 26
 
 [sub_resource type="Curve3D" id="Curve3D_jqmwt"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 4.78411e-06, 4.78411e-06, 40.132, 8.2, -5.37634e-06, 9.77516e-07, 35.916, -25.4959, 16.4743, 19.3418, -21.9194, 79.8571, -59.6819, 15.486, 71.4331),
-"tilts": PackedFloat32Array(6.97654e-07, -0.161082)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -59.6819, 15.4859, 71.4331, 0, 0, 0, 0, 0, 0, -56.4291, 13.302, 72.6907, 0, 0, 0, 0, 0, 0, -52.8836, 11.1497, 73.626, 0, 0, 0, 0, 0, 0, -49.0671, 9.05939, 74.1855, 0, 0, 0, 0, 0, 0, -44.971, 7.05739, 74.2916, 0, 0, 0, 0, 0, 0, -40.6317, 5.18663, 73.8677, 0, 0, 0, 0, 0, 0, -36.0764, 3.4429, 72.9303, 0, 0, 0, 0, 0, 0, -31.361, 1.89463, 71.3513, 0, 0, 0, 0, 0, 0, -26.5383, 0.538172, 69.1749, 0, 0, 0, 0, 0, 0, -21.8058, -0.522268, 66.3153, 0, 0, 0, 0, 0, 0, -17.3382, -1.27512, 62.8973, 0, 0, 0, 0, 0, 0, -13.3137, -1.72071, 59.0615, 0, 0, 0, 0, 0, 0, -9.79038, -1.90929, 54.9414, 0, 0, 0, 0, 0, 0, -6.73041, -1.92342, 50.6869, 0, 0, 0, 0, 0, 0, -4.10521, -1.83372, 46.4409, 0, 0, 0, 0, 0, 0, -1.85257, -1.67349, 42.1878, 0, 0, 0, 0, 0, 0, 0.120479, -1.47764, 37.9353, 0, 0, 0, 0, 0, 0, 1.8489, -1.26126, 33.6765, 0, 0, 0, 0, 0, 0, 3.35408, -1.03627, 29.4116, 0, 0, 0, 0, 0, 0, 4.64452, -0.81254, 25.1436, 0, 0, 0, 0, 0, 0, 5.71673, -0.600081, 20.8769, 0, 0, 0, 0, 0, 0, 6.59506, -0.408082, 16.6269, 0, 0, 0, 0, 0, 0, 7.28277, -0.244259, 12.4043, 0, 0, 0, 0, 0, 0, 7.7809, -0.116275, 8.21763, 0, 0, 0, 0, 0, 0, 8.08794, -0.0320512, 4.07983, 0, 0, 0, 0, 0, 0, 8.2, 2.3365e-05, 1.66893e-06),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 26
 
 [sub_resource type="Curve3D" id="Curve3D_g106h"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 4.4534e-06, 4.4534e-06, 37.3578, 0, 0, 0, 28.8056, -20.4484, 13.2129, 19.3418, -21.9194, 79.8571, -56.7681, 13.4175, 61.8795),
-"tilts": PackedFloat32Array(6.97654e-07, -0.170778)
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -56.7681, 13.4175, 61.8795, 0, 0, 0, 0, 0, 0, -53.5729, 11.2681, 63.1191, 0, 0, 0, 0, 0, 0, -50.2013, 9.2182, 64.0034, 0, 0, 0, 0, 0, 0, -46.678, 7.29525, 64.4876, 0, 0, 0, 0, 0, 0, -43.0359, 5.542, 64.4977, 0, 0, 0, 0, 0, 0, -39.3347, 3.99916, 63.9829, 0, 0, 0, 0, 0, 0, -35.6475, 2.66356, 63.0005, 0, 0, 0, 0, 0, 0, -32.0541, 1.58151, 61.4942, 0, 0, 0, 0, 0, 0, -28.5898, 0.700264, 59.6032, 0, 0, 0, 0, 0, 0, -25.3226, 0.039978, 57.3126, 0, 0, 0, 0, 0, 0, -22.2455, -0.454216, 54.7341, 0, 0, 0, 0, 0, 0, -19.3764, -0.799461, 51.9034, 0, 0, 0, 0, 0, 0, -16.7311, -1.0123, 48.8496, 0, 0, 0, 0, 0, 0, -14.2815, -1.12941, 45.6318, 0, 0, 0, 0, 0, 0, -12.0252, -1.1673, 42.2731, 0, 0, 0, 0, 0, 0, -9.98966, -1.13281, 38.7759, 0, 0, 0, 0, 0, 0, -8.13953, -1.05166, 35.1783, 0, 0, 0, 0, 0, 0, -6.47285, -0.935748, 31.493, 0, 0, 0, 0, 0, 0, -4.98856, -0.796053, 27.7311, 0, 0, 0, 0, 0, 0, -3.69204, -0.642745, 23.9008, 0, 0, 0, 0, 0, 0, -2.59723, -0.486641, 20.0081, 0, 0, 0, 0, 0, 0, -1.68821, -0.338093, 16.0679, 0, 0, 0, 0, 0, 0, -0.968698, -0.206137, 12.0882, 0, 0, 0, 0, 0, 0, -0.443499, -0.099762, 8.07759, 0, 0, 0, 0, 0, 0, -0.118385, -0.0280023, 4.04489, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 2
+point_count = 26
 
 [node name="Node3D" type="Node3D"]
 
@@ -182,18 +182,23 @@ next_pt_init = NodePath("../RP_003")
 
 [node name="RoadActor3" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.14783, 3.8147e-06, -3.66865)
+wrap_lane = true
 
 [node name="RoadActor4" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2787, -5.72205e-06, -6.82003)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2787, -5.72205e-06, -11.8369)
+wrap_lane = true
 
 [node name="RoadActor5" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.28377, -3.8147e-06, -57.7748)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.28377, -3.8147e-06, -52.5929)
+wrap_lane = true
 
 [node name="RoadActor6" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3651, -3.8147e-06, -56.673)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3651, -3.8147e-06, -43.5009)
+wrap_lane = true
 
 [node name="RoadActor7" parent="RoadManager/LaneChange" instance=ExtResource("4_5p3l5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.65714, -3.8147e-06, -59.9074)
+wrap_lane = true
 
 [node name="Collisions" type="Node3D" parent="RoadManager"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 0)
@@ -317,12 +322,14 @@ edge_rp_locals = Array[NodePath]([NodePath("RP_001"), NodePath("RP_003")])
 edge_rp_local_dirs = Array[int]([0, 1])
 
 [node name="RoadActor" parent="RoadManager/Twist" instance=ExtResource("4_5p3l5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.73209, 0, -4.02292)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.55571, 0, -4.02292)
 target_speed = 20
+wrap_lane = true
 
 [node name="RoadActor2" parent="RoadManager/Twist" instance=ExtResource("4_5p3l5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.73209, -2.54588, -116.863)
 target_speed = 20
+wrap_lane = true
 
 [node name="RP_001" type="Node3D" parent="RoadManager/Twist"]
 script = ExtResource("4_tgwwo")
@@ -685,6 +692,7 @@ curve = SubResource("Curve3D_5vw3u")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_R" instance=ExtResource("17_7n47g")]
+path_rotation_accurate = false
 
 [node name="edge_grass_R" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_002/edge_R"]
 transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -695,6 +703,7 @@ path_interval_type = 0
 path_interval = 1.0
 path_simplify_angle = 0.0
 path_rotation = 2
+path_rotation_accurate = false
 path_local = true
 path_continuous_u = true
 path_u_distance = 1.0
@@ -706,6 +715,7 @@ curve = SubResource("Curve3D_l4jy4")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_002/edge_F" instance=ExtResource("17_7n47g")]
+path_rotation_accurate = false
 
 [node name="edge_grass_F" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_002/edge_F"]
 transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -716,6 +726,7 @@ path_interval_type = 0
 path_interval = 1.0
 path_simplify_angle = 0.0
 path_rotation = 2
+path_rotation_accurate = false
 path_local = true
 path_continuous_u = true
 path_u_distance = 1.0
@@ -741,6 +752,7 @@ curve = SubResource("Curve3D_rpgj5")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_R" instance=ExtResource("17_7n47g")]
+path_rotation_accurate = false
 
 [node name="edge_grass_R" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_003/edge_R"]
 transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -751,6 +763,7 @@ path_interval_type = 0
 path_interval = 1.0
 path_simplify_angle = 0.0
 path_rotation = 2
+path_rotation_accurate = false
 path_local = true
 path_continuous_u = true
 path_u_distance = 1.0
@@ -762,6 +775,7 @@ curve = SubResource("Curve3D_jqmwt")
 metadata/_edit_lock_ = true
 
 [node name="barrier" parent="RoadManager/DecorationsDemo/RP_003/edge_F" instance=ExtResource("17_7n47g")]
+path_rotation_accurate = false
 
 [node name="edge_grass_F" type="CSGPolygon3D" parent="RoadManager/DecorationsDemo/RP_003/edge_F"]
 transform = Transform3D(1, 2.98023e-08, 0, 2.98023e-08, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -772,6 +786,7 @@ path_interval_type = 0
 path_interval = 1.0
 path_simplify_angle = 0.0
 path_rotation = 2
+path_rotation_accurate = false
 path_local = true
 path_continuous_u = true
 path_u_distance = 1.0

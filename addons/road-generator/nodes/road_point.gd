@@ -149,9 +149,24 @@ const DEFAULT_LANE_WIDTH: float = 4.0
 ## underside will not be generated at all.
 @export var underside_thickness: float = -1.0: set = _set_thickness
 
+
+# -------------------------------------
+# Properties for decorating of roads, such as sidewalks and railings
+@export_group("Decoration")
+# -------------------------------------
+
+
+## Place objects or curbs along the edges of the road segments connected to this RoadPoint.[br][br]
+## Do not use "RoadDecoration" directly, use derived types such as "Curb" or "InstanceAlongCurve".
+@export var decorations: Array[RoadDecoration] = []:
+	set(value):
+		decorations = value
+		_set_decorations()
+
 # -------------------------------------
 @export_group("Internal data")
 # -------------------------------------
+
 
 # TODO: convert these into direct node reference export vars instead of nodepaths
 ## Considered private, not meant for editor or script interaction.[br][br]
@@ -422,6 +437,15 @@ func _set_thickness(value: float) -> void:
 		return  # Might not be initialized yet.
 	emit_transform()
 
+func _set_decorations():
+	for deco in decorations:
+		if not is_instance_valid(deco):
+			continue
+		
+		if not deco.is_connected("decoration_changed", _on_decoration_changed):
+			deco.decoration_changed.connect(_on_decoration_changed)
+	
+	emit_transform() # TODO: see if this is the best option, to emit transform
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -439,6 +463,10 @@ func _notification(what):
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
 		emit_transform(low_poly)
 
+
+func _on_decoration_changed():
+	# triggered when a decoration property changes
+	emit_transform()
 
 func emit_transform(low_poly=false):
 	if _is_internal_updating:

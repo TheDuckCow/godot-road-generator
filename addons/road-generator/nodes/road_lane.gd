@@ -114,6 +114,7 @@ var _display_fins: bool = false
 func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
+		curve.bake_interval = 4.0 # matches road default, updated later
 
 
 func _ready():
@@ -145,6 +146,7 @@ func _set_reverse_direction(value: bool) -> void:
 ## Reverse geometry of lane curve
 func on_reverse_lane() -> void:
 	var reversed_curve = Curve3D.new()
+	reversed_curve.bake_interval = self.curve.bake_interval
 	for i in range(self.curve.point_count - 1, -1, -1):
 		var pos = self.curve.get_point_position(i)
 		var in_tangent = self.curve.get_point_in(i)
