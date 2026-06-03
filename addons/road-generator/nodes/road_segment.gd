@@ -700,13 +700,13 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 			print("removing lane ", lane, " while removing segment ", self)
 		if lane in ignore_list or is_instance_valid(lane.owner):
 			continue
-		for dir in RoadLane.LaneDirection.values():
+		for dir in RoadLane.MoveDir.values():
 			var dir_back := RoadLane.reverse_move_dir(dir)
 			var lane_next := lane.get_sequential_lane(dir)
 			if lane_next && lane_next.get_sequential_lane(dir_back) == lane:
 				lane.connect_next(null)
-		for dir in RoadLane.LaneSideways.values():
-			var dir_back := RoadLane.flip_side(dir)
+		for dir in RoadLane.SideDir.values():
+			var dir_back := RoadLane.other_side(dir)
 			var lane_side := lane.get_side_lane(dir)
 			if lane_side && lane_side.get_side_lane(dir_back) == lane:
 				lane_side.side_lanes[dir_back] = NodePath("")
