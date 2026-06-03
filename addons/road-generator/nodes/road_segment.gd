@@ -415,7 +415,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child.curve.clear_points()
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
-		
+
 		if container.ai_lane_group != "":
 			# check not already in the group
 			ln_child.add_to_group(container.ai_lane_group)
@@ -452,7 +452,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		else:
 			new_ln.draw_in_editor = container.draw_lanes_editor
 			new_ln.draw_in_game = container.draw_lanes_game
-		
+
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
 
@@ -686,13 +686,13 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 			print("removing lane ", lane, " while removing segment ", self)
 		if lane in ignore_list or is_instance_valid(lane.owner):
 			continue
-		for dir in RoadLane.LaneDirection.values():
+		for dir in RoadLane.MoveDir.values():
 			var dir_back := RoadLane.reverse_move_dir(dir)
 			var lane_next := lane.get_sequential_lane(dir)
 			if lane_next && lane_next.get_sequential_lane(dir_back) == lane:
 				lane.connect_next(null)
-		for dir in RoadLane.LaneSideways.values():
-			var dir_back := RoadLane.flip_side(dir)
+		for dir in RoadLane.SideDir.values():
+			var dir_back := RoadLane.other_side(dir)
 			var lane_side := lane.get_side_lane(dir)
 			if lane_side && lane_side.get_side_lane(dir_back) == lane:
 				lane_side.side_lanes[dir_back] = NodePath("")
@@ -1271,7 +1271,7 @@ class GeoLoopInfo:
 					pos_r[nf] *= pos_gutter
 
 			# Assume the start and end lanes are the same for now.
-			
+
 			# The 'middle' vert, same level as shoulder but to edge.
 			var uv_m = SegGeo.UV_MID_SHOULDER * uv_width
 			# LEFT (between pos:_s and _m, and between uv:_l and _m)

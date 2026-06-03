@@ -668,7 +668,7 @@ func _draw_shark_fins() -> void:
 			geom.surface_set_color(COLOR_END)
 		else:
 			geom.surface_set_color(COLOR_PRIMARY)
-		
+
 		# Verts
 		var pt_front_low := xf.origin + lookat * .5
 		var pt_back_right := xf.origin + right*0.2

@@ -92,28 +92,6 @@ func assign_closest_lane_position(new_lane: RoadLane) -> void:
 				get_closest_path_point( new_lane,
 					actor.global_transform.origin)))
 	if DEBUG_OUT:
-		print(agent_pos, " assigning ", new_offset, " on ", new_lane )
-	var _initial_lane: RoadLane = null
-	if is_lane_position_valid():
-		assert( !is_nan(new_offset) || ( self.agent_pos.lane != new_lane && self.agent_pos.lane.get_path_to(new_lane) not in self.agent_pos.lane.sequential_lanes ) )
-		_initial_lane = agent_pos.lane
-	if is_nan(new_offset):
-		new_offset = new_lane.curve.get_closest_offset(
-				new_lane.to_local(
-					get_closest_path_point( new_lane,
-						actor.global_transform.origin)))
-		if DEBUG_OUT:
-			print("Found new offset ", new_offset," for ", self )
-	agent_pos.lane = new_lane
-	agent_pos.offset = new_offset
-	if new_lane != _initial_lane:
-		if _initial_lane:
-			_unassign_lane(_initial_lane)
-		new_lane.register_obstacle(agent_pos)
-		if not new_lane.draw_in_game and visualize_lane:
-			new_lane.draw_in_game = true
-			_did_make_lane_visible = true
-	emit_signal("on_lane_changed", _initial_lane)
 		print("Found new offset ", new_offset," for ", self )
 	self.agent_pos.assign_position(new_lane, new_offset)
 	if DEBUG_OUT:
