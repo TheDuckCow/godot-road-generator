@@ -74,13 +74,13 @@ class Obstacle:
 	var visualize_lane : bool
 
 	var flags := ObstacleFlags.REAL
-	var lane: RoadLane:
+	var lane: RoadLane: #set through assign_position or move_along_lane
 		get:
 			return _lane
 		set(val):
 			assert(false)
 
-	var offset: float:
+	var offset: float: #set through assign_position or move_along_lane
 		get:
 			return _offset
 		set(val):
@@ -103,6 +103,9 @@ class Obstacle:
 
 	func _init(visualize_lane := false) -> void:
 		self.visualize_lane = visualize_lane
+
+	func _is_assigned() -> bool:
+		return self._lane != null
 
 	func distance_to_end(dir: RoadLane.MoveDir) -> float:
 		assert(check_sanity(true))
@@ -168,7 +171,7 @@ class Obstacle:
 					print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[MoveDir.FORWARD])
 					all_good = false
 			else:
-				if check_list && self.sequential_obstacles[MoveDir.FORWARD] == null:
+				if check_end && check_list && self.sequential_obstacles[MoveDir.FORWARD] == null:
 					print(self, " Obst. not a lane end but isn't linked forward")
 					all_good = false
 			if (self.flags == ObstacleFlags.LANE_END) != (self == self.lane._end_obstacle):
@@ -214,7 +217,7 @@ class Obstacle:
 				seq_obstacle.sequential_obstacles[dir_back] = self.sequential_obstacles[dir_back]
 		for dir in RoadLane.MoveDir.values():
 			self.sequential_obstacles[dir] = null
-		assert(check_sanity())
+		assert(check_sanity(false))
 
 
 	func _update_lane_sequence(dir: MoveDir, from: Obstacle, to: Obstacle) -> Obstacle:
@@ -234,7 +237,7 @@ class Obstacle:
 
 	func _insert_to_list() -> void:
 		assert(check_sanity(false, false))
-		var next := self.lane.find_next_obstacle(offset) #all lane sequences must end with an obstacle for obstacle search reasons
+		var next := self.lane.find_next_obstacle(self.offset) #all lane sequences must end with an obstacle for obstacle search reasons
 		assert(next)
 		self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
 		self._update_lane_sequence(MoveDir.FORWARD, next, self)
@@ -245,7 +248,7 @@ class Obstacle:
 		assert(check_sanity())
 		self._update_lane_sequence(MoveDir.FORWARD, self, self.sequential_obstacles[MoveDir.FORWARD])
 		self._remove_from_obstacle_list()
-		assert(check_sanity())
+		assert(check_sanity(false))
 
 
 	func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
@@ -261,7 +264,9 @@ class Obstacle:
 
 
 	func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
-		_place_to(lane, offset, _register)
+		if self._is_assigned():
+			self.unassign_position()
+		self._place_to(lane, offset, _register)
 		self._insert_to_list()
 
 
@@ -295,8 +300,22 @@ class Obstacle:
 				self._place_to(lane, offset)
 				self._insert_to_list()
 				return
-		self._place_to(lane, offset)
-		_update_lane_sequence(dir, seq_obstacle, self)
+
+		# Handle lane crossing in non-jump case
+		if lane != self.lane:
+			# Save old position before moving
+			var old_lane = self.lane
+			var old_offset = self.offset
+			# Move to new lane
+			self._place_to(lane, offset)
+			# Update new lane's chunks (replace seq_obstacle with self)
+			_update_lane_sequence(dir, seq_obstacle, self)
+			# Manually clean up old lane's chunks (replace self with seq_obstacle)
+			old_lane._replace_next_obstacle(old_offset, self, seq_obstacle, dir)
+		else:
+			# Same lane - just expand forward
+			self._place_to(lane, offset)
+			_update_lane_sequence(dir, seq_obstacle, self)
 		assert(check_sanity())
 
 
@@ -332,6 +351,10 @@ var _side_lanes : Array[NodePath] = ["", ""]
 
 
 var _sequential_lanes: Array[NodePath] = ["", ""]
+var _lane_next_ptr: RoadLane:
+	get: return self.get_sequential_lane(MoveDir.FORWARD)
+var _lane_prior_ptr: RoadLane:
+	get: return self.get_sequential_lane(MoveDir.BACKWARD)
 ## The next forward [RoadLane] for agents to follow along.
 @export var lane_next: NodePath:
 	get:
@@ -522,7 +545,7 @@ func get_side_lane(dir : SideDir) -> RoadLane:
 	return lane
 
 
-## connect/disconnect 2 lanes (back and forth) self is the prior lane, is next is the new next lane
+## connect/disconnect 2 lanes self is the prior lane, next is the new next lane
 ## if next is null disconnect currently connected
 func connect_next(next: RoadLane) -> void:
 	if self.get_sequential_lane(MoveDir.FORWARD) == next:
@@ -546,8 +569,8 @@ func connect_next(next: RoadLane) -> void:
 		assert(next._next_obstacles[0].check_sanity(true))
 	else: #disconnect
 		self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
+		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD].sequential_obstacles[MoveDir.BACKWARD] = null
 		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = null
-		next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = null
 		self._sequential_lanes[MoveDir.FORWARD] = NodePath("")
 		next._sequential_lanes[MoveDir.BACKWARD] = NodePath("")
 		assert(self._end_obstacle.check_sanity(true))

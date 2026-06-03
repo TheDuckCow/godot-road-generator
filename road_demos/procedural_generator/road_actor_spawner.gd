@@ -225,7 +225,8 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 		_despawn_lanes.append(DespawnRoadLane.new(_actor_manager))
 		add_child(_despawn_lanes[idx])
 		_despawn_lanes[idx].curve.add_point(Vector3.ZERO) #TODO _despawn_lanes[idx].curve.set_point_position() on link
-		_despawn_lanes[idx].curve.add_point(Vector3.FORWARD * 100) # just so it wouldn't be a point
+		_despawn_lanes[idx].curve.add_point(Vector3.FORWARD * RoadLane.TRAFFIC_CHUNK_LENGTH) # just so it wouldn't be a point
+		_despawn_lanes[idx].curve_changed()
 		if DEBUG_OUT:
 			prints(self, "Created new despawn lane", _despawn_lanes[idx])
 
@@ -284,12 +285,14 @@ func _detach() -> void:
 	if DEBUG_OUT:
 		prints(self, "Stopped spawn timer", _spawn_timer, "after", time_passed, "seconds")
 	for idx in len(_despawn_lane_links):
-		var lane:RoadLane = _despawn_lane_links[idx]
+		var lane := _despawn_lane_links[idx]
 		if is_instance_valid(lane):
 			if lane.get_sequential_lane(RoadLane.MoveDir.BACKWARD) == _despawn_lanes[idx]:
 				_despawn_lanes[idx].connect_next(null)
-			if lane.get_sequential_lane(RoadLane.MoveDir.FORWARD) == _despawn_lanes[idx]:
+			elif lane.get_sequential_lane(RoadLane.MoveDir.FORWARD) == _despawn_lanes[idx]:
 				lane.connect_next(null)
+			else:
+				assert(false);
 		if DEBUG_OUT:
 			prints(self, "Unlinked despawn lane", _despawn_lanes[idx], "from lane", lane)
 	_despawn_lane_links = []

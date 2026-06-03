@@ -130,6 +130,7 @@ func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 func unassign_lane() -> RoadLane:
 	var old_lane: RoadLane = self.agent_pos.lane
 	self.agent_pos.unassign_position()
+	self.agent_pos_secondary.unassign_position()
 	return old_lane
 
 
@@ -273,6 +274,7 @@ func change_lane(direction: int) -> Error:
 	if !direction:
 		return OK
 	var _new_lane := agent_pos.lane
+	var old_lane := agent_pos.lane
 	var dec = sign(direction)
 	while direction != 0:
 		_new_lane = _new_lane.get_side_lane(to_lane_side(dec))
