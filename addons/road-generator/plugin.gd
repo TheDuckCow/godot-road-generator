@@ -16,6 +16,11 @@ const ConnectionTool = preload("res://addons/road-generator/ui/connection_tool.g
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+# Enable the popup to offer instancing a RoadContainer gLTF after export.
+# Unfortunately, while it appears to work in the UI, it somehow results in
+# instability and reliable crashing upon pressing save. Flip back to true in
+# the future to see if it becomes stable enough to retain.
+const ENABLE_GLTF_INSTANCE_INPLACE := false
 
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
@@ -2048,20 +2053,10 @@ func _export_mesh_modal() -> void:
 	_export_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	_export_file_dialog.set_filters(PackedStringArray(["*.glb, *.gltf ; gLTF Files"]))
 	# In at least godot 4.4: Enabling this nullifies the ability to specify an initial directory,
-	# eve without using OS native directories. True for FileDialog and EditorFileDialog alike.
+	# even without using OS native directories. True for FileDialog and EditorFileDialog alike.
 	# It will always be the project root. But, at least with EditorFileDialog, we get some history
 	# and there's not the bug of clicking into a folder clearing the filename.
 	_export_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
-
-	# if not rc_is_root:
-	# 	# This is the code which disables the ability to instance a glb back
-	# 	# into the scene when the RoadContainer is the root. This is because
-	# 	# it is reliably crashing Godot for some reason, so we don't want to
-	# 	# let it to users while it is unstable.
-	# 	_export_file_dialog.set_option_count(1)
-	# 	_export_file_dialog.set_option_name(0, "Instance after export")
-	# 	_export_file_dialog.set_option_values(0, ["Yes", "No"])
-	# 	_export_file_dialog.set_option_default(0, 1)
 		
 	_export_file_dialog.file_selected.connect(_export_gltf)
 	_export_file_dialog.popup_centered_ratio()
@@ -2120,7 +2115,7 @@ func _export_gltf(path: String) -> void:
 	var local_path := ProjectSettings.localize_path(path)
 	var is_in_project := local_path.begins_with("res://")
 	print("_prompt_instance_gltf 1")
-	if is_in_project:
+	if is_in_project and ENABLE_GLTF_INSTANCE_INPLACE:
 		await EditorInterface.get_base_control().get_tree().process_frame
 		_prompt_instance_gltf(container, local_path)
 	else:
