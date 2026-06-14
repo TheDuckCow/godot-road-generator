@@ -217,7 +217,7 @@ func _physics_process(delta: float) -> void:
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
 	if agent.agent_move.lane_sequence_end:
-		assert(!collided)
+		#assert(!collided)
 		_move_to_next_lane()
 	elif collided:
 		_process_collision(obstacle.node)

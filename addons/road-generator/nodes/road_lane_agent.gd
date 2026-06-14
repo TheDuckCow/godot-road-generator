@@ -54,7 +54,7 @@ var actor: Node3D
 var road_manager: RoadManager
 
 var agent_pos := RoadLane.Obstacle.new(visualize_lane)
-var agent_pos_secondary := RoadLane.Obstacle.new() ## for merging/diverging and lane change
+#var agent_pos_secondary := RoadLane.Obstacle.new() ## for merging/diverging and lane change
 var agent_move := RoadLaneAgent.MoveAlongLane.new()
 
 
@@ -108,7 +108,7 @@ func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 func unassign_lane() -> RoadLane:
 	var old_lane: RoadLane = self.agent_pos.lane
 	self.agent_pos.unassign_position()
-	self.agent_pos_secondary.unassign_position()
+	#self.agent_pos_secondary.unassign_position()
 	return old_lane
 
 

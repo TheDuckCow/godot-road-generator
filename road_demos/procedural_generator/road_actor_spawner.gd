@@ -12,6 +12,7 @@ class DespawnRoadLane extends RoadLane:
 		_actor_manager = actor_manager
 
 	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
+		super(obstacle)
 		assert(_despawn_obstacle == null)
 		_despawn_obstacle = obstacle
 		if _actor_manager:
@@ -20,6 +21,7 @@ class DespawnRoadLane extends RoadLane:
 			obstacle.node.queue_free()
 
 	func unregister_obstacle(obstacle: RoadLane.Obstacle) -> void:
+		super(obstacle)
 		assert(obstacle == _despawn_obstacle)
 		_despawn_obstacle = null
 
@@ -287,12 +289,8 @@ func _detach() -> void:
 	for idx in len(_despawn_lane_links):
 		var lane := _despawn_lane_links[idx]
 		if is_instance_valid(lane):
-			if lane.get_sequential_lane(RoadLane.MoveDir.BACKWARD) == _despawn_lanes[idx]:
-				_despawn_lanes[idx].connect_next(null)
-			elif lane.get_sequential_lane(RoadLane.MoveDir.FORWARD) == _despawn_lanes[idx]:
-				lane.connect_next(null)
-			else:
-				assert(false);
+			for dir in RoadLane.MoveDir.values():
+				_despawn_lanes[idx].disconnect_sequential(dir)
 		if DEBUG_OUT:
 			prints(self, "Unlinked despawn lane", _despawn_lanes[idx], "from lane", lane)
 	_despawn_lane_links = []

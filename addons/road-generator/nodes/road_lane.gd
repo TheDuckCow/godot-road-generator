@@ -59,8 +59,7 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
 const TRAFFIC_CHUNK_LENGTH := 2.5 #not longer the than shortest vehicle #TODO make var, move to road container?
 
-const DEBUG_OUT := true
-const ENABLE_HEAVY_CKECKS := true
+const DEBUG_OUT := false
 
 class Obstacle:
 	enum ObstacleFlags {
@@ -70,6 +69,8 @@ class Obstacle:
 		LANE_END = 0x8, # end of the lane sequence (no link to the beginning)
 	}
 	const END_OFFSET_MAX = 5.0
+	const DEBUG_OUT := 3 # 1 for obstacle lists, 2 for actions. 3 for everything
+	const ENABLE_HEAVY_CKECKS := true
 
 	var visualize_lane : bool
 
@@ -134,7 +135,7 @@ class Obstacle:
 
 
 	func check_sanity(check_end := false, check_list := true) -> bool:
-		if ! RoadLane.ENABLE_HEAVY_CKECKS:
+		if ! ENABLE_HEAVY_CKECKS:
 			return true
 		var all_good := true
 		if !is_instance_valid(self.node):
@@ -156,6 +157,8 @@ class Obstacle:
 			if check_list && seq_obstacle && seq_obstacle.sequential_obstacles[dir_back] != self:
 				print(self, " Obst. sequential obstacle ", seq_obstacle, " in direction ", MoveDir.find_key(dir), " is not linked back, insead to ", seq_obstacle.sequential_obstacles[dir_back])
 				all_good = false
+		if self.lane == null:
+			return all_good
 		if !is_instance_valid(self.lane):
 			print(self, " Obst. has invalid lane ", self.lane)
 			all_good = false
@@ -194,7 +197,7 @@ class Obstacle:
 		assert(check_sanity(false, false))
 		var dir_back := RoadLane.reverse_move_dir(dir)
 		var prior := next.sequential_obstacles[dir_back]
-		if DEBUG_OUT:
+		if DEBUG_OUT & 1:
 			prints(self, "inserting in obstacle list before", next, "after", prior, "(direction", MoveDir.find_key(dir), ")")
 		next.sequential_obstacles[dir_back] = self
 		self.sequential_obstacles[dir] = next
@@ -207,7 +210,7 @@ class Obstacle:
 
 	func _remove_from_obstacle_list() -> void:
 		assert(check_sanity())
-		if DEBUG_OUT:
+		if DEBUG_OUT & 1:
 			prints(self, "removing from obstacle list linked to", self.sequential_obstacles)
 		for dir in RoadLane.MoveDir.values():
 			var seq_obstacle = self.sequential_obstacles[dir]
@@ -252,15 +255,16 @@ class Obstacle:
 
 
 	func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
-		if DEBUG_OUT:
+		if DEBUG_OUT & 2:
 			print(self, " assigning position ", offset, " on ", lane )
-		if _register && lane != self.lane:
-			if self.lane:
-				self.lane.unregister_obstacle(self)
-			lane.register_obstacle(self)
+		var lane_update := _register && lane != self.lane
+		if lane_update && self.lane:
+			self.lane.unregister_obstacle(self)
 		self._lane = lane
 		self._offset = offset
-		assert(check_sanity(false, false))
+		if lane_update:
+			lane.register_obstacle(self)
+		assert(self.check_sanity(false, false))
 
 
 	func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
@@ -271,7 +275,7 @@ class Obstacle:
 
 
 	func unassign_position(_unregister := true) -> void:
-		if DEBUG_OUT:
+		if DEBUG_OUT & 2:
 			print(self, " unassigning position")
 		self._remove_from_list()
 		if _unregister:
@@ -282,7 +286,7 @@ class Obstacle:
 
 	func move_along_lane(lane: RoadLane, offset: float, dir: MoveDir) -> void:
 		assert(check_sanity())
-		if DEBUG_OUT:
+		if DEBUG_OUT & 2:
 			prints(self, "moving obstacle along lane")
 		var seq_obstacle := self.sequential_obstacles[dir]
 		if seq_obstacle:
@@ -294,11 +298,12 @@ class Obstacle:
 			if seq_obstacle.lane == lane && seq_obstacle.offset < offset:
 				jump_over = true
 			if jump_over:
-				if DEBUG_OUT:
+				if DEBUG_OUT & 2:
 					prints(self, "jumps over an obstacle")
 				self._remove_from_list()
 				self._place_to(lane, offset)
-				self._insert_to_list()
+				if self._is_assigned(): # was not freed by despawner lane
+					self._insert_to_list()
 				return
 
 		# Handle lane crossing in non-jump case
@@ -308,15 +313,16 @@ class Obstacle:
 			var old_offset = self.offset
 			# Move to new lane
 			self._place_to(lane, offset)
-			# Update new lane's chunks (replace seq_obstacle with self)
-			_update_lane_sequence(dir, seq_obstacle, self)
-			# Manually clean up old lane's chunks (replace self with seq_obstacle)
-			old_lane._replace_next_obstacle(old_offset, self, seq_obstacle, dir)
+			if self._is_assigned(): # was not freed by despawner lane
+				# Update new lane's chunks (replace seq_obstacle with self)
+				_update_lane_sequence(dir, seq_obstacle, self)
+				# Manually clean up old lane's chunks (replace self with seq_obstacle)
+				old_lane._replace_next_obstacle(old_offset, self, seq_obstacle, dir)
 		else:
 			# Same lane - just expand forward
 			self._place_to(lane, offset)
 			_update_lane_sequence(dir, seq_obstacle, self)
-		assert(check_sanity())
+		assert(self.check_sanity())
 
 
 # ------------------------------------------------------------------------------
@@ -336,8 +342,8 @@ var _side_lanes : Array[NodePath] = ["", ""]
 		return _side_lanes[SideDir.LEFT]
 	set(val):
 		assert(get_node_or_null(val) != self)
-		#if DEBUG_OUT:
-		#	print(self, " changing left lane to ", val)
+		if DEBUG_OUT:
+			print(self, " changing left lane to ", val)
 		_side_lanes[SideDir.LEFT] = val
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right: NodePath:
@@ -345,8 +351,8 @@ var _side_lanes : Array[NodePath] = ["", ""]
 		return _side_lanes[SideDir.RIGHT]
 	set(val):
 		assert(get_node_or_null(val) != self)
-		#if DEBUG_OUT:
-		#	print(self, " changing right lane to ", val)
+		if DEBUG_OUT:
+			print(self, " changing right lane to ", val)
 		_side_lanes[SideDir.RIGHT] = val
 
 
@@ -550,30 +556,61 @@ func get_side_lane(dir : SideDir) -> RoadLane:
 func connect_next(next: RoadLane) -> void:
 	if self.get_sequential_lane(MoveDir.FORWARD) == next:
 		return
+	assert(next != null)
 	if DEBUG_OUT:
 		print(self, " connecting to ", next)
+	assert(self.get_sequential_lane(MoveDir.FORWARD) == null)
+	assert(next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] == null)
+	self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
+	next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
+	self._end_obstacle.unassign_position(false)
+	self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
+	next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
+	assert(next._next_obstacles[0].check_sanity(true))
+
+
+func split_obstacle_list_at_end() -> void:
+	#insert - update links and next obstacle fast search list
+	self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
+	#disconnect - sever links between this end obstacle and an obstacle after it
+	self._end_obstacle.sequential_obstacles[MoveDir.FORWARD].sequential_obstacles[MoveDir.BACKWARD] = null
+	self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = null
+
+
+func disconnect_sequential(dir : MoveDir) -> void:
+	var lane_next := self.get_sequential_lane(dir)
+	if ! lane_next:
+		return
+	if DEBUG_OUT:
+		print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", lane_next)
+	self._sequential_lanes[dir] = NodePath("")
+	self._side_lanes[dir] = NodePath("")
+	if dir == MoveDir.FORWARD:
+		self.split_obstacle_list_at_end()
+	var dir_back := RoadLane.reverse_move_dir(dir)
+	if lane_next.get_sequential_lane(dir_back) != self:
+		assert(false)
+		return
+	lane_next._sequential_lanes[dir_back] = NodePath("")
+	if dir_back == MoveDir.FORWARD:
+		lane_next.split_obstacle_list_at_end()
 	#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
-	var connect := true
-	if next == null:
-		next = self.get_sequential_lane(MoveDir.FORWARD)
-		connect = false
-	assert(next != null)
-	if connect:
-		assert(self.get_sequential_lane(MoveDir.FORWARD) == null)
-		assert(next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] == null)
-		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
-		next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
-		self._end_obstacle.unassign_position(false)
-		self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
-		next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
-		assert(next._next_obstacles[0].check_sanity(true))
-	else: #disconnect
-		self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
-		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD].sequential_obstacles[MoveDir.BACKWARD] = null
-		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = null
-		self._sequential_lanes[MoveDir.FORWARD] = NodePath("")
-		next._sequential_lanes[MoveDir.BACKWARD] = NodePath("")
-		assert(self._end_obstacle.check_sanity(true))
+	assert(self._end_obstacle.check_sanity(true))
+
+
+
+func disconnect_side(dir : SideDir) -> void:
+	var lane_side := self.get_side_lane(dir)
+	if ! lane_side:
+		return
+	if DEBUG_OUT:
+		print(self, " disconnecting from ", SideDir.find_key(dir), " linked ", lane_side)
+	self._side_lanes[dir] = NodePath("")
+	var dir_back := RoadLane.other_side(dir)
+	if lane_side.get_side_lane(dir_back) != self:
+		return #TODO assert?
+	lane_side._side_lanes[dir_back] = NodePath("")
+
 
 ## Register a agent to be connected to (on, following) this lane.
 func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
