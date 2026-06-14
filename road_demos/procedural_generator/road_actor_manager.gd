@@ -8,7 +8,7 @@ extends Node3D
 ## restored process_mode is PROCESS_MODE_INHERIT
 
 ## How many vehicles are allowed to be created, -1 is unlimited
-@export var vehicles_max: int = 0
+@export var vehicles_max: int = -1
 ## Actor scenes that will be spawned randomly
 @export var road_actor_scenes: Array[PackedScene]
 ## Don't free actors right away. Instead reuse them when spawned
