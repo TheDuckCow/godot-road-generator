@@ -220,33 +220,33 @@ func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 ## Link despawn lane end (of parent RoadPoint) if it's not linked to anything else
 func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _despawn_lane_links )
-	var linked := false
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
+	var move_dir := RoadLane.MoveDir.BACKWARD if lane.lane_next_tag[0] == dir else RoadLane.MoveDir.FORWARD
 	var idx = _despawn_lane_links.size()
 	if idx >= _despawn_lanes.size():
 		_despawn_lanes.append(DespawnRoadLane.new(_actor_manager))
 		add_child(_despawn_lanes[idx])
-		_despawn_lanes[idx].curve.add_point(Vector3.ZERO) #TODO _despawn_lanes[idx].curve.set_point_position() on link
-		_despawn_lanes[idx].curve.add_point(Vector3.FORWARD * RoadLane.TRAFFIC_CHUNK_LENGTH) # just so it wouldn't be a point
-		_despawn_lanes[idx].curve_changed()
 		if DEBUG_OUT:
 			prints(self, "Created new despawn lane", _despawn_lanes[idx])
 
-	if lane.lane_next_tag[0] == dir:
-		if not lane.get_sequential_lane(RoadLane.MoveDir.BACKWARD):
-			_despawn_lanes[idx].connect_next(lane)
-			linked = true
-	else:
-		if not lane.get_sequential_lane(RoadLane.MoveDir.FORWARD):
-			lane.connect_next(_despawn_lanes[idx])
-			linked = true
-	if linked:
+	if lane.get_sequential_lane(move_dir):
 		if DEBUG_OUT:
-			prints(self, "Linked lane", lane, "to despawn lane", _despawn_lanes[idx])
-		_despawn_lane_links.append(lane)
-	elif DEBUG_OUT:
-		prints(self, "Corresponding end of lane", lane, "is already linked and won't be linked to to despawn lane", _despawn_lanes[idx])
-	return linked
+			prints(self, "Corresponding end of lane", lane, "is already linked and won't be linked to to despawn lane", _despawn_lanes[idx])
+		return false
+
+	_despawn_lanes[idx].curve.clear_points()
+	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir))
+	var diff_vec	 =  lane.curve.get_point_out(0) if move_dir == RoadLane.MoveDir.FORWARD else lane.curve.get_point_in(lane.curve.get_point_count()-1)
+	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir) - diff_vec.normalized() * RoadLane.TRAFFIC_CHUNK_LENGTH * 3) # just so it wouldn't be a point
+	_despawn_lanes[idx].curve_changed()
+	if lane.lane_next_tag[0] == dir:
+		_despawn_lanes[idx].connect_next(lane)
+	else:
+		lane.connect_next(_despawn_lanes[idx])
+	if DEBUG_OUT:
+		prints(self, "Linked lane", lane, "to despawn lane", _despawn_lanes[idx])
+	_despawn_lane_links.append(lane)
+	return true
 
 
 ## Attach to current parent RoadPoint
