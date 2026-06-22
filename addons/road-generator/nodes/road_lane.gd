@@ -69,7 +69,7 @@ class Obstacle:
 		LANE_END = 0x8, # end of the lane sequence (no link to the beginning)
 	}
 	const END_OFFSET_MAX = 5.0
-	const DEBUG_OUT := 3 # 1 for obstacle lists, 2 for actions. 3 for everything
+	const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
 	const ENABLE_HEAVY_CKECKS := true
 
 	var visualize_lane : bool
@@ -138,9 +138,14 @@ class Obstacle:
 		if ! ENABLE_HEAVY_CKECKS:
 			return true
 		var all_good := true
-		if !is_instance_valid(self.node):
-			print(self, " Obst. has invalid node ", self.node)
-			all_good = false
+		if self.flags != ObstacleFlags.LANE_END:
+			if !is_instance_valid(self.node):
+				print(self, " Obst. has invalid node ", self.node)
+				all_good = false
+		else:
+			if self.node != null:
+				print(self, " Obst. is an end obstacle and has a node set ", self.node)
+				all_good = false
 		for dir in MoveDir.values():
 			if self.end_offsets[dir] < 0:
 				print(self, " Obst. negative ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
@@ -164,12 +169,6 @@ class Obstacle:
 			all_good = false
 		else:
 			if self.flags == ObstacleFlags.LANE_END:
-				if self.node is not RoadLane:
-					print(self, " lane end Obst. node is not a road lane ", self.node)
-					all_good = false
-				if self.lane != self.node:
-					print(self, " lane end Obst. not linked to its lane ", self.node, " instead to ", self.lane)
-					all_good = false
 				if check_end && check_list && self.sequential_obstacles[MoveDir.FORWARD] != null:
 					print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[MoveDir.FORWARD])
 					all_good = false
@@ -479,7 +478,6 @@ func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
 	_end_obstacle = Obstacle.new()
-	_end_obstacle.node = self
 	_end_obstacle.flags = Obstacle.ObstacleFlags.LANE_END
 
 

@@ -174,7 +174,7 @@ func _physics_process(delta: float) -> void:
 	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
 
 	var obstacle:RoadLane.Obstacle = self.agent.agent_pos.sequential_obstacles[move_dir]
-	var obstacle_dist = self.agent.agent_pos.distance_to(obstacle) if obstacle else INF
+	var obstacle_dist = self.agent.agent_pos.distance_to(obstacle) if obstacle && obstacle.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
 	#if self.agent.agent_pos_secondary.check_sanity():
 	#	assert(false) #TODO if closer on seconary
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
@@ -193,7 +193,7 @@ func _physics_process(delta: float) -> void:
 	var lane_change := int(target_dir.x)
 	if lane_change:
 		var next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
-		var obstacle_dist_side = self.global_position.distance_to(next_obstacle_side.node.position) if next_obstacle_side else INF
+		var obstacle_dist_side = self.global_position.distance_to(next_obstacle_side.node.position) if next_obstacle_side && next_obstacle_side.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
 		#TODO var prev_obstacle_side = next_obstacle_side.prev_obstacle
 		if obstacle_dist_side == 0:
 			lane_change = 0;
