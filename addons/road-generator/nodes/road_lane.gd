@@ -60,6 +60,7 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 const TRAFFIC_CHUNK_LENGTH := 2.5 #not longer the than shortest vehicle #TODO make var, move to road container?
 
 const DEBUG_OUT := false
+const ENABLE_HEAVY_CKECKS := false
 
 class Obstacle:
 	enum ObstacleFlags {
@@ -70,7 +71,7 @@ class Obstacle:
 	}
 	const END_OFFSET_MAX = 5.0
 	const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
-	const ENABLE_HEAVY_CKECKS := true
+	const ENABLE_HEAVY_CKECKS := false
 
 	var visualize_lane : bool
 
@@ -173,7 +174,7 @@ class Obstacle:
 					if ENABLE_HEAVY_CKECKS:
 						var found := false
 						var lane := self.lane;
-						while lane:
+						while lane && !found:
 							if seq_obstacle.lane == lane: #TODO multilane
 								found = true
 							lane = lane.get_sequential_lane(dir)
@@ -273,18 +274,12 @@ class Obstacle:
 		assert(next)
 		self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
 		self._update_lane_sequence(MoveDir.FORWARD, next, self)
-		print(self.lane, " INSERT >>>>>>>>>>>>>>>")
-		#for no in len(lane._next_obstacles)-1:
-			#print(no, " - ", lane._next_obstacles[no])
 		assert(check_sanity())
 
 
 	func _remove_from_list() -> void:
 		assert(check_sanity())
 		var prev_obstacle = self._update_lane_sequence(MoveDir.FORWARD, self, self.sequential_obstacles[MoveDir.FORWARD])
-		print(self.lane, " REMOVE <<<<<<<<<<<<<<<<")
-		#for no in len(lane._next_obstacles)-1:
-			#print(no, " - ", lane._next_obstacles[no])
 		if ENABLE_HEAVY_CKECKS:
 			if self._is_in_lane_sequence():
 				for no in len(lane._next_obstacles)-1:
@@ -345,24 +340,8 @@ class Obstacle:
 				self._insert_to_list()
 				return
 
-		# Handle lane move to sequential lane in non-jump case
-		if lane != self.lane:
-			# Save old position before moving
-			var old_lane = self.lane
-			var old_offset = self.offset
-			# Move to new lane
-			self._place_to(lane, offset)
-			# Update new lane's chunks (replace seq_obstacle with self)
-			_update_lane_sequence(dir, seq_obstacle, self)
-			# Manually clean up old lane's chunks (replace self with seq_obstacle)
-			old_lane._replace_next_obstacle(old_offset, self, seq_obstacle, dir)
-		else:
-			# Same lane - just expand forward
-			self._place_to(lane, offset)
-			_update_lane_sequence(dir, seq_obstacle, self)
-		#print(self.lane, " MOVE -------------")
-		#for no in len(lane._next_obstacles)-1:
-			#print(no, " - ", lane._next_obstacles[no])
+		self._place_to(lane, offset)
+		_update_lane_sequence(dir, seq_obstacle, self)
 		assert(self.check_sanity())
 
 
@@ -659,18 +638,18 @@ func disconnect_side(dir : SideDir) -> void:
 func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
 	if DEBUG_OUT:
 		print("Registering ", obstacle, " on lane ", self, " with lanes connected FORWARD ", self.get_sequential_lane(MoveDir.FORWARD), " and BACKWARD ", self.get_sequential_lane(MoveDir.BACKWARD))
-	_draw_in_game_counter += int(obstacle.visualize_lane)
-	assert(obstacle not in obstacles)
-	obstacles.append(obstacle)
+	self._draw_in_game_counter += int(obstacle.visualize_lane)
+	assert(obstacle not in self.obstacles)
+	self.obstacles.append(obstacle)
 
 
 ## Optional but good cleanup of references.
 func unregister_obstacle(obstacle: RoadLane.Obstacle) -> void:
 	if DEBUG_OUT:
 		print("Unregistering ", obstacle, " from lane ", self)
-	_draw_in_game_counter -= int(obstacle.visualize_lane)
-	assert( obstacle in obstacles )
-	obstacles.erase(obstacle)
+	self._draw_in_game_counter -= int(obstacle.visualize_lane)
+	assert( obstacle in self.obstacles )
+	self.obstacles.erase(obstacle)
 
 
 func get_lane_end_point_by_dir(dir: MoveDir) -> Vector3:
@@ -778,7 +757,7 @@ func curve_changed() -> void:
 		print(self, " changed curve")
 	var next_obstacles_size := int(self.curve.get_baked_length() / TRAFFIC_CHUNK_LENGTH) + 1
 	if self.curve.get_baked_length() != 0 && next_obstacles_size != self._next_obstacles.size():
-		assert(self._next_obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
+		assert(self.obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
 		assert(self._end_obstacle.sequential_obstacles[0] == null && self._end_obstacle.sequential_obstacles[1] == null)
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
@@ -811,7 +790,18 @@ func show_fins(value: bool) -> void:
 
 func find_next_obstacle(offset: float) -> Obstacle:
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
-	return self._next_obstacles[int(offset / TRAFFIC_CHUNK_LENGTH)]
+	var next := self._next_obstacles[int(offset / TRAFFIC_CHUNK_LENGTH)]
+	if ENABLE_HEAVY_CKECKS && !(next.flags & Obstacle.ObstacleFlags.LANE_END):
+		var lane := self
+		var found := false
+		while lane && !found:
+			if next in lane.obstacles:
+				found = true
+			lane = lane.get_sequential_lane(MoveDir.FORWARD)
+		if ! found:
+			print(next, " is not registered in ", lane, " or lanes linked in front of it")
+		assert(found)
+	return next
 
 
 ## dir is flipped - when obstacle moves forward we propagate from the end position backwards
@@ -822,13 +812,15 @@ func _replace_next_obstacle(offset: float, from: Obstacle, to: Obstacle, dir: Mo
 	var step := -1 if dir == MoveDir.FORWARD else 1
 	for i in range(start, end, step):
 		if self._next_obstacles[i] != from:
-			if start != i:
-				print(self, " changed next_obstacles between ", start, " and ", i, " from ", from, " to ", to)
-			else:
-				print(self, " changed nothing in next_obstacles. starting at ", start, " from ", from, " to ", to)
+			if DEBUG_OUT:
+				if start != i:
+					print(self, " changed next_obstacles between ", start, " and ", i, " from ", from, " to ", to)
+				else:
+					print(self, " changed nothing in next_obstacles. starting at ", start, " from ", from, " to ", to)
 			return self._next_obstacles[i]
 		self._next_obstacles[i] = to
-	print(self, " changed next_obstacles between ", start, " and lane end ", end, " from ", from, " to ", to)
+	if DEBUG_OUT:
+		print(self, " changed next_obstacles between ", start, " and lane end ", end, " from ", from, " to ", to)
 	return null
 
 func is_in_next_obstacles(obstacle: Obstacle) -> bool:
