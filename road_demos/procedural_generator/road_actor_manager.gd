@@ -8,7 +8,7 @@ extends Node3D
 ## restored process_mode is PROCESS_MODE_INHERIT
 
 ## How many vehicles are allowed to be created, -1 is unlimited
-@export var vehicles_max: int = -1
+@export var vehicles_max: int = 20
 ## Actor scenes that will be spawned randomly
 @export var road_actor_scenes: Array[PackedScene]
 ## Don't free actors right away. Instead reuse them when spawned
@@ -85,6 +85,8 @@ func remove_actor(actor: Node3D):
 		actor.queue_free()
 		if DEBUG_OUT:
 			print("Freed actor ", actor)
+	assert(agent.agent_pos.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
+	assert(agent.agent_pos.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
 
 
 ## Get amount of actors active in the scene
