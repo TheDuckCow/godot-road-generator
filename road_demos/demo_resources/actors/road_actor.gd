@@ -14,7 +14,7 @@ enum DriveState {
 @export var forward_speed_min := 15.0  # in meters per sec
 @export var forward_speed_max := 30.0  # in meters per sec
 @export var forward_speed := 30.0  # in meters per sec
-@export var reverse_speed := 10.0  # in meters per sec
+var reverse_speed := 0.0  # in meters per sec #TODO
 @export var visualize_lane := false
 @export var rotate_to_distance := 0.5 # How many meters in front of agent to seek rotation
 @export var auto_register: bool = true

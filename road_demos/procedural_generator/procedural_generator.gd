@@ -4,7 +4,7 @@ const RoadActorManager = preload("road_actor_manager.gd")
 const RoadActorSpawner = preload("road_actor_spawner.gd")
 
 ## How far ahead of the camera will we let a new RoadPoint be added
-@export var max_rp_distance: int = 200
+@export var max_rp_distance: int = 80
 ## How much buffer around this max dist to avoid adding new RPs
 ## (this will also define spacing between RoadPoints)
 @export var buffer_distance: int = 50

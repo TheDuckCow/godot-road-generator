@@ -4,7 +4,6 @@ extends Node3D
 class DespawnRoadLane extends RoadLane:
 	#TODO should be @tool?
 	var _actor_manager = null
-	var _despawn_obstacle: RoadLane.Obstacle = null
 
 	func _init(actor_manager):
 		super()
@@ -13,17 +12,13 @@ class DespawnRoadLane extends RoadLane:
 
 	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
 		super(obstacle)
-		assert(_despawn_obstacle == null)
-		_despawn_obstacle = obstacle
+		if obstacle == self._end_obstacle:
+			return
 		if _actor_manager:
-			_actor_manager.remove_actor(obstacle.node)
+			_actor_manager.call_deferred("remove_actor", obstacle.node) # have to be deferred so the obstacle would be properly registered and assigned before starting it removal process
 		else:
 			obstacle.node.queue_free()
 
-	func unregister_obstacle(obstacle: RoadLane.Obstacle) -> void:
-		super(obstacle)
-		assert(obstacle == _despawn_obstacle)
-		_despawn_obstacle = null
 
 ## Defines a traffic spawner.
 ##

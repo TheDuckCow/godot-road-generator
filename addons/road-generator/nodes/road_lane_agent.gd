@@ -211,7 +211,8 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
 	var pos = test_move_along_lane(move_distance)
-	agent_pos.move_along_lane(agent_move.lane, agent_move.offset, MoveDir.FORWARD if agent_move.dir_sign > 0 else MoveDir.BACKWARD)
+	if move_distance != 0:
+		agent_pos.move_along_lane(agent_move.lane, agent_move.offset, MoveDir.FORWARD if agent_move.dir_sign > 0 else MoveDir.BACKWARD)
 	return pos
 
 
@@ -233,7 +234,7 @@ func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 ## Finds the position this many many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
-	if ! is_lane_position_valid():
+	if ! is_lane_position_valid() || move_distance == 0:
 		return actor.global_transform.origin
 	agent_move.set_by_agent_pos(agent_pos, move_distance)
 	agent_move.along_lane()
