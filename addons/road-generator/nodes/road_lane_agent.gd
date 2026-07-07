@@ -234,7 +234,7 @@ func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 ## Finds the position this many many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
-	if ! is_lane_position_valid() || move_distance == 0:
+	if ! is_lane_position_valid():
 		return actor.global_transform.origin
 	agent_move.set_by_agent_pos(agent_pos, move_distance)
 	agent_move.along_lane()

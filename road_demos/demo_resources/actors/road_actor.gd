@@ -13,8 +13,8 @@ enum DriveState {
 @export var breaking := 20.0 # in meters per sec squared
 @export var forward_speed_min := 15.0  # in meters per sec
 @export var forward_speed_max := 30.0  # in meters per sec
-@export var forward_speed := 30.0  # in meters per sec
-var reverse_speed := 0.0  # in meters per sec #TODO
+@export var forward_speed := 30.0  # in meters per sec (can't be 0)
+@export var reverse_speed := 5.0  # in meters per sec (can't be 0)
 @export var visualize_lane := false
 @export var rotate_to_distance := 0.5 # How many meters in front of agent to seek rotation
 @export var auto_register: bool = true
@@ -121,6 +121,7 @@ func _get_player_input() -> Vector3:
 
 	var up := Input.is_action_pressed("ui_up")
 	var down := Input.is_action_pressed("ui_down")
+
 	if up == down:
 		if speed != 0:
 			dyn_accel -= _compute_player_breaking(breaking / 2.0)
@@ -182,7 +183,7 @@ func _physics_process(delta: float) -> void:
 	velocity.z -= delta * target_dir.z
 	if old_velocity && sign(old_velocity) != sign(velocity.z):
 		velocity.z = 0
-	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
+	velocity.z = clamp(velocity.z, -forward_speed * 2, 0) # TODO reverse_speed * 2) #obstacle list update not ready for reverse
 	if abs(velocity.z) < sleep_velocity:
 		velocity.z = 0
 
