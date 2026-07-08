@@ -506,7 +506,10 @@ func _init():
 		curve = Curve3D.new()
 	_end_obstacle = Obstacle.new()
 	_end_obstacle.flags = Obstacle.ObstacleFlags.LANE_END
-	_end_obstacle._place_to(self, 0, false) # will be set properly in curve_changed after geomtry is instantiated
+	if self.curve.get_baked_length() != 0:
+		_initialize_next_obstacles()
+	self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
+																				# will be set properly in curve_changed after geomtry is instantiated
 
 
 func _ready():
@@ -753,19 +756,23 @@ func rebuild_geom() -> void:
 	if refresh_geom:
 		call_deferred("_instantiate_geom")
 
-
-func curve_changed() -> void:
-	refresh_geom = true
-	if DEBUG_OUT:
-		print(self, " changed curve")
-	var next_obstacles_size := int(self.curve.get_baked_length() / TRAFFIC_CHUNK_LENGTH) + 1
-	if self.curve.get_baked_length() != 0 && next_obstacles_size != self._next_obstacles.size():
+func _initialize_next_obstacles() -> void:
+		var next_obstacles_size := int(self.curve.get_baked_length() / TRAFFIC_CHUNK_LENGTH) + 1
+		if next_obstacles_size == self._next_obstacles.size():
+			return
 		assert(self.obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
 		assert(self._end_obstacle.sequential_obstacles[0] == null && self._end_obstacle.sequential_obstacles[1] == null)
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
 			self._next_obstacles[idx] = self._end_obstacle
-	assert(!self._end_obstacle.lane || self._end_obstacle.lane == self)
+
+
+func curve_changed() -> void:
+	refresh_geom = true
+	if DEBUG_OUT:
+		print(self, " changed curve")
+	if self.curve.get_baked_length() != 0:
+		_initialize_next_obstacles()
 	if self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
 		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
 	rebuild_geom()
