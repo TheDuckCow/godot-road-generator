@@ -526,7 +526,7 @@ func get_facing_open_dir(target: RoadGraphNode) -> PointInit:
 	var is_next_connected = is_next_connected()
 	if not is_prior_connected and not is_next_connected:
 		# Determine which direction to use.
-		var dir_to_target: Vector3 = target.global_position - global_position 
+		var dir_to_target: Vector3 = target.global_position - global_position
 		var is_fwd_facing:bool = (global_basis.z.dot(dir_to_target)) > 0
 		if is_fwd_facing:
 			return PointInit.NEXT

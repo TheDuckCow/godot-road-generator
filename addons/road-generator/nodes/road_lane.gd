@@ -304,7 +304,8 @@ class Obstacle:
 
 	func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 		if self._is_assigned():
-			self.unassign_position()
+			assert(_register == (self in self.lane.obstacles))
+			self.unassign_position(_register)
 		self._place_to(lane, offset, _register)
 		self._insert_to_list()
 
@@ -761,8 +762,10 @@ func curve_changed() -> void:
 		assert(self._end_obstacle.sequential_obstacles[0] == null && self._end_obstacle.sequential_obstacles[1] == null)
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
-			_next_obstacles[idx] = _end_obstacle
-		_end_obstacle._place_to(self, self.curve.get_baked_length(), false)
+			self._next_obstacles[idx] = self._end_obstacle
+	#assert(!self._end_obstacle.lane || self._end_obstacle.lane == self)
+	#if self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
+	self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
 	rebuild_geom()
 
 
