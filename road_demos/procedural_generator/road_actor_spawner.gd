@@ -229,11 +229,12 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 			prints(self, "Corresponding end of lane", lane, "is already linked and won't be linked to to despawn lane", _despawn_lanes[idx])
 		return false
 
+	_despawn_lanes[idx].curve.set_block_signals(true) # update it only once
 	_despawn_lanes[idx].curve.clear_points()
 	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir))
 	var diff_vec	 =  lane.curve.get_point_out(0) if move_dir == RoadLane.MoveDir.FORWARD else lane.curve.get_point_in(lane.curve.get_point_count()-1)
+	_despawn_lanes[idx].curve.set_block_signals(false) # will update everything and instantiate geometry (see RoadLane._ready()) after next add_point
 	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir) - diff_vec.normalized() * RoadLane.TRAFFIC_CHUNK_LENGTH * 3) # just so it wouldn't be a point
-	_despawn_lanes[idx].curve_changed()
 	if lane.lane_next_tag[0] == dir:
 		_despawn_lanes[idx].connect_next(lane)
 	else:
@@ -283,9 +284,9 @@ func _detach() -> void:
 		prints(self, "Stopped spawn timer", _spawn_timer, "after", time_passed, "seconds")
 	for idx in len(_despawn_lane_links):
 		var lane := _despawn_lane_links[idx]
-		if is_instance_valid(lane):
-			for dir in RoadLane.MoveDir.values():
-				_despawn_lanes[idx].disconnect_sequential(dir)
+		assert(is_instance_valid(lane))
+		for dir in RoadLane.MoveDir.values():
+			_despawn_lanes[idx].disconnect_sequential(dir)
 		if DEBUG_OUT:
 			prints(self, "Unlinked despawn lane", _despawn_lanes[idx], "from lane", lane)
 	_despawn_lane_links = []

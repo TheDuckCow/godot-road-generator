@@ -272,6 +272,7 @@ class Obstacle:
 		assert(self.sequential_obstacles[MoveDir.BACKWARD] == null)
 		var next := self.lane.find_next_obstacle(self.offset) #all lane sequences must end with an obstacle for obstacle search reasons
 		assert(next)
+		assert(next != self)
 		self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
 		self._update_lane_sequence(MoveDir.FORWARD, next, self)
 		assert(check_sanity())
@@ -505,6 +506,7 @@ func _init():
 		curve = Curve3D.new()
 	_end_obstacle = Obstacle.new()
 	_end_obstacle.flags = Obstacle.ObstacleFlags.LANE_END
+	_end_obstacle._place_to(self, 0, false) # will be set properly in curve_changed after geomtry is instantiated
 
 
 func _ready():
@@ -594,7 +596,8 @@ func connect_next(next: RoadLane) -> void:
 	assert(next._next_obstacles[0].check_sanity(true))
 
 
-func split_obstacle_list_at_end() -> void:
+func _split_obstacle_list_at_end() -> void:
+	assert(self.get_sequential_lane(MoveDir.FORWARD)._next_obstacles[0].check_sanity())
 	#insert - update links and next obstacle fast search list
 	self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
 	#disconnect - sever links between this end obstacle and an obstacle after it
@@ -611,11 +614,10 @@ func disconnect_sequential(dir : MoveDir) -> void:
 	if DEBUG_OUT:
 		print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", lane_next)
 	if dir == MoveDir.FORWARD:
-		self.split_obstacle_list_at_end()
-	if dir_back == MoveDir.FORWARD:
-		lane_next.split_obstacle_list_at_end()
+		self._split_obstacle_list_at_end()
+	else:
+		lane_next._split_obstacle_list_at_end()
 	self._sequential_lanes[dir] = NodePath("")
-	self._side_lanes[dir] = NodePath("")
 	lane_next._sequential_lanes[dir_back] = NodePath("")
 	#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
 	assert(self._end_obstacle.check_sanity(true))
@@ -763,9 +765,9 @@ func curve_changed() -> void:
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
 			self._next_obstacles[idx] = self._end_obstacle
-	#assert(!self._end_obstacle.lane || self._end_obstacle.lane == self)
-	#if self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
-	self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
+	assert(!self._end_obstacle.lane || self._end_obstacle.lane == self)
+	if self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
+		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
 	rebuild_geom()
 
 
