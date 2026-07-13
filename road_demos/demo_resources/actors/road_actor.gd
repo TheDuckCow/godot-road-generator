@@ -1,5 +1,11 @@
 extends Node3D
 
+## NOTE: it's a convention to have a root point of the vehicle at the center of the rear axle
+## reason is - it shouldn't move sideways and the car can normally only rotate around that point
+## at the same time front weels are actually the ones that should follow the lane curve.
+## for that reason the point that moves on the lane curve is the center of the front axle, and
+## where the RoadLaneAgent actually is - the back one is calculated as being dragged
+
 enum DriveState {
 	PARK,
 	AUTO,
@@ -15,13 +21,13 @@ enum DriveState {
 @export var forward_speed_max := 30.0  # in meters per sec
 @export var forward_speed := 30.0  # in meters per sec (can't be 0)
 @export var reverse_speed := 5.0  # in meters per sec (can't be 0)
-@export var visualize_lane := false
+@export var visualize_lane := false # show lane for debugging
 @export var rotate_to_distance := 0.5 # How many meters in front of agent to seek rotation
-@export var auto_register: bool = true
-@export var keep_distance := 0.5
-@export var safe_headway := 1.5 # (secs)
-@export var looking_forward := 50.0
-@export var sleep_velocity := 0.025
+@export var keep_distance := 0.5 # minimal distance
+@export var safe_headway := 1.5 # how big a distance in seconds (depends on speed)
+@export var sleep_velocity := 0.025 # stop the vehicle completely for small velocity
+@export var half_width := 1.0 # half the width of the vehicle; will be used for oblong distance calcuation
+@export var length : Array[float] = [1, 3]  # length of the vehicle from the root point (FORWARD, BACKWARD); will be used on on-lane distance calculation
 
 @onready var agent:RoadLaneAgent = get_node("%road_lane_agent")
 
@@ -29,6 +35,7 @@ enum DriveState {
 var lane_change_tolerance = 3
 
 var velocity := Vector3.ZERO
+var front_axle := Vector3.ZERO # root point is on the rear axle. this one is on the front axle
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
@@ -39,7 +46,6 @@ func _ready() -> void:
 		forward_speed = randf_range(forward_speed_min, forward_speed_max)
 	agent.visualize_lane = visualize_lane
 	agent.agent_pos.node = self
-	agent.agent_pos.end_offsets = [2.5, 2.5]
 	if DEBUG_OUT:
 		print("Agent state: %s par, %s lane (%s offset), %s manager" % [
 			agent.actor, agent.agent_pos.lane if agent.agent_pos else null, agent.agent_pos.offset if agent.agent_pos else NAN, agent.road_manager
@@ -163,6 +169,51 @@ func _move_to_next_lane() -> void:
 			#var next_pos = agent.continue_along_new_lane(next_lane)
 			#global_transform.origin = next_pos
 
+# distance is not precise(can be bigger in corner cases) for performance reasons
+func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -> float:
+	const EPS := 1e-8
+	var u := a1 - a0
+	var v := b1 - b0
+	var w := a0 - b0
+	var a := u.dot(u)
+	var b := u.dot(v)
+	var c := v.dot(v)
+	var d := u.dot(w)
+	var e := v.dot(w)
+	var D := a * c - b * b
+	var s = clamp((b * e - c * d) / D, 0.0, 1.0) if D > EPS else 0.0
+	var t = clamp((s * b + e) / c, 0.0, 1.0) if c > EPS else 0.0
+	s = clamp((t * b - d) / a, 0.0, 1.0) if a > EPS else 0.0
+	return (a0 + u * s).distance_to(b0 + v * t)
+
+
+# find distance to another RoadActor
+func distance_to_other(other) -> float:
+	var dist :float
+	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # at this squared distance we can assume that the car is a point
+	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
+	var dist_sq_to_root :float = self.global_position.distance_squared_to(other.global_position)
+	if dist_sq_to_root >= MIN_POINT_DISTANCE_SQUARED:
+		return sqrt(dist_sq_to_root)
+	else: # if dist_to_start >= MIN_OBLONG_DISTANCE_SQUARED #TODO: rectangle
+		dist = segment_distance_fast(self.front_axle, self.global_position, other.front_axle, other.global_position) - self.half_width - other.half_width
+		return dist if dist > 0 else 0
+	# else: #TODO: rectangle
+
+# find distance to another RoadActor
+# first look on the current+next lanes to make it fast in 1D.
+# only use it for obstacle in front
+func distance_to_other_sequential(obstacle: RoadLane.Obstacle) -> float:
+	var dist :float
+	if self.agent.agent_pos.lane == obstacle.lane:
+		dist = (obstacle.offset - obstacle.node.length[RoadLane.MoveDir.BACKWARD]) - (self.agent.agent_pos.offset + self.length[RoadLane.MoveDir.FORWARD])
+		return dist if dist > 0 else 0
+	if self.agent.agent_pos.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD) == obstacle.lane:
+		dist = (obstacle.distance_to_end(RoadLane.MoveDir.BACKWARD) - obstacle.node.length[RoadLane.MoveDir.BACKWARD]) + (self.agent.agent_pos.distance_to_end(RoadLane.MoveDir.FORWARD) - self.length[RoadLane.MoveDir.FORWARD])
+		return dist if dist > 0 else 0
+	return distance_to_other(obstacle.node)
+
+
 func _physics_process(delta: float) -> void:
 	if ! agent.is_lane_position_valid():
 		var res = agent.assign_nearest_lane()
@@ -172,10 +223,10 @@ func _physics_process(delta: float) -> void:
 			return
 
 	velocity.y = 0
-	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	var move_dir := RoadLane.MoveDir.FORWARD #TODO obstacle list update not ready for reverse... RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
 
-	var obstacle:RoadLane.Obstacle = self.agent.agent_pos.sequential_obstacles[move_dir]
-	var obstacle_dist = self.agent.agent_pos.distance_to(obstacle) if obstacle && obstacle.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
+	var obstacle := self.agent.agent_pos.sequential_obstacles[move_dir]
+	var obstacle_dist := self.distance_to_other_sequential(obstacle) if obstacle.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
 	#if self.agent.agent_pos_secondary.check_sanity():
 	#	assert(false) #TODO if closer on seconary
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
@@ -194,7 +245,7 @@ func _physics_process(delta: float) -> void:
 	var lane_change := int(target_dir.x)
 	if lane_change:
 		var next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
-		var obstacle_dist_side = self.global_position.distance_to(next_obstacle_side.node.position) if next_obstacle_side && next_obstacle_side.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
+		var obstacle_dist_side = self.distance_to_other(next_obstacle_side.node) if next_obstacle_side.flags & RoadLane.Obstacle.ObstacleFlags.LANE_END == 0 else INF
 		#TODO var prev_obstacle_side = next_obstacle_side.prev_obstacle
 		if obstacle_dist_side == 0:
 			lane_change = 0;
@@ -211,7 +262,7 @@ func _physics_process(delta: float) -> void:
 	var move_dist:float = get_signed_speed() * delta
 
 	var collided = false
-	if obstacle && obstacle_dist < abs(move_dist):
+	if obstacle_dist < abs(move_dist):
 		move_dist = sign(move_dist) * obstacle_dist
 		collided = true
 

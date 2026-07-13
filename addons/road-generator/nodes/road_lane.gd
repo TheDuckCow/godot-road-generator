@@ -93,10 +93,6 @@ class Obstacle:
 	var node: Node3D
 	var sequential_obstacles: Array[Obstacle] = [null, null]
 
-	## Obstacle is essentially an oblong/capsule
-	var end_offsets: Array[float] = [0.0, 0.0]
-	var width: float = 0.0
-
 	## approximate speed an obstacle on lane (m/s)
 	## for example if actor moves with an angle from tagent, its obstacle's speed
 	## should be just a fraction (dependent on the angle) of actor's speed
@@ -113,28 +109,6 @@ class Obstacle:
 		assert(check_sanity(true))
 		return self.lane.offset_from_end(self.offset, dir)
 
-
-	func segment_distance_fast(a0, a1, b0, b1) -> float:
-		const EPS := 1e-8
-		var u = a1 - a0
-		var v = b1 - b0
-		var w = a0 - b0
-		var D = u.dot(u) * v.dot(v) - pow(u.dot(v), 2)
-		if abs(D) < EPS:
-			return a0.distance_to(b0)
-		var s = clamp((u.dot(v) * v.dot(w) - v.dot(v) * u.dot(w)) / D, 0.0, 1.0)
-		var t = clamp((u.dot(u) * v.dot(w) - u.dot(v) * u.dot(w)) / D, 0.0, 1.0)
-		return (a0 + u * s).distance_to(b0 + v * t)
-
-
-	func distance_to(obstacle: Obstacle) -> float:
-		var pos_forward = self.node.global_position - self.node.global_basis.z * self.end_offsets[MoveDir.FORWARD]
-		var pos_backward = self.node.global_position - self.node.global_basis.z * self.end_offsets[MoveDir.BACKWARD]
-		var pos_forward_other = obstacle.node.global_position - obstacle.node.global_basis.z * obstacle.end_offsets[MoveDir.FORWARD]
-		var pos_backward_other = obstacle.node.global_position - obstacle.node.global_basis.z * obstacle.end_offsets[MoveDir.BACKWARD]
-		return segment_distance_fast(pos_forward, pos_backward, pos_forward_other, pos_backward_other) - self.width - obstacle.width
-
-
 	func check_sanity(check_end := false, check_list := true) -> bool:
 		if ! ENABLE_HEAVY_CKECKS:
 			return true
@@ -146,13 +120,6 @@ class Obstacle:
 		else:
 			if self.node != null:
 				print(self, " Obst. is an end obstacle and has a node set ", self.node)
-				all_good = false
-		for dir in MoveDir.values():
-			if self.end_offsets[dir] < 0:
-				print(self, " Obst. negative ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
-				all_good = false
-			elif self.end_offsets[dir] > END_OFFSET_MAX:
-				print(self, " Obst. too big ", MoveDir.find_key(dir), " end offset ", self.end_offsets[dir])
 				all_good = false
 		if check_list:
 			for dir in MoveDir.values():
@@ -341,7 +308,6 @@ class Obstacle:
 				self._place_to(lane, offset)
 				self._insert_to_list()
 				return
-
 		self._place_to(lane, offset)
 		_update_lane_sequence(dir, seq_obstacle, self)
 		assert(self.check_sanity())
