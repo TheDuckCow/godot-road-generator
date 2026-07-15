@@ -80,8 +80,8 @@ func _ready() -> void:
 
 
 func is_lane_position_valid() -> bool:
-	assert( !self.agent_pos.lane || ( is_instance_valid(self.agent_pos.lane) && self.agent_pos.check_sanity() ) )
-	return true if self.agent_pos.lane else false
+	assert( !self.agent_pos.is_assigned() || ( is_instance_valid(self.agent_pos.lane) && self.agent_pos.check_sanity() ) )
+	return self.agent_pos.is_assigned()
 
 func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
@@ -105,11 +105,9 @@ func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 	self.agent_pos.assign_position(new_lane, new_offset)
 
 
-func unassign_lane() -> RoadLane:
-	var old_lane: RoadLane = self.agent_pos.lane
+func unassign_lane() -> void:
 	self.agent_pos.unassign_position()
 	#self.agent_pos_secondary.unassign_position()
-	return old_lane
 
 
 func assign_actor() -> Error:
@@ -253,7 +251,6 @@ func change_lane(direction: int) -> Error:
 	if !direction:
 		return OK
 	var _new_lane := agent_pos.lane
-	var old_lane := agent_pos.lane
 	var dec = sign(direction)
 	while direction != 0:
 		_new_lane = _new_lane.get_side_lane(to_lane_side(dec))

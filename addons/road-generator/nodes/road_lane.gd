@@ -102,7 +102,7 @@ class Obstacle:
 	func _init(visualize_lane := false) -> void:
 		self.visualize_lane = visualize_lane
 
-	func _is_assigned() -> bool:
+	func is_assigned() -> bool:
 		return self._lane != null
 
 	func distance_to_end(dir: RoadLane.MoveDir) -> float:
@@ -134,7 +134,7 @@ class Obstacle:
 				if seq_obstacle.sequential_obstacles[dir_back] != self:
 					print(self, " Obst. sequential obstacle ", seq_obstacle, " in direction ", MoveDir.find_key(dir), " is not linked back, insead to ", seq_obstacle.sequential_obstacles[dir_back])
 					all_good = false
-				if !seq_obstacle._is_assigned():
+				if !seq_obstacle.is_assigned():
 					print(self, " Obst. linked to ", seq_obstacle, " in direction ", MoveDir.find_key(dir), " that is not assigned to a lane")
 					all_good = false
 				else:
@@ -271,7 +271,7 @@ class Obstacle:
 
 
 	func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
-		if self._is_assigned():
+		if self.is_assigned():
 			assert(_register == (self in self.lane.obstacles))
 			self.unassign_position(_register)
 		self._place_to(lane, offset, _register)
@@ -312,6 +312,10 @@ class Obstacle:
 		_update_lane_sequence(dir, seq_obstacle, self)
 		assert(self.check_sanity())
 
+	func get_position() -> Vector3:
+		if !is_assigned():
+			return Vector3.INF
+		return self.lane.to_global(self.lane.curve.sample_baked(self.offset))
 
 # ------------------------------------------------------------------------------
 #endregion
