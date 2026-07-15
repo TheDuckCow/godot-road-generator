@@ -52,6 +52,7 @@ func add_actor(pos: Vector3, lane: RoadLane = null, offset: float = NAN) -> Node
 	if lane != null:
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
 			agent.assign_lane_position(lane, offset)
+			new_actor.look_at(agent.test_move_along_lane(new_actor.rotate_to_distance), Vector3.UP)
 			var next_obstacle := lane.find_next_obstacle(offset)
 			#TODO check distance to next_obstacle to not spawn too close
 		else:
