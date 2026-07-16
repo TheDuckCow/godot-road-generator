@@ -86,8 +86,8 @@ func remove_actor(actor: Node3D):
 		actor.queue_free()
 		if DEBUG_OUT:
 			print("Freed actor ", actor)
-	assert(agent.agent_pos.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
-	assert(agent.agent_pos.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
+	assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
+	assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
 
 
 ## Get amount of actors active in the scene
