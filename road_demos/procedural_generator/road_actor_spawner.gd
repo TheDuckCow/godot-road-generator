@@ -7,10 +7,10 @@ class DespawnRoadLane extends RoadLane:
 
 	func _init(actor_manager):
 		super()
-		flags = RoadLane.LaneFlags.UTILITY
+		flags = RoadLane.Flags.UTILITY
 		_actor_manager = actor_manager
 
-	func register_obstacle(obstacle: RoadLane.Obstacle) -> void:
+	func register_obstacle(obstacle: RoadLaneObstacle) -> void:
 		super(obstacle)
 		if obstacle == self._end_obstacle:
 			return
@@ -186,7 +186,7 @@ func _run_timer(prior_delay: float) -> void:
 			if DEBUG_OUT:
 				prints(self, "Spawn timer ", _spawn_timer, "fired for lane", _spawn_lanes[idx])
 			_spawn_delays[idx] = randf_range(spawn_time_min, spawn_time_max)
-			var first_obstacle: RoadLane.Obstacle = null if _spawn_lanes[idx].obstacles.is_empty() else _spawn_lanes[idx].obstacles[0]
+			var first_obstacle: RoadLaneObstacle = null if _spawn_lanes[idx].obstacles.is_empty() else _spawn_lanes[idx].obstacles[0]
 			if ! first_obstacle || first_obstacle.offset >= spawn_distance_min: #check if another agent is too close
 				var lane_start: Vector3 = _spawn_lanes[idx].to_global(_spawn_lanes[idx].curve.get_point_position(0))
 				_actor_manager.add_actor(lane_start, _spawn_lanes[idx], 0)
@@ -202,7 +202,7 @@ func _run_timer(prior_delay: float) -> void:
 func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _spawn_lanes )
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
-	if lane.lane_next_tag[0] != dir || lane.flags == RoadLane.LaneFlags.DIVERGING:
+	if lane.lane_next_tag[0] != dir || lane.flags == RoadLane.Flags.DIVERGING:
 		return false
 	_spawn_lanes.append(lane)
 	if _spawn_lanes.size() > _spawn_delays.size():

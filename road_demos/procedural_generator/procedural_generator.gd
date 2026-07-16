@@ -148,7 +148,7 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 		return
 	var new_lanes = new_seg.get_lanes()
 	for _lane: RoadLane in new_lanes:
-		if _lane.flags in [RoadLane.LaneFlags.DIVERGING, RoadLane.LaneFlags.MERGING]:
+		if _lane.flags in [RoadLane.Flags.DIVERGING, RoadLane.Flags.MERGING]:
 			continue
 		var start = before_after
 		var end = before_after
