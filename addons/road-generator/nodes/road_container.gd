@@ -265,7 +265,15 @@ func _ready():
 
 
 func _enter_tree() -> void:
-	pass
+	# On the first tree entry _ready() has not run yet (is_node_ready() is
+	# false), so let _ready() own the initial build. On any later re-entry
+	# (e.g. returning to a scene tab in the editor) _ready() will not fire
+	# again, so regenerate the runtime-only lanes/segments here. Without this
+	# the non-serialized RoadLanes stay hidden until a manual Refresh Roads.
+	if not Engine.is_editor_hint():
+		return
+	if is_node_ready():
+		rebuild_segments.call_deferred(true)
 
 
 ## Cleanup the road segments specifically, in case they aren't children.
