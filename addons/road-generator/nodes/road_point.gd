@@ -56,6 +56,7 @@ enum Alignment {
 }
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+const SegGeo = preload("res://addons/road-generator/procgen/segment_geo.gd")
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
@@ -254,7 +255,32 @@ func _get_configuration_warnings() -> PackedStringArray:
 	#if not par is RoadContainer:
 	if not par.has_method("is_road_container"):
 		return ["Must be a child of a RoadContainer"]
-	return []
+
+	# Flag lane setups that match no lanes and so render no road mesh, so the
+	# user sees a warning instead of a silently missing segment.
+	var warnings: PackedStringArray = []
+	if traffic_dir.is_empty():
+		return warnings
+
+	var flip_data: Array = SegGeo._get_lane_flip_data(traffic_dir, true)
+	if flip_data[0] == -1:
+		# Malformed order: a FORWARD lane appears before a REVERSE one.
+		warnings.append("Invalid lane directions: list all REVERSE lanes before FORWARD lanes.")
+		return warnings
+
+	var this_dir: int = flip_data[1]
+	for neighbor in [get_prior_road_node(true), get_next_road_node(true)]:
+		if not is_instance_valid(neighbor) or not neighbor.has_method("is_road_point"):
+			continue
+		if neighbor.traffic_dir.is_empty():
+			continue
+		var other_flip: Array = SegGeo._get_lane_flip_data(neighbor.traffic_dir, true)
+		if other_flip[0] == -1:
+			continue # The neighbour carries its own malformed-order warning.
+		if not SegGeo.is_valid_lane_transition(this_dir, other_flip[1]):
+			warnings.append(("Lane setup does not match connected RoadPoint " +
+				"'%s': a one-way to two-way transition renders no road mesh.") % neighbor.name)
+	return warnings
 
 
 # Workaround for cyclic typing
@@ -453,6 +479,14 @@ func emit_transform(low_poly=false):
 		if is_instance_valid(_gizmo):
 			_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	on_transform.emit(self, low_poly)
+
+	# Refresh lane-transition warnings on this point and its neighbours, since a
+	# lane change here can validate or invalidate the transition on either side.
+	if Engine.is_editor_hint():
+		update_configuration_warnings()
+		for neighbor in [get_prior_road_node(true), get_next_road_node(true)]:
+			if is_instance_valid(neighbor) and neighbor.has_method("is_road_point"):
+				neighbor.update_configuration_warnings()
 
 
 # ------------------------------------------------------------------------------

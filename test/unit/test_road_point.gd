@@ -102,6 +102,44 @@ func test_error_no_traffic_dir():
 	pass_test('nothing tested, passing')
 
 
+## A one-way <-> two-way transition renders no mesh, so the connected RoadPoints
+## should surface a configuration warning instead of silently failing.
+func test_config_warning_invalid_lane_transition():
+	var container = add_child_autofree(RoadContainer.new())
+	container._auto_refresh = false
+	var points = create_unconnected_container(container)
+	var p1 = points[0]
+	var p2 = points[1]
+	p1.next_pt_init = p1.get_path_to(p2)
+	p2.prior_pt_init = p2.get_path_to(p1)
+
+	# Invalid: p1 two-way (BOTH), p2 one-way (REVERSE), sharing the first dir.
+	p1.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
+	p2.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE])
+	assert_gt(p1._get_configuration_warnings().size(), 0, "p1 warns on invalid transition")
+	assert_gt(p2._get_configuration_warnings().size(), 0, "p2 warns on invalid transition")
+
+	# Valid: both two-way -> transition warning clears.
+	p2.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
+	assert_eq(p1._get_configuration_warnings().size(), 0, "p1 clear when transition valid")
+	assert_eq(p2._get_configuration_warnings().size(), 0, "p2 clear when transition valid")
+
+
+## A malformed lane order (a FORWARD lane before a REVERSE one) renders no mesh,
+## so the RoadPoint should warn on its own without a neighbour.
+func test_config_warning_malformed_lane_order():
+	var container = add_child_autofree(RoadContainer.new())
+	container._auto_refresh = false
+	var pt = create_unconnected_container(container)[0]
+
+	pt.traffic_dir.assign([RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
+	assert_gt(pt._get_configuration_warnings().size(), 0, "Warns on malformed lane order")
+
+	# REVERSE-before-FORWARD order is valid and clears the warning.
+	pt.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD])
+	assert_eq(pt._get_configuration_warnings().size(), 0, "Clear on valid lane order")
+
+
 func test_autofix_noncyclic_added_next():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
