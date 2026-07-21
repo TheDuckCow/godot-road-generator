@@ -1473,7 +1473,6 @@ func _match_lanes() -> Array:
 	if start_flip_offset == -1 or end_flip_offset == -1:
 		return []
 
-	# Check for additional invalid lane configurations (one-way <-> two-way).
 	if not SegGeo.is_valid_lane_transition(start_traffic_dir, end_traffic_dir):
 		push_warning("Warning: Unable to match lanes on start_point %s (parent: %s)" % [start_point, start_point.get_parent()])
 		return []
