@@ -101,7 +101,9 @@ func create_intersection_four_branch(container):
 
 ## Creates a three-branch T: pw and pe form a straight bar across the
 ## intersection, and ps is the stem with no edge opposite it.
-func create_intersection_three_branch(container):
+## dist spaces the branches from the center; the default keeps branch
+## footprints overlapping (historic), pass ~30 for non-overlapping geometry.
+func create_intersection_three_branch(container, dist: float = 10.0):
 	container.setup_road_container()
 
 	assert_eq(container.get_child_count(), 0, "No initial point children")
@@ -119,9 +121,9 @@ func create_intersection_three_branch(container):
 	container.add_child(pe)
 	container.add_child(ps)
 
-	pw.position = Vector3(-10, 0, 0)
-	pe.position = Vector3(10, 0, 0)
-	ps.position = Vector3(0, 0, 10)
+	pw.position = Vector3(-dist, 0, 0)
+	pe.position = Vector3(dist, 0, 0)
+	ps.position = Vector3(0, 0, dist)
 	# Rotate each edge so its forward axis points at the center.
 	pw.rotation_degrees.y = 90
 	pe.rotation_degrees.y = -90

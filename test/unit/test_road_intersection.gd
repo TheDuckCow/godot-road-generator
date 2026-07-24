@@ -145,6 +145,51 @@ func test_intersection_add_branch():
 	_validate_edges(container, 3)
 
 
+func test_intersection_underside_generation():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	# Spaced out so branch footprints do not overlap
+	road_util.create_intersection_three_branch(container, 30.0)
+	var inter: RoadIntersection = container.get_intersections()[0]
+
+	container.rebuild_segments(true)
+	assert_eq(inter._mesh.mesh.get_surface_count(), 1, "No underside surface by default")
+
+	inter.underside_thickness = 0.5
+	container.rebuild_segments(true)
+	assert_eq(inter._mesh.mesh.get_surface_count(), 2, "Underside adds a second surface")
+
+	# All underside faces should aim downward or sideways, never up.
+	var arrays: Array = inter._mesh.mesh.surface_get_arrays(1)
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	assert_gt(normals.size(), 0, "Underside surface has normals")
+	var max_y := -1.0
+	for normal in normals:
+		max_y = maxf(max_y, normal.y)
+	assert_lt(max_y, 0.1, "No underside normal points upward")
+
+	# The bottom fan should sit at underside_thickness below the road plane.
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var min_y := 0.0
+	for vert in verts:
+		min_y = minf(min_y, vert.y)
+	assert_almost_eq(min_y, -0.5, 0.001, "Underside dropped by thickness")
+
+
+func test_intersection_underside_container_fallback():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	road_util.create_intersection_three_branch(container, 30.0)
+	var inter: RoadIntersection = container.get_intersections()[0]
+
+	container.underside_thickness = 0.5
+	container.rebuild_segments(true)
+	assert_eq(inter.get_thickness(), 0.5, "Intersection inherits container thickness")
+	assert_eq(inter._mesh.mesh.get_surface_count(), 2, "Underside generated via container thickness")
+
+
 func test_intersection_remove_branch():
 	var container:RoadContainer = autoqfree(RoadContainer.new())
 	add_child(container)
