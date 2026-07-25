@@ -56,12 +56,6 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 ## To work, the RoadContainer must also have flatten_terrain enabled.
 @export var flatten_terrain: bool = true
 
-## Defines the thickness in meters of the underside part of the intersection.[br][br]
-##
-## A value of -1 indicates the thickness of the RoadContainer will be used, or the
-## underside will not be generated at all.
-@export var underside_thickness: float = -1.0: set = _set_thickness
-
 @export_group("Internal")
 
 @export var edge_points: Array[RoadPoint] = []: get = _get_edge_points, set = _set_edge_points
@@ -96,13 +90,6 @@ func _get_settings() -> IntersectionSettings:
 func _set_settings(value: IntersectionSettings) -> void:
 	settings = value
 	# TODO emit transform?
-
-
-func _set_thickness(value: float) -> void:
-	underside_thickness = value
-	if not is_instance_valid(container):
-		return  # Might not be initialized yet.
-	emit_transform()
 
 
 # ------------------------------------------------------------------------------
@@ -263,18 +250,6 @@ func update_lane_visibility() -> void:
 		if child is RoadLane:
 			child.draw_in_editor = container.draw_lanes_editor
 			child.draw_in_game = container.draw_lanes_game
-
-
-## Effective underside thickness, falling back to the container then the manager.
-func get_thickness() -> float:
-	if underside_thickness != -1.0:
-		return underside_thickness
-	if is_instance_valid(container) and container.underside_thickness != -1.0:
-		return container.underside_thickness
-	if is_instance_valid(container) and is_instance_valid(container.get_manager()) \
-			and container.get_manager().underside_thickness != -1.0:
-		return container.get_manager().underside_thickness
-	return -1.0
 
 
 ## Check if mesh needs to be rebuilt.[br][br]

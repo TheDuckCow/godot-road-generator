@@ -156,7 +156,8 @@ func test_intersection_underside_generation():
 	container.rebuild_segments(true)
 	assert_eq(inter._mesh.mesh.get_surface_count(), 1, "No underside surface by default")
 
-	inter.underside_thickness = 0.5
+	for rp in container.get_roadpoints():
+		rp.underside_thickness = 0.5
 	container.rebuild_segments(true)
 	assert_eq(inter._mesh.mesh.get_surface_count(), 2, "Underside adds a second surface")
 
@@ -186,8 +187,20 @@ func test_intersection_underside_container_fallback():
 
 	container.underside_thickness = 0.5
 	container.rebuild_segments(true)
-	assert_eq(inter.get_thickness(), 0.5, "Intersection inherits container thickness")
 	assert_eq(inter._mesh.mesh.get_surface_count(), 2, "Underside generated via container thickness")
+
+
+func test_intersection_underside_skipped_on_mixed_thickness():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.setup_road_container()
+	road_util.create_intersection_three_branch(container, 30.0)
+	var inter: RoadIntersection = container.get_intersections()[0]
+
+	# Only one edge resolves a thickness: skip the whole underside.
+	container.get_roadpoints()[0].underside_thickness = 0.5
+	container.rebuild_segments(true)
+	assert_eq(inter._mesh.mesh.get_surface_count(), 1, "Underside skipped when an edge lacks thickness")
 
 
 func test_intersection_remove_branch():
