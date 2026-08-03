@@ -1,6 +1,13 @@
 class_name RoadLaneObstacle
 extends RefCounted
 
+## RoadLaneObstacle is an entity that is "placed" on a RoadLane
+## its main goal is for actors to be aware of its environment
+## for decision making
+## specifically whats going on on the current and side lanes
+## obstacle is linked ot its main node and to obstacles in front
+## and back of it
+
 enum Flags {
 	REAL = 0x0, # the node is on this lane
 	IMMINENT = 0x1, # the node from another lane won't be able to stop before it gets to this position
@@ -29,6 +36,7 @@ var offset: float: #set through assign_position or move_along_lane
 var _lane: RoadLane
 var _offset: float
 var node: Node3D
+## next and prior obstacles links
 var sequential_obstacles: Array[RoadLaneObstacle] = [null, null]
 
 ## approximate speed an obstacle on lane (m/s)
@@ -40,13 +48,18 @@ var speed: float
 func _init(visualize_lane := false) -> void:
 	self.visualize_lane = visualize_lane
 
+## is obstacle active (is on lane)
 func is_assigned() -> bool:
 	return self._lane != null
 
+## distance from this obstacle to beginning (RoadLane.MoveDir.BACKWARD) or end (RoadLane.MoveDir.FORWARD) of the RoadLane its assigned to
 func distance_to_end(dir: RoadLane.MoveDir) -> float:
 	assert(check_sanity(true))
 	return self.lane.offset_from_end(self.offset, dir)
 
+## various sanity checks for rhe obstacle
+## check_end - obstacle should always be linked forward (except LANE_END flagged, which never is)
+## check_list - obstacle linkage must be correct
 func check_sanity(check_end := false, check_list := true) -> bool:
 	if ! ENABLE_HEAVY_CKECKS:
 		return true
@@ -115,8 +128,10 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 	return all_good
 
 
+## insert the obstacle after specific 'next' in the double-linked list of obstacles
 func _insert_in_obstacle_list(next: RoadLaneObstacle, dir: RoadLane.MoveDir) -> void:
-	assert(next)
+	if next == null:
+		return
 	assert(check_sanity(false, false))
 	var dir_back := RoadLane.reverse_move_dir(dir)
 	var prior := next.sequential_obstacles[dir_back]
@@ -130,8 +145,10 @@ func _insert_in_obstacle_list(next: RoadLaneObstacle, dir: RoadLane.MoveDir) -> 
 		self.sequential_obstacles[dir_back] = prior
 	assert(check_sanity())
 
-
+## remove the obstacle in the double-linked list of obstacles
 func _remove_from_obstacle_list() -> void:
+	if self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null: # linking disabled
+		return
 	assert(check_sanity())
 	if DEBUG_OUT & 1:
 		prints(self, "removing from obstacle list linked to", self.sequential_obstacles)
@@ -145,21 +162,20 @@ func _remove_from_obstacle_list() -> void:
 		self.sequential_obstacles[dir] = null
 	assert(check_sanity(false))
 
-
-func _update_lane_sequence(dir: RoadLane.MoveDir, from: RoadLaneObstacle, to: RoadLaneObstacle) -> RoadLaneObstacle:
+## update obstacle search array in the lane sequence
+func _update_lane_sequence(dir: RoadLane.MoveDir, from: RoadLaneObstacle, to: RoadLaneObstacle) -> void:
 	assert(check_sanity())
 	var lane = self.lane
 	var offset = self.offset
 	while lane:
-		var prior := lane._replace_next_obstacle(offset, from, to, dir)
-		if prior:
-			assert(check_sanity())
-			return prior
+		var done := lane._replace_next_obstacle(offset, from, to, dir)
+		if done:
+			return
 		lane = lane.get_sequential_lane(RoadLane.MoveDir.BACKWARD)
 		offset = INF
 	assert(check_sanity())
-	return null
 
+## used for sanity check that clean up (when removed trom lane) was successful
 func _is_in_lane_sequence() -> bool:
 	var lane := self.lane
 	for dir in RoadLane.MoveDir.values():
@@ -170,29 +186,29 @@ func _is_in_lane_sequence() -> bool:
 			lane = lane.get_sequential_lane(dir)
 	return false
 
-
+## insert the obstacle in the double-linked list of obstacles
 func _insert_to_list() -> void:
 	assert(check_sanity(false, false))
 	assert(self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
 	assert(self.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
 	var next := self.lane.find_next_obstacle(self.offset) #all lane sequences must end with an obstacle for obstacle search reasons
-	assert(next)
-	assert(next != self)
-	self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
-	self._update_lane_sequence(RoadLane.MoveDir.FORWARD, next, self)
-	assert(check_sanity())
+	if next:
+		assert(next != self)
+		self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
+		self._update_lane_sequence(RoadLane.MoveDir.FORWARD, next, self)
+		assert(check_sanity())
 
-
+## remove obstacle from both list and search array
 func _remove_from_list() -> void:
 	assert(check_sanity())
-	var prev_obstacle = self._update_lane_sequence(RoadLane.MoveDir.FORWARD, self, self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
+	self._update_lane_sequence(RoadLane.MoveDir.FORWARD, self, self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
 	if ENABLE_HEAVY_CKECKS:
 		if self._is_in_lane_sequence():
 			assert(false)
 	self._remove_from_obstacle_list()
 	assert(check_sanity(false))
 
-
+## set obstacle position on lane and _register it
 func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
 	if DEBUG_OUT & 2:
 		print(self, " assigning position ", offset, " on ", lane )
@@ -205,7 +221,8 @@ func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
 		lane.register_obstacle(self)
 	assert(self.check_sanity(false, false))
 
-
+## put obstacle on a lane and _register it
+## insert in the obstacle list and search array
 func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 	if self.is_assigned():
 		assert(_register == (self in self.lane.obstacles))
@@ -213,7 +230,8 @@ func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 	self._place_to(lane, offset, _register)
 	self._insert_to_list()
 
-
+## remove obstacle from the lane it is on and _unregister it
+## remove from obstacle list and search array
 func unassign_position(_unregister := true) -> void:
 	if DEBUG_OUT & 2:
 		print(self, " unassigning position")
@@ -223,7 +241,10 @@ func unassign_position(_unregister := true) -> void:
 	self._lane = null
 	self._offset = NAN
 
-
+## when changing obstacle position while it just moved along the lane
+## to not update search arrays and obstacle list
+## when it has to jump over an obstacle (because new offset overcome an offset of next)
+##   it will essentially remove and add it again automatically
 func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> void:
 	assert(check_sanity())
 	if DEBUG_OUT & 2:
@@ -248,6 +269,7 @@ func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> vo
 	_update_lane_sequence(dir, seq_obstacle, self)
 	assert(self.check_sanity())
 
+## get global position of the obstacle
 func get_position() -> Vector3:
 	if !is_assigned():
 		return Vector3.INF

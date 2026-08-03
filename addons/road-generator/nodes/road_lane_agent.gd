@@ -128,7 +128,6 @@ func assign_manager() -> Error:
 		road_manager = _target_manager
 		return OK
 
-
 	# Fall back to implied parent
 	var _last_par = get_parent()
 	while true:
@@ -154,6 +153,7 @@ func get_closest_path_point(path: Path3D, pos:Vector3) -> Vector3:
 	return path.to_global(interp_point)
 
 
+## Put the actor on the closest lane position
 func assign_nearest_lane() -> Error:
 	var res := find_nearest_lane()
 	if is_instance_valid(res):
@@ -212,20 +212,24 @@ func move_along_lane(move_distance: float) -> Vector3:
 	return pos
 
 
-## Finds the poistion this many many units forward (or backwards, if negative)
-## along the current lane, assigning a new lane if the next one is reached
+## Finds the closest position on a new (newly set or disconnected) lane
+## and move the rest of the distance along it
 func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
 		return self.move.get_position()
 	assign_closest_lane_position(new_lane)
 	return move_along_lane(self.move.distance_left)
 
+
+## Fast find a position on the side lane
+## and move the rest of the distance along it
 func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
 		return self.move.get_position()
 	var new_offset = _position_on_side_lane(new_lane)
 	assign_lane_position(new_lane, new_offset)
 	return move_along_lane(self.move.distance_left)
+
 
 ## Finds the position this many many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
@@ -237,7 +241,12 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 	return self.move.get_position()
 
 
-## It's a heuristic to search
+## It's a heuristic to quickly find closest position on a side lane
+## expecting lanes to not be too creative.
+## transform offset to fraction of a lane and transform same fraction
+## to offset on the side lane
+## as side lane normally can be longer/shorter, reusing same offset
+## would be imprecise
 func _position_on_side_lane(other_lane: RoadLane) -> float:
 	return clamp(self.lane_position.offset *
 					other_lane.curve.get_baked_length() / self.lane_position.lane.curve.get_baked_length(),
@@ -273,6 +282,7 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 	return _lane.obstacles.size()
 
 
+## find position to an obstacle in front of the agent on a sidelane
 func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObstacle:
 	assert(self.lane_position.check_sanity())
 	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
@@ -282,6 +292,9 @@ func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObsta
 	return side_lane.find_next_obstacle( self._position_on_side_lane(side_lane) )
 
 
+## Helper for moving along lane and getting info from that
+## specifically when move have to be split on multiple disconencted lanes (in case of for example lane merge)
+## TODO Overengineered? look once more at what happens here
 class MoveAlongLane:
 	var lane_position: RoadLaneObstacle
 	var offset: float
@@ -335,11 +348,6 @@ class MoveAlongLane:
 				print(self.lane_position, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
 			else:
 				print(self.lane_position, " stopping at ", self.offset, ", all good")
-
-
-## Returns the expect target position based on the closest target pos
-#func get_fwd_tangent_for_position(position: Vector3) -> Vector3:
-#	return Vector3.ZERO
 
 
 #endregion
