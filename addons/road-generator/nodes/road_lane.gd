@@ -4,7 +4,6 @@ class_name RoadLane
 extends Path3D
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-const RoadLaneObstacle = preload("res://addons/road-generator/nodes/road_lane_obstacle.gd")
 
 ## Defines a directional lane of traffic for AI with references to adjacent lanes.
 ##
@@ -57,8 +56,6 @@ static func other_side(side: SideDir) -> SideDir:
 const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
 const COLOR_START := Color(0.1, 0.9, 0.0)
 const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
-
-const TRAFFIC_CHUNK_LENGTH := 2.5 #not longer the than shortest vehicle #TODO make var, move to road container?
 
 const DEBUG_OUT := false
 const ENABLE_HEAVY_CKECKS := false
@@ -172,7 +169,6 @@ var _primary_lanes : Array[NodePath] = ["", ""]
 ## Auto queue-free any vehicles registered to this lane with the road lane exits.
 @export var auto_free_vehicles: bool = false
 
-
 # -------------------------------------
 @export_group("Editor tools")
 # -------------------------------------
@@ -186,7 +182,6 @@ var _primary_lanes : Array[NodePath] = ["", ""]
 ## replaced with a tool button once this addon targets Godot 4.4 as the minimum.
 @export var reverse_direction = false: set = _set_reverse_direction
 
-var this_road_segment :RoadSegment = null
 var refresh_geom := true
 var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
 var geom_node: MeshInstance3D
@@ -198,7 +193,7 @@ var flags: RoadLane.Flags = RoadLane.Flags.NORMAL
 var obstacles: Array[RoadLaneObstacle] = []
 
 # next obstacle (not necessary on this lane).
-# lane length is split in chunks of TRAFFIC_CHUNK_LENGTH
+# lane length is split in chunks of traffic_chunk_length
 var _next_obstacles: Array[RoadLaneObstacle] = []
 
 ## this obstacle have to be set on the last lane of lane sequence,
@@ -210,6 +205,11 @@ var _draw_in_editor: bool = false
 var _draw_override: bool = false
 var _display_fins: bool = false
 
+## length of chunk (in meters) for searching next vehicle
+## it's going to be set from road_manager on scene add and used when curve is changed/set
+## search array won't be updated on change here or in RoadManager and may break
+## if <= 0, vehicle search functionality is disabled
+var traffic_chunk_length := 2.5
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -220,11 +220,12 @@ var _display_fins: bool = false
 func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
-	_end_obstacle = RoadLaneObstacle.new()
-	_end_obstacle.flags = RoadLaneObstacle.Flags.LANE_END
-	if self.curve.get_baked_length() != 0:
-		_initialize_next_obstacles()
-	self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
+	if self.traffic_chunk_length > 0:
+		_end_obstacle = RoadLaneObstacle.new()
+		_end_obstacle.flags = RoadLaneObstacle.Flags.LANE_END
+		if self.curve.get_baked_length() != 0:
+			_initialize_next_obstacles()
+		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
 																				# will be set properly in curve_changed after geomtry is instantiated
 
 
@@ -233,6 +234,8 @@ func _ready():
 	set_notify_local_transform(true)
 	connect("curve_changed", Callable(self, "curve_changed"))
 	rebuild_geom()
+	if self._get_manager():
+		self.traffic_chunk_length = self._get_manager().traffic_chunk_length
 
 
 func _exit_tree() -> void:
@@ -246,6 +249,12 @@ func _exit_tree() -> void:
 #endregion
 #region Functions
 # ------------------------------------------------------------------------------
+
+# a function to get a manager in case if somebody (despawner lane) needs to change the path
+func _get_manager() -> RoadManager:
+	if ! self.get_parent().container:
+		return
+	return self.get_parent().container.get_manager()
 
 
 #TODO: remove when moved to Godot 4.4 and changed to simple button
@@ -306,16 +315,18 @@ func connect_next(next: RoadLane) -> void:
 	if DEBUG_OUT:
 		print(self, " connecting to ", next)
 	assert(self.get_sequential_lane(MoveDir.FORWARD) == null)
-	assert(next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] == null)
-	self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
-	next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
-	self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
-	next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
-	self._end_obstacle.unassign_position(false) #propagate next._next_obstacles[0] in place of now unused self._end_obstacle
-	assert(next._next_obstacles[0].check_sanity(true))
+	if self.traffic_chunk_length > 0:
+		assert(next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] == null)
+		self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
+		next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
+		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
+		next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
+		self._end_obstacle.unassign_position(false) #propagate next._next_obstacles[0] in place of now unused self._end_obstacle
+		assert(next._next_obstacles[0].check_sanity(true))
 
 
 func _split_obstacle_list_at_end() -> void:
+	assert(self.traffic_chunk_length > 0)
 	assert(self.get_sequential_lane(MoveDir.FORWARD)._next_obstacles[0].check_sanity())
 	#insert - update links and next obstacle fast search list
 	self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
@@ -329,17 +340,18 @@ func disconnect_sequential(dir : MoveDir) -> void:
 	if ! lane_next:
 		return
 	var dir_back := RoadLane.reverse_move_dir(dir)
-	assert(lane_next.get_sequential_lane(dir_back) == self)
-	if DEBUG_OUT:
-		print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", lane_next)
-	if dir == MoveDir.FORWARD:
-		self._split_obstacle_list_at_end()
-	else:
-		lane_next._split_obstacle_list_at_end()
+	if self.traffic_chunk_length > 0:
+		assert(lane_next.get_sequential_lane(dir_back) == self)
+		if DEBUG_OUT:
+			print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", lane_next)
+		if dir == MoveDir.FORWARD:
+			self._split_obstacle_list_at_end()
+		else:
+			lane_next._split_obstacle_list_at_end()
+		#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
 	self._sequential_lanes[dir] = NodePath("")
 	lane_next._sequential_lanes[dir_back] = NodePath("")
-	#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
-	assert(self._end_obstacle.check_sanity(true))
+	assert(self._end_obstacle == null || self._end_obstacle.check_sanity(true))
 
 
 
@@ -473,7 +485,8 @@ func rebuild_geom() -> void:
 		call_deferred("_instantiate_geom")
 
 func _initialize_next_obstacles() -> void:
-		var next_obstacles_size := int(self.curve.get_baked_length() / TRAFFIC_CHUNK_LENGTH) + 1
+		assert(self.traffic_chunk_length > 0)
+		var next_obstacles_size := int(self.curve.get_baked_length() / self.traffic_chunk_length) + 1
 		if next_obstacles_size == self._next_obstacles.size():
 			return
 		assert(self.obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
@@ -487,10 +500,11 @@ func curve_changed() -> void:
 	refresh_geom = true
 	if DEBUG_OUT:
 		print(self, " changed curve")
-	if self.curve.get_baked_length() != 0:
-		_initialize_next_obstacles()
-	if self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
-		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
+	if self.traffic_chunk_length > 0:
+		if self.curve.get_baked_length() != 0:
+			_initialize_next_obstacles()
+		if self.traffic_chunk_length > 0 && self._end_obstacle.lane && self._end_obstacle.offset != self.curve.get_baked_length():
+			self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
 	rebuild_geom()
 
 
@@ -517,8 +531,10 @@ func show_fins(value: bool) -> void:
 
 
 func find_next_obstacle(offset: float) -> RoadLaneObstacle:
+	if self.traffic_chunk_length <= 0:
+		return null
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
-	var next := self._next_obstacles[int(offset / TRAFFIC_CHUNK_LENGTH)]
+	var next := self._next_obstacles[int(offset / self.traffic_chunk_length)]
 	if ENABLE_HEAVY_CKECKS && !(next.flags & RoadLaneObstacle.Flags.LANE_END):
 		var lane := self
 		var found := false
@@ -534,8 +550,10 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 
 ## dir is flipped - when obstacle moves forward we propagate from the end position backwards
 func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneObstacle, dir: MoveDir) -> RoadLaneObstacle:
+	if self.traffic_chunk_length <= 0:
+		return null
 	assert(is_inf(offset) || ( offset >= 0 && offset <= self.curve.get_baked_length() ) )
-	var start := (len(_next_obstacles) -1 if dir == MoveDir.FORWARD else 0) if is_inf(offset) else int(offset / TRAFFIC_CHUNK_LENGTH)
+	var start := (len(_next_obstacles) -1 if dir == MoveDir.FORWARD else 0) if is_inf(offset) else int(offset / self.traffic_chunk_length)
 	var end := -1 if dir == MoveDir.FORWARD else len(_next_obstacles)
 	var step := -1 if dir == MoveDir.FORWARD else 1
 	for i in range(start, end, step):
@@ -552,6 +570,8 @@ func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneO
 	return null
 
 func is_in_next_obstacles(obstacle: RoadLaneObstacle) -> bool:
+	if self.traffic_chunk_length > 0:
+		return false
 	return obstacle in self._next_obstacles
 
 

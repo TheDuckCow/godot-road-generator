@@ -153,6 +153,14 @@ var ai_lane_group := "road_lanes":
 			rebuild_all_containers(true)
 
 
+## length of chunk (in meters) for searching next vehicle
+## it's going to be set in created RoadLanes on scene add
+## search array won't be updated on change here and may break
+## if <= 0, vehicle search functionality is disabled
+@export
+var traffic_chunk_length: float = 2.5
+
+
 # ------------------------------------------------------------------------------
 @export_group("Editor settings")
 # ------------------------------------------------------------------------------

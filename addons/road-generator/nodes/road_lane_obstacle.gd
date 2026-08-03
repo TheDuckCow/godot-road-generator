@@ -1,8 +1,6 @@
 class_name RoadLaneObstacle
 extends RefCounted
 
-const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-
 enum Flags {
 	REAL = 0x0, # the node is on this lane
 	IMMINENT = 0x1, # the node from another lane won't be able to stop before it gets to this position
@@ -190,8 +188,6 @@ func _remove_from_list() -> void:
 	var prev_obstacle = self._update_lane_sequence(RoadLane.MoveDir.FORWARD, self, self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
 	if ENABLE_HEAVY_CKECKS:
 		if self._is_in_lane_sequence():
-			for no in len(lane._next_obstacles)-1:
-				print(no, " - ", lane._next_obstacles[no])
 			assert(false)
 	self._remove_from_obstacle_list()
 	assert(check_sanity(false))

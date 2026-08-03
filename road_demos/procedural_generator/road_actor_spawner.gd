@@ -19,6 +19,11 @@ class DespawnRoadLane extends RoadLane:
 		else:
 			obstacle.node.queue_free()
 
+	func _get_manager() -> RoadManager:
+		if ! self.get_parent().get_parent().container:
+			return
+		return self.get_parent().get_parent().container.get_manager()
+
 
 ## Defines a traffic spawner.
 ##
@@ -234,7 +239,7 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir))
 	var diff_vec	 =  lane.curve.get_point_out(0) if move_dir == RoadLane.MoveDir.FORWARD else lane.curve.get_point_in(lane.curve.get_point_count()-1)
 	_despawn_lanes[idx].curve.set_block_signals(false) # will update everything and instantiate geometry (see RoadLane._ready()) after next add_point
-	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir) - diff_vec.normalized() * RoadLane.TRAFFIC_CHUNK_LENGTH * 3) # just so it wouldn't be a point
+	_despawn_lanes[idx].curve.add_point(lane.get_lane_end_point_by_dir(move_dir) - diff_vec.normalized() * max(_despawn_lanes[idx].traffic_chunk_length, 3) * 3) # just so it wouldn't be a point
 	if lane.lane_next_tag[0] == dir:
 		_despawn_lanes[idx].connect_next(lane)
 	else:
