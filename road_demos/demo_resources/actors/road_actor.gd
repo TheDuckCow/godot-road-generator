@@ -170,7 +170,8 @@ func _move_to_next_lane() -> void:
 			#var next_pos = agent.continue_along_new_lane(next_lane)
 			#global_transform.origin = next_pos
 
-# distance is not precise(can be bigger in corner cases) for performance reasons
+## distance between 2 segments
+## reported distance is not precise - can bigger in corner cases for performance reasons
 func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -> float:
 	const EPS := 1e-8
 	var u := a1 - a0
@@ -188,23 +189,30 @@ func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -
 	return (a0 + u * s).distance_to(b0 + v * t)
 
 
-# find distance to another RoadActor
+## find approximate distance to another RoadActor
+## precision works in stages. using squared distance between root points decide how precise the distance we will have
+## INF or distance between: root points, capsules or rectangles
+## TODO will it make sense to check with bounding box first?
 func distance_to_other(other) -> float:
 	var dist :float
-	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # at this squared distance we can assume that the car is a point
+	const MIN_INF_DISTANCE_SQUARED := 250000.0 # 500m at this squared distance we can assume that the obstacle is not there
+	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # 50m at this squared distance we can assume that the obstacle is a point
 	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
 	var dist_sq_to_root :float = self.global_position.distance_squared_to(other.global_position)
 	if dist_sq_to_root >= MIN_POINT_DISTANCE_SQUARED:
-		return sqrt(dist_sq_to_root)
+		return INF if dist_sq_to_root >= MIN_INF_DISTANCE_SQUARED else sqrt(dist_sq_to_root)
 	else: # if dist_to_start >= MIN_OBLONG_DISTANCE_SQUARED #TODO: rectangle
-		dist = segment_distance_fast(self.global_position, self.global_position + self.global_basis.z * rear_axle_offset, other.global_position, other.global_position + other.global_basis.z * rear_axle_offset) - self.half_width - other.half_width
-		return dist if dist > 0 else 0
+		dist = segment_distance_fast(self.global_position,
+									self.global_position + self.global_basis.z * rear_axle_offset,
+									other.global_position,
+									other.global_position + other.global_basis.z * rear_axle_offset) - self.half_width - other.half_width
+		return max(0, dist)
 	# else: #TODO: rectangle
 
 
-# find distance to another RoadActor
-# first look on the current+next lanes to make it fast in 1D.
-# only use it for obstacle in front
+## find distance to another RoadActor in the current lane
+## first look on the current+next lanes to make it fast in 1D.
+## use it only for obstacles on the same lane sequence - in front
 func distance_to_other_sequential(obstacle: RoadLaneObstacle) -> float:
 	var dist :float
 	if self.agent.lane_position.lane == obstacle.lane:
@@ -234,7 +242,7 @@ func _physics_process(delta: float) -> void:
 	var move_dir := RoadLane.MoveDir.FORWARD #TODO obstacle list update not ready for reverse... RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
 
 	var obstacle := self.agent.lane_position.sequential_obstacles[move_dir]
-	var obstacle_dist := self.distance_to_other_sequential(obstacle) if obstacle.flags & RoadLaneObstacle.Flags.LANE_END == 0 else INF
+	var obstacle_dist := self.distance_to_other_sequential(obstacle) if obstacle && (obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
