@@ -53,7 +53,7 @@ var actor: Node3D
 ## primarily needed to fetch the initial nearest RoadLane
 var road_manager: RoadManager
 
-var pos := RoadLaneObstacle.new(visualize_lane)
+var lane_position := RoadLaneObstacle.new(visualize_lane)
 var move := RoadLaneAgent.MoveAlongLane.new()
 
 
