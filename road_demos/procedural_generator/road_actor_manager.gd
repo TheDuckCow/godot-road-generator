@@ -27,6 +27,7 @@ func _ready():
 ## Spawn random actor (from road_actor_scenes) at the pos
 ## if actor has road_lane_agent child, assign lane
 ## if possible reuse one of the hidden actors. otherwise create new
+## TODO set initial speed
 func add_actor(pos: Vector3, lane: RoadLane = null, offset: float = NAN) -> Node3D:
 	if vehicles_max >= 0 && get_actor_count() >= vehicles_max:
 		if DEBUG_OUT:
@@ -68,6 +69,9 @@ func remove_actor(actor: Node3D):
 		return
 	assert(actor.get_parent() == self)
 	var agent = actor.get_node_or_null("road_lane_agent")
+	if !agent:
+		push_error("Trying to remove actor that doesn't have a RoadLaneAgent agent member")
+		return
 	if reuse_removed:
 		assert(actor not in _stashed_vehicles)
 		actor.visible = false
@@ -86,8 +90,9 @@ func remove_actor(actor: Node3D):
 		actor.queue_free()
 		if DEBUG_OUT:
 			print("Freed actor ", actor)
-	assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
-	assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
+	if is_instance_valid(agent) && agent is RoadLaneAgent:
+		assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
+		assert(agent.lane_position.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
 
 
 ## Get amount of actors active in the scene

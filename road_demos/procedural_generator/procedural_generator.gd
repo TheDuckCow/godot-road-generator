@@ -20,7 +20,7 @@ const RoadActorSpawner = preload("road_actor_spawner.gd")
 
 func _init() -> void:
 	randomize()
-	var rseed = 1152532487#randi()
+	var rseed = 1152532487 # TODO randi()
 	seed(rseed)
 	print("Seed number: ", rseed)
 
@@ -150,8 +150,8 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	for _lane: RoadLane in new_lanes:
 		if _lane.flags in [RoadLane.Flags.DIVERGING, RoadLane.Flags.MERGING]:
 			continue
-		var start = before_after
-		var end = before_after
+		var start = before_after #TODO use _next_obstacle to not spawn overlapping
+		var end = _lane.curve.get_baked_length() - before_after
 		if start > end:
 			continue
 		var rand_offset = randf_range(start, end)
