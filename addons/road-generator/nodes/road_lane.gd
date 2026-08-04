@@ -58,7 +58,7 @@ const COLOR_START := Color(0.1, 0.9, 0.0)
 const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
 const DEBUG_OUT := false
-const ENABLE_HEAVY_CKECKS := false
+const ENABLE_HEAVY_CHECKS := false # turning on checks in this module that require significant time. use for development and debugging.
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -80,19 +80,33 @@ var _lane_right_ptr: RoadLane:
 	get:
 		return _side_lanes[SideDir.LEFT]
 	set(val):
-		assert(get_node_or_null(val) != self)
-		if DEBUG_OUT:
-			print(self, " changing left lane to ", val)
-		_side_lanes[SideDir.LEFT] = val
+		if get_node_or_null(val) != self:
+			push_error("trying to connect a lane to itself")
+			return
+		if val == _side_lanes[SideDir.LEFT]:
+			return
+		if _side_lanes[SideDir.LEFT]:
+			disconnect_side(SideDir.LEFT)
+		var lane = get_node_or_null(val)
+		if lane == null && lane is RoadLane:
+			self.connect_side(lane, SideDir.LEFT)
+
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right: NodePath:
 	get:
 		return _side_lanes[SideDir.RIGHT]
 	set(val):
-		assert(get_node_or_null(val) != self)
-		if DEBUG_OUT:
-			print(self, " changing right lane to ", val)
-		_side_lanes[SideDir.RIGHT] = val
+		if get_node_or_null(val) != self:
+			push_error("trying to connect a lane to itself")
+			return
+		if val == _side_lanes[SideDir.RIGHT]:
+			return
+		if _side_lanes[SideDir.RIGHT]:
+			disconnect_side(SideDir.RIGHT)
+		var lane = get_node_or_null(val)
+		if lane != null && lane is RoadLane:
+			self.connect_side(lane, SideDir.RIGHT)
+
 
 
 var _sequential_lanes: Array[NodePath] = ["", ""]
@@ -105,21 +119,32 @@ var _lane_prior_ptr: RoadLane:
 	get:
 		return _sequential_lanes[MoveDir.FORWARD]
 	set(val):
-		assert(get_node_or_null(val) != self)
-		assert(false)
-		if DEBUG_OUT:
-			print(self, " changing next lane to ", val)
-		_sequential_lanes[MoveDir.FORWARD] = val
+		if get_node_or_null(val) != self:
+			push_error("trying to connect a lane to itself")
+			return
+		if val == _sequential_lanes[MoveDir.FORWARD]:
+			return
+		if _sequential_lanes[MoveDir.BACKWARD]:
+			disconnect_sequential(MoveDir.FORWARD)
+		var lane = get_node_or_null(val)
+		if lane == null && lane is RoadLane:
+			self.connect_next(lane)
+
 ## The prior [RoadLane] for agents to follow (if going backwards).
 @export var lane_prior: NodePath:
 	get:
 		return _sequential_lanes[MoveDir.BACKWARD]
 	set(val):
-		assert(get_node_or_null(val) != self)
-		assert(false)
-		if DEBUG_OUT:
-			print(self, " changing prior lane to ", val)
-		_sequential_lanes[MoveDir.BACKWARD] = val
+		if get_node_or_null(val) != self:
+			push_error("trying to connect a lane to itself")
+			return
+		if val == _sequential_lanes[MoveDir.BACKWARD]:
+			return
+		if _sequential_lanes[MoveDir.BACKWARD]:
+			disconnect_sequential(MoveDir.BACKWARD)
+		var lane = get_node_or_null(val)
+		if lane == null && lane is RoadLane:
+			lane.connect_next(self)
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
 ##
@@ -198,10 +223,11 @@ var obstacles: Array[RoadLaneObstacle] = []
 ## obstacle linked list should be used for more precision
 var _next_obstacles: Array[RoadLaneObstacle] = []
 
-## length of chunk on lane (in meters) for searching next vehicle
+## FOOTGUN: length of chunk on lane (in meters) for searching next vehicle
 ## it's going to be set from road_manager on scene add and used when curve is changed/set
 ## search array won't be updated on change here or in RoadManager and may break
 ## if <= 0, vehicle search functionality is disabled
+## expected to be set once (maybe trasformed into const)
 var traffic_chunk_length := 2.5
 
 ## this obstacle have to be set at the end of the last lane of lane sequence,
@@ -245,10 +271,20 @@ func _ready():
 
 
 func _exit_tree() -> void:
+	for dir in MoveDir.values():
+		self.disconnect_sequential(dir)
+	for dir in SideDir.values():
+		self.disconnect_side(dir)
+	assert(auto_free_vehicles != (self.traffic_chunk_length > 0)) #TODO support something like road_actor_manager for despawn.
 	if auto_free_vehicles:
-		for obstable in obstacles:
-			if is_instance_valid(obstable):
-				obstable.node.call_deferred("queue_free")
+		#TODO make more efficient cleanup if the lane is deleted
+		for obstacle in obstacles:
+			if is_instance_valid(obstacle):
+				obstacle.unassign_lane()
+				obstacle.node.call_deferred("queue_free")
+	else:
+		if obstacles.is_empty():
+			push_error("Obstacles on lane ", self, " are not empty. Clean up to avoid memory leaks")
 
 
 # ------------------------------------------------------------------------------
@@ -317,10 +353,9 @@ func connect_next(next: RoadLane) -> void:
 	if self.get_sequential_lane(MoveDir.FORWARD) == next:
 		return
 	assert(self.get_sequential_lane(MoveDir.FORWARD) == null)
-	assert(next != null)
+	assert(next.get_sequential_lane(MoveDir.BACKWARD) == null)
 	if DEBUG_OUT:
 		print(self, " connecting to ", next)
-	assert(self.get_sequential_lane(MoveDir.FORWARD) == null)
 	self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
 	next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
 	if self.traffic_chunk_length > 0:
@@ -343,34 +378,47 @@ func _split_obstacle_list_at_end() -> void:
 ## function for disconnecting lanes and clean up
 ## split RoadLaneObstacle list when enabled (and remove self._end_obstacle)
 func disconnect_sequential(dir : MoveDir) -> void:
-	var lane_next := self.get_sequential_lane(dir)
-	if ! lane_next:
+	var next := self.get_sequential_lane(dir)
+	if ! next:
 		return
 	var dir_back := RoadLane.reverse_move_dir(dir)
+	assert(next.get_sequential_lane(dir_back) == self)
 	if self.traffic_chunk_length > 0:
-		assert(lane_next.get_sequential_lane(dir_back) == self)
 		if DEBUG_OUT:
-			print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", lane_next)
+			print(self, " disconnecting from ", MoveDir.find_key(dir), " linked ", next)
 		if dir == MoveDir.FORWARD:
 			self._split_obstacle_list_at_end()
 		else:
-			lane_next._split_obstacle_list_at_end()
+			next._split_obstacle_list_at_end()
 		#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
 	self._sequential_lanes[dir] = NodePath("")
-	lane_next._sequential_lanes[dir_back] = NodePath("")
+	next._sequential_lanes[dir_back] = NodePath("")
 	assert(self._end_obstacle == null || self._end_obstacle.check_sanity(true))
 
+## function for connecting side lanes (in both directions)
+func connect_side(side_lane :RoadLane, dir :SideDir) -> void:
+	if self.get_side_lane(dir) == side_lane:
+		return
+	assert(self.get_side_lane(dir) == null)
+	var dir_back := other_side(dir)
+	assert(side_lane.get_side_lane(dir_back) == null)
+	if ! side_lane:
+		return
+	if DEBUG_OUT:
+		print(self, " connecting to ", side_lane, " in direction ", SideDir.find_key(dir))
+	self._side_lanes[dir] = self.get_path_to(side_lane)
+	side_lane._side_lanes[dir_back] = side_lane.get_path_to(self)
+
 ## function for disconnecting side lanes
-func disconnect_side(dir : SideDir) -> void:
+func disconnect_side(dir :SideDir) -> void:
 	var lane_side := self.get_side_lane(dir)
 	if ! lane_side:
 		return
+	var dir_back := RoadLane.other_side(dir)
+	assert(lane_side.get_side_lane(dir_back) == self)
 	if DEBUG_OUT:
 		print(self, " disconnecting from ", SideDir.find_key(dir), " linked ", lane_side)
 	self._side_lanes[dir] = NodePath("")
-	var dir_back := RoadLane.other_side(dir)
-	if lane_side.get_side_lane(dir_back) != self:
-		return #TODO assert?
 	lane_side._side_lanes[dir_back] = NodePath("")
 
 
@@ -545,7 +593,7 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 		return null
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
 	var next := self._next_obstacles[int(offset / self.traffic_chunk_length)]
-	if ENABLE_HEAVY_CKECKS && !(next.flags & RoadLaneObstacle.Flags.LANE_END):
+	if ENABLE_HEAVY_CHECKS && !(next.flags & RoadLaneObstacle.Flags.LANE_END):
 		var lane := self
 		var found := false
 		while lane && !found:
@@ -585,7 +633,7 @@ func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneO
 
 ## used to check that obstacles are properly cleaned up when removed from the lane
 func is_in_next_obstacles(obstacle: RoadLaneObstacle) -> bool:
-	if self.traffic_chunk_length > 0:
+	if self.traffic_chunk_length <= 0:
 		return false
 	return obstacle in self._next_obstacles
 

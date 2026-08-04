@@ -462,12 +462,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
-			if new_ln_reverse:
-				last_ln.lane_right = last_ln.get_path_to(new_ln)
-				new_ln.lane_left = new_ln.get_path_to(last_ln)
-			else:
-				last_ln.lane_left = last_ln.get_path_to(new_ln)
-				new_ln.lane_right = new_ln.get_path_to(last_ln)
+			last_ln.connect_side(new_ln, RoadLane.SideDir.RIGHT if new_ln_reverse else RoadLane.SideDir.LEFT)
 
 		if ln_type == RoadPoint.LaneType.TRANSITION_ADD:
 			new_ln.flags = RoadLane.Flags.MERGING if new_ln_reverse else RoadLane.Flags.DIVERGING
@@ -479,9 +474,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			if new_ln_reverse:
 				if new_ln.flags in [RoadLane.Flags.MERGING,RoadLane.Flags.DIVERGING]:
 					assert(last_ln.flags not in [RoadLane.Flags.MERGE_INTO, RoadLane.Flags.DIVERGE_FROM])
-					var primary_lane_dir = RoadLane.MoveDir.FORWARD if new_ln.flags == RoadLane.Flags.MERGING else RoadLane.MoveDir.BACKWARD
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if new_ln.flags & RoadLane.Flags.MERGING else RoadLane.MoveDir.BACKWARD
 					if last_ln.flags == RoadLane.Flags.NORMAL:
-						last_ln.flags = RoadLane.Flags.MERGE_INTO if new_ln.flags == RoadLane.Flags.MERGING else RoadLane.Flags.DIVERGE_FROM
+						last_ln.flags = RoadLane.Flags.MERGE_INTO if new_ln.flags & RoadLane.Flags.MERGING else RoadLane.Flags.DIVERGE_FROM
 						new_ln.set_primary_lane(primary_lane_dir, last_ln)
 					else:
 						assert(last_ln.flags == new_ln.flags)
@@ -490,8 +485,8 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 				assert(new_ln.flags not in [RoadLane.Flags.MERGE_INTO, RoadLane.Flags.DIVERGE_FROM])
 				if (new_ln.flags == RoadLane.Flags.NORMAL
 					&& last_ln.flags in [RoadLane.Flags.MERGING,RoadLane.Flags.DIVERGING]):
-					var primary_lane_dir = RoadLane.MoveDir.FORWARD if last_ln.flags == RoadLane.Flags.MERGING else RoadLane.MoveDir.BACKWARD
-					new_ln.flags = RoadLane.Flags.MERGE_INTO if last_ln.flags == RoadLane.Flags.MERGING else RoadLane.Flags.DIVERGE_FROM
+					var primary_lane_dir = RoadLane.MoveDir.FORWARD if last_ln.flags & RoadLane.Flags.MERGING else RoadLane.MoveDir.BACKWARD
+					new_ln.flags = RoadLane.Flags.MERGE_INTO if last_ln.flags & RoadLane.Flags.MERGING else RoadLane.Flags.DIVERGE_FROM
 					var transition_ln := last_ln
 					while transition_ln:
 						assert(transition_ln.flags == last_ln.flags)

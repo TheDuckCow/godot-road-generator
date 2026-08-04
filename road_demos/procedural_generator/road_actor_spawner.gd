@@ -200,14 +200,14 @@ func _run_timer(prior_delay: float) -> void:
 	_spawn_timer.wait_time = new_wait
 	_spawn_timer.start()
 	if DEBUG_OUT:
-		prints(self, "Spawn timer", _spawn_timer, "started for", new_wait, " econds")
+		prints(self, "Spawn timer", _spawn_timer, "started for", new_wait, " seconds")
 
 
 ## Register lane to be used by spawn timer
 func _link_spawn_lane(lane: RoadLane, dir: String) -> bool:
 	assert( lane not in _spawn_lanes )
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
-	if lane.lane_next_tag[0] != dir || lane.flags == RoadLane.Flags.DIVERGING:
+	if lane.lane_next_tag[0] != dir || (lane.flags & RoadLane.Flags.DIVERGING):
 		return false
 	_spawn_lanes.append(lane)
 	if _spawn_lanes.size() > _spawn_delays.size():

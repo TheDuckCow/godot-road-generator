@@ -71,6 +71,9 @@ func _ready() -> void:
 	if DEBUG_OUT:
 		print("Finished setup for road lane agent ", self, " with: ", road_manager)
 
+#TODO cleanup of obstacles
+#func _exit_tree() -> void:
+
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -203,7 +206,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	return closest_lane
 
 
-## Finds the poistion this many many units forward (or backwards, if negative)
+## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
 	var pos = test_move_along_lane(move_distance)
@@ -231,7 +234,7 @@ func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 	return move_along_lane(self.move.distance_left)
 
 
-## Finds the position this many many units forward (or backwards, if negative)
+## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
 	if ! is_lane_position_valid():

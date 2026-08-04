@@ -16,7 +16,7 @@ enum Flags {
 }
 const END_OFFSET_MAX = 5.0
 const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
-const ENABLE_HEAVY_CKECKS := false
+const ENABLE_HEAVY_CHECKS := false # turning on checks in this module that require significant time. use for development and debugging.
 
 var visualize_lane : bool
 
@@ -40,7 +40,7 @@ var node: Node3D
 var sequential_obstacles: Array[RoadLaneObstacle] = [null, null]
 
 ## approximate speed an obstacle on lane (m/s)
-## for example if actor moves with an angle from tagent, its obstacle's speed
+## for example if actor moves with an angle from tangent, its obstacle's speed
 ## should be just a fraction (dependent on the angle) of actor's speed
 ## Note: the obstacle won't be moved along lane automatically
 var speed: float
@@ -57,14 +57,14 @@ func distance_to_end(dir: RoadLane.MoveDir) -> float:
 	assert(check_sanity(true))
 	return self.lane.offset_from_end(self.offset, dir)
 
-## various sanity checks for rhe obstacle
+## various sanity checks for the obstacle
 ## check_end - obstacle should always be linked forward (except LANE_END flagged, which never is)
 ## check_list - obstacle linkage must be correct
 func check_sanity(check_end := false, check_list := true) -> bool:
-	if ! ENABLE_HEAVY_CKECKS:
+	if ! ENABLE_HEAVY_CHECKS:
 		return true
 	var all_good := true
-	if self.flags != RoadLaneObstacle.Flags.LANE_END:
+	if !(self.flags & RoadLaneObstacle.Flags.LANE_END):
 		if !is_instance_valid(self.node):
 			print(self, " Obst. has invalid node ", self.node)
 			all_good = false
@@ -83,13 +83,13 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 				all_good = false
 				continue
 			if seq_obstacle.sequential_obstacles[dir_back] != self:
-				print(self, " Obst. sequential obstacle ", seq_obstacle, " in direction ", RoadLane.MoveDir.find_key(dir), " is not linked back, insead to ", seq_obstacle.sequential_obstacles[dir_back])
+				print(self, " Obst. sequential obstacle ", seq_obstacle, " in direction ", RoadLane.MoveDir.find_key(dir), " is not linked back, instead to ", seq_obstacle.sequential_obstacles[dir_back])
 				all_good = false
 			if !seq_obstacle.is_assigned():
 				print(self, " Obst. linked to ", seq_obstacle, " in direction ", RoadLane.MoveDir.find_key(dir), " that is not assigned to a lane")
 				all_good = false
 			else:
-				if ENABLE_HEAVY_CKECKS:
+				if ENABLE_HEAVY_CHECKS:
 					var found := false
 					var lane := self.lane;
 					while lane && !found:
@@ -105,7 +105,7 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 		print(self, " Obst. has invalid lane ", self.lane)
 		all_good = false
 	else:
-		if self.flags == RoadLaneObstacle.Flags.LANE_END:
+		if self.flags & RoadLaneObstacle.Flags.LANE_END:
 			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] != null:
 				print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
 				all_good = false
@@ -113,10 +113,10 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null:
 				print(self, " Obst. not a lane end but isn't linked forward")
 				all_good = false
-		if (self.flags == RoadLaneObstacle.Flags.LANE_END) != (self == self.lane._end_obstacle):
+		if bool(self.flags & RoadLaneObstacle.Flags.LANE_END) != (self == self.lane._end_obstacle):
 			print(self, " Obst. conflict between end obstacle(", self == self.lane._end_obstacle, ") and flags ", self.flags)
 			all_good = false
-		if self not in self.lane.obstacles && self.flags != RoadLaneObstacle.Flags.LANE_END:
+		if self not in self.lane.obstacles && !(self.flags & RoadLaneObstacle.Flags.LANE_END):
 			print(self, " Obst. is not registered in ", self.lane)
 			all_good = false
 		if self.offset < 0:
@@ -175,7 +175,7 @@ func _update_lane_sequence(dir: RoadLane.MoveDir, from: RoadLaneObstacle, to: Ro
 		offset = INF
 	assert(check_sanity())
 
-## used for sanity check that clean up (when removed trom lane) was successful
+## used for sanity check that clean up (when removed from the lane) was successful
 func _is_in_lane_sequence() -> bool:
 	var lane := self.lane
 	for dir in RoadLane.MoveDir.values():
@@ -202,7 +202,7 @@ func _insert_to_list() -> void:
 func _remove_from_list() -> void:
 	assert(check_sanity())
 	self._update_lane_sequence(RoadLane.MoveDir.FORWARD, self, self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
-	if ENABLE_HEAVY_CKECKS:
+	if ENABLE_HEAVY_CHECKS:
 		if self._is_in_lane_sequence():
 			assert(false)
 	self._remove_from_obstacle_list()
@@ -245,6 +245,7 @@ func unassign_position(_unregister := true) -> void:
 ## to not update search arrays and obstacle list
 ## when it has to jump over an obstacle (because new offset overcome an offset of next)
 ##   it will essentially remove and add it again automatically
+## TODO moving backwards
 func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> void:
 	assert(check_sanity())
 	if DEBUG_OUT & 2:
@@ -253,7 +254,7 @@ func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> vo
 	if seq_obstacle:
 		var jump_over := false
 		if lane != self.lane:
-			assert(self.lane.get_sequential_lane(dir) == lane) #can fail fr very short lanes #TODO store lane-to-index for road lane sequence in road manager?
+			assert(self.lane.get_sequential_lane(dir) == lane) #can fail for very short lanes #TODO store lane-to-index for road lane sequence in road manager?
 			if seq_obstacle.lane == self.lane:
 				jump_over = true
 		if seq_obstacle.lane == lane && seq_obstacle.offset < offset:

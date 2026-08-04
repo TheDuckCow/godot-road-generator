@@ -90,7 +90,7 @@ func _compute_idm_acceleration(obstacle: RoadLaneObstacle, obstacle_dist: float)
 		else:
 			var s_star := ( keep_distance + speed * safe_headway +
 				(speed * (speed - speed_lead)) / (2 * sqrt(accela * breaka)) )
-			dyn_accel -= accela * sign(s_star) * pow(s_star / gap, 2)
+			dyn_accel -= accela * sign(s_star) * pow(s_star / gap, 2) #sign(s_star) change here is for trying to evade and going backwards
 	dyn_accel = clamp(dyn_accel, -accela, breaka)
 	return dyn_accel
 
