@@ -53,7 +53,20 @@ var actor: Node3D
 ## primarily needed to fetch the initial nearest RoadLane
 var road_manager: RoadManager
 
+## The agent's current position on the road network, expressed as a
+## [RoadLaneObstacle]. This is also what other agents see when checking what's
+## ahead of/behind them via [RoadLaneObstacle.sequential_obstacles],
+## iterating throught the list or through search on a side lane.
+## Read [RoadLaneObstacle.lane] and [RoadLaneObstacle.offset]
+## to find where this agent currently is; use [method assign_lane_position]
+## or [method assign_closest_lane_position] to move it, don't set fields on
+## it directly.
 var lane_position := RoadLaneObstacle.new(visualize_lane)
+
+## Working state for the current or most recent [method move_along_lane] call.
+## Fields here (e.g. [member MoveAlongLane.lane_sequence_end]) reflect the
+## outcome of that last move and are only meaningful to read right after
+## calling it - see [MoveAlongLane].
 var move := RoadLaneAgent.MoveAlongLane.new()
 
 
@@ -80,11 +93,18 @@ func _ready() -> void:
 #region Functions
 # ------------------------------------------------------------------------------
 
-
+## True if this agent currently has a valid position on a [RoadLane].
+## Call [method assign_nearest_lane] or [method assign_lane_position] first
+## if this returns false before doing any lane-relative movement.
 func is_lane_position_valid() -> bool:
 	assert( !self.lane_position.is_assigned() || ( is_instance_valid(self.lane_position.lane) && self.lane_position.check_sanity() ) )
 	return self.lane_position.is_assigned()
 
+## Snap this agent onto [param new_lane] at whichever offset is closest to
+## the actor's current global position. Use this when you know which lane
+## the agent should be on but not the exact offset (e.g. initial placement,
+## or recovering after the agent left the road network). No-ops with a
+## warning if [param new_lane] is invalid.
 func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
@@ -99,18 +119,26 @@ func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if DEBUG_OUT:
 		print("Assigned new lane: %s" % new_lane.get_path())
 
-
+## Place this agent at an exact [param new_offset] on [param new_lane].
+## Use this over [method assign_closest_lane_position] when the offset is
+## already known (e.g. spawning, or moving to a computed merge point).
+## No-ops with a warning if [param new_lane] is invalid.
 func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
 	self.lane_position.assign_position(new_lane, new_offset)
 
-
+## Remove this agent from whatever [RoadLane] it's currently on.
+## [method is_lane_position_valid] will return false afterwards. Call this
+## before freeing the agent/actor, or before assigning a new position on a
+## disconnected part of the road network, to avoid leaving stale obstacle
+## links behind.
 func unassign_lane() -> void:
 	self.lane_position.unassign_position()
 
 
+## remember actual vehicle node - it should be a parent of the agent
 func assign_actor() -> Error:
 	var par = get_parent()
 	if not par is Node3D:
@@ -120,6 +148,7 @@ func assign_actor() -> Error:
 	return OK
 
 
+## assign road manager (mostly used to search for nearby lanes)
 func assign_manager() -> Error:
 	# First try the provided manager path if any
 	var _target_manager: Node
@@ -295,8 +324,10 @@ func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObsta
 	return side_lane.find_next_obstacle( self._position_on_side_lane(side_lane) )
 
 
-## Helper for moving along lane and getting info from that
-## specifically when move have to be split on multiple disconencted lanes (in case of for example lane merge)
+## Holds the result of the most recent [method RoadLaneAgent.move_along_lane]
+## / [method RoadLaneAgent.test_move_along_lane] call. Read these fields
+## immediately after calling one of those - they're overwritten by the next
+## call and don't represent a "live" state otherwise.
 ## TODO Overengineered? look once more at what happens here
 class MoveAlongLane:
 	var lane_position: RoadLaneObstacle

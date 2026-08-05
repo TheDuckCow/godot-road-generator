@@ -80,7 +80,7 @@ var _lane_right_ptr: RoadLane:
 	get:
 		return _side_lanes[SideDir.LEFT]
 	set(val):
-		if get_node_or_null(val) != self:
+		if get_node_or_null(val) == self:
 			push_error("trying to connect a lane to itself")
 			return
 		if val == _side_lanes[SideDir.LEFT]:
@@ -88,7 +88,7 @@ var _lane_right_ptr: RoadLane:
 		if _side_lanes[SideDir.LEFT]:
 			disconnect_side(SideDir.LEFT)
 		var lane = get_node_or_null(val)
-		if lane == null && lane is RoadLane:
+		if lane != null && lane is RoadLane:
 			self.connect_side(lane, SideDir.LEFT)
 
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
@@ -96,7 +96,7 @@ var _lane_right_ptr: RoadLane:
 	get:
 		return _side_lanes[SideDir.RIGHT]
 	set(val):
-		if get_node_or_null(val) != self:
+		if get_node_or_null(val) == self:
 			push_error("trying to connect a lane to itself")
 			return
 		if val == _side_lanes[SideDir.RIGHT]:
@@ -119,7 +119,7 @@ var _lane_prior_ptr: RoadLane:
 	get:
 		return _sequential_lanes[MoveDir.FORWARD]
 	set(val):
-		if get_node_or_null(val) != self:
+		if get_node_or_null(val) == self:
 			push_error("trying to connect a lane to itself")
 			return
 		if val == _sequential_lanes[MoveDir.FORWARD]:
@@ -127,7 +127,7 @@ var _lane_prior_ptr: RoadLane:
 		if _sequential_lanes[MoveDir.BACKWARD]:
 			disconnect_sequential(MoveDir.FORWARD)
 		var lane = get_node_or_null(val)
-		if lane == null && lane is RoadLane:
+		if lane != null && lane is RoadLane:
 			self.connect_next(lane)
 
 ## The prior [RoadLane] for agents to follow (if going backwards).
@@ -135,7 +135,7 @@ var _lane_prior_ptr: RoadLane:
 	get:
 		return _sequential_lanes[MoveDir.BACKWARD]
 	set(val):
-		if get_node_or_null(val) != self:
+		if get_node_or_null(val) == self:
 			push_error("trying to connect a lane to itself")
 			return
 		if val == _sequential_lanes[MoveDir.BACKWARD]:
@@ -143,7 +143,7 @@ var _lane_prior_ptr: RoadLane:
 		if _sequential_lanes[MoveDir.BACKWARD]:
 			disconnect_sequential(MoveDir.BACKWARD)
 		var lane = get_node_or_null(val)
-		if lane == null && lane is RoadLane:
+		if lane != null && lane is RoadLane:
 			lane.connect_next(self)
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
@@ -177,10 +177,16 @@ var sequential_lane_tags: Array[String] = ["", ""]
 var _primary_lanes : Array[NodePath] = ["", ""]
 @export var lane_merge_to: NodePath:
 	get: return _primary_lanes[MoveDir.FORWARD]
-	set(val): assert(get_node_or_null(val) != self); _primary_lanes[MoveDir.FORWARD] = val
+	set(val):
+		if get_node_or_null(val) == self:
+			push_error("trying to make lane merging into itself")
+		_primary_lanes[MoveDir.FORWARD] = val
 @export var lane_diverge_from: NodePath:
 	get: return _primary_lanes[MoveDir.BACKWARD]
-	set(val): assert(get_node_or_null(val) != self); _primary_lanes[MoveDir.BACKWARD] = val
+	set(val):
+		if get_node_or_null(val) == self:
+			push_error("trying to make lane diverge from itself")
+		_primary_lanes[MoveDir.BACKWARD] = val
 
 # -------------------------------------
 @export_group("Behavior")
@@ -283,8 +289,8 @@ func _exit_tree() -> void:
 				obstacle.unassign_lane()
 				obstacle.node.call_deferred("queue_free")
 	else:
-		if obstacles.is_empty():
-			push_error("Obstacles on lane ", self, " are not empty. Clean up to avoid memory leaks")
+		if !obstacles.is_empty():
+			push_error("Obstacles on lane ", self, " are not empty and auto_free_vehicles is disabled. Clean up to avoid memory leaks")
 
 
 # ------------------------------------------------------------------------------

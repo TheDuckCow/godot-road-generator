@@ -21,22 +21,27 @@ const ENABLE_HEAVY_CHECKS := false # turning on checks in this module that requi
 var visualize_lane : bool
 
 var flags := RoadLaneObstacle.Flags.REAL
-var lane: RoadLane: #set through assign_position or move_along_lane
+var lane: RoadLane:
 	get:
 		return _lane
 	set(val):
-		assert(false)
+		push_error("set lane position through assign_position or move_along_lane")
 
-var offset: float: #set through assign_position or move_along_lane
+var offset: float:
 	get:
 		return _offset
 	set(val):
-		assert(false)
+		push_error("set lane position through assign_position or move_along_lane")
 
 var _lane: RoadLane
 var _offset: float
+
+## actor or other actual object in the scene that blocks the lane
 var node: Node3D
+
 ## next and prior obstacles links
+## be careful - circular links of refcounted objects here lead to memory leaks
+## if not split before going to deletion
 var sequential_obstacles: Array[RoadLaneObstacle] = [null, null]
 
 ## approximate speed an obstacle on lane (m/s)
