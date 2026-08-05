@@ -80,34 +80,14 @@ var _lane_right_ptr: RoadLane:
 	get:
 		return _side_lanes[SideDir.LEFT]
 	set(val):
-		if get_node_or_null(val) == self:
-			push_error("trying to connect a lane to itself")
-			return
-		if val == _side_lanes[SideDir.LEFT]:
-			return
-		if _side_lanes[SideDir.LEFT]:
-			disconnect_side(SideDir.LEFT)
-		var lane = get_node_or_null(val)
-		if lane != null && lane is RoadLane:
-			self.connect_side(lane, SideDir.LEFT)
+		set_side_lane(val, SideDir.LEFT)
 
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right: NodePath:
 	get:
 		return _side_lanes[SideDir.RIGHT]
 	set(val):
-		if get_node_or_null(val) == self:
-			push_error("trying to connect a lane to itself")
-			return
-		if val == _side_lanes[SideDir.RIGHT]:
-			return
-		if _side_lanes[SideDir.RIGHT]:
-			disconnect_side(SideDir.RIGHT)
-		var lane = get_node_or_null(val)
-		if lane != null && lane is RoadLane:
-			self.connect_side(lane, SideDir.RIGHT)
-
-
+		set_side_lane(val, SideDir.RIGHT)
 
 var _sequential_lanes: Array[NodePath] = ["", ""]
 var _lane_next_ptr: RoadLane:
@@ -119,32 +99,14 @@ var _lane_prior_ptr: RoadLane:
 	get:
 		return _sequential_lanes[MoveDir.FORWARD]
 	set(val):
-		if get_node_or_null(val) == self:
-			push_error("trying to connect a lane to itself")
-			return
-		if val == _sequential_lanes[MoveDir.FORWARD]:
-			return
-		if _sequential_lanes[MoveDir.BACKWARD]:
-			disconnect_sequential(MoveDir.FORWARD)
-		var lane = get_node_or_null(val)
-		if lane != null && lane is RoadLane:
-			self.connect_next(lane)
+		set_sequential_lane(val, MoveDir.FORWARD)
 
 ## The prior [RoadLane] for agents to follow (if going backwards).
 @export var lane_prior: NodePath:
 	get:
 		return _sequential_lanes[MoveDir.BACKWARD]
 	set(val):
-		if get_node_or_null(val) == self:
-			push_error("trying to connect a lane to itself")
-			return
-		if val == _sequential_lanes[MoveDir.BACKWARD]:
-			return
-		if _sequential_lanes[MoveDir.BACKWARD]:
-			disconnect_sequential(MoveDir.BACKWARD)
-		var lane = get_node_or_null(val)
-		if lane != null && lane is RoadLane:
-			lane.connect_next(self)
+		set_sequential_lane(val, MoveDir.BACKWARD)
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
 ##
@@ -180,13 +142,15 @@ var _primary_lanes : Array[NodePath] = ["", ""]
 	set(val):
 		if get_node_or_null(val) == self:
 			push_error("trying to make lane merging into itself")
-		_primary_lanes[MoveDir.FORWARD] = val
+		else:
+			_primary_lanes[MoveDir.FORWARD] = val
 @export var lane_diverge_from: NodePath:
 	get: return _primary_lanes[MoveDir.BACKWARD]
 	set(val):
 		if get_node_or_null(val) == self:
 			push_error("trying to make lane diverge from itself")
-		_primary_lanes[MoveDir.BACKWARD] = val
+		else:
+			_primary_lanes[MoveDir.BACKWARD] = val
 
 # -------------------------------------
 @export_group("Behavior")
@@ -225,8 +189,8 @@ var obstacles: Array[RoadLaneObstacle] = []
 
 ## next obstacle search array
 ## lane length is split in chunks of traffic_chunk_length (array initialized on geometry change)
-## because there may be more than one obstacle in one chunk, it is only for rough search
-## obstacle linked list should be used for more precision
+## should keep first obstacle in chunk in case if there are more than one
+## so it is only for rough search obstacle linked list should be used for more precision
 var _next_obstacles: Array[RoadLaneObstacle] = []
 
 ## FOOTGUN: length of chunk on lane (in meters) for searching next vehicle
@@ -337,6 +301,22 @@ func get_sequential_lane(dir : MoveDir) -> RoadLane:
 	return lane
 
 
+func set_sequential_lane(val, dir :MoveDir) -> void:
+	if get_node_or_null(val) == self:
+		push_error("trying to connect a lane to itself")
+		return
+	if val == _sequential_lanes[dir]:
+		return
+	if _sequential_lanes[dir]:
+		disconnect_sequential(dir)
+	var lane = get_node_or_null(val)
+	if lane != null && lane is RoadLane:
+		if dir == MoveDir.BACKWARD:
+			lane.connect_next(self)
+		else:
+			self.connect_next(lane)
+
+
 func get_primary_lane(dir : MoveDir) -> RoadLane:
 	var lane: RoadLane = get_node_or_null(self._primary_lanes[dir])
 	assert(lane != self)
@@ -352,6 +332,17 @@ func get_side_lane(dir : SideDir) -> RoadLane:
 	assert(lane != self)
 	return lane
 
+func set_side_lane(val, dir : SideDir) -> void:
+	if get_node_or_null(val) == self:
+		push_error("trying to connect a lane to itself")
+		return
+	if val == _side_lanes[dir]:
+		return
+	if _side_lanes[dir]:
+		disconnect_side(dir)
+	var lane = get_node_or_null(val)
+	if lane != null && lane is RoadLane:
+		self.connect_side(lane, dir)
 
 ## connect 2 lanes. self is the prior lane, next is the new next lane
 ## concatenate 2 RoadLaneObstacle lists when enabled (and remove self._end_obstacle)
@@ -593,7 +584,7 @@ func show_fins(value: bool) -> void:
 
 
 ## use _next_obstacles search array to find next obstacle by offset
-## (it may be on a different lane!)
+## (it may be on a different lane in the same sequence!)
 func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 	if self.traffic_chunk_length <= 0:
 		return null
@@ -609,6 +600,9 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 		if ! found:
 			print(next, " is not registered in ", lane, " or lanes linked in front of it")
 		assert(found)
+	while next.lane == self && next.offset < offset:
+		# if there is more than one obstacle on the same chunk of lane, we may need to skip a couple of them
+		next = next.sequential_obstacles[RoadLane.MoveDir.FORWARD]
 	return next
 
 
@@ -616,7 +610,11 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 ## relies on that chunk between 'to' and its prior are already set to 'to'
 ## returns true when it stopped updating before end of the lane
 ##   and false otherwise (and so update should continue on the next lane)
-## dir is flipped - when obstacle moves forward we propagate from the end position backwards
+## search array _next_obstacles will always contain first obstacle in chunk
+## because of how we update the array:
+## e.g. `from` will be next obstacle and `to` new inserted even if there is an obstacle
+## on the same chunk and new one is later than previous it won't find `from` there and leave it as is
+## NOTE: dir is flipped - when obstacle moves forward we propagate from the new position backwards
 func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneObstacle, dir: MoveDir) -> bool:
 	if self.traffic_chunk_length <= 0:
 		return true

@@ -84,8 +84,9 @@ func _ready() -> void:
 	if DEBUG_OUT:
 		print("Finished setup for road lane agent ", self, " with: ", road_manager)
 
-#TODO cleanup of obstacles
-#func _exit_tree() -> void:
+
+func _exit_tree() -> void:
+	self.unassign_lane()
 
 
 # ------------------------------------------------------------------------------
