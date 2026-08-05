@@ -9,10 +9,10 @@ extends RefCounted
 ## and back of it
 
 enum Flags {
-	REAL = 0x0, # the node is on this lane
-	IMMINENT = 0x1, # the node from another lane won't be able to stop before it gets to this position
-	PARTIAL = 0x2, # the node is from another lane but it partially blocks this lane
-	LANE_END = 0x8, # end of the lane sequence (no link to the beginning)
+	REAL = 0x0, # the node is blocking it's assigned lane
+	IMMINENT = 0x1, # the node from some other lane won't be able to stop before it gets to this position
+	PARTIAL = 0x2, # the node from some other lane but it partially blocks the lane it's assigned to
+	LANE_END = 0x8, # end of a lane sequence (no link front)
 }
 const END_OFFSET_MAX = 5.0
 const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
@@ -77,6 +77,36 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 		if self.node != null:
 			print(self, " Obst. is an end obstacle and has a node set ", self.node)
 			all_good = false
+	if self.lane == null || !is_instance_valid(self.lane):
+		if self.lane != null:
+			print(self, " Obst. has invalid lane ", self.lane)
+			all_good = false
+		for dir in RoadLane.MoveDir.values():
+			if self.sequential_obstacles[dir] != null:
+				print(self, " Obst. is not assigned to a valid lane but still linked to obstacle ", self.sequential_obstacles[dir], " in direction ", RoadLane.MoveDir.find_key(dir))
+				all_good = false
+		return all_good
+	else:
+		if self.flags & RoadLaneObstacle.Flags.LANE_END:
+			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] != null:
+				print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
+				all_good = false
+		else:
+			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null:
+				print(self, " Obst. not a lane end but isn't linked forward")
+				all_good = false
+		if bool(self.flags & RoadLaneObstacle.Flags.LANE_END) != (self == self.lane._end_obstacle):
+			print(self, " Obst. conflict between end obstacle(", self == self.lane._end_obstacle, ") and flags ", self.flags)
+			all_good = false
+		if self not in self.lane.obstacles && !(self.flags & RoadLaneObstacle.Flags.LANE_END):
+			print(self, " Obst. is not registered in ", self.lane)
+			all_good = false
+		if self.offset < 0:
+			print(self, " Obst. has negative offset ", self.offset)
+			all_good = false
+		elif self.offset > self.lane.curve.get_baked_length():
+			print(self, " Obst. has too big offset ", self.offset, " - lane's length is ", self.lane.curve.get_baked_length())
+			all_good = false
 	if check_list:
 		for dir in RoadLane.MoveDir.values():
 			var dir_back := RoadLane.reverse_move_dir(dir)
@@ -104,32 +134,6 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 					if !found:
 						print(self, " Obst. linked to ", seq_obstacle, " in direction ", RoadLane.MoveDir.find_key(dir), " that is not in the lane sequence in that direction")
 						all_good = false
-	if self.lane == null:
-		return all_good
-	if !is_instance_valid(self.lane):
-		print(self, " Obst. has invalid lane ", self.lane)
-		all_good = false
-	else:
-		if self.flags & RoadLaneObstacle.Flags.LANE_END:
-			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] != null:
-				print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
-				all_good = false
-		else:
-			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null:
-				print(self, " Obst. not a lane end but isn't linked forward")
-				all_good = false
-		if bool(self.flags & RoadLaneObstacle.Flags.LANE_END) != (self == self.lane._end_obstacle):
-			print(self, " Obst. conflict between end obstacle(", self == self.lane._end_obstacle, ") and flags ", self.flags)
-			all_good = false
-		if self not in self.lane.obstacles && !(self.flags & RoadLaneObstacle.Flags.LANE_END):
-			print(self, " Obst. is not registered in ", self.lane)
-			all_good = false
-		if self.offset < 0:
-			print(self, " Obst. has negative offset ", self.offset)
-			all_good = false
-		elif self.offset > self.lane.curve.get_baked_length():
-			print(self, " Obst. has too big offset ", self.offset, " - lane's length is ", self.lane.curve.get_baked_length())
-			all_good = false
 	return all_good
 
 
@@ -196,8 +200,8 @@ func _insert_to_list() -> void:
 	assert(check_sanity(false, false))
 	assert(self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
 	assert(self.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
-	var next := self.lane.find_next_obstacle(self.offset) #all lane sequences must end with an obstacle for obstacle search reasons
-	if next:
+	var next := self.lane.find_next_obstacle(self.offset)
+	if next: # when enabled all lane sequences must end with an end_obstacle for obstacle search reasons
 		assert(next != self)
 		self._insert_in_obstacle_list(next, RoadLane.MoveDir.FORWARD)
 		self._update_lane_sequence(RoadLane.MoveDir.FORWARD, next, self)
@@ -241,7 +245,7 @@ func unassign_position(_unregister := true) -> void:
 	if DEBUG_OUT & 2:
 		print(self, " unassigning position")
 	self._remove_from_list()
-	if _unregister:
+	if self.lane && _unregister:
 		self.lane.unregister_obstacle(self)
 	self._lane = null
 	self._offset = NAN
@@ -250,9 +254,9 @@ func unassign_position(_unregister := true) -> void:
 ## to not update search arrays and obstacle list
 ## when it has to jump over an obstacle (because new offset overcome an offset of next)
 ##   it will essentially remove and add it again automatically
-## TODO moving backwards
 func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> void:
 	assert(check_sanity())
+	assert(dir == RoadLane.MoveDir.FORWARD) #TODO moving backwards
 	if DEBUG_OUT & 2:
 		prints(self, "moving obstacle along lane")
 	var seq_obstacle := self.sequential_obstacles[dir]
