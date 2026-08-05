@@ -173,12 +173,11 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
-#var refresh_geom := true
-
 var _last_update_ms ## To calculate min updates.
 var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
+var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifications, e.g. on tree re-entry
+var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -204,6 +203,7 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
+	_last_emitted_transform = global_transform
 	
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
@@ -464,6 +464,13 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
+		# Skip no-op notifications (e.g. tree re-entry), except the transform
+		# commit at drag release which must restore full detail.
+		if unchanged and (low_poly or not _last_emit_was_low_poly):
+			return
+		_last_emitted_transform = global_transform
+		_last_emit_was_low_poly = low_poly
 		emit_transform(low_poly)
 
 
