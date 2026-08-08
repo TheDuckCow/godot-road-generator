@@ -614,14 +614,17 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 ## because of how we update the array:
 ## e.g. `from` will be next obstacle and `to` new inserted even if there is an obstacle
 ## on the same chunk and new one is later than previous it won't find `from` there and leave it as is
-## NOTE: dir is flipped - when obstacle moves forward we propagate from the new position backwards
-func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneObstacle, dir: MoveDir) -> bool:
+## chunk_offset is for not updating current chunk (for moving backwards and not cleaning where it is now)
+##   it's not going to apply if offset is INF
+func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneObstacle, dir: MoveDir, chunk_offset: int) -> bool:
 	if self.traffic_chunk_length <= 0:
 		return true
 	assert(is_inf(offset) || ( offset >= 0 && offset <= self.curve.get_baked_length() ) )
-	var start := (len(_next_obstacles) -1 if dir == MoveDir.FORWARD else 0) if is_inf(offset) else int(offset / self.traffic_chunk_length)
-	var end := -1 if dir == MoveDir.FORWARD else len(_next_obstacles)
-	var step := -1 if dir == MoveDir.FORWARD else 1
+	var start := (0 if dir == MoveDir.FORWARD else len(_next_obstacles) -1)
+	if !is_inf(offset):
+		start = int(offset / self.traffic_chunk_length) + chunk_offset
+	var end := len(_next_obstacles) if dir == MoveDir.FORWARD else -1
+	var step := 1 if dir == MoveDir.FORWARD else -1
 	for i in range(start, end, step):
 		if self._next_obstacles[i] != from:
 			if DEBUG_OUT:
