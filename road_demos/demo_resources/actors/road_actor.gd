@@ -14,7 +14,7 @@ enum DriveState {
 }
 
 @export var drive_state: DriveState = DriveState.AUTO
-
+@export var rotate_to_distance := 0.5 # How many meters in front of agent to seek rotation
 # Target speed in meters per second
 @export var acceleration := 10.0 # in meters per sec squared
 @export var breaking := 20.0 # in meters per sec squared
@@ -23,7 +23,6 @@ enum DriveState {
 @export var forward_speed := 30.0  # in meters per sec (can't be 0)
 @export var reverse_speed := 5.0  # in meters per sec (can't be 0)
 @export var visualize_lane := false # show lane for debugging
-@export var rotate_to_distance := 0.5 # How many meters in front of agent to seek rotation
 @export var keep_distance := 0.5 # minimal distance
 @export var safe_headway := 1.5 # how big a distance in seconds (depends on speed)
 @export var sleep_velocity := 0.025 # stop the vehicle completely for small velocity
@@ -239,16 +238,17 @@ func _physics_process(delta: float) -> void:
 		look_at(agent.test_move_along_lane(rotate_to_distance), Vector3.UP)
 
 	velocity.y = 0
-	var move_dir := RoadLane.MoveDir.FORWARD #TODO obstacle list update not ready for reverse... RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	var move_dir :=  RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
 
 	var obstacle := self.agent.lane_position.sequential_obstacles[move_dir]
+	#TODO distance calculation for backward motion
 	var obstacle_dist := self.distance_to_other_sequential(obstacle) if obstacle && (obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
 	if old_velocity && sign(old_velocity) != sign(velocity.z):
 		velocity.z = 0
-	velocity.z = clamp(velocity.z, -forward_speed * 2, 0) # TODO reverse_speed * 2) #obstacle list update not ready for reverse
+	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
 	if abs(velocity.z) < sleep_velocity:
 		velocity.z = 0
 
@@ -280,7 +280,7 @@ func _physics_process(delta: float) -> void:
 		move_dist = sign(move_dist) * obstacle_dist
 		collided = true
 
-	var prior_rear_axle := self.global_position + self.global_basis.z * rear_axle_offset
+	#var prior_front_axle := self.global_position
 	var next_pos: Vector3 = agent.move_along_lane(move_dist)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
 	if agent.move.lane_sequence_end:
@@ -289,6 +289,19 @@ func _physics_process(delta: float) -> void:
 	elif collided:
 		_process_collision(obstacle.node)
 
-	var orientation: Vector3 = prior_rear_axle - self.global_position
-	if !orientation.is_zero_approx():
-		look_at(self.global_position - orientation.normalized(), Vector3.UP)
+	var orientation:Vector3 = global_transform.origin + global_transform.origin - agent.test_move_along_lane(-rear_axle_offset) #attach front and rear axle centers to the curve #TODO KBM
+	if ! orientation.is_zero_approx():
+		look_at(orientation, Vector3.UP)
+
+	# TODO Kinematic Bicycle Model - too tricky in reverse to make it work now
+	#var max_dtheta_per_sec: float = deg_to_rad(30.0)
+	#var max_dtheta_per_step = max_dtheta_per_sec * delta
+	#var delta_move: Vector3 = self.global_position - prior_front_axle
+	#if !delta_move.is_zero_approx():
+		#var up := global_basis.y
+		#var forward := -global_basis.z
+		#var right := up.cross(forward)
+		#var lateral: float = delta_move.dot(right)
+		#var dtheta: float = lateral / rear_axle_offset
+		#dtheta = clamp(dtheta, -max_dtheta_per_step, max_dtheta_per_step)
+		#global_transform.basis = global_transform.basis.rotated(up, dtheta)
