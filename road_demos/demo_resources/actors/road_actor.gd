@@ -171,7 +171,7 @@ func _move_to_next_lane() -> void:
 
 ## distance between 2 segments
 ## reported distance is not precise - can bigger in corner cases for performance reasons
-func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -> float:
+static func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -> float:
 	const EPS := 1e-8
 	var u := a1 - a0
 	var v := b1 - b0
@@ -188,40 +188,41 @@ func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vector3) -
 	return (a0 + u * s).distance_to(b0 + v * t)
 
 
-## find approximate distance to another RoadActor
+## find approximate distance between two RoadActors
+## can't use `self` as they may not be in order
 ## precision works in stages. using squared distance between root points decide how precise the distance we will have
 ## INF or distance between: root points, capsules or rectangles
 ## TODO will it make sense to check with bounding box first?
-func distance_to_other(other) -> float:
+static func distance_between(first, second) -> float:
 	var dist :float
 	const MIN_INF_DISTANCE_SQUARED := 250000.0 # 500m at this squared distance we can assume that the obstacle is not there
 	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # 50m at this squared distance we can assume that the obstacle is a point
 	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
-	var dist_sq_to_root :float = self.global_position.distance_squared_to(other.global_position)
+	var dist_sq_to_root :float = first.global_position.distance_squared_to(second.global_position)
 	if dist_sq_to_root >= MIN_POINT_DISTANCE_SQUARED:
 		return INF if dist_sq_to_root >= MIN_INF_DISTANCE_SQUARED else sqrt(dist_sq_to_root)
 	else: # if dist_to_start >= MIN_OBLONG_DISTANCE_SQUARED #TODO: rectangle
-		dist = segment_distance_fast(self.global_position,
-									self.global_position + self.global_basis.z * rear_axle_offset,
-									other.global_position,
-									other.global_position + other.global_basis.z * rear_axle_offset) - self.half_width - other.half_width
+		dist = segment_distance_fast(first.global_position,
+									first.global_position + first.global_basis.z * first.rear_axle_offset,
+									second.global_position,
+									second.global_position + second.global_basis.z * first.rear_axle_offset) - first.half_width - second.half_width
 		return max(0, dist)
 	# else: #TODO: rectangle
 
 
-## find distance to another RoadActor in the current lane
+## find distance between two RoadActors (through obstacles) in the current lane
 ## first look on the current+next lanes to make it fast in 1D.
 ## use it only for obstacles on the same lane sequence - in front
-func distance_to_other_sequential(obstacle: RoadLaneObstacle) -> float:
+static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneObstacle) -> float:
 	var dist :float
-	if self.agent.lane_position.lane == obstacle.lane:
-		dist = (obstacle.offset - obstacle.node.length[RoadLane.MoveDir.BACKWARD]) - (self.agent.lane_position.offset + self.length[RoadLane.MoveDir.FORWARD])
+	if rear.lane == front.lane:
+		dist = (front.offset - front.node.length[RoadLane.MoveDir.BACKWARD]) - (rear.offset + rear.node.length[RoadLane.MoveDir.FORWARD])
 		return dist if dist > 0 else 0
-	var next_lane := self.agent.lane_position.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
-	if next_lane && next_lane == obstacle.lane:
-		dist = (obstacle.distance_to_end(RoadLane.MoveDir.BACKWARD) - obstacle.node.length[RoadLane.MoveDir.BACKWARD]) + (self.agent.lane_position.distance_to_end(RoadLane.MoveDir.FORWARD) - self.length[RoadLane.MoveDir.FORWARD])
+	var next_lane := rear.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
+	if next_lane && next_lane == front.lane:
+		dist = (front.distance_to_end(RoadLane.MoveDir.BACKWARD) - front.node.length[RoadLane.MoveDir.BACKWARD]) + (rear.distance_to_end(RoadLane.MoveDir.FORWARD) - rear.node.length[RoadLane.MoveDir.FORWARD])
 		return dist if dist > 0 else 0
-	return distance_to_other(obstacle.node)
+	return distance_between(rear.node, front.node)
 
 
 func _physics_process(delta: float) -> void:
@@ -239,10 +240,9 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = 0
 	var move_dir :=  RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
-
-	var obstacle := self.agent.lane_position.sequential_obstacles[move_dir]
+	var obstacle := self.agent.lane_position.next_obstacle
 	#TODO distance calculation for backward motion
-	var obstacle_dist := self.distance_to_other_sequential(obstacle) if obstacle && (obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF
+	var obstacle_dist := self.distance_between_sequential(self.agent.lane_position, obstacle) if obstacle && (obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF
 	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
 	var old_velocity := velocity.z
 	velocity.z -= delta * target_dir.z
@@ -253,13 +253,16 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0
 
 	move_dir = RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	if move_dir == RoadLane.MoveDir.BACKWARD:
+		obstacle = self.agent.lane_position.prior_obstacle
+		obstacle_dist = self.distance_between_sequential(obstacle, self.agent.lane_position) if obstacle else INF
 
 	agent.lane_position.speed = self.get_signed_speed()
 
 	var lane_change := int(target_dir.x)
 	if lane_change:
 		var next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
-		var obstacle_dist_side = self.distance_to_other(next_obstacle_side.node) if next_obstacle_side && next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END == 0 else INF #TODO try distance on lane first?
+		var obstacle_dist_side = self.distance_between(self, next_obstacle_side.node) if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF #TODO try distance on lane first?
 		#TODO var prev_obstacle_side = next_obstacle_side.prev_obstacle
 		if obstacle_dist_side < 2: #TODO: move to decision making
 			lane_change = 0;
