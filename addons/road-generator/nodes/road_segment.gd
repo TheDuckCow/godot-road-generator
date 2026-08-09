@@ -480,7 +480,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 						new_ln.set_primary_lane(primary_lane_dir, last_ln)
 					else:
 						assert(last_ln.flags == new_ln.flags)
-						new_ln.set_primary_lane(primary_lane_dir, last_ln)
+						var target_ln := last_ln.get_primary_lane(primary_lane_dir)
+						assert(target_ln.flags in [RoadLane.Flags.MERGE_INTO, RoadLane.Flags.DIVERGE_FROM])
+						new_ln.set_primary_lane(primary_lane_dir, target_ln)
 			else:
 				assert(new_ln.flags not in [RoadLane.Flags.MERGE_INTO, RoadLane.Flags.DIVERGE_FROM])
 				if (new_ln.flags == RoadLane.Flags.NORMAL

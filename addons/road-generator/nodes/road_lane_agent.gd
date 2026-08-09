@@ -241,7 +241,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 func move_along_lane(move_distance: float) -> Vector3:
 	var pos = test_move_along_lane(move_distance)
 	if move_distance != 0:
-		lane_position.move_along_lane(self.move.lane, self.move.offset, MoveDir.FORWARD if self.move.dir_sign > 0 else MoveDir.BACKWARD)
+		lane_position.move_along_lane_to(self.move.lane, self.move.offset, MoveDir.FORWARD if self.move.dir_sign > 0 else MoveDir.BACKWARD)
 	return pos
 
 
@@ -259,7 +259,7 @@ func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
 func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
 		return self.move.get_position()
-	var new_offset = _position_on_side_lane(new_lane)
+	var new_offset = project_on_side_lane(new_lane)
 	assign_lane_position(new_lane, new_offset)
 	return move_along_lane(self.move.distance_left)
 
@@ -274,16 +274,17 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 	return self.move.get_position()
 
 
-## It's a heuristic to quickly find closest position on a side lane
+## It's a heuristic to quickly find closest offset on a side lane
 ## expecting lanes to not be too creative.
 ## transform offset to fraction of a lane and transform same fraction
 ## to offset on the side lane
 ## as side lane normally can be longer/shorter, reusing same offset
 ## would be imprecise
-func _position_on_side_lane(other_lane: RoadLane) -> float:
+## NOTE only use for lanes in the same segment
+func project_on_side_lane(side_lane: RoadLane) -> float:
 	return clamp(self.lane_position.offset *
-					other_lane.curve.get_baked_length() / self.lane_position.lane.curve.get_baked_length(),
-					0, other_lane.curve.get_baked_length() )
+					side_lane.curve.get_baked_length() / self.lane_position.lane.curve.get_baked_length(),
+					0, side_lane.curve.get_baked_length() )
 
 
 ## Input of < 0 or > 0 to move abs(direction) amount of left or right lanes accordingly
@@ -297,7 +298,7 @@ func change_lane(direction: int) -> Error:
 		if not is_instance_valid(_new_lane):
 			return FAILED
 		direction -= dec
-	assign_lane_position(_new_lane, _position_on_side_lane(_new_lane))
+	assign_lane_position(_new_lane, self.project_on_side_lane(_new_lane))
 	return OK
 
 
@@ -316,13 +317,14 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 
 
 ## find position to an obstacle in front of the agent on a sidelane
+## uses project_on_side_lane with its limitation
 func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObstacle:
 	assert(self.lane_position.check_sanity())
 	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
 	var side_lane: RoadLane = self.lane_position.lane.get_side_lane(to_lane_side(lane_change_dir))
 	if ! side_lane:
 		return null
-	return side_lane.find_next_obstacle( self._position_on_side_lane(side_lane) )
+	return side_lane.find_next_obstacle( self.project_on_side_lane(side_lane) )
 
 
 ## Holds the result of the most recent [method RoadLaneAgent.move_along_lane]

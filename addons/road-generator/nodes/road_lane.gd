@@ -137,6 +137,10 @@ var sequential_lane_tags: Array[String] = ["", ""]
 
 ## lanes to which this lane merges and diverges from
 var _primary_lanes : Array[NodePath] = ["", ""]
+var _lane_merge_to_ptr: RoadLane:
+	get: return self.get_primary_lane(MoveDir.FORWARD)
+var _lane_diverge_from_ptr: RoadLane:
+	get: return self.get_primary_lane(MoveDir.BACKWARD)
 @export var lane_merge_to: NodePath:
 	get: return _primary_lanes[MoveDir.FORWARD]
 	set(val):
@@ -151,6 +155,7 @@ var _primary_lanes : Array[NodePath] = ["", ""]
 			push_error("trying to make lane diverge from itself")
 		else:
 			_primary_lanes[MoveDir.BACKWARD] = val
+
 
 # -------------------------------------
 @export_group("Behavior")
@@ -253,7 +258,7 @@ func _exit_tree() -> void:
 				obstacle.unassign_lane()
 				obstacle.node.call_deferred("queue_free")
 	else:
-		if !obstacles.is_empty():
+		if !obstacles.is_empty(): #TODO fix errors on scene unload
 			push_error("Obstacles on lane ", self, " are not empty and auto_free_vehicles is disabled. Clean up to avoid memory leaks")
 
 
@@ -417,6 +422,7 @@ func disconnect_side(dir :SideDir) -> void:
 		print(self, " disconnecting from ", SideDir.find_key(dir), " linked ", lane_side)
 	self._side_lanes[dir] = NodePath("")
 	lane_side._side_lanes[dir_back] = NodePath("")
+	#TODO disconnect all the merging/diverging from primary if necessary. assign new primary if previous one is disconnected? change flags?
 
 
 ## Register a agent to be connected to (on, following) this lane.

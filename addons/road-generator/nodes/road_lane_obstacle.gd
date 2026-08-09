@@ -7,6 +7,8 @@ extends RefCounted
 ## specifically whats going on on the current and side lanes
 ## obstacle is linked ot its main node and to obstacles in front
 ## and back of it
+## NOTE: as this refcounted object is in doubly linked list,
+## it should be unlinked before cleaning it up/freeing
 
 enum Flags {
 	REAL = 0x0, # the node is blocking it's assigned lane
@@ -16,7 +18,7 @@ enum Flags {
 }
 const END_OFFSET_MAX = 5.0
 const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
-const ENABLE_HEAVY_CHECKS := true # turning on checks in this module that require significant time. use for development and debugging.
+const ENABLE_HEAVY_CHECKS := false # turning on checks in this module that require significant time. use for development and debugging.
 
 var visualize_lane : bool
 
@@ -25,13 +27,13 @@ var lane: RoadLane:
 	get:
 		return _lane
 	set(val):
-		push_error("set lane position through assign_position or move_along_lane")
+		push_error("set lane position through assign_position or move_along_lane_to")
 
 var offset: float:
 	get:
 		return _offset
 	set(val):
-		push_error("set lane position through assign_position or move_along_lane")
+		push_error("set lane position through assign_position or move_along_lane_to")
 
 var _lane: RoadLane
 var _offset: float
@@ -52,18 +54,15 @@ var prior_obstacle: RoadLaneObstacle:
 	set(val):
 		push_error("can't assign manually. use assign_position to insert")
 
-## approximate speed an obstacle on lane (m/s)
-## for example if actor moves with an angle from tangent, its obstacle's speed
-## should be just a fraction (dependent on the angle) of actor's speed
-## Note: the obstacle won't be moved along lane automatically
-var speed: float
 
 func _init(visualize_lane := false) -> void:
 	self.visualize_lane = visualize_lane
 
+
 ## is obstacle active (is on lane)
 func is_assigned() -> bool:
 	return self._lane != null
+
 
 ## is obstacle in the linked list
 func is_linked() -> bool:
@@ -71,10 +70,12 @@ func is_linked() -> bool:
 	assert (!linked || self.is_assigned())
 	return linked
 
+
 ## distance from this obstacle to beginning (RoadLane.MoveDir.BACKWARD) or end (RoadLane.MoveDir.FORWARD) of the RoadLane its assigned to
 func distance_to_end(dir: RoadLane.MoveDir) -> float:
 	assert(check_sanity(true))
 	return self.lane.offset_from_end(self.offset, dir)
+
 
 ## various sanity checks for the obstacle
 ## check_end - obstacle should always be linked forward (except LANE_END flagged, which never is)
@@ -169,6 +170,7 @@ func _insert_in_obstacle_list(next: RoadLaneObstacle, dir: RoadLane.MoveDir) -> 
 		self.sequential_obstacles[dir_back] = prior
 	assert(check_sanity())
 
+
 ## remove the obstacle in the double-linked list of obstacles
 func _remove_from_obstacle_list() -> void:
 	if !self.is_linked():
@@ -185,6 +187,7 @@ func _remove_from_obstacle_list() -> void:
 	for dir in RoadLane.MoveDir.values():
 		self.sequential_obstacles[dir] = null
 	assert(check_sanity(false))
+
 
 ## update obstacle search array in the lane sequence
 ## NOTE if dir is FORWARD, we will not update the chunk the obstacle is currntly in - it is only for moving backwards
@@ -203,6 +206,7 @@ func _update_lane_sequence(dir: RoadLane.MoveDir, from: RoadLaneObstacle, to: Ro
 		offset = INF
 	assert(check_sanity())
 
+
 ## used for sanity check that clean up (when removed from the lane) was successful
 func _is_in_lane_sequence() -> bool:
 	var lane := self.lane
@@ -213,6 +217,7 @@ func _is_in_lane_sequence() -> bool:
 				return true
 			lane = lane.get_sequential_lane(dir)
 	return false
+
 
 ## insert the obstacle in the double-linked list of obstacles
 func _insert_to_list() -> void:
@@ -227,6 +232,7 @@ func _insert_to_list() -> void:
 	self._update_lane_sequence(RoadLane.MoveDir.BACKWARD, next, self)
 	assert(check_sanity())
 
+
 ## remove obstacle from both list and search array
 func _remove_from_list() -> void:
 	assert(check_sanity())
@@ -236,6 +242,7 @@ func _remove_from_list() -> void:
 			assert(false)
 	self._remove_from_obstacle_list()
 	assert(check_sanity(false))
+
 
 ## set obstacle position on lane and _register it
 func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
@@ -250,6 +257,7 @@ func _place_to(lane: RoadLane, offset: float, _register := true) -> void:
 		lane.register_obstacle(self)
 	assert(self.check_sanity(false, false))
 
+
 ## put obstacle on a lane and _register it
 ## insert in the obstacle list and search array
 func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
@@ -258,6 +266,7 @@ func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 		self.unassign_position(_register)
 	self._place_to(lane, offset, _register)
 	self._insert_to_list()
+
 
 ## remove obstacle from the lane it is on and _unregister it
 ## remove from obstacle list and search array
@@ -271,11 +280,12 @@ func unassign_position(_unregister := true) -> void:
 	self._lane = null
 	self._offset = NAN
 
+
 ## when changing obstacle position while it just moved along the lane
 ## to not update search arrays and obstacle list
 ## when it has to jump over an obstacle (because new offset overcome an offset of next)
 ##   it will essentially remove and add it again automatically
-func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> void:
+func move_along_lane_to(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> void:
 	assert(check_sanity())
 	if DEBUG_OUT & 2:
 		prints(self, "moving obstacle along lane")
@@ -307,6 +317,7 @@ func move_along_lane(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) -> vo
 	else:
 		_update_lane_sequence(RoadLane.MoveDir.FORWARD, self, self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
 	assert(self.check_sanity())
+
 
 ## get global position of the obstacle
 func get_position() -> Vector3:

@@ -35,28 +35,45 @@ enum DriveState {
 # how big car difference triggers lane change
 var lane_change_tolerance = 3
 
-var velocity := Vector3.ZERO
+var velocity_on_lane := 0.0
+var secondary_obstacle :RoadLaneObstacle # used for notifications on lane change/merge/diverge/intersections #TODO use for
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
+
+# these two are fr getting info from the function find_obstacle
+var _obstacle : RoadLaneObstacle
+var _obstacle_distance : float
 
 const DEBUG_OUT: bool = false
 
 func _ready() -> void:
 	if drive_state != DriveState.PLAYER:
-		forward_speed = randf_range(forward_speed_min, forward_speed_max)
-	agent.visualize_lane = visualize_lane
-	agent.lane_position.node = self
+		self.forward_speed = randf_range(self.forward_speed_min, self.forward_speed_max)
+	self.agent.visualize_lane = self.visualize_lane
+	self.agent.lane_position.node = self
 	if DEBUG_OUT:
 		print("Agent state: %s par, %s lane (%s offset), %s manager" % [
 			agent.actor, agent.lane_position.lane if agent.lane_position else null, agent.lane_position.offset if agent.lane_position else NAN, agent.road_manager
 		])
+	self.secondary_obstacle = RoadLaneObstacle.new(visualize_lane)
+	self.secondary_obstacle.node = self
 
+
+func cleanup_for_reuse() -> void:
+	agent.unassign_lane()
+	secondary_obstacle.unassign_position()
+	assert(agent.lane_position.next_obstacle == null && agent.lane_position.prior_obstacle == null)
+	assert(secondary_obstacle.next_obstacle == null && secondary_obstacle.prior_obstacle == null)
+
+func _exit_tree() -> void:
+	secondary_obstacle.unassign_position() # agent and its obstacle will unassign itself
 
 ## Generic function to calc speed
 func get_signed_speed() -> float:
-	return -velocity.z
+	return -velocity_on_lane
 
-
+## get input from player or ai actor
+## returns Vector3 with .x being change in lane and .z being acceleration. .y is unused
 func get_input(obstacle: RoadLaneObstacle, obstacle_dist: float) -> Vector3:
 	match drive_state:
 		DriveState.AUTO:
@@ -65,6 +82,7 @@ func get_input(obstacle: RoadLaneObstacle, obstacle_dist: float) -> Vector3:
 			return _get_player_input()
 		_:
 			return Vector3.ZERO
+
 
 ## For more info see Intelligent driver model
 ## https://en.wikipedia.org/wiki/Intelligent_driver_model
@@ -82,7 +100,7 @@ func _compute_idm_acceleration(obstacle: RoadLaneObstacle, obstacle_dist: float)
 		breaka = acceleration
 	if obstacle:
 		assert(obstacle_dist >= 0)
-		var speed_lead: float = obstacle.speed
+		var speed_lead: float = obstacle.node.get_signed_speed()
 		var gap := obstacle_dist - keep_distance
 		if gap <= 0.0:
 			dyn_accel = -breaka
@@ -93,6 +111,8 @@ func _compute_idm_acceleration(obstacle: RoadLaneObstacle, obstacle_dist: float)
 	dyn_accel = clamp(dyn_accel, -accela, breaka)
 	return dyn_accel
 
+#TODO backward motion intelligent model (decision making currently only sees forward obstacle)
+#TODO doesn't matter too much as backward actor will try to evade as well
 func _get_auto_input(obstacle: RoadLaneObstacle, obstacle_dist: float)-> Vector3:
 	if ! agent.is_lane_position_valid():
 		return Vector3.ZERO
@@ -151,10 +171,10 @@ func _process_collision(other) -> void:
 	const elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
 	var self_mass := 1.0
 	var other_mass := 1.0
-	var self_speed := self.velocity.z
-	var other_speed: float = other.velocity.z
-	self.velocity.z = ((self_mass - elasticity * other_mass) * self_speed + (1 + elasticity) * other_mass * other_speed) / (self_mass + other_mass)
-	other.velocity.z = ((other_mass - elasticity * self_mass) * other_speed + (1 + elasticity) * self_mass * self_speed) / (self_mass + other_mass)
+	var self_speed := self.velocity_on_lane
+	var other_speed: float = other.velocity_on_lane
+	self.velocity_on_lane = ((self_mass - elasticity * other_mass) * self_speed + (1 + elasticity) * other_mass * other_speed) / (self_mass + other_mass)
+	other.velocity_on_lane = ((other_mass - elasticity * self_mass) * other_speed + (1 + elasticity) * self_mass * self_speed) / (self_mass + other_mass)
 
 func _move_to_next_lane() -> void:
 	var dir := agent.move.move_dir()
@@ -205,7 +225,7 @@ static func distance_between(first, second) -> float:
 		dist = segment_distance_fast(first.global_position,
 									first.global_position + first.global_basis.z * first.rear_axle_offset,
 									second.global_position,
-									second.global_position + second.global_basis.z * first.rear_axle_offset) - first.half_width - second.half_width
+									second.global_position + second.global_basis.z * second.rear_axle_offset) - first.half_width - second.half_width
 		return max(0, dist)
 	# else: #TODO: rectangle
 
@@ -225,6 +245,28 @@ static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneO
 	return distance_between(rear.node, front.node)
 
 
+## find closest obstacle for collision detection and decision making
+## sets _obstacle and _obstacle_distance
+func find_obstacle(dir : RoadLane.MoveDir) -> void:
+	_obstacle = null
+	_obstacle_distance = INF
+	_obstacle = self.agent.lane_position.sequential_obstacles[dir]
+	if _obstacle && (_obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+		if dir == RoadLane.MoveDir.FORWARD:
+			_obstacle_distance = self.distance_between_sequential(self.agent.lane_position, _obstacle)
+		else:
+			_obstacle_distance = self.distance_between_sequential(_obstacle, self.agent.lane_position)
+	else:
+		_obstacle = null #no need to pass lane end to decision making or collsion
+	if self.secondary_obstacle.is_assigned():
+		var obstacle_secondary = secondary_obstacle.sequential_obstacles[dir]
+		if obstacle_secondary && (obstacle_secondary.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+			var obstacle_secondary_dist := self.distance_between(self, obstacle_secondary.node)
+			if obstacle_secondary_dist < _obstacle_distance:
+				_obstacle = obstacle_secondary
+				_obstacle_distance = obstacle_secondary_dist
+
+
 func _physics_process(delta: float) -> void:
 	if ! agent.is_lane_position_valid(): # move player to the lane initially
 		var res = agent.assign_nearest_lane()
@@ -238,26 +280,20 @@ func _physics_process(delta: float) -> void:
 		# if this margin puts us into the next lane in front)
 		look_at(agent.test_move_along_lane(rotate_to_distance), Vector3.UP)
 
-	velocity.y = 0
-	var move_dir :=  RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
-	var obstacle := self.agent.lane_position.next_obstacle
-	#TODO distance calculation for backward motion
-	var obstacle_dist := self.distance_between_sequential(self.agent.lane_position, obstacle) if obstacle && (obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF
-	var target_dir:Vector3 = get_input(obstacle, obstacle_dist)
-	var old_velocity := velocity.z
-	velocity.z -= delta * target_dir.z
-	if old_velocity && sign(old_velocity) != sign(velocity.z):
-		velocity.z = 0
-	velocity.z = clamp(velocity.z, -forward_speed * 2, reverse_speed * 2)
-	if abs(velocity.z) < sleep_velocity:
-		velocity.z = 0
+	find_obstacle(RoadLane.MoveDir.FORWARD)
 
-	move_dir = RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
+	var target_dir:Vector3 = get_input(_obstacle, _obstacle_distance)
+	var old_velocity := velocity_on_lane
+	velocity_on_lane -= delta * target_dir.z
+	if old_velocity && sign(old_velocity) != sign(velocity_on_lane):
+		velocity_on_lane = 0
+	velocity_on_lane = clamp(velocity_on_lane, -forward_speed * 2, reverse_speed * 2)
+	if abs(velocity_on_lane) < sleep_velocity:
+		velocity_on_lane = 0
+
+	var move_dir := RoadLane.MoveDir.BACKWARD if self.get_signed_speed() < 0 else RoadLane.MoveDir.FORWARD
 	if move_dir == RoadLane.MoveDir.BACKWARD:
-		obstacle = self.agent.lane_position.prior_obstacle
-		obstacle_dist = self.distance_between_sequential(obstacle, self.agent.lane_position) if obstacle else INF
-
-	agent.lane_position.speed = self.get_signed_speed()
+		find_obstacle(RoadLane.MoveDir.BACKWARD)
 
 	var lane_change := int(target_dir.x)
 	if lane_change:
@@ -279,8 +315,8 @@ func _physics_process(delta: float) -> void:
 	var move_dist:float = get_signed_speed() * delta
 
 	var collided = false
-	if obstacle_dist < abs(move_dist):
-		move_dist = sign(move_dist) * obstacle_dist
+	if _obstacle_distance < abs(move_dist):
+		_obstacle_distance = sign(move_dist) * _obstacle_distance
 		collided = true
 
 	#var prior_front_axle := self.global_position
@@ -290,7 +326,7 @@ func _physics_process(delta: float) -> void:
 		#assert(!collided)
 		_move_to_next_lane()
 	elif collided:
-		_process_collision(obstacle.node)
+		_process_collision(_obstacle.node)
 
 	var orientation:Vector3 = global_transform.origin + global_transform.origin - agent.test_move_along_lane(-rear_axle_offset) #attach front and rear axle centers to the curve #TODO KBM
 	if ! orientation.is_zero_approx():
@@ -308,3 +344,18 @@ func _physics_process(delta: float) -> void:
 		#var dtheta: float = lateral / rear_axle_offset
 		#dtheta = clamp(dtheta, -max_dtheta_per_step, max_dtheta_per_step)
 		#global_transform.basis = global_transform.basis.rotated(up, dtheta)
+
+	var current_lane := self.agent.lane_position.lane
+	assert(!(bool(current_lane.flags & RoadLane.Flags.MERGING) && bool(current_lane.flags & RoadLane.Flags.DIVERGING))) # TODO should be possible in intersections
+	if self.secondary_obstacle.is_assigned(): #TODO do it on lane change only?
+		self.secondary_obstacle.unassign_position()
+	if (current_lane.flags & RoadLane.Flags.MERGING) != 0:
+		var primary_lane := current_lane._lane_merge_to_ptr
+		assert(primary_lane)
+		self.secondary_obstacle.assign_position(primary_lane, self.agent.project_on_side_lane(primary_lane) )
+	elif (current_lane.flags & RoadLane.Flags.DIVERGING) != 0:
+		var primary_lane := current_lane._lane_diverge_from_ptr
+		assert(primary_lane)
+		self.secondary_obstacle.assign_position(primary_lane, self.agent.project_on_side_lane(primary_lane) )
+	#elif self.secondary_obstacle.is_assigned():
+	#	self.secondary_obstacle.unassign_position()
