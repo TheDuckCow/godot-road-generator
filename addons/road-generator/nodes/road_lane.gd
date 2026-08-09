@@ -356,7 +356,7 @@ func connect_next(next: RoadLane) -> void:
 	self._sequential_lanes[MoveDir.FORWARD] = self.get_path_to(next)
 	next._sequential_lanes[MoveDir.BACKWARD] = next.get_path_to(self)
 	if self.traffic_chunk_length > 0:
-		assert(next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] == null)
+		assert(next._next_obstacles[0].prior_obstacle == null)
 		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
 		next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
 		self._end_obstacle.unassign_position(false) # propagate next._next_obstacles[0] in place of now unused self._end_obstacle
@@ -543,7 +543,7 @@ func _initialize_next_obstacles() -> void:
 		if next_obstacles_size == self._next_obstacles.size():
 			return
 		assert(self.obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
-		assert(self._end_obstacle.sequential_obstacles[0] == null && self._end_obstacle.sequential_obstacles[1] == null)
+		assert(self._end_obstacle.next_obstacle == null && self._end_obstacle.prior_obstacle == null)
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
 			self._next_obstacles[idx] = self._end_obstacle
@@ -602,7 +602,7 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 		assert(found)
 	while next.lane == self && next.offset < offset:
 		# if there is more than one obstacle on the same chunk of lane, we may need to skip a couple of them
-		next = next.sequential_obstacles[RoadLane.MoveDir.FORWARD]
+		next = next.next_obstacle
 	return next
 
 

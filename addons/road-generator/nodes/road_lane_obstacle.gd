@@ -40,9 +40,17 @@ var _offset: float
 var node: Node3D
 
 ## next and prior obstacles links
-## be careful - circular links of refcounted objects here lead to memory leaks
+## be careful - circular links of refcounted objects here lead to memory leaks,
 ## if not split before going to deletion
 var sequential_obstacles: Array[RoadLaneObstacle] = [null, null]
+var next_obstacle: RoadLaneObstacle:
+	get: return sequential_obstacles[RoadLane.MoveDir.FORWARD]
+	set(val):
+		push_error("can't assign manually. use assign_position to insert")
+var prior_obstacle: RoadLaneObstacle:
+	get: return sequential_obstacles[RoadLane.MoveDir.BACKWARD]
+	set(val):
+		push_error("can't assign manually. use assign_position to insert")
 
 ## approximate speed an obstacle on lane (m/s)
 ## for example if actor moves with an angle from tangent, its obstacle's speed
@@ -59,7 +67,9 @@ func is_assigned() -> bool:
 
 ## is obstacle in the linked list
 func is_linked() -> bool:
-	return self.sequential_obstacles[RoadLane.MoveDir.FORWARD] != null || bool(self.flags & Flags.LANE_END)
+	var linked = self.next_obstacle != null || bool(self.flags & Flags.LANE_END)
+	assert (!linked || self.is_assigned())
+	return linked
 
 ## distance from this obstacle to beginning (RoadLane.MoveDir.BACKWARD) or end (RoadLane.MoveDir.FORWARD) of the RoadLane its assigned to
 func distance_to_end(dir: RoadLane.MoveDir) -> float:
@@ -179,6 +189,7 @@ func _remove_from_obstacle_list() -> void:
 ## update obstacle search array in the lane sequence
 ## NOTE if dir is FORWARD, we will not update the chunk the obstacle is currntly in - it is only for moving backwards
 func _update_lane_sequence(dir: RoadLane.MoveDir, from: RoadLaneObstacle, to: RoadLaneObstacle) -> void:
+	assert(from == self || to == self) # only make sense as it also uses current position
 	assert(from.is_linked())
 	assert(check_sanity())
 	var chunk_offset := 0 if dir == RoadLane.MoveDir.BACKWARD else 1
@@ -206,8 +217,8 @@ func _is_in_lane_sequence() -> bool:
 ## insert the obstacle in the double-linked list of obstacles
 func _insert_to_list() -> void:
 	assert(check_sanity(false, false))
-	assert(self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null)
-	assert(self.sequential_obstacles[RoadLane.MoveDir.BACKWARD] == null)
+	assert(self.next_obstacle == null)
+	assert(self.prior_obstacle == null)
 	var next := self.lane.find_next_obstacle(self.offset)
 	if !next: # when enabled all lane sequences must end with an end_obstacle for obstacle search reasons
 		return
@@ -253,7 +264,8 @@ func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 func unassign_position(_unregister := true) -> void:
 	if DEBUG_OUT & 2:
 		print(self, " unassigning position")
-	self._remove_from_list()
+	if is_linked():
+		self._remove_from_list()
 	if self.lane && _unregister:
 		self.lane.unregister_obstacle(self)
 	self._lane = null
