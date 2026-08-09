@@ -68,31 +68,21 @@ func remove_actor(actor: Node3D):
 		push_error("Trying to remove invalid actor")
 		return
 	assert(actor.get_parent() == self)
-	var agent = actor.get_node_or_null("road_lane_agent")
-	if !agent:
-		push_error("Trying to remove actor that doesn't have a RoadLaneAgent agent member")
-		return
 	if reuse_removed:
 		assert(actor not in _stashed_vehicles)
 		actor.visible = false
-		actor.velocity = Vector3.ZERO
+		actor.velocity_on_lane = 0.0
+		actor.cleanup_for_reuse()
 		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
 			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
-		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.unassign_lane()
 		_stashed_vehicles.append(actor)
 		if DEBUG_OUT:
 			print("Hid actor ", actor)
 	else:
-		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.unassign_lane()
 		actor.queue_free()
 		if DEBUG_OUT:
 			print("Freed actor ", actor)
-	if is_instance_valid(agent) && agent is RoadLaneAgent:
-		assert(agent.lane_position.next_obstacle == null)
-		assert(agent.lane_position.prior_obstacle == null)
 
 
 ## Get amount of actors active in the scene
