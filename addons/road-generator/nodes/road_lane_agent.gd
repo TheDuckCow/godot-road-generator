@@ -318,6 +318,7 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 
 ## find position to an obstacle in front of the agent on a sidelane
 ## uses project_on_side_lane with its limitation
+## returns null if there is no lane
 func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObstacle:
 	assert(self.lane_position.check_sanity())
 	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])

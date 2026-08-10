@@ -36,13 +36,14 @@ enum DriveState {
 var lane_change_tolerance = 3
 
 var velocity_on_lane := 0.0
-var secondary_obstacle :RoadLaneObstacle # used for notifications on lane change/merge/diverge/intersections #TODO use for
+var secondary_obstacle :RoadLaneObstacle # used for notifications on lane change/merge/diverge/intersections #TODO pooling?
 
 const transition_time_close := 0.05 # how close to end of a transition lane actor has to switch lane
 
 # these two are fr getting info from the function find_obstacle
 var _obstacle : RoadLaneObstacle
 var _obstacle_distance : float
+var _last_lane : RoadLane
 
 const DEBUG_OUT: bool = false
 
@@ -57,6 +58,7 @@ func _ready() -> void:
 		])
 	self.secondary_obstacle = RoadLaneObstacle.new(visualize_lane)
 	self.secondary_obstacle.node = self
+	self.secondary_obstacle.flags = RoadLaneObstacle.Flags.PARTIAL
 
 
 func cleanup_for_reuse() -> void:
@@ -214,10 +216,10 @@ static func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vec
 ## INF or distance between: root points, capsules or rectangles
 ## TODO will it make sense to check with bounding box first?
 static func distance_between(first, second) -> float:
-	var dist :float
 	const MIN_INF_DISTANCE_SQUARED := 250000.0 # 500m at this squared distance we can assume that the obstacle is not there
 	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # 50m at this squared distance we can assume that the obstacle is a point
-	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
+	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # 10m at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
+	var dist :float
 	var dist_sq_to_root :float = first.global_position.distance_squared_to(second.global_position)
 	if dist_sq_to_root >= MIN_POINT_DISTANCE_SQUARED:
 		return INF if dist_sq_to_root >= MIN_INF_DISTANCE_SQUARED else sqrt(dist_sq_to_root)
@@ -232,39 +234,71 @@ static func distance_between(first, second) -> float:
 
 ## find distance between two RoadActors (through obstacles) in the current lane
 ## first look on the current+next lanes to make it fast in 1D.
-## use it only for obstacles on the same lane sequence - in front
+## use it only for obstacles on the same lane sequence - in order!
+## if distance on lane is less than need_direct_distance, calculate precise - for faster calculation on side lane
 static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneObstacle) -> float:
+	const MIN_REAL_DISTANCE_PARTIAL := 10.0 # 10m at this distance distance on lane is good enough even for partial blocks
+	var need_direct_distance = -INF if ((rear.flags | front.flags) & RoadLaneObstacle.Flags.PARTIAL) == 0 else MIN_REAL_DISTANCE_PARTIAL
 	var dist :float
 	if rear.lane == front.lane:
 		dist = (front.offset - front.node.length[RoadLane.MoveDir.BACKWARD]) - (rear.offset + rear.node.length[RoadLane.MoveDir.FORWARD])
-		return dist if dist > 0 else 0
+		if dist > need_direct_distance:
+			return max(0, dist)
 	var next_lane := rear.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
 	if next_lane && next_lane == front.lane:
 		dist = (front.distance_to_end(RoadLane.MoveDir.BACKWARD) - front.node.length[RoadLane.MoveDir.BACKWARD]) + (rear.distance_to_end(RoadLane.MoveDir.FORWARD) - rear.node.length[RoadLane.MoveDir.FORWARD])
-		return dist if dist > 0 else 0
+		if dist > need_direct_distance:
+			return max(0, dist)
 	return distance_between(rear.node, front.node)
 
 
 ## find closest obstacle for collision detection and decision making
 ## sets _obstacle and _obstacle_distance
-func find_obstacle(dir : RoadLane.MoveDir) -> void:
+func find_obstacle(move_dir : RoadLane.MoveDir) -> void:
 	_obstacle = null
 	_obstacle_distance = INF
-	_obstacle = self.agent.lane_position.sequential_obstacles[dir]
+	_obstacle = self.agent.lane_position.sequential_obstacles[move_dir]
 	if _obstacle && (_obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
-		if dir == RoadLane.MoveDir.FORWARD:
+		if move_dir == RoadLane.MoveDir.FORWARD:
 			_obstacle_distance = self.distance_between_sequential(self.agent.lane_position, _obstacle)
 		else:
 			_obstacle_distance = self.distance_between_sequential(_obstacle, self.agent.lane_position)
 	else:
 		_obstacle = null #no need to pass lane end to decision making or collsion
 	if self.secondary_obstacle.is_assigned():
-		var obstacle_secondary = secondary_obstacle.sequential_obstacles[dir]
-		if obstacle_secondary && (obstacle_secondary.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
-			var obstacle_secondary_dist := self.distance_between(self, obstacle_secondary.node)
+		var next_obstacle_secondary = secondary_obstacle.sequential_obstacles[move_dir]
+		if next_obstacle_secondary && (next_obstacle_secondary.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+			var obstacle_secondary_dist : float
+			if move_dir == RoadLane.MoveDir.FORWARD:
+				obstacle_secondary_dist = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_secondary)
+			else:
+				obstacle_secondary_dist = self.distance_between_sequential(next_obstacle_secondary, self.secondary_obstacle)
 			if obstacle_secondary_dist < _obstacle_distance:
-				_obstacle = obstacle_secondary
+				_obstacle = next_obstacle_secondary
 				_obstacle_distance = obstacle_secondary_dist
+
+
+## setting additional obstacle on primary lane in case of merging/diverging lanes
+## TODO better processing for partial obstacle
+func set_secondary_obstacle(move_dir : RoadLane.MoveDir) -> void:
+	var current_lane := self.agent.lane_position.lane
+	assert(!(bool(current_lane.flags & RoadLane.Flags.MERGING) && bool(current_lane.flags & RoadLane.Flags.DIVERGING))) # TODO should be possible in intersections
+	if _last_lane != current_lane && self.secondary_obstacle.is_assigned(): #TODO do it on lane change only?
+		self.secondary_obstacle.unassign_position()
+	var secondary_lane :RoadLane
+	if (current_lane.flags & RoadLane.Flags.MERGING) != 0:
+		secondary_lane = current_lane._lane_merge_to_ptr
+	elif (current_lane.flags & RoadLane.Flags.DIVERGING) != 0:
+		secondary_lane = current_lane._lane_diverge_from_ptr
+	assert(secondary_lane || int((current_lane.flags & RoadLane.Flags.MERGING) != 0) + int((current_lane.flags & RoadLane.Flags.DIVERGING) != 0) <= 1)
+	if secondary_lane:
+		var secondary_offset := self.agent.project_on_side_lane(secondary_lane)
+		if self.secondary_obstacle.is_assigned():
+			assert(self.secondary_obstacle.lane == secondary_lane)
+			self.secondary_obstacle.move_along_lane_to(secondary_lane, secondary_offset, move_dir)
+		else:
+			self.secondary_obstacle.assign_position(secondary_lane, secondary_offset )
+	_last_lane = current_lane
 
 
 func _physics_process(delta: float) -> void:
@@ -297,10 +331,28 @@ func _physics_process(delta: float) -> void:
 
 	var lane_change := int(target_dir.x)
 	if lane_change:
-		var next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
-		var obstacle_dist_side = self.distance_between(self, next_obstacle_side.node) if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0 else INF #TODO try distance on lane first?
-		#TODO var prev_obstacle_side = next_obstacle_side.prev_obstacle
-		if obstacle_dist_side < 2: #TODO: move to decision making
+		const BLOCK_DISTANCE := 2.0
+		#prevent lane change if another car is there
+		assert(lane_change in [-1, 1])
+		var next_obstacle_side: RoadLaneObstacle
+		var prior_obstacle_side: RoadLaneObstacle
+		var obstacle_dist_side : float = INF
+		if self.secondary_obstacle.is_assigned() && self.agent.lane_position.lane.get_side_lane(RoadLaneAgent.to_lane_side(lane_change)) == self.secondary_obstacle.lane:
+			next_obstacle_side = self.secondary_obstacle.next_obstacle #we don't want to find our own secondary obstacle
+			prior_obstacle_side = self.secondary_obstacle.prior_obstacle
+			if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+				obstacle_dist_side = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_side)
+			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
+				obstacle_dist_side = min(obstacle_dist_side, self.distance_between_sequential(prior_obstacle_side, self.secondary_obstacle) )
+		else:
+			next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
+			prior_obstacle_side = next_obstacle_side.prior_obstacle if next_obstacle_side else null
+			if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+				obstacle_dist_side = self.distance_between(self, next_obstacle_side.node)
+			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
+				obstacle_dist_side = min(obstacle_dist_side, self.distance_between(self, prior_obstacle_side.node))
+
+		if obstacle_dist_side < BLOCK_DISTANCE: #TODO: use lane width?
 			lane_change = 0;
 		agent.change_lane(lane_change)
 		if lane_change:
@@ -312,15 +364,15 @@ func _physics_process(delta: float) -> void:
 	# we flip the direction along the Z axis so that positive move direction
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
-	var move_dist:float = get_signed_speed() * delta
+	var move_distance:float = get_signed_speed() * delta
 
 	var collided = false
-	if _obstacle_distance < abs(move_dist):
-		_obstacle_distance = sign(move_dist) * _obstacle_distance
+	if _obstacle_distance < abs(move_distance):
+		move_distance = sign(move_distance) * _obstacle_distance
 		collided = true
 
 	#var prior_front_axle := self.global_position
-	var next_pos: Vector3 = agent.move_along_lane(move_dist)
+	var next_pos: Vector3 = agent.move_along_lane(move_distance)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
 	if agent.move.lane_sequence_end:
 		#assert(!collided)
@@ -345,17 +397,4 @@ func _physics_process(delta: float) -> void:
 		#dtheta = clamp(dtheta, -max_dtheta_per_step, max_dtheta_per_step)
 		#global_transform.basis = global_transform.basis.rotated(up, dtheta)
 
-	var current_lane := self.agent.lane_position.lane
-	assert(!(bool(current_lane.flags & RoadLane.Flags.MERGING) && bool(current_lane.flags & RoadLane.Flags.DIVERGING))) # TODO should be possible in intersections
-	if self.secondary_obstacle.is_assigned(): #TODO do it on lane change only?
-		self.secondary_obstacle.unassign_position()
-	if (current_lane.flags & RoadLane.Flags.MERGING) != 0:
-		var primary_lane := current_lane._lane_merge_to_ptr
-		assert(primary_lane)
-		self.secondary_obstacle.assign_position(primary_lane, self.agent.project_on_side_lane(primary_lane) )
-	elif (current_lane.flags & RoadLane.Flags.DIVERGING) != 0:
-		var primary_lane := current_lane._lane_diverge_from_ptr
-		assert(primary_lane)
-		self.secondary_obstacle.assign_position(primary_lane, self.agent.project_on_side_lane(primary_lane) )
-	#elif self.secondary_obstacle.is_assigned():
-	#	self.secondary_obstacle.unassign_position()
+	set_secondary_obstacle(move_dir)
