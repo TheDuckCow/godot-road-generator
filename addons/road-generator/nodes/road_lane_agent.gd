@@ -63,12 +63,10 @@ var road_manager: RoadManager
 ## it directly.
 var lane_position := RoadLaneObstacle.new(visualize_lane)
 
-## Working state for the current or most recent [method move_along_lane] call.
-## Fields here (e.g. [member MoveAlongLane.lane_sequence_end]) reflect the
-## outcome of that last move and are only meaningful to read right after
-## calling it - see [MoveAlongLane].
-var move := RoadLaneAgent.MoveAlongLane.new()
 
+## Distance that was not used when moving along lane
+## NOTE: contains the value from the last call of move_along_lane or test_move_along_lane
+var move_along_lane_distance_left: float
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -239,29 +237,27 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 ## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
-	var pos = test_move_along_lane(move_distance)
-	if move_distance != 0:
-		lane_position.move_along_lane_to(self.move.lane, self.move.offset, MoveDir.FORWARD if self.move.dir_sign > 0 else MoveDir.BACKWARD)
-	return pos
+	return _move_along_lane(move_distance, true)
 
 
 ## Finds the closest position on a new (newly set or disconnected) lane
 ## and move the rest of the distance along it
 func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
-		return self.move.get_position()
+		return lane_position.get_position()
 	assign_closest_lane_position(new_lane)
-	return move_along_lane(self.move.distance_left)
+	return _move_along_lane(self.move_along_lane_distance_left, true)
 
 
 ## Fast find a position on the side lane
 ## and move the rest of the distance along it
+## NOTE only use for lanes in the same segment
 func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
-		return self.move.get_position()
+		return lane_position.get_position()
 	var new_offset = project_on_side_lane(new_lane)
 	assign_lane_position(new_lane, new_offset)
-	return move_along_lane(self.move.distance_left)
+	return _move_along_lane(self.move_along_lane_distance_left, true)
 
 
 ## Finds the position this many units forward (or backwards, if negative)
@@ -269,9 +265,7 @@ func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 func test_move_along_lane(move_distance: float) -> Vector3:
 	if ! is_lane_position_valid():
 		return actor.global_transform.origin
-	self.move.set_by_lane_position(lane_position, move_distance)
-	self.move.along_lane()
-	return self.move.get_position()
+	return _move_along_lane(move_distance, false)
 
 
 ## It's a heuristic to quickly find closest offset on a side lane
@@ -328,64 +322,49 @@ func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObsta
 	return side_lane.find_next_obstacle( self.project_on_side_lane(side_lane) )
 
 
-## Holds the result of the most recent [method RoadLaneAgent.move_along_lane]
-## / [method RoadLaneAgent.test_move_along_lane] call. Read these fields
-## immediately after calling one of those - they're overwritten by the next
-## call and don't represent a "live" state otherwise.
-## TODO Overengineered? look once more at what happens here
-class MoveAlongLane:
-	var lane_position: RoadLaneObstacle
-	var offset: float
-	var lane: RoadLane
-	var lane_sequence_end: bool
-	var distance_left: float
+## negative distance is MoveDir.BACKWARD, positive is MoveDir.FORWARD
+## don't use for 0 distance
+static func get_move_dir_by_move_distance(move_distance: float) -> MoveDir:
+	assert(move_distance != 0)
+	return int(move_distance < 0)
 
-	var dir_sign: float
-	func move_dir() -> MoveDir:
-		return int(dir_sign < 0)
 
-	const DEBUG_OUT := false
-
-	func set_by_lane_position(lane_position: RoadLaneObstacle, move_distance: float) -> void:
-		assert(lane_position.check_sanity(false, false))
-		self.lane_position = lane_position
-		self.offset = lane_position.offset
-		self.lane = lane_position.lane
-		self.lane_sequence_end = false
-		self.distance_left = abs(move_distance)
-		self.dir_sign = sign(move_distance)
-
-	func get_signed_distance_left() -> float:
-		return self.dir_sign * distance_left
-
-	func get_position() -> Vector3:
-		return self.lane.to_global(self.lane.curve.sample_baked(self.offset))
-
-	func along_lane() -> void:
-		var dir := move_dir()
-		if DEBUG_OUT:
-			print(self.lane_position, " is moving ", MoveDir.find_key(dir), " from offset ", self.offset, " ingoring obstacles, distance to go ", self.distance_left)
-		# Find how much space is left along the RoadLane in this direction
-		if self.distance_left == 0:
-			return
-		var lane_length := lane_position.distance_to_end(dir)
-		while distance_left >= lane_length:
-			var lane_check := self.lane.get_sequential_lane(dir)
-			if lane_check == null:
-				self.lane_sequence_end = true
-				break
-			self.distance_left -= lane_length
-			self.lane = lane_check
-			lane_length = self.lane.curve.get_baked_length()
-			self.offset = 0 if dir == MoveDir.FORWARD else lane_length
-		var dist_to_end := min(self.distance_left, lane_length)
-		self.distance_left -= dist_to_end
-		self.offset += dist_to_end if dir == MoveDir.FORWARD else -dist_to_end
-		if DEBUG_OUT:
-			if self.distance_left:
-				print(self.lane_position, " stopping at ", self.offset, " because lane sequence ended, distance to go ", self.distance_left)
-			else:
-				print(self.lane_position, " stopping at ", self.offset, ", all good")
+## calculate offset on a lane and if necessary new lane in lane sequence in
+## move_distance distance on lane
+## if set_new_position is true, move the lane_position there
+func _move_along_lane(move_distance: float, set_new_position: bool) -> Vector3:
+	if move_distance == 0:
+		self.move_along_lane_distance_left = 0
+		return self.lane_position.get_position()
+	assert(self.lane_position.check_sanity(false, false))
+	var distance_to_go = abs(move_distance)
+	var offset := self.lane_position.offset
+	var lane := self.lane_position.lane
+	var move_dir := get_move_dir_by_move_distance(move_distance)
+	if DEBUG_OUT:
+		print(self, " is moving ", MoveDir.find_key(move_dir), " from offset ", offset, " ingoring obstacles, distance to go ", distance_to_go)
+	# Find how much space is left along the RoadLane in this direction
+	var lane_length := self.lane_position.distance_to_end(move_dir)
+	while distance_to_go >= lane_length:
+		var lane_check := lane.get_sequential_lane(move_dir)
+		if lane_check == null:
+			break
+		distance_to_go -= lane_length
+		lane = lane_check
+		lane_length = lane.curve.get_baked_length()
+		offset = 0 if move_dir == MoveDir.FORWARD else lane_length
+	var dist_to_end := min(distance_to_go, lane_length)
+	distance_to_go -= dist_to_end
+	offset += dist_to_end if move_dir == MoveDir.FORWARD else -dist_to_end
+	if DEBUG_OUT:
+		if distance_to_go > 0:
+			print(self, " stopping at ", offset, " because lane sequence ended, distance to go ", distance_to_go)
+		else:
+			print(self, " stopping at ", offset, ", all good")
+	self.move_along_lane_distance_left = sign(move_distance) * distance_to_go
+	if set_new_position:
+		self.lane_position.move_along_lane_to(lane, offset, move_dir)
+	return lane.to_global(lane.curve.sample_baked(offset))
 
 
 #endregion

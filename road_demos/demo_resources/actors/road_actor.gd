@@ -169,6 +169,7 @@ func _get_player_input() -> Vector3:
 		lane_move += 1
 	return Vector3(lane_move, 0, dyn_accel)
 
+
 func _process_collision(other) -> void:
 	const elasticity := 1.2 # 1.0 - fully elastic, 0.0 - fully inelastic; 1.2 just for fun
 	var self_mass := 1.0
@@ -178,8 +179,9 @@ func _process_collision(other) -> void:
 	self.velocity_on_lane = ((self_mass - elasticity * other_mass) * self_speed + (1 + elasticity) * other_mass * other_speed) / (self_mass + other_mass)
 	other.velocity_on_lane = ((other_mass - elasticity * self_mass) * other_speed + (1 + elasticity) * self_mass * self_speed) / (self_mass + other_mass)
 
+
 func _move_to_next_lane() -> void:
-	var dir := agent.move.move_dir()
+	var dir := agent.get_move_dir_by_move_distance(agent.move_along_lane_distance_left)
 	var primary_lane := agent.lane_position.lane.get_primary_lane(dir)
 	if primary_lane:
 		var next_pos = agent.continue_along_side_lane(primary_lane)
@@ -190,6 +192,7 @@ func _move_to_next_lane() -> void:
 		#if is_instance_valid(next_lane) && next_lane != agent.lane_position.lane: # TODO: it's still possible to find merging transition lanes
 			#var next_pos = agent.continue_along_new_lane(next_lane)
 			#global_transform.origin = next_pos
+
 
 ## distance between 2 segments
 ## reported distance is not precise - can bigger in corner cases for performance reasons
@@ -290,7 +293,7 @@ func set_secondary_obstacle(move_dir : RoadLane.MoveDir) -> void:
 		secondary_lane = current_lane._lane_merge_to_ptr
 	elif (current_lane.flags & RoadLane.Flags.DIVERGING) != 0:
 		secondary_lane = current_lane._lane_diverge_from_ptr
-	assert(secondary_lane || int((current_lane.flags & RoadLane.Flags.MERGING) != 0) + int((current_lane.flags & RoadLane.Flags.DIVERGING) != 0) <= 1)
+	assert(!secondary_lane || !(bool(secondary_lane.flags & RoadLane.Flags.MERGING) && bool(secondary_lane.flags & RoadLane.Flags.DIVERGING)))
 	if secondary_lane:
 		var secondary_offset := self.agent.project_on_side_lane(secondary_lane)
 		if self.secondary_obstacle.is_assigned():
@@ -374,8 +377,7 @@ func _physics_process(delta: float) -> void:
 	#var prior_front_axle := self.global_position
 	var next_pos: Vector3 = agent.move_along_lane(move_distance)
 	global_transform.origin = next_pos # has to set it before switching lanes (in case if we move to the end of the lane)
-	if agent.move.lane_sequence_end:
-		#assert(!collided)
+	if agent.move_along_lane_distance_left != 0:
 		_move_to_next_lane()
 	elif collided:
 		_process_collision(_obstacle.node)
