@@ -181,17 +181,18 @@ func _process_collision(other) -> void:
 
 
 func _move_to_next_lane() -> void:
+	assert(agent.move_along_lane_distance_left != 0)
 	var dir := agent.get_move_dir_by_move_distance(agent.move_along_lane_distance_left)
 	var primary_lane := agent.lane_position.lane.get_primary_lane(dir)
 	if primary_lane:
 		var next_pos = agent.continue_along_side_lane(primary_lane)
 		global_transform.origin = next_pos
-	#else:
+	else:
 		#workaround for missing connections
-		#var next_lane = agent.find_nearest_lane(global_transform.origin - global_transform.basis.z * agent.move.dir_sign, 1)
-		#if is_instance_valid(next_lane) && next_lane != agent.lane_position.lane: # TODO: it's still possible to find merging transition lanes
-			#var next_pos = agent.continue_along_new_lane(next_lane)
-			#global_transform.origin = next_pos
+		var next_lane = agent.find_nearest_lane(global_transform.origin - global_transform.basis.z * sign(agent.move_along_lane_distance_left), 1)
+		if is_instance_valid(next_lane) && next_lane != agent.lane_position.lane: # TODO: it's still possible to find merging transition lanes
+			var next_pos = agent.continue_along_new_lane(next_lane)
+			global_transform.origin = next_pos
 
 
 ## distance between 2 segments
@@ -383,7 +384,7 @@ func _physics_process(delta: float) -> void:
 		_process_collision(_obstacle.node)
 
 	var orientation:Vector3 = global_transform.origin + global_transform.origin - agent.test_move_along_lane(-rear_axle_offset) #attach front and rear axle centers to the curve #TODO KBM
-	if ! orientation.is_zero_approx():
+	if ! orientation.is_equal_approx(global_transform.origin):
 		look_at(orientation, Vector3.UP)
 
 	# TODO Kinematic Bicycle Model - too tricky in reverse to make it work now
