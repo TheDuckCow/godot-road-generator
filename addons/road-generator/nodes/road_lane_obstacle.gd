@@ -143,7 +143,7 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 					var found := false
 					var lane := self.lane;
 					while lane && !found:
-						if seq_obstacle.lane == lane: #TODO multilane
+						if seq_obstacle.lane == lane:
 							found = true
 						lane = lane.get_sequential_lane(dir)
 					if !found:
@@ -268,6 +268,14 @@ func assign_position(lane: RoadLane, offset: float, _register := true) -> void:
 	self._insert_to_list()
 
 
+## put obstacle on the closest point on lane and _register it
+func assign_closest_lane_position(lane: RoadLane, global_position : Vector3, _register := true) -> void:
+	var offset = lane.curve.get_closest_offset(lane.to_local(global_position))
+	if DEBUG_OUT & 2:
+		print(self, " lane offset was projected from the point ", global_position)
+	self.assign_position(lane, offset, _register)
+
+
 ## remove obstacle from the lane it is on and _unregister it
 ## remove from obstacle list and search array
 func unassign_position(_unregister := true) -> void:
@@ -297,7 +305,7 @@ func move_along_lane_to(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) ->
 	if seq_obstacle:
 		if lane != self.lane:
 			assert(self.lane.get_sequential_lane(dir) == lane) #unlikely fail for tiny lanes (agent would have to jump over the whole lane in one frame)
-			#TODO store lane-to-index for road lane sequence in road manager?
+			#TODO store lane-to-index for road lane sequence in road manager for performance?
 			if seq_obstacle.lane == self.lane:
 				jump_over = true
 		if seq_obstacle.lane == lane:

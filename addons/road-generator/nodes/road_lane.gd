@@ -250,16 +250,12 @@ func _exit_tree() -> void:
 		self.disconnect_sequential(dir)
 	for dir in SideDir.values():
 		self.disconnect_side(dir)
-	assert(auto_free_vehicles != (self.traffic_chunk_length > 0)) #TODO support something like road_actor_manager for despawn.
-	if auto_free_vehicles:
-		#TODO make more efficient cleanup if the lane is deleted
-		for obstacle in obstacles:
-			if is_instance_valid(obstacle):
-				obstacle.unassign_lane()
+	while !self.obstacles.is_empty():
+		var obstacle := self.obstacles.back()
+		if is_instance_valid(obstacle):
+			obstacle.unassign_position() # lane goes out, unassign now necessary as to avoid leaks (links between obstacles) and not to leave lane position dangling
+			if auto_free_vehicles:
 				obstacle.node.call_deferred("queue_free")
-	else:
-		if !obstacles.is_empty(): #TODO fix errors on scene unload
-			push_error("Obstacles on lane ", self, " are not empty and auto_free_vehicles is disabled. Clean up to avoid memory leaks")
 
 
 # ------------------------------------------------------------------------------
@@ -422,7 +418,11 @@ func disconnect_side(dir :SideDir) -> void:
 		print(self, " disconnecting from ", SideDir.find_key(dir), " linked ", lane_side)
 	self._side_lanes[dir] = NodePath("")
 	lane_side._side_lanes[dir_back] = NodePath("")
-	#TODO disconnect all the merging/diverging from primary if necessary. assign new primary if previous one is disconnected? change flags?
+	for lane:RoadLane in [self, lane_side]:
+		if (lane.flags & (RoadLane.Flags.DIVERGING | RoadLane.Flags.MERGING)) != 0:
+			push_warning("disconnecting ", lane , " that is marked as merging/diverging. its primary lanes are ", lane._primary_lanes[MoveDir.FORWARD], " and ", lane._primary_lanes[MoveDir.BACKWARD])
+			#TODO how to hide the warning when the respective RoadSegment - or the whole RoadManager is being taken off?
+			#TODO what woulb be a better cleanup? disconnect all the merging/diverging from primary if necessary? assign new primary if previous one is disconnected and propagate it? change flags?
 
 
 ## Register a agent to be connected to (on, following) this lane.
@@ -543,16 +543,27 @@ func rebuild_geom() -> void:
 
 ## resize _next_obstacles search array on creation or change of lane
 ## geometry, fill with _end_obstacle for proper state
+## NOTE when changed with obstacles assigned to the lane, they can change order
 func _initialize_next_obstacles() -> void:
 		assert(self.traffic_chunk_length > 0)
+		assert(self.curve.get_baked_length() > 0)
+		var next_lane := self.get_sequential_lane(MoveDir.FORWARD)
+		assert(!next_lane || !next_lane._next_obstacles.is_empty()) #we would need to actually initialize obstacle list with an obstacle from next but we can't
 		var next_obstacles_size := int(self.curve.get_baked_length() / self.traffic_chunk_length) + 1
 		if next_obstacles_size == self._next_obstacles.size():
 			return
-		assert(self.obstacles.size() == 0) #TODO what to do if there are road lane agents on the lane already? if offset is bigger than new one?
-		assert(self._end_obstacle.next_obstacle == null && self._end_obstacle.prior_obstacle == null)
+		var obstacles_copy : Array[RoadLaneObstacle] = []
+		while !self.obstacles.is_empty():
+			var obstacle := self.obstacles.back()
+			obstacles_copy.push_back(obstacle)
+			obstacle.unassign_position()
+		var obstacle_fill := self._end_obstacle if !next_lane else next_lane._next_obstacles[0]
 		self._next_obstacles.resize(next_obstacles_size)
 		for idx in len(_next_obstacles):
-			self._next_obstacles[idx] = self._end_obstacle
+			assert(self._next_obstacles[idx] in [null, obstacle_fill])
+			self._next_obstacles[idx] = obstacle_fill
+		for obstacle in obstacles_copy:
+			self.lane_position.assign_closest_lane_position(self, obstacle.actor.global_position)
 
 
 func curve_changed() -> void:
@@ -594,6 +605,7 @@ func show_fins(value: bool) -> void:
 func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 	if self.traffic_chunk_length <= 0:
 		return null
+	assert(!self._next_obstacles.is_empty())
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
 	var next := self._next_obstacles[int(offset / self.traffic_chunk_length)]
 	if ENABLE_HEAVY_CHECKS && !(next.flags & RoadLaneObstacle.Flags.LANE_END):
@@ -625,6 +637,7 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 func _replace_next_obstacle(offset: float, from: RoadLaneObstacle, to: RoadLaneObstacle, dir: MoveDir, chunk_offset: int) -> bool:
 	if self.traffic_chunk_length <= 0:
 		return true
+	assert(!self._next_obstacles.is_empty())
 	assert(is_inf(offset) || ( offset >= 0 && offset <= self.curve.get_baked_length() ) )
 	var start := (0 if dir == MoveDir.FORWARD else len(_next_obstacles) -1)
 	if !is_inf(offset):

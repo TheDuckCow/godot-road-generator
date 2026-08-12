@@ -108,15 +108,7 @@ func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
-	var new_offset = new_lane.curve.get_closest_offset(
-			new_lane.to_local(
-				get_closest_path_point( new_lane,
-					actor.global_transform.origin)))
-	if DEBUG_OUT:
-		print("Found new offset ", new_offset," for ", self )
-	self.lane_position.assign_position(new_lane, new_offset)
-	if DEBUG_OUT:
-		print("Assigned new lane: %s" % new_lane.get_path())
+	self.lane_position.assign_closest_lane_position(new_lane, self.actor.global_position)
 
 ## Place this agent at an exact [param new_offset] on [param new_lane].
 ## Use this over [method assign_closest_lane_position] when the offset is
@@ -252,6 +244,7 @@ func continue_along_new_lane(new_lane: RoadLane) -> Vector3:
 ## Fast find a position on the side lane
 ## and move the rest of the distance along it
 ## NOTE only use for lanes in the same segment
+## NOTE uses move_along_lane_distance_left set by move_along_lane
 func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 	if ! new_lane:
 		return lane_position.get_position()
@@ -262,6 +255,7 @@ func continue_along_side_lane(new_lane: RoadLane) -> Vector3:
 
 ## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
+## NOTE uses move_along_lane_distance_left set by move_along_lane
 func test_move_along_lane(move_distance: float) -> Vector3:
 	if ! is_lane_position_valid():
 		return actor.global_transform.origin
