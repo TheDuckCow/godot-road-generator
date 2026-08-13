@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://carf53o7nq0qh" path="res://addons/road-generator/custom_containers/highway_onramp.tscn" id="8"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="9"]
 [ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="10"]
-[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/RoadActor.tscn" id="11"]
+[ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/obstacle_aware_road_actor.tscn" id="11"]
 [ext_resource type="PackedScene" path="res://addons/road-generator/custom_containers/splitter_1x1.tscn" id="13_iq3xf"]
 [ext_resource type="PackedScene" uid="uid://dfb13xval0xba" path="res://addons/road-generator/custom_containers/roundabout_1x1.tscn" id="13_xhqaq"]
 [ext_resource type="PackedScene" uid="uid://dl2ggbjespgv8" path="res://addons/road-generator/custom_containers/3way_1x1.tscn" id="14_uq04g"]
