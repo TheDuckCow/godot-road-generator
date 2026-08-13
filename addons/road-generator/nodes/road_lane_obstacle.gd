@@ -14,7 +14,8 @@ enum Flags {
 	REAL = 0x0, # the node is blocking it's assigned lane
 	IMMINENT = 0x1, # the node from some other lane won't be able to stop before it gets to this position
 	PARTIAL = 0x2, # the node from some other lane but it partially blocks the lane it's assigned to
-	LANE_END = 0x8, # end of a lane sequence the only one that has no forward link. only make sense if linking is enabled
+	TRAFFIC_LIGHT = 0x2000, # a traffic light creates virtual obstacle to stop traffic that can stop (create on yellow)
+	LANE_END = 0x80000000, # end of a lane sequence the only one that has no forward link. only make sense if linking is enabled
 }
 const END_OFFSET_MAX = 5.0
 const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
@@ -55,7 +56,9 @@ var prior_obstacle: RoadLaneObstacle:
 		push_error("can't assign manually. use assign_position to insert")
 
 
-func _init(visualize_lane := false) -> void:
+func _init(node: Node3D, flags: RoadLaneObstacle.Flags, visualize_lane := false) -> void:
+	self.node = node
+	self.flags = flags
 	self.visualize_lane = visualize_lane
 
 
@@ -331,4 +334,4 @@ func move_along_lane_to(lane: RoadLane, offset: float, dir: RoadLane.MoveDir) ->
 func get_position() -> Vector3:
 	if !is_assigned():
 		return Vector3.INF
-	return self.lane.to_global(self.lane.curve.sample_baked(self.offset))
+	return self.lane.get_global_position_at_offset(self.offset)

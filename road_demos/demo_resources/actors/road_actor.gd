@@ -51,14 +51,11 @@ func _ready() -> void:
 	if drive_state != DriveState.PLAYER:
 		self.forward_speed = randf_range(self.forward_speed_min, self.forward_speed_max)
 	self.agent.visualize_lane = self.visualize_lane
-	self.agent.lane_position.node = self
 	if DEBUG_OUT:
 		print("Agent state: %s par, %s lane (%s offset), %s manager" % [
 			agent.actor, agent.lane_position.lane if agent.lane_position else null, agent.lane_position.offset if agent.lane_position else NAN, agent.road_manager
 		])
-	self.secondary_obstacle = RoadLaneObstacle.new(visualize_lane)
-	self.secondary_obstacle.node = self
-	self.secondary_obstacle.flags = RoadLaneObstacle.Flags.PARTIAL
+	self.secondary_obstacle = RoadLaneObstacle.new(self, RoadLaneObstacle.Flags.PARTIAL, visualize_lane)
 
 
 func cleanup_for_reuse() -> void:

@@ -31,9 +31,8 @@ enum Flags {
 	MERGING = 0x2, # secondary lane that merges into the primary lane (mutually exclusive with MERGE_INTO, see merge_lane)
 	DIVERGE_FROM = 0x4, # main lane from which secondary lanes diverging from (mutually exclusive with DIVERGING)
 	DIVERGING = 0x8, # secondary lane that diverges from the primary lane (mutually exclusive with DIVERGE_FROM, see diverge_from)
-	INTERSECTION = 0x10, # the lane is a part of intersection. it may intersect other lanes (see intersection_points)
-	BOTH_WAYS = 0x20, # the lane have a twin RoadLane with reverse direction (see opposite_lane)
-	PERSONAL = 0x40000000, # the lane is created for one RoadLaneAgent, other agents or lanes are not aware of it - e.g. for lane changing (in which case it's also MERGING and DIVERGING)
+	INTERSECTION = 0x10, # the lane is a part of intersection. it may intersect other lanes (see intersection_points) #TODO not implemented
+	BOTH_WAYS = 0x20, # the lane have a twin RoadLane with reverse direction (see opposite_lane) #TODO not implemented
 	UTILITY = 0x80000000, # lanes that are created for some internal reason - e.g. despawn lane
 }
 
@@ -228,8 +227,7 @@ func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
 	if self.traffic_chunk_length > 0:
-		_end_obstacle = RoadLaneObstacle.new()
-		_end_obstacle.flags = RoadLaneObstacle.Flags.LANE_END
+		_end_obstacle = RoadLaneObstacle.new(null, RoadLaneObstacle.Flags.LANE_END)
 		if self.curve.get_baked_length() != 0:
 			_initialize_next_obstacles()
 		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
@@ -248,6 +246,7 @@ func _ready():
 func _exit_tree() -> void:
 	for dir in MoveDir.values():
 		self.disconnect_sequential(dir)
+		self._primary_lanes[dir] = NodePath("")
 	for dir in SideDir.values():
 		self.disconnect_side(dir)
 	while !self.obstacles.is_empty():
@@ -448,9 +447,14 @@ func get_lane_end_point_by_dir(dir: MoveDir) -> Vector3:
 	return get_lane_start() if dir == MoveDir.FORWARD else get_lane_end()
 
 
-func offset_from_end(distance: float, dir: RoadLane.MoveDir) -> float:
-	assert(distance >= 0 && distance <= self.curve.get_baked_length())
-	return (self.curve.get_baked_length() - distance) if dir == MoveDir.FORWARD else distance
+func offset_from_end(offset: float, dir: RoadLane.MoveDir) -> float:
+	assert(offset >= 0 && offset <= self.curve.get_baked_length())
+	return (self.curve.get_baked_length() - offset) if dir == MoveDir.FORWARD else offset
+
+
+func get_global_position_at_offset(offset: float) -> Vector3:
+	assert(offset >= 0 && offset <= self.curve.get_baked_length())
+	return self.to_global(self.curve.sample_baked(offset))
 
 
 func _instantiate_geom() -> void:
@@ -563,7 +567,7 @@ func _initialize_next_obstacles() -> void:
 			assert(self._next_obstacles[idx] in [null, obstacle_fill])
 			self._next_obstacles[idx] = obstacle_fill
 		for obstacle in obstacles_copy:
-			self.lane_position.assign_closest_lane_position(self, obstacle.actor.global_position)
+			obstacle.assign_closest_lane_position(self, obstacle.node.global_position)
 
 
 func curve_changed() -> void:
