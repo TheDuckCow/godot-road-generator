@@ -61,7 +61,7 @@ var road_manager: RoadManager
 ## to find where this agent currently is; use [method assign_lane_position]
 ## or [method assign_closest_lane_position] to move it, don't set fields on
 ## it directly.
-var lane_position := RoadLaneObstacle.new(visualize_lane)
+var lane_position := RoadLaneObstacle.new(self.actor, RoadLaneObstacle.Flags.REAL, visualize_lane)
 
 
 ## Distance that was not used when moving along lane
@@ -131,11 +131,12 @@ func unassign_lane() -> void:
 
 ## remember actual vehicle node - it should be a parent of the agent
 func assign_actor() -> Error:
-	var par = get_parent()
-	if not par is Node3D:
+	var parent = get_parent()
+	if not parent is Node3D:
 		push_error("RoadLaneAgent should be a child of a spatial")
 		return FAILED
-	actor = par
+	actor = parent
+	self.lane_position.node = parent
 	return OK
 
 
