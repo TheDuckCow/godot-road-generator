@@ -7,16 +7,16 @@
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="5"]
 
 [sub_resource type="Resource" id="Resource_gy8px"]
-metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+metadata/__load_path__ = "res://road_demos/demo_resources/actors/road_actor.tscn"
 
 [sub_resource type="Resource" id="Resource_ox4bs"]
-metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+metadata/__load_path__ = "res://road_demos/demo_resources/actors/road_actor.tscn"
 
 [sub_resource type="Resource" id="Resource_dx2pt"]
-metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+metadata/__load_path__ = "res://road_demos/demo_resources/actors/road_actor.tscn"
 
 [sub_resource type="Resource" id="Resource_dlcdb"]
-metadata/__load_path__ = "res://demo/procedural_generator/RoadActor.tscn"
+metadata/__load_path__ = "res://road_demos/demo_resources/actors/road_actor.tscn"
 
 [sub_resource type="Environment" id="Environment_uksjl"]
 background_mode = 1
