@@ -1,23 +1,25 @@
-[gd_scene load_steps=22 format=3 uid="uid://005t8goo85uh"]
+[gd_scene load_steps=24 format=3 uid="uid://005t8goo85uh"]
 
-[ext_resource type="Script" uid="uid://cph7euje06kel" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_container.gd" id="1"]
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="1_8fvl2"]
 [ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="1_jtmt7"]
 [ext_resource type="PackedScene" uid="uid://b63rq4jeigte2" path="res://addons/road-generator/custom_containers/4way_2x2.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://cbw5410mk0wgq" path="res://addons/road-generator/custom_containers/highway_offramp.tscn" id="3"]
-[ext_resource type="PackedScene" uid="uid://7fuf8ius41m3" path="res://road_demos/demo_resources/road_lane_debug.tscn" id="3_uq04g"]
+[ext_resource type="PackedScene" path="res://road_demos/demo_resources/road_lane_debug.tscn" id="3_uq04g"]
 [ext_resource type="Material" uid="uid://dpashsuk5lr4x" path="res://addons/road-generator/resources/road_texture.material" id="4"]
-[ext_resource type="Script" uid="uid://bxp3i4cnonh8y" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_manager.gd" id="5"]
 [ext_resource type="PackedScene" uid="uid://dfggtpn3gyrn0" path="res://addons/road-generator/custom_containers/3way_2x2.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://carf53o7nq0qh" path="res://addons/road-generator/custom_containers/highway_onramp.tscn" id="8"]
 [ext_resource type="PackedScene" uid="uid://btf4eewwb5v7s" path="res://addons/road-generator/custom_containers/splitter_2x2.tscn" id="9"]
-[ext_resource type="Script" uid="uid://difs1qg4mpcpw" path="res://addons/road-generator/nodes/road_point.gd" id="10"]
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_point.gd" id="10"]
 [ext_resource type="PackedScene" uid="uid://bo55v7mk1vavq" path="res://road_demos/demo_resources/actors/RoadActor.tscn" id="11"]
-[ext_resource type="PackedScene" uid="uid://dmglq5wa4siq7" path="res://addons/road-generator/custom_containers/splitter_1x1.tscn" id="13_iq3xf"]
+[ext_resource type="PackedScene" path="res://addons/road-generator/custom_containers/splitter_1x1.tscn" id="13_iq3xf"]
 [ext_resource type="PackedScene" uid="uid://dfb13xval0xba" path="res://addons/road-generator/custom_containers/roundabout_1x1.tscn" id="13_xhqaq"]
 [ext_resource type="PackedScene" uid="uid://dl2ggbjespgv8" path="res://addons/road-generator/custom_containers/3way_1x1.tscn" id="14_uq04g"]
 [ext_resource type="PackedScene" uid="uid://d23s6bfnq6fex" path="res://addons/road-generator/custom_containers/4way_1x1.tscn" id="15_utdjy"]
 [ext_resource type="PackedScene" uid="uid://52xlweaf1pst" path="res://addons/road-generator/custom_containers/roundabout_2x2.tscn" id="16_26qst"]
+[ext_resource type="PackedScene" uid="uid://dpxf2b12vum85" path="res://road_demos/demo_resources/traffic_light/traffic_light_synchronizer.tscn" id="19_u8xvn"]
+[ext_resource type="PackedScene" uid="uid://wwuoqrucx41e" path="res://road_demos/demo_resources/traffic_light/traffic_light_single.tscn" id="20_d3ud5"]
 
 [sub_resource type="Environment" id="Environment_sc7xi"]
 background_mode = 1
@@ -93,10 +95,8 @@ script = ExtResource("5")
 [node name="vehicles" type="Node3D" parent="RoadManager"]
 
 [node name="Player" parent="RoadManager/vehicles" instance=ExtResource("11")]
-transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 37.4901, 5.14984e-05, -111.389)
+transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 93.45, 5.14984e-05, -222.548)
 drive_state = 2
-acceleration = 3
-target_speed = 77
 visualize_lane = true
 
 [node name="Camera3D" type="Camera3D" parent="RoadManager/vehicles/Player"]
@@ -105,98 +105,60 @@ far = 400.0
 
 [node name="NOC1" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 154.55, 4.00543e-05, 1.93544)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC2" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 105.042, 3.62396e-05, -0.988855)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC3" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 78.966, 3.24249e-05, -47.9551)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC4" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 145.889, 3.24249e-05, -172.754)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC5" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 187.864, 3.24249e-05, -156.988)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC6" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 135.822, 3.24249e-05, -188.105)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC7" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 48.0486, 3.24249e-05, -208.259)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC8" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 74.2511, 3.24249e-05, -236.574)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC9" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 133.98, 4.76837e-05, -28.3214)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC10" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 120.174, 4.76837e-05, 33.9176)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC11" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 216.932, 4.76837e-05, 93.3602)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC12" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 153.564, 4.76837e-05, 162.363)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC13" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 66.8877, 4.76837e-05, 1.4736)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC14" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 24.8882, 4.00543e-05, -118.892)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC15" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, -11.2005, 4.76837e-05, -145.601)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC16" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 18.054, 5.53131e-05, -197.989)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC17" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 19.194, 5.53131e-05, -229.32)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC18" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 102.311, 5.53131e-05, -270.325)
-acceleration = 3
-target_speed = 25
 
 [node name="NOC19" parent="RoadManager/vehicles" instance=ExtResource("11")]
 transform = Transform3D(0.979375, 0, -0.202052, 0, 1, 0, 0.202052, 0, 0.979375, 146.72, 12.358, -139.489)
-acceleration = 3
-target_speed = 25
 
 [node name="4way_2x2" parent="RoadManager" instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 0.999999, 0, 0, 0, 0.999999, 101.62, 1.52588e-05, -182.767)
@@ -875,3 +837,19 @@ lanes = Array[int]([5, 5])
 prior_mag = 8.0
 next_mag = 8.0
 prior_pt_init = NodePath("../RP_EXIT_B")
+
+[node name="TrafficLightSynchronizer" parent="RoadManager" instance=ExtResource("19_u8xvn")]
+
+[node name="TrafficLight" parent="RoadManager/TrafficLightSynchronizer" instance=ExtResource("20_d3ud5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.2769, 0, -126.539)
+group = 1
+
+[node name="TrafficLight4" parent="RoadManager/TrafficLightSynchronizer" instance=ExtResource("20_d3ud5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.42196, 0, -144.23)
+group = 1
+
+[node name="TrafficLight2" parent="RoadManager/TrafficLightSynchronizer" instance=ExtResource("20_d3ud5")]
+transform = Transform3D(0.0328063, 0, 0.999462, 0, 1, 0, -0.999462, 0, 0.0328063, -0.0759902, 0, -117.923)
+
+[node name="TrafficLight3" parent="RoadManager/TrafficLightSynchronizer" instance=ExtResource("20_d3ud5")]
+transform = Transform3D(0.0328063, 0, 0.999462, 0, 1, 0, -0.999462, 0, 0.0328063, -17.3356, 0, -154.51)

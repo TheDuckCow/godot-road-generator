@@ -227,7 +227,7 @@ func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
 	if self.traffic_chunk_length > 0:
-		_end_obstacle = RoadLaneObstacle.new(null, RoadLaneObstacle.Flags.LANE_END)
+		_end_obstacle = RoadLaneObstacle.new(null, RoadLaneObstacle.Type.LANE_END)
 		if self.curve.get_baked_length() != 0:
 			_initialize_next_obstacles()
 		self._end_obstacle._place_to(self, self.curve.get_baked_length(), false) # don't use assign_position as list is in the right state and _next_obstacles is updated
@@ -612,7 +612,7 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 	assert(!self._next_obstacles.is_empty())
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
 	var next := self._next_obstacles[int(offset / self.traffic_chunk_length)]
-	if ENABLE_HEAVY_CHECKS && !(next.flags & RoadLaneObstacle.Flags.LANE_END):
+	if ENABLE_HEAVY_CHECKS && next.type != RoadLaneObstacle.Type.LANE_END:
 		var lane := self
 		var found := false
 		while lane && !found:

@@ -55,7 +55,7 @@ func _ready() -> void:
 		print("Agent state: %s par, %s lane (%s offset), %s manager" % [
 			agent.actor, agent.lane_position.lane if agent.lane_position else null, agent.lane_position.offset if agent.lane_position else NAN, agent.road_manager
 		])
-	self.secondary_obstacle = RoadLaneObstacle.new(self, RoadLaneObstacle.Flags.PARTIAL, visualize_lane)
+	self.secondary_obstacle = RoadLaneObstacle.new(self, RoadLaneObstacle.Type.PARTIAL, visualize_lane)
 
 
 func cleanup_for_reuse() -> void:
@@ -239,7 +239,7 @@ static func distance_between(first, second) -> float:
 ## if distance on lane is less than need_direct_distance, calculate precise - for faster calculation on side lane
 static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneObstacle) -> float:
 	const MIN_REAL_DISTANCE_PARTIAL := 10.0 # 10m at this distance distance on lane is good enough even for partial blocks
-	var need_direct_distance = -INF if ((rear.flags | front.flags) & RoadLaneObstacle.Flags.PARTIAL) == 0 else MIN_REAL_DISTANCE_PARTIAL
+	var need_direct_distance = -INF if rear.type != RoadLaneObstacle.Type.PARTIAL && front.type != RoadLaneObstacle.Type.PARTIAL else MIN_REAL_DISTANCE_PARTIAL
 	var dist :float
 	if rear.lane == front.lane:
 		dist = (front.offset - front.node.length[RoadLane.MoveDir.BACKWARD]) - (rear.offset + rear.node.length[RoadLane.MoveDir.FORWARD])
@@ -259,7 +259,7 @@ func find_obstacle(move_dir : RoadLane.MoveDir) -> void:
 	_obstacle = null
 	_obstacle_distance = INF
 	_obstacle = self.agent.lane_position.sequential_obstacles[move_dir]
-	if _obstacle && (_obstacle.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+	if _obstacle && _obstacle.type != RoadLaneObstacle.Type.LANE_END:
 		if move_dir == RoadLane.MoveDir.FORWARD:
 			_obstacle_distance = self.distance_between_sequential(self.agent.lane_position, _obstacle)
 		else:
@@ -268,7 +268,7 @@ func find_obstacle(move_dir : RoadLane.MoveDir) -> void:
 		_obstacle = null #no need to pass lane end to decision making or collsion
 	if self.secondary_obstacle.is_assigned():
 		var next_obstacle_secondary = secondary_obstacle.sequential_obstacles[move_dir]
-		if next_obstacle_secondary && (next_obstacle_secondary.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+		if next_obstacle_secondary && next_obstacle_secondary.type != RoadLaneObstacle.Type.LANE_END:
 			var obstacle_secondary_dist : float
 			if move_dir == RoadLane.MoveDir.FORWARD:
 				obstacle_secondary_dist = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_secondary)
@@ -341,14 +341,14 @@ func _physics_process(delta: float) -> void:
 		if self.secondary_obstacle.is_assigned() && self.agent.lane_position.lane.get_side_lane(RoadLaneAgent.to_lane_side(lane_change)) == self.secondary_obstacle.lane:
 			next_obstacle_side = self.secondary_obstacle.next_obstacle #we don't want to find our own secondary obstacle
 			prior_obstacle_side = self.secondary_obstacle.prior_obstacle
-			if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+			if next_obstacle_side && next_obstacle_side.type != RoadLaneObstacle.Type.LANE_END:
 				obstacle_dist_side = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_side)
 			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
 				obstacle_dist_side = min(obstacle_dist_side, self.distance_between_sequential(prior_obstacle_side, self.secondary_obstacle) )
 		else:
 			next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
 			prior_obstacle_side = next_obstacle_side.prior_obstacle if next_obstacle_side else null
-			if next_obstacle_side && (next_obstacle_side.flags & RoadLaneObstacle.Flags.LANE_END) == 0:
+			if next_obstacle_side && next_obstacle_side.type != RoadLaneObstacle.Type.LANE_END:
 				obstacle_dist_side = self.distance_between(self, next_obstacle_side.node)
 			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
 				obstacle_dist_side = min(obstacle_dist_side, self.distance_between(self, prior_obstacle_side.node))
@@ -368,7 +368,7 @@ func _physics_process(delta: float) -> void:
 	var move_distance:float = get_signed_speed() * delta
 
 	var collided = false
-	if _obstacle_distance < abs(move_distance):
+	if _obstacle_distance < abs(move_distance) && _obstacle.type != RoadLaneObstacle.Type.TRAFFIC_LIGHT:
 		move_distance = sign(move_distance) * _obstacle_distance
 		collided = true
 
