@@ -61,7 +61,7 @@ var road_manager: RoadManager
 ## to find where this agent currently is; use [method assign_lane_position]
 ## or [method assign_closest_lane_position] to move it, don't set fields on
 ## it directly.
-var lane_position := RoadLaneObstacle.new(self.actor, RoadLaneObstacle.Flags.REAL, visualize_lane)
+var lane_position := RoadLaneObstacle.new(self.actor, RoadLaneObstacle.Type.REAL, visualize_lane)
 
 
 ## Distance that was not used when moving along lane
@@ -171,12 +171,6 @@ func assign_manager() -> Error:
 		return FAILED
 
 
-## Get closest global position on the follow path given a global position
-func get_closest_path_point(path: Path3D, pos:Vector3) -> Vector3:
-	var interp_point = path.curve.get_closest_point(path.to_local(pos))
-	return path.to_global(interp_point)
-
-
 ## Put the actor on the closest lane position
 func assign_nearest_lane() -> Error:
 	var res := find_nearest_lane()
@@ -196,35 +190,7 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 		return null
 	if pos == null:
 		pos = actor.global_transform.origin
-	var closest_lane = null
-	var closest_dist = distance # Ignore all lanes further than that
-
-	#TODO: for a case with a lot of lanes/agents, some spatial map would be beneficial for search
-	var all_lanes:Array = []
-	var groups_checked:Array = [] # Technically, each container could have its own group name
-	var containers := road_manager.get_containers() as Array
-
-	if not road_manager.ai_lane_group in groups_checked:
-		var new_lanes = get_tree().get_nodes_in_group(road_manager.ai_lane_group)
-		all_lanes.append_array(new_lanes)
-		groups_checked.append(road_manager.ai_lane_group)
-	for _cont in containers:
-		if _cont.ai_lane_group in groups_checked:
-			continue
-		var new_lanes = get_tree().get_nodes_in_group(_cont.ai_lane_group)
-		all_lanes.append_array(new_lanes)
-		groups_checked.append(_cont.ai_lane_group)
-
-	for lane in all_lanes:
-		if not lane is RoadLane or not is_instance_valid(lane):
-			push_warning("Non RoadLane in lanes list (%s)" % lane)
-			continue
-		var this_lane_closest = get_closest_path_point(lane, pos)
-		var this_lane_dist = pos.distance_to(this_lane_closest)
-		if this_lane_dist < closest_dist:
-			closest_lane = lane
-			closest_dist = this_lane_dist
-	return closest_lane
+	return road_manager.find_nearest_lane(pos, distance)
 
 
 ## Finds the position this many units forward (or backwards, if negative)

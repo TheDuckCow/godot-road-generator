@@ -10,12 +10,12 @@ extends RefCounted
 ## NOTE: as this refcounted object is in doubly linked list,
 ## it should be unlinked before cleaning it up/freeing
 
-enum Flags {
-	REAL = 0x0, # the node is blocking it's assigned lane
-	IMMINENT = 0x1, # the node from some other lane won't be able to stop before it gets to this position
-	PARTIAL = 0x2, # the node from some other lane but it partially blocks the lane it's assigned to
-	TRAFFIC_LIGHT = 0x2000, # a traffic light creates virtual obstacle to stop traffic that can stop (create on yellow)
-	LANE_END = 0x80000000, # end of a lane sequence the only one that has no forward link. only make sense if linking is enabled
+enum Type {#TODO use inheritance instead
+	REAL, # the node is blocking it's assigned lane
+	IMMINENT, # the node from some other lane won't be able to stop before it gets to this position
+	PARTIAL, # the node from some other lane but it partially blocks the lane it's assigned to
+	TRAFFIC_LIGHT, # a traffic light creates virtual obstacle to stop traffic that can stop (create on yellow)
+	LANE_END, # end of a lane sequence the only one that has no forward link. only make sense if linking is enabled
 }
 const END_OFFSET_MAX = 5.0
 const DEBUG_OUT := 0 # 1 for obstacle lists, 2 for actions. 3 for everything
@@ -23,7 +23,7 @@ const ENABLE_HEAVY_CHECKS := false # turning on checks in this module that requi
 
 var visualize_lane : bool
 
-var flags := RoadLaneObstacle.Flags.REAL
+var type := RoadLaneObstacle.Type.REAL
 var lane: RoadLane:
 	get:
 		return _lane
@@ -56,9 +56,9 @@ var prior_obstacle: RoadLaneObstacle:
 		push_error("can't assign manually. use assign_position to insert")
 
 
-func _init(node: Node3D, flags: RoadLaneObstacle.Flags, visualize_lane := false) -> void:
+func _init(node: Node3D, type: RoadLaneObstacle.Type, visualize_lane := false) -> void:
 	self.node = node
-	self.flags = flags
+	self.type = type
 	self.visualize_lane = visualize_lane
 
 
@@ -69,7 +69,7 @@ func is_assigned() -> bool:
 
 ## is obstacle in the linked list
 func is_linked() -> bool:
-	var linked = self.next_obstacle != null || bool(self.flags & Flags.LANE_END)
+	var linked = self.next_obstacle != null || self.type == Type.LANE_END
 	assert (!linked || self.is_assigned())
 	return linked
 
@@ -87,7 +87,7 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 	if ! ENABLE_HEAVY_CHECKS:
 		return true
 	var all_good := true
-	if !(self.flags & RoadLaneObstacle.Flags.LANE_END):
+	if self.type != RoadLaneObstacle.Type.LANE_END:
 		if !is_instance_valid(self.node):
 			print(self, " Obst. has invalid node ", self.node)
 			all_good = false
@@ -105,7 +105,7 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 				all_good = false
 		return all_good
 	else:
-		if self.flags & RoadLaneObstacle.Flags.LANE_END:
+		if self.type == RoadLaneObstacle.Type.LANE_END:
 			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] != null:
 				print(self, " lane end Obst. linked to something forward ", self.sequential_obstacles[RoadLane.MoveDir.FORWARD])
 				all_good = false
@@ -113,10 +113,10 @@ func check_sanity(check_end := false, check_list := true) -> bool:
 			if check_end && check_list && self.sequential_obstacles[RoadLane.MoveDir.FORWARD] == null:
 				print(self, " Obst. not a lane end but isn't linked forward")
 				all_good = false
-		if bool(self.flags & RoadLaneObstacle.Flags.LANE_END) != (self == self.lane._end_obstacle):
-			print(self, " Obst. conflict between end obstacle(", self == self.lane._end_obstacle, ") and flags ", self.flags)
+		if (self.type == RoadLaneObstacle.Type.LANE_END) != (self == self.lane._end_obstacle):
+			print(self, " Obst. conflict between end obstacle(", self == self.lane._end_obstacle, ") and type ", self.type)
 			all_good = false
-		if self not in self.lane.obstacles && !(self.flags & RoadLaneObstacle.Flags.LANE_END):
+		if self not in self.lane.obstacles && self.type != RoadLaneObstacle.Type.LANE_END:
 			print(self, " Obst. is not registered in ", self.lane)
 			all_good = false
 		if self.offset < 0:
