@@ -1,7 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://bo55v7mk1vavq"]
+[gd_scene load_steps=6 format=3 uid="uid://2q7ndnccj0ug"]
 
-[ext_resource type="Script" path="res://addons/road-generator/nodes/road_lane_agent.gd" id="1"]
-[ext_resource type="Script" path="res://road_demos/demo_resources/actors/obstacle_aware_road_actor.gd" id="2"]
+[ext_resource type="Script" uid="uid://uwkx2tk6pt6u" path="res://addons/road-generator/nodes/road_lane_agent.gd" id="1"]
+[ext_resource type="Script" uid="uid://b5gn2gf47o6nm" path="res://road_demos/demo_resources/actors/obstacle_aware_road_actor.gd" id="2"]
 
 [sub_resource type="BoxMesh" id="1"]
 size = Vector3(1.78, 0.7, 4.5)
@@ -13,7 +13,7 @@ size = Vector3(1.6, 1, 3)
 top_radius = 0.3
 bottom_radius = 0.3
 
-[node name="RoadActor" type="Node3D" groups=["cars"]]
+[node name="ObstacleAwareRoadActor" type="Node3D" groups=["cars"]]
 script = ExtResource("2")
 
 [node name="road_lane_agent" type="Node" parent="."]
