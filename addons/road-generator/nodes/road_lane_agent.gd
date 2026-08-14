@@ -47,6 +47,9 @@ static func other_side(dir: LaneChangeDir) -> LaneChangeDir:
 ## Can be slow, best to turn it off for production use.
 @export var visualize_lane: bool = false
 
+
+@export var auto_register: bool = true
+
 ## Reference spatial to assume where this agent's position is assumed to be at
 var actor: Node3D
 ## The RoadManager instance that is containing all RoadContainers to consider,
@@ -96,7 +99,7 @@ func _exit_tree() -> void:
 ## Call [method assign_nearest_lane] or [method assign_lane_position] first
 ## if this returns false before doing any lane-relative movement.
 func is_lane_position_valid() -> bool:
-	assert( !self.lane_position.is_assigned() || ( is_instance_valid(self.lane_position.lane) && self.lane_position.check_sanity() ) )
+	assert( !self.lane_position.is_assigned() || ( is_instance_valid(self.lane_position.lane) && self.lane_position.check_sanity(false, true, self.auto_register) ) )
 	return self.lane_position.is_assigned()
 
 ## Snap this agent onto [param new_lane] at whichever offset is closest to
@@ -108,7 +111,7 @@ func assign_closest_lane_position(new_lane: RoadLane) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
-	self.lane_position.assign_closest_lane_position(new_lane, self.actor.global_position)
+	self.lane_position.assign_closest_lane_position(new_lane, self.actor.global_position, self.auto_register)
 
 ## Place this agent at an exact [param new_offset] on [param new_lane].
 ## Use this over [method assign_closest_lane_position] when the offset is
@@ -118,7 +121,7 @@ func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
-	self.lane_position.assign_position(new_lane, new_offset)
+	self.lane_position.assign_position(new_lane, new_offset, self.auto_register)
 
 ## Remove this agent from whatever [RoadLane] it's currently on.
 ## [method is_lane_position_valid] will return false afterwards. Call this
@@ -126,7 +129,7 @@ func assign_lane_position(new_lane: RoadLane, new_offset: float) -> void:
 ## disconnected part of the road network, to avoid leaving stale obstacle
 ## links behind.
 func unassign_lane() -> void:
-	self.lane_position.unassign_position()
+	self.lane_position.unassign_position(self.auto_register)
 
 
 ## remember actual vehicle node - it should be a parent of the agent
@@ -275,7 +278,7 @@ func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
 ## uses project_on_side_lane with its limitation
 ## returns null if there is no lane
 func find_obstacle_on_side_lane(lane_change_dir: LaneChangeDir) -> RoadLaneObstacle:
-	assert(self.lane_position.check_sanity())
+	assert(self.lane_position.check_sanity(false, true, self.auto_register))
 	assert(lane_change_dir in [ LaneChangeDir.RIGHT, LaneChangeDir.LEFT ])
 	var side_lane: RoadLane = self.lane_position.lane.get_side_lane(to_lane_side(lane_change_dir))
 	if ! side_lane:
@@ -297,7 +300,7 @@ func _move_along_lane(move_distance: float, set_new_position: bool) -> Vector3:
 	if move_distance == 0:
 		self.move_along_lane_distance_left = 0
 		return self.lane_position.get_position()
-	assert(self.lane_position.check_sanity(false, false))
+	assert(self.lane_position.check_sanity(false, false, self.auto_register))
 	var distance_to_go = abs(move_distance)
 	var offset := self.lane_position.offset
 	var lane := self.lane_position.lane
@@ -324,7 +327,7 @@ func _move_along_lane(move_distance: float, set_new_position: bool) -> Vector3:
 			print(self, " stopping at ", offset, ", all good")
 	self.move_along_lane_distance_left = sign(move_distance) * distance_to_go
 	if set_new_position:
-		self.lane_position.move_along_lane_to(lane, offset, move_dir)
+		self.lane_position.move_along_lane_to(lane, offset, move_dir, self.auto_register)
 	return lane.to_global(lane.curve.sample_baked(offset))
 
 

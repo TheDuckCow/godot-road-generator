@@ -360,12 +360,12 @@ func connect_next(next: RoadLane) -> void:
 		self._end_obstacle.sequential_obstacles[MoveDir.FORWARD] = next._next_obstacles[0]
 		next._next_obstacles[0].sequential_obstacles[MoveDir.BACKWARD] = self._end_obstacle
 		self._end_obstacle.unassign_position(false) # propagate next._next_obstacles[0] in place of now unused self._end_obstacle
-		assert(next._next_obstacles[0].check_sanity(true))
+		assert(next._next_obstacles[0].check_sanity(true, true, false))
 
 ## function to split RoadLaneObstacle list when one lane is disconnected from another
 func _split_obstacle_list_at_end() -> void:
 	assert(self.traffic_chunk_length > 0)
-	assert(self.get_sequential_lane(MoveDir.FORWARD)._next_obstacles[0].check_sanity())
+	assert(self.get_sequential_lane(MoveDir.FORWARD)._next_obstacles[0].check_sanity(false, true, false))
 	#insert - update links and next obstacle fast search list
 	self._end_obstacle.assign_position(self, self.curve.get_baked_length(), false)
 	#disconnect - sever links between this end obstacle and an obstacle after it
@@ -390,7 +390,7 @@ func disconnect_sequential(dir : MoveDir) -> void:
 		#TODO if a line is to be deleted _next_obstacles doesn't have to be updated end _end_obstacle may be moved from it as an optimization
 	self._sequential_lanes[dir] = NodePath("")
 	next._sequential_lanes[dir_back] = NodePath("")
-	assert(self._end_obstacle == null || self._end_obstacle.check_sanity(true))
+	assert(self._end_obstacle == null || self._end_obstacle.check_sanity(true, true, false))
 
 ## function for connecting side lanes (in both directions)
 func connect_side(side_lane :RoadLane, dir :SideDir) -> void:
@@ -612,16 +612,6 @@ func find_next_obstacle(offset: float) -> RoadLaneObstacle:
 	assert(!self._next_obstacles.is_empty())
 	assert(offset >= 0 && offset <= self.curve.get_baked_length())
 	var next := self._next_obstacles[int(offset / self.traffic_chunk_length)]
-	if ENABLE_HEAVY_CHECKS && next.type != RoadLaneObstacle.Type.LANE_END:
-		var lane := self
-		var found := false
-		while lane && !found:
-			if next in lane.obstacles:
-				found = true
-			lane = lane.get_sequential_lane(MoveDir.FORWARD)
-		if ! found:
-			print(next, " is not registered in ", lane, " or lanes linked in front of it")
-		assert(found)
 	while next.lane == self && next.offset < offset:
 		# if there is more than one obstacle on the same chunk of lane, we may need to skip a couple of them
 		next = next.next_obstacle
