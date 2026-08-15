@@ -89,9 +89,11 @@ func set_state(new_state: LightState) -> void:
 	self.green_mesh.material_override = self.off_material
 	match new_state:
 		LightState.RED:
+			if self.state != LightState.YELLOW: #during initialization
+				self._assign_obstacles()
 			self.red_mesh.material_override = self.red_material
 		LightState.YELLOW:
-			if self.state == LightState.GREEN:
+			if self.state != LightState.RED:
 				self._assign_obstacles()
 			if red_yellow || self.state != LightState.RED:
 				self.yellow_mesh.material_override = self.yellow_material
@@ -99,7 +101,8 @@ func set_state(new_state: LightState) -> void:
 				self.red_mesh.material_override = self.red_material
 		LightState.GREEN:
 			self.green_mesh.material_override = self.green_material
-			self._unassign_obstacles()
+			if self.state != LightState.OFF:
+				self._unassign_obstacles()
 	self.state = new_state
 
 
@@ -113,5 +116,5 @@ func _assign_obstacles() -> void:
 
 func _unassign_obstacles() -> void:
 	for idx in range(self._block_lanes.size()):
-		if self._block_obstacles[idx].is_assigned():
-			self._block_obstacles[idx].unassign_position()
+		assert(self._block_obstacles[idx].is_assigned())
+		self._block_obstacles[idx].unassign_position()
