@@ -4,6 +4,7 @@ extends Node3D
 @onready var manager:RoadManager = $RoadManager
 @onready var edges_btn := %edges
 @onready var lanes_btn := %lanes
+@onready var lane_visual_btn := %lane_visual
 @onready var geo_btn := %geo
 @onready var underside_btn := %underside
 @onready var update_btn := %update
@@ -24,6 +25,8 @@ func update_settings() -> void:
 	for _node in containers:
 		var rc := _node as RoadContainer
 		rc.generate_ai_lanes = lanes_btn.button_pressed
+		rc.draw_lanes_editor = lane_visual_btn.button_pressed
+		rc.draw_lanes_game = lane_visual_btn.button_pressed
 		rc.create_edge_curves = edges_btn.button_pressed
 		rc.create_geo = geo_btn.button_pressed
 		rc.underside_thickness = 2 if underside_btn.button_pressed else -1
@@ -55,8 +58,9 @@ func run_rebuild() -> void:
 	for _sample in samples:
 		total_sample_time += _sample
 	
-	var settings_txt := "%s, %s, %s, %s" % [
+	var settings_txt := "%s (%s), %s, %s, %s" % [
 		"AI lanes" if lanes_btn.button_pressed else "no AI lanes",
+		"visible" if lane_visual_btn.button_pressed else "not visible",
 		"edge curves" if edges_btn.button_pressed else "no edge curves",
 		"geo" if geo_btn.button_pressed else "no geo",
 		"underside" if underside_btn.button_pressed else "no underside",
