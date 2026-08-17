@@ -110,11 +110,11 @@ func _assign_obstacles() -> void:
 	assert(self._block_lanes.size() == self._block_offsets.size() &&
 			self._block_lanes.size() == self._block_obstacles.size())
 	for idx in range(self._block_lanes.size()):
-		assert(!self._block_obstacles[idx].is_assigned())
-		self._block_obstacles[idx].assign_position(self._block_lanes[idx], self._block_offsets[idx])
+		if !self._block_obstacles[idx].is_assigned():
+			self._block_obstacles[idx].assign_position(self._block_lanes[idx], self._block_offsets[idx])
 
 
 func _unassign_obstacles() -> void:
 	for idx in range(self._block_lanes.size()):
-		assert(self._block_obstacles[idx].is_assigned())
-		self._block_obstacles[idx].unassign_position()
+		if self._block_obstacles[idx].is_assigned():
+			self._block_obstacles[idx].unassign_position()
