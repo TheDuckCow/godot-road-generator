@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://wwuoqrucx41e"]
 
-[ext_resource type="Script" path="res://road_demos/demo_resources/traffic_light/traffic_light_single.gd" id="1_0yv45"]
+[ext_resource type="Script" uid="uid://jv54xfbcbbet" path="res://road_demos/demo_resources/traffic_light/traffic_light_single.gd" id="1_0yv45"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_8ufl5"]
 

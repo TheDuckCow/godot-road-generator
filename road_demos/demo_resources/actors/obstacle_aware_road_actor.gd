@@ -1,5 +1,7 @@
 extends Node3D
 
+class_name ObstacleAwareRoadActor
+
 ## NOTE: it's a convention to have a root point of the vehicle at the center of the rear axle
 ## reason is - it shouldn't move sideways and the car can normally only rotate around that point.
 ## at the same time front wheels are actually the ones that should follow the lane curve.
@@ -211,76 +213,102 @@ static func segment_distance_fast(a0: Vector3, a1: Vector3, b0: Vector3, b1: Vec
 	return (a0 + u * s).distance_to(b0 + v * t)
 
 
-## find approximate distance between two RoadActors
-## can't use `self` as they may not be in order
+## find approximate direct distance between two obstacle
 ## precision works in stages. using squared distance between root points decide how precise the distance we will have
 ## INF or distance between: root points, capsules or rectangles
 ## TODO will it make sense to check with bounding box first?
-static func distance_between(first, second) -> float:
+static func distance_between(first_obstacle : RoadLaneObstacle, second_obstacle : RoadLaneObstacle) -> float:
 	const MIN_INF_DISTANCE_SQUARED := 250000.0 # 500m at this squared distance we can assume that the obstacle is not there
 	const MIN_POINT_DISTANCE_SQUARED := 2500.0 # 50m at this squared distance we can assume that the obstacle is a point
 	#const MIN_OBLONG_DISTANCE_SQUARED := 100.0 # 10m at this squared distance we can assume that the car is an expanded segment (capsule) #TODO: rectangle
-	var dist :float
-	var dist_sq_to_root :float = first.global_position.distance_squared_to(second.global_position)
+	var first :ObstacleAwareRoadActor = first_obstacle.node
+	var second = second_obstacle.node
+	var second_position = second.global_position if second is ObstacleAwareRoadActor else second_obstacle.get_position() # use traffic light lane obstacle for position
+	var dist_sq_to_root :float = first.global_position.distance_squared_to(second_position)
 	if dist_sq_to_root >= MIN_POINT_DISTANCE_SQUARED:
 		return INF if dist_sq_to_root >= MIN_INF_DISTANCE_SQUARED else sqrt(dist_sq_to_root)
 	else: # if dist_to_start >= MIN_OBLONG_DISTANCE_SQUARED #TODO: rectangle
-		dist = segment_distance_fast(first.global_position,
-									first.global_position + first.global_basis.z * first.rear_axle_offset,
-									second.global_position,
-									second.global_position + second.global_basis.z * second.rear_axle_offset) - first.half_width - second.half_width
+		var dist :float
+		if second is ObstacleAwareRoadActor:
+			dist = segment_distance_fast(first.global_position, first.global_position + first.global_basis.z * first.rear_axle_offset,
+										second.global_position, second.global_position + second.global_basis.z * second.rear_axle_offset) - first.half_width - second.half_width
+		else: # for example traffic light stop line
+			dist = segment_distance_fast(first.global_position, first.global_position + first.global_basis.z * first.rear_axle_offset,
+										second_position, second_position) - first.half_width ##TODO better width?
 		return max(0, dist)
 	# else: #TODO: rectangle
 
 
+## find distance between two obstacles on lane sequence
+## use it only for obstacles on the same lane sequence
+## will return INF if the order is wrong
+## lanes_to_check is amount of RoadLanes in front that we need to check before giving up
+static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneObstacle, lanes_to_check : int) -> float:
+	if rear.lane == front.lane:
+		if rear.offset > front.offset:
+			return INF
+		var dist :float = (front.offset - front.node.length[RoadLane.MoveDir.BACKWARD]) - (rear.offset + rear.node.length[RoadLane.MoveDir.FORWARD])
+		return max(0, dist)
+	if lanes_to_check > 0:
+		var next_lane := rear.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
+		var dist : float = rear.distance_to_end(RoadLane.MoveDir.FORWARD) - rear.node.length[RoadLane.MoveDir.FORWARD]
+		while next_lane && lanes_to_check > 0:
+			if next_lane == front.lane:
+				dist += front.distance_to_end(RoadLane.MoveDir.BACKWARD) - front.node.length[RoadLane.MoveDir.BACKWARD]
+				return max(0, dist)
+			lanes_to_check -= 1
+			dist += next_lane.curve.get_baked_length()
+			next_lane = next_lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
+	return INF
+
+
 ## find distance between two RoadActors (through obstacles) in the current lane
 ## first look on the current+next lanes to make it fast in 1D.
-## use it only for obstacles on the same lane sequence - in order!
 ## if distance on lane is less than need_direct_distance, calculate precise - for faster calculation on side lane
-static func distance_between_sequential(rear: RoadLaneObstacle, front: RoadLaneObstacle) -> float:
+## inefficient if direction is wrong, will return direct distance
+static func distance_between_try_sequential(prior: RoadLaneObstacle, next: RoadLaneObstacle, move_dir :RoadLane.MoveDir) -> float:
 	const MIN_REAL_DISTANCE_PARTIAL := 10.0 # 10m at this distance distance on lane is good enough even for partial blocks
-	var need_direct_distance = -INF if rear.type != RoadLaneObstacle.Type.PARTIAL && front.type != RoadLaneObstacle.Type.PARTIAL else MIN_REAL_DISTANCE_PARTIAL
+	const LANES_TO_CHECK := 1 # how many more lanes is it worth to check before switching to direct distance
+	var need_direct_distance = -INF if prior.type != RoadLaneObstacle.Type.PARTIAL && next.type != RoadLaneObstacle.Type.PARTIAL else MIN_REAL_DISTANCE_PARTIAL
 	var dist :float
-	if rear.lane == front.lane:
-		dist = (front.offset - front.node.length[RoadLane.MoveDir.BACKWARD]) - (rear.offset + rear.node.length[RoadLane.MoveDir.FORWARD])
-		if dist > need_direct_distance:
-			return max(0, dist)
-	var next_lane := rear.lane.get_sequential_lane(RoadLane.MoveDir.FORWARD)
-	if next_lane && next_lane == front.lane:
-		dist = (front.distance_to_end(RoadLane.MoveDir.BACKWARD) - front.node.length[RoadLane.MoveDir.BACKWARD]) + (rear.distance_to_end(RoadLane.MoveDir.FORWARD) - rear.node.length[RoadLane.MoveDir.FORWARD])
-		if dist > need_direct_distance:
-			return max(0, dist)
-	return distance_between(rear.node, front.node)
+	if move_dir == RoadLane.MoveDir.FORWARD:
+		dist = distance_between_sequential(prior, next, LANES_TO_CHECK)
+	else:
+		dist = distance_between_sequential(next, prior, LANES_TO_CHECK)
+	if !is_inf(dist) && dist > need_direct_distance:
+		return dist
+	return distance_between(prior, next)
+
+
+## calculate distanse to all the patrtial obstacles between current and next real one on the lane in front/back
+## use _obstacle/_obstacle_distance to return values
+func find_closest_obstacle(from_obstacle : RoadLaneObstacle, move_dir : RoadLane.MoveDir) -> void:
+	var obstacle := from_obstacle.sequential_obstacles[move_dir]
+	while obstacle && obstacle.type == RoadLaneObstacle.Type.PARTIAL:
+		var partial_distance := self.distance_between_try_sequential(from_obstacle, obstacle, move_dir)
+		if partial_distance < self._obstacle_distance:
+			self._obstacle = obstacle
+			self._obstacle_distance = partial_distance
+		obstacle = obstacle.sequential_obstacles[move_dir]
+	if !obstacle || obstacle.type == RoadLaneObstacle.Type.LANE_END:
+		return
+	var distance := self.distance_between_try_sequential(from_obstacle, obstacle, move_dir)
+	if distance < self._obstacle_distance:
+		self._obstacle = obstacle
+		self._obstacle_distance = distance
 
 
 ## find closest obstacle for collision detection and decision making
 ## sets _obstacle and _obstacle_distance
 func find_obstacle(move_dir : RoadLane.MoveDir) -> void:
-	_obstacle = null
-	_obstacle_distance = INF
-	_obstacle = self.agent.lane_position.sequential_obstacles[move_dir]
-	if _obstacle && _obstacle.type != RoadLaneObstacle.Type.LANE_END:
-		if move_dir == RoadLane.MoveDir.FORWARD:
-			_obstacle_distance = self.distance_between_sequential(self.agent.lane_position, _obstacle)
-		else:
-			_obstacle_distance = self.distance_between_sequential(_obstacle, self.agent.lane_position)
-	else:
-		_obstacle = null #no need to pass lane end to decision making or collsion
+	self._obstacle = null
+	self._obstacle_distance = INF
+	self.find_closest_obstacle(self.agent.lane_position, move_dir)
 	if self.secondary_obstacle.is_assigned():
-		var next_obstacle_secondary = secondary_obstacle.sequential_obstacles[move_dir]
-		if next_obstacle_secondary && next_obstacle_secondary.type != RoadLaneObstacle.Type.LANE_END:
-			var obstacle_secondary_dist : float
-			if move_dir == RoadLane.MoveDir.FORWARD:
-				obstacle_secondary_dist = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_secondary)
-			else:
-				obstacle_secondary_dist = self.distance_between_sequential(next_obstacle_secondary, self.secondary_obstacle)
-			if obstacle_secondary_dist < _obstacle_distance:
-				_obstacle = next_obstacle_secondary
-				_obstacle_distance = obstacle_secondary_dist
+		self.find_closest_obstacle(secondary_obstacle, move_dir)
 
 
 ## setting additional obstacle on primary lane in case of merging/diverging lanes
-## TODO better processing for partial obstacle
 func set_secondary_obstacle(move_dir : RoadLane.MoveDir) -> void:
 	var current_lane := self.agent.lane_position.lane
 	assert(!(bool(current_lane.flags & RoadLane.Flags.MERGING) && bool(current_lane.flags & RoadLane.Flags.DIVERGING))) # TODO should be possible in intersections
@@ -342,16 +370,16 @@ func _physics_process(delta: float) -> void:
 			next_obstacle_side = self.secondary_obstacle.next_obstacle #we don't want to find our own secondary obstacle
 			prior_obstacle_side = self.secondary_obstacle.prior_obstacle
 			if next_obstacle_side && next_obstacle_side.type != RoadLaneObstacle.Type.LANE_END:
-				obstacle_dist_side = self.distance_between_sequential(self.secondary_obstacle, next_obstacle_side)
+				obstacle_dist_side = self.distance_between_try_sequential(self.secondary_obstacle, next_obstacle_side, RoadLane.MoveDir.FORWARD)
 			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
-				obstacle_dist_side = min(obstacle_dist_side, self.distance_between_sequential(prior_obstacle_side, self.secondary_obstacle) )
+				obstacle_dist_side = min(obstacle_dist_side, self.distance_between_try_sequential(prior_obstacle_side, self.secondary_obstacle, RoadLane.MoveDir.FORWARD) )
 		else:
 			next_obstacle_side = agent.find_obstacle_on_side_lane(lane_change)
 			prior_obstacle_side = next_obstacle_side.prior_obstacle if next_obstacle_side else null
 			if next_obstacle_side && next_obstacle_side.type != RoadLaneObstacle.Type.LANE_END:
-				obstacle_dist_side = self.distance_between(self, next_obstacle_side.node)
+				obstacle_dist_side = self.distance_between(self.agent.lane_position, next_obstacle_side) #they are on different lanes but the function doesn't care
 			if prior_obstacle_side && obstacle_dist_side > BLOCK_DISTANCE:
-				obstacle_dist_side = min(obstacle_dist_side, self.distance_between(self, prior_obstacle_side.node))
+				obstacle_dist_side = min(obstacle_dist_side, self.distance_between(self.agent.lane_position, prior_obstacle_side))
 
 		if obstacle_dist_side < BLOCK_DISTANCE: #TODO: use lane width?
 			lane_change = 0;
