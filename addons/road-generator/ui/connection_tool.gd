@@ -36,9 +36,8 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
 ## Prevents the InputEvent from reaching other Editor classes.
 const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
-const margin := 3 ## Overlay margin for drawing white outlines
+const margin := 1 ## Overlay margin for drawing white outlines
 const white_col = Color(1, 1, 1, 0.9) ## Outline color
-const rad_size := 10.0 ## Connector dot radius
 
 var plg:EditorPlugin
 var snap_threshold := 25.0 ## Threshold for snapping distance in meters of nodes in the scene
@@ -68,6 +67,8 @@ var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of road
 var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
 var _overlay_ref: Control
 var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
+var _ui_scale: float = 1.0 ## Cached UI scale multiplier
+var _margin_scale: float = _ui_scale * margin ## Common margin reference for outlines
 
 # Flag to trigger updated raycasts on next physics frame after relevant input
 # TODO: Technically this means the outcome of the input handling is delayed one frame. Could improve
@@ -124,15 +125,22 @@ func _physics_process(_delta:float) -> void:
 
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_3d_draw_over_viewport(overlay: Control):
-	# Overlay refresh 
 	if not Rect2(Vector2(), overlay.size).has_point(overlay.get_local_mouse_position()):
 		return # Outside the 3D viweport area, such as due to a hotkey press
 	if not overlay.mouse_exited.is_connected(_on_mouse_exited):
 		_overlay_ref = overlay
 		_overlay_ref.mouse_exited.connect(_on_mouse_exited)
-	# State handling
+
 	if hinting == HintState.NONE:
 		return
+
+	# Refresh shared ui scale vars so they aren't calculated within each func.
+	# While DisplayServer.screen_get_scale may return 1x or 2x for a monitor,
+	# only the editor scale actually matters for plugin drawing
+	# TODO: To add UI scaling accessibility option, just multiply here.
+	_ui_scale = EditorInterface.get_editor_scale()
+	_margin_scale = _ui_scale * margin
+
 	match hinting:
 		HintState.CONNECT:
 			draw_hint_connect(overlay)
@@ -521,51 +529,53 @@ func _draw_edges(overlay: Control, col, dashed) -> void:
 ## Draws a white-outlined line with circles caps between two screen positions
 func _draw_connector(overlay: Control, start_pos: Vector2, end_pos: Vector2, col: Color, dashed: bool = false) -> void:
 	# White background margin
-	overlay.draw_circle(start_pos, rad_size + margin, white_col)
-	overlay.draw_circle(end_pos, rad_size + margin, white_col)
+	var rad_size: float = 5 * _ui_scale
+	overlay.draw_circle(start_pos, rad_size + _margin_scale*2, white_col)
+	overlay.draw_circle(end_pos, rad_size + _margin_scale*2, white_col)
 	
-	const dash_dist := 8
+	var dash_dist := 4*_ui_scale
 	if dashed:
-		overlay.draw_dashed_line(start_pos, end_pos, white_col, 2+margin*2, dash_dist, true)
+		overlay.draw_dashed_line(start_pos, end_pos, white_col, _ui_scale+_margin_scale*2, dash_dist, true)
 	else:
-		overlay.draw_line(start_pos, end_pos, white_col, 2+margin*2, true)
+		overlay.draw_line(start_pos, end_pos, white_col, _ui_scale+_margin_scale*2, true)
 	
 	# Colored part
 	overlay.draw_circle(start_pos, rad_size, col)
 	overlay.draw_circle(end_pos, rad_size, col)
 	if dashed:
-		overlay.draw_dashed_line(start_pos, end_pos, col, 2, dash_dist, true)
+		overlay.draw_dashed_line(start_pos, end_pos, col, _ui_scale, dash_dist, true)
 	else:
-		overlay.draw_line(start_pos, end_pos, col, 2, true)
+		overlay.draw_line(start_pos, end_pos, col, _ui_scale, true)
 
 
 func _draw_x(overlay: Control, pos: Vector2, col: Color) -> void:
-	var radius := 24.0  # Radius of the rounded ends
+	var radius := 12.0*_ui_scale  # Radius of the rounded ends
 	var hf := radius / 2.0
+	var offset: float = 3*_ui_scale
 	# white bg
 	overlay.draw_line(
-		pos + Vector2(-hf-margin, -hf-margin),
-		pos + Vector2(hf+margin, hf+margin),
-		white_col, 6 + margin)
+		pos + Vector2(-hf-_margin_scale, -hf-_margin_scale),
+		pos + Vector2(hf+_margin_scale, hf+_margin_scale),
+		white_col, offset + _margin_scale)
 	overlay.draw_line(
-		pos + Vector2(-hf-margin, hf+margin),
-		pos + Vector2(hf+margin, -hf-margin),
-		white_col, 6 + margin)
+		pos + Vector2(-hf-_margin_scale, hf+_margin_scale),
+		pos + Vector2(hf+_margin_scale, -hf-_margin_scale),
+		white_col, offset + _margin_scale)
 	# Red part on top
 	overlay.draw_line(
 		pos + Vector2(-hf, -hf),
 		pos + Vector2(hf, hf),
-		col, 6)
+		col, offset)
 	overlay.draw_line(
 		pos + Vector2(-hf, + hf),
 		pos + Vector2(hf, -hf),
-		col, 6)
+		col, offset)
 
 
 func _draw_edge(overlay: Control, col: Color, dashed: bool, pts: Array[Vector2]) -> void:
 	var left_pt: Vector2 = pts[0]
 	var right_pt: Vector2 = pts[1]
-	const width := 4
+	var width := 2*_ui_scale
 	if dashed:
 		# from: Vector2, to: Vector2, color: Color, width: float = -1.0, dash: float = 2.0, aligned: bool = true, antialiased: bool = false
 		const dash_dist := 8
@@ -575,11 +585,12 @@ func _draw_edge(overlay: Control, col: Color, dashed: bool, pts: Array[Vector2])
 
 
 func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
-	var pos := cursor + Vector2(30, 35)
+	var pos := cursor + Vector2(15, 17) * _ui_scale
 	var font = overlay.get_theme_default_font()
-	const outline_size := 4
-	overlay.draw_multiline_string_outline(font, pos, text, 0, -1, 24, -1, outline_size, Color.WHITE)
-	overlay.draw_multiline_string(font, pos, text, 0, -1, 24, -1, col)
+	var outline_size := 2 * _ui_scale
+	var fontsize := 12 * _ui_scale
+	overlay.draw_multiline_string_outline(font, pos, text, 0, -1, fontsize, -1, outline_size, Color.WHITE)
+	overlay.draw_multiline_string(font, pos, text, 0, -1, fontsize, -1, col)
 
 
 # ------------------------------------------------------------------------------
