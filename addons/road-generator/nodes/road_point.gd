@@ -204,7 +204,7 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
-	
+
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
 	traffic_dir = traffic_dir.duplicate(true)
@@ -526,7 +526,7 @@ func get_facing_open_dir(target: RoadGraphNode) -> PointInit:
 	var is_next_connected = is_next_connected()
 	if not is_prior_connected and not is_next_connected:
 		# Determine which direction to use.
-		var dir_to_target: Vector3 = target.global_position - global_position 
+		var dir_to_target: Vector3 = target.global_position - global_position
 		var is_fwd_facing:bool = (global_basis.z.dot(dir_to_target)) > 0
 		if is_fwd_facing:
 			return PointInit.NEXT
@@ -1345,6 +1345,24 @@ func get_width_without_shoulders():
 func get_width_with_shoulders():
 	var total_width = get_width_without_shoulders() + shoulder_width_l + shoulder_width_r
 	return total_width
+
+func connect_segment_lanes() -> void:
+	if self.prior_seg && self.next_seg:
+		# Check lanes attributed to the *prior* segment
+		for prior_ln in self.prior_seg.get_lanes():
+			# prior lane be set to track to a next lane
+			for next_ln in self.next_seg.get_lanes():
+				if is_instance_valid(next_ln.owner):
+					# Don't auto update paths owned by the editor
+					continue
+				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
+					# TODO: When directionality is made consistent, we should no longer
+					# need to invert the direction assignment here.
+					if prior_ln.lane_next_tag[0] == "F":
+						next_ln.connect_next(prior_ln)
+					else:
+						assert(prior_ln.lane_next_tag[0] == "R")
+						prior_ln.connect_next(next_ln)
 
 # ------------------------------------------------------------------------------
 #endregion

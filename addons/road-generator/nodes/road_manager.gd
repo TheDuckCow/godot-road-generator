@@ -153,6 +153,14 @@ var ai_lane_group := "road_lanes":
 			rebuild_all_containers(true)
 
 
+## length of chunk (in meters) for searching next vehicle
+## it's going to be set in created RoadLanes on scene add
+## search array won't be updated on change here and may break
+## if <= 0, vehicle search functionality is disabled
+@export
+var traffic_chunk_length: float = 2.5
+
+
 # ------------------------------------------------------------------------------
 @export_group("Editor settings")
 # ------------------------------------------------------------------------------
@@ -270,5 +278,41 @@ func _ui_refresh_set(value: bool) -> void:
 		ch._auto_refresh = value
 
 
-#endregion
 # ------------------------------------------------------------------------------
+#endregion
+#region Query functions
+# ------------------------------------------------------------------------------
+
+func find_nearest_lane(pos: Vector3, distance: float = 50.0) -> RoadLane:
+	var closest_lane = null
+	var closest_dist = distance # Ignore all lanes further than that
+
+	#TODO: for a case with a lot of lanes/agents, some spatial map would be beneficial for search
+	var all_lanes:Array = []
+	var groups_checked:Array = [] # Technically, each container could have its own group name
+	var containers := self.get_containers()
+
+	if not self.ai_lane_group in groups_checked:
+		var new_lanes = get_tree().get_nodes_in_group(self.ai_lane_group)
+		all_lanes.append_array(new_lanes)
+		groups_checked.append(self.ai_lane_group)
+	for _cont in containers:
+		if _cont.ai_lane_group in groups_checked:
+			continue
+		var new_lanes = get_tree().get_nodes_in_group(_cont.ai_lane_group)
+		all_lanes.append_array(new_lanes)
+		groups_checked.append(_cont.ai_lane_group)
+
+	for lane in all_lanes:
+		if not lane is RoadLane or not is_instance_valid(lane):
+			push_warning("Non RoadLane in lanes list (%s)" % lane)
+			continue
+		var this_lane_closest = lane.to_global(lane.curve.get_closest_point(lane.to_local(pos)))
+		var this_lane_dist = pos.distance_to(this_lane_closest)
+		if this_lane_dist < closest_dist:
+			closest_lane = lane
+			closest_dist = this_lane_dist
+	return closest_lane
+
+# ------------------------------------------------------------------------------
+#endregion

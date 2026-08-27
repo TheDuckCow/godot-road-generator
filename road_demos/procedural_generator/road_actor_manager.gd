@@ -27,7 +27,8 @@ func _ready():
 ## Spawn random actor (from road_actor_scenes) at the pos
 ## if actor has road_lane_agent child, assign lane
 ## if possible reuse one of the hidden actors. otherwise create new
-func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
+## TODO set initial speed
+func add_actor(pos: Vector3, lane: RoadLane = null, offset: float = NAN) -> Node3D:
 	if vehicles_max >= 0 && get_actor_count() >= vehicles_max:
 		if DEBUG_OUT:
 			print("Can't create new actor, amount of vehicles is already at the limit")
@@ -51,7 +52,10 @@ func add_actor(pos: Vector3, lane: RoadLane = null) -> Node3D:
 	var agent = new_actor.get_node_or_null("road_lane_agent")
 	if lane != null:
 		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.assign_lane(lane)
+			agent.assign_lane_position(lane, offset)
+			new_actor.look_at(agent.test_move_along_lane(new_actor.rotate_to_distance), Vector3.UP)
+			var next_obstacle := lane.find_next_obstacle(offset)
+			#TODO check distance to next_obstacle to not spawn too close
 		else:
 			push_error("Trying to assign actor ", new_actor, " to lane ", lane, " but it doesn't have immediate child agent:RoadLaneAgent")
 	return new_actor
@@ -65,13 +69,13 @@ func remove_actor(actor: Node3D):
 		return
 	assert(actor.get_parent() == self)
 	if reuse_removed:
+		assert(actor not in _stashed_vehicles)
 		actor.visible = false
+		actor.velocity_on_lane = 0.0
+		actor.cleanup_for_reuse()
 		if actor.process_mode != Node.PROCESS_MODE_INHERIT:
 			push_warning("Actor ", actor, " has process_mode ", actor.process_mode, " that will be changed to PROCESS_MODE_INHERIT when the actor is reused")
 		actor.process_mode = Node.PROCESS_MODE_DISABLED
-		var agent = actor.get_node_or_null("road_lane_agent")
-		if is_instance_valid(agent) && agent is RoadLaneAgent:
-			agent.unassign_lane()
 		_stashed_vehicles.append(actor)
 		if DEBUG_OUT:
 			print("Hid actor ", actor)

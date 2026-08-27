@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dpxf2b12vum85"]
+
+[ext_resource type="Script" path="res://road_demos/demo_resources/traffic_light/traffic_light_synchronizer.gd" id="1_5oayg"]
+
+[node name="TrafficLightSynchronizer" type="Node"]
+script = ExtResource("1_5oayg")

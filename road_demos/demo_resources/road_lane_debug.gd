@@ -13,7 +13,7 @@ var agent: RoadLaneAgent
 func _ready() -> void:
 	if not is_instance_valid(actor):
 		return
-	
+
 	for _ch in actor.get_children():
 		if not _ch is RoadLaneAgent:
 			continue
@@ -23,10 +23,10 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(agent):
 		return
-	var clane:RoadLane = agent.current_lane
+	var clane:RoadLane = agent.lane_position.lane
 	if not is_instance_valid(clane):
 		return
-	
+
 	lbl_left.text = "Left" if clane.lane_left else "-"
 	lbl_right.text = "Right" if clane.lane_right else "-"
 	lbl_next.text = "Next" if clane.lane_next else "-"
