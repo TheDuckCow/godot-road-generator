@@ -442,18 +442,11 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		if not is_user_editable:
 			offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln_reverse)
 
-		# Visually display if indicated, and not mid transform (low_poly)
-		if is_user_editable:
-			# Never deleted anyways, so always display
-			new_ln.draw_in_editor = container.draw_lanes_editor
-			new_ln.draw_in_game = container.draw_lanes_game
-		elif low_poly:
-			new_ln.draw_in_editor = false
-			new_ln.draw_in_game = false
-		else:
-			new_ln.draw_in_editor = container.draw_lanes_editor
-			new_ln.draw_in_game = container.draw_lanes_game
-		
+		# Lanes used to hide during transforms (low_poly) to save rebuilding
+		# their fin meshes; cheap multimesh placement makes that unnecessary.
+		new_ln.draw_in_editor = container.draw_lanes_editor
+		new_ln.draw_in_game = container.draw_lanes_game
+
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
 
