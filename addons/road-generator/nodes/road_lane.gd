@@ -73,6 +73,10 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 ## Visualize this [RoadLane] and its direction during the game runtime.
 @export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
 
+## Mesh instanced along the lane to visualize its direction. All lanes share
+## the same resource by default; assign another mesh to customize the shape.
+@export var lane_pointer_mesh: Mesh = preload("res://addons/road-generator/resources/road_lane_pointer_mesh.res"): set = _set_lane_pointer_mesh
+
 ## Auto queue-free any vehicles registered to this lane with the road lane exits.
 @export var auto_free_vehicles: bool = true
 
@@ -93,8 +97,8 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
-var geom:ArrayMesh # For tool usage, drawing lane directions and end points
-var geom_node: MeshInstance3D
+var geom:MultiMesh # For tool usage, drawing lane directions and end points
+var geom_node: MultiMeshInstance3D
 # Internal field used by agents for intra-segment lane changes
 var transition: bool = false
 
@@ -192,7 +196,7 @@ func _instantiate_geom() -> void:
 
 	if not _display_fins:
 		if geom:
-			geom.clear_surfaces()
+			geom.instance_count = 0
 		return
 	if refresh_geom == false:
 		return
@@ -200,14 +204,17 @@ func _instantiate_geom() -> void:
 
 	# Setup geo node if not already.
 	if geom == null:
-		geom = ArrayMesh.new()
+		geom = MultiMesh.new()
 		geom.set_name("geom")
+		geom.transform_format = MultiMesh.TRANSFORM_3D
+		geom.use_colors = true
+		geom.mesh = lane_pointer_mesh
 		if not is_instance_valid(geom_node):
-			geom_node = MeshInstance3D.new()
-			geom_node.mesh = geom
+			geom_node = MultiMeshInstance3D.new()
+			geom_node.multimesh = geom
 			add_child(geom_node)
 		else:
-			geom_node.mesh = geom
+			geom_node.multimesh = geom
 
 		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
@@ -223,52 +230,43 @@ func _instantiate_geom() -> void:
 	_draw_shark_fins()
 
 
-## Generate the triangles along the path, indicating lane direction.
+## Place pointer mesh instances along the path, indicating lane direction.
 func _draw_shark_fins() -> void:
 	var curve_length := curve.get_baked_length()
-	var draw_dist := 1 # draw a new triangle at this interval in m
-	var tri_count := floor(curve_length / draw_dist)
+	var draw_dist := 1 # place a new pointer at this interval in m
+	var tri_count: int = floor(curve_length / draw_dist)
 
-	geom.clear_surfaces()
-	if tri_count == 0:
+	if tri_count == 0 or lane_pointer_mesh == null:
+		geom.instance_count = 0
 		return
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	geom.mesh = lane_pointer_mesh
+	# Forward extent of the pointer, to pin the last one against the lane end.
+	var pointer_length: float = lane_pointer_mesh.get_aabb().size.z
+	geom.instance_count = tri_count
 	for i in range (0, tri_count):
 		var f: float = i * curve_length / tri_count
-		var xf := Transform3D()
-
-		xf.origin = curve.sample_baked(f)
+		if i == tri_count - 1:
+			# Land the end pointer's tip on the lane end, nudging the next
+			# lane's start pointer.
+			f = maxf(curve_length - pointer_length, 0.0)
+		var origin: Vector3 = curve.sample_baked(f)
 		# use sample_baked_with_rotation?
 		var lookat: Vector3 = (
-			curve.sample_baked(f + 0.1) - xf.origin
+			curve.sample_baked(f + 0.1) - origin
 		).normalized()
 		var upvec := curve.sample_baked_up_vector(f, true).normalized()
-		var right := lookat.cross(upvec)
+
+		var basis := Basis()
+		if lookat.length_squared() > 0.5 and absf(lookat.dot(upvec)) < 0.999:
+			basis = Basis.looking_at(lookat, upvec)
+		geom.set_instance_transform(i, Transform3D(basis, origin))
 
 		if i == 0:
-			st.set_color(COLOR_START)
+			geom.set_instance_color(i, COLOR_START)
 		elif i == tri_count - 1:
-			st.set_color(COLOR_END)
+			geom.set_instance_color(i, COLOR_END)
 		else:
-			st.set_color(COLOR_PRIMARY)
-
-		# Verts
-		var pt_front_low := xf.origin + lookat * .5
-		var pt_back_right := xf.origin + right*0.2
-		var pt_back_left := xf.origin - right*0.2
-		var pt_back_high := xf.origin + upvec * 0.2
-
-		# right fin
-		st.add_vertex(pt_front_low)
-		st.add_vertex(pt_back_right)
-		st.add_vertex(pt_back_high)
-		# left fin
-		st.add_vertex(pt_front_low)
-		st.add_vertex(pt_back_high)
-		st.add_vertex(pt_back_left)
-
-	st.commit(geom)
+			geom.set_instance_color(i, COLOR_PRIMARY)
 
 
 func rebuild_geom() -> void:
@@ -277,6 +275,12 @@ func rebuild_geom() -> void:
 
 
 func curve_changed() -> void:
+	refresh_geom = true
+	rebuild_geom()
+
+
+func _set_lane_pointer_mesh(value: Mesh) -> void:
+	lane_pointer_mesh = value
 	refresh_geom = true
 	rebuild_geom()
 
