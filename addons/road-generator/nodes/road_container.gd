@@ -265,7 +265,14 @@ func _ready():
 
 
 func _enter_tree() -> void:
-	pass
+	# Segments survive a tree exit as RoadPoint children while _exit_tree drops
+	# the id map; re-register them so later edits reuse instead of duplicate.
+	for seg in get_segments():
+		if not is_instance_valid(seg.start_point) or not is_instance_valid(seg.end_point):
+			continue
+		var sid: String = RoadSegment.get_id_for_points(seg.start_point, seg.end_point)
+		if not sid in segid_map or not is_instance_valid(segid_map[sid]):
+			segid_map[sid] = seg
 
 
 ## Cleanup the road segments specifically, in case they aren't children.

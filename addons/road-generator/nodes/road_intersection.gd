@@ -64,6 +64,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 var _mesh: MeshInstance3D
 var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
+var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifications, e.g. on tree re-entry
+var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
 var is_dirty := true ## Flag used to know if prior changes means the mesh needs refreshing.
 
 # ------------------------------------------------------------------------------
@@ -106,6 +108,7 @@ func _init() -> void:
 func _ready() -> void:
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
+	_last_emitted_transform = global_transform
 	if not container or not is_instance_valid(container):
 		var par = get_parent()
 		# Can't type check, circular dependency -____-
@@ -136,6 +139,13 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
+		# Skip no-op notifications (e.g. tree re-entry), except the transform
+		# commit at drag release which must restore full detail.
+		if unchanged and (low_poly or not _last_emit_was_low_poly):
+			return
+		_last_emitted_transform = global_transform
+		_last_emit_was_low_poly = low_poly
 		emit_transform(low_poly)
 
 

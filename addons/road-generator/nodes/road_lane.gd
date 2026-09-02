@@ -93,7 +93,7 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
 var this_road_segment = null # RoadSegment
 var refresh_geom = true
-var geom:ImmediateMesh # For tool usage, drawing lane directions and end points
+var geom:ArrayMesh # For tool usage, drawing lane directions and end points
 var geom_node: MeshInstance3D
 # Internal field used by agents for intra-segment lane changes
 var transition: bool = false
@@ -198,9 +198,9 @@ func _instantiate_geom() -> void:
 		return
 	refresh_geom = false
 
-	# Setup immediate geo node if not already.
+	# Setup geo node if not already.
 	if geom == null:
-		geom = ImmediateMesh.new()
+		geom = ArrayMesh.new()
 		geom.set_name("geom")
 		if not is_instance_valid(geom_node):
 			geom_node = MeshInstance3D.new()
@@ -230,7 +230,10 @@ func _draw_shark_fins() -> void:
 	var tri_count := floor(curve_length / draw_dist)
 
 	geom.clear_surfaces()
-	geom.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	if tri_count == 0:
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range (0, tri_count):
 		var f: float = i * curve_length / tri_count
 		var xf := Transform3D()
@@ -244,12 +247,12 @@ func _draw_shark_fins() -> void:
 		var right := lookat.cross(upvec)
 
 		if i == 0:
-			geom.surface_set_color(COLOR_START)
+			st.set_color(COLOR_START)
 		elif i == tri_count - 1:
-			geom.surface_set_color(COLOR_END)
+			st.set_color(COLOR_END)
 		else:
-			geom.surface_set_color(COLOR_PRIMARY)
-		
+			st.set_color(COLOR_PRIMARY)
+
 		# Verts
 		var pt_front_low := xf.origin + lookat * .5
 		var pt_back_right := xf.origin + right*0.2
@@ -257,15 +260,15 @@ func _draw_shark_fins() -> void:
 		var pt_back_high := xf.origin + upvec * 0.2
 
 		# right fin
-		geom.surface_add_vertex(pt_front_low)
-		geom.surface_add_vertex(pt_back_right)
-		geom.surface_add_vertex(pt_back_high)
+		st.add_vertex(pt_front_low)
+		st.add_vertex(pt_back_right)
+		st.add_vertex(pt_back_high)
 		# left fin
-		geom.surface_add_vertex(pt_front_low)
-		geom.surface_add_vertex(pt_back_high)
-		geom.surface_add_vertex(pt_back_left)
+		st.add_vertex(pt_front_low)
+		st.add_vertex(pt_back_high)
+		st.add_vertex(pt_back_left)
 
-	geom.surface_end()
+	st.commit(geom)
 
 
 func rebuild_geom() -> void:
