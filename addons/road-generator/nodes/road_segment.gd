@@ -376,11 +376,21 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# additions and substractions to calculate which lanes are going to get merged.
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
+	
+	var suffix := ""
+	if _par == start_point and start_point.get_next_road_node(true) == end_point:
+		suffix = ""  # default case, no need to differentiate
+	elif _par == start_point:
+		suffix = "_prior"
+	elif _par == end_point and  start_point.get_prior_road_node(true) == start_point:
+		suffix = "_next"  # Doesn't occur in practice
+	else:
+		suffix = "_other"  # Shouldn't occur in practice
 
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
-		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
+		var ln_name = "p%s_n%s%s" % [this_match[2], this_match[3], suffix]
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir

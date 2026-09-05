@@ -50,11 +50,11 @@ func test_lanes_next_to_prior():
 	var container:RoadContainer = add_child_autofree(RoadContainer.new())
 	var points: Array[RoadPoint] = road_util.create_rp_line(container, 4, true, true)
 	# No flipping, already in a next-to-prior config
-	
 	container.generate_ai_lanes = true
 	container.draw_lanes_editor = true
+	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
-	road_util.save_testscene_to_file(container)# "test_lanes_next_to_prior")
+	#road_util.save_testscene_to_file(container)
 
 
 ## Checkes that two RoadPoints pointing away from each other produces good lanes
@@ -70,7 +70,7 @@ func test_lanes_prior_to_prior():
 	container.draw_lanes_editor = true
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
-	road_util.save_testscene_to_file(container)# "test_lanes_prior_to_prior")
+	#road_util.save_testscene_to_file(container)
 	
 
 ## Checkes that two RoadPoints pointing towards each other produces good lanes
@@ -85,4 +85,4 @@ func test_lanes_next_to_next():
 	container.draw_lanes_editor = true
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
-	road_util.save_testscene_to_file(container)
+	#road_util.save_testscene_to_file(container)
