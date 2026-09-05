@@ -1,34 +1,13 @@
 extends "res://addons/gut/test.gd"
 
+const RoadUtils = preload("res://test/unit/road_utils.gd")
+
+var road_util: RoadUtils
+
 
 func before_each():
-	gut.p("ran setup", 2)
-
-func after_each():
-	gut.p("ran teardown", 2)
-
-func before_all():
-	gut.p("ran run setup", 2)
-
-func after_all():
-	gut.p("ran run teardown", 2)
-
-# ------------------------------------------------------------------------------
-
-
-## Utility to create a single segment container (2 points)
-func create_unconnected_container(container) -> Array:
-	container.setup_road_container()
-	assert_eq(container.get_child_count(), 0, "No initial point children")
-
-	var p1 = autoqfree(RoadPoint.new())
-	var p2 = autoqfree(RoadPoint.new())
-
-	container.add_child(p1)
-	container.add_child(p2)
-	assert_eq(container.get_child_count(), 2, "Both RPs added")
-
-	return [p1, p2]
+	road_util = RoadUtils.new()
+	road_util.gut = gut
 
 
 # ------------------------------------------------------------------------------
@@ -107,7 +86,7 @@ func test_error_no_traffic_dir():
 func test_config_warning_invalid_lane_transition():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 	p1.next_pt_init = p1.get_path_to(p2)
@@ -130,7 +109,7 @@ func test_config_warning_invalid_lane_transition():
 func test_config_warning_malformed_lane_order():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
-	var pt = create_unconnected_container(container)[0]
+	var pt = road_util.create_unconnected_container(container)[0]
 
 	pt.traffic_dir.assign([RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
 	assert_gt(pt._get_configuration_warnings().size(), 0, "Warns on malformed lane order")
@@ -144,7 +123,7 @@ func test_autofix_noncyclic_added_next():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
@@ -172,7 +151,7 @@ func test_junction_validate_init_path_just_removed():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
@@ -204,7 +183,7 @@ func test_on_road_updated_pt_transform():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
@@ -235,7 +214,7 @@ func test_connect_roadpoint():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
@@ -252,7 +231,7 @@ func test_roadpoint_disconnection():
 	var container = add_child_autofree(RoadContainer.new())
 	container._auto_refresh = false
 
-	var points = create_unconnected_container(container)
+	var points = road_util.create_unconnected_container(container)
 	var p1 = points[0]
 	var p2 = points[1]
 
