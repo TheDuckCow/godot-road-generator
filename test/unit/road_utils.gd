@@ -35,6 +35,7 @@ func create_rp_line(container:RoadContainer, count:int, connect:bool, set_positi
 	assert_eq(container.get_child_count(), 0, "No initial point children")
 	for idx in range(count):
 		var rp:RoadPoint = autoqfree(RoadPoint.new())
+		rp.name = "RP%s" % [str(idx+1).pad_zeros(3)]
 		container.add_child(rp)
 		rps.append(rp)
 		if set_position:

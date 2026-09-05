@@ -31,13 +31,13 @@ func simple_flip_roadpoint(rp: RoadPoint) -> void:
 	var flipped_transform = rp.transform
 	flipped_transform = flipped_transform.rotated_local(Vector3.UP, PI)
 	rp.set_internal_updating(true)
+	var tmpinit = rp.prior_pt_init
 	rp.prior_pt_init = rp.next_pt_init
-	rp.next_pt_init = rp.prior_pt_init
-	rp.shoulder_width_l = rp.shoulder_width_r
-	rp.shoulder_width_r = rp.shoulder_width_l
+	rp.next_pt_init = tmpinit
 	#rp.traffic_dir = _new_traffic_dirs # they are mirrored anyways
+	var tmpmag = rp.prior_mag
 	rp.prior_mag = rp.next_mag
-	rp.next_mag = rp.prior_mag
+	rp.next_mag = tmpmag
 	rp.transform = flipped_transform
 	rp.set_internal_updating(false)
 
@@ -48,10 +48,11 @@ func simple_flip_roadpoint(rp: RoadPoint) -> void:
 ## Checkes that two RoadPoints pointing in the same direction produces good lanes
 func test_lanes_next_to_prior():
 	var container:RoadContainer = add_child_autofree(RoadContainer.new())
-	container.generate_ai_lanes = true
-	container.draw_lanes_editor = true
 	var points: Array[RoadPoint] = road_util.create_rp_line(container, 4, true, true)
 	# No flipping, already in a next-to-prior config
+	
+	container.generate_ai_lanes = true
+	container.draw_lanes_editor = true
 	ensure_roadlanes_exist(container)
 	road_util.save_testscene_to_file(container)# "test_lanes_next_to_prior")
 
@@ -59,13 +60,14 @@ func test_lanes_next_to_prior():
 ## Checkes that two RoadPoints pointing away from each other produces good lanes
 func test_lanes_prior_to_prior():
 	var container:RoadContainer = add_child_autofree(RoadContainer.new())
-	container.generate_ai_lanes = true
-	container.draw_lanes_editor = true
 	var points: Array[RoadPoint] = road_util.create_rp_line(container, 4, true, true)
 	# Flip first two roadpoints
 	for idx in [0, 1]:
 		var rp:RoadPoint = points[idx]
 		simple_flip_roadpoint(rp)
+
+	container.generate_ai_lanes = true
+	container.draw_lanes_editor = true
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
 	road_util.save_testscene_to_file(container)# "test_lanes_prior_to_prior")
@@ -74,12 +76,13 @@ func test_lanes_prior_to_prior():
 ## Checkes that two RoadPoints pointing towards each other produces good lanes
 func test_lanes_next_to_next():
 	var container:RoadContainer = add_child_autofree(RoadContainer.new())
-	container.generate_ai_lanes = true
-	container.draw_lanes_editor = true
 	var points: Array[RoadPoint] = road_util.create_rp_line(container, 4, true, true)
 	for idx in [2, 3]:
 		var rp:RoadPoint = points[idx]
 		simple_flip_roadpoint(rp)
+
+	container.generate_ai_lanes = true
+	container.draw_lanes_editor = true
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
 	road_util.save_testscene_to_file(container)
