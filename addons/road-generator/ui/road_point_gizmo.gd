@@ -21,6 +21,14 @@ var init_handle
 var init_handle_mirror
 var collider := BoxMesh.new()
 var collider_tri_mesh: TriangleMesh
+
+var puzzle_mesh_full: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_fullpiece.tres")
+var puzzle_mesh_full_coll: TriangleMesh
+var puzzle_mesh_next: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_edgenext.tres")
+var puzzle_mesh_next_coll: TriangleMesh
+var puzzle_mesh_prior: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_edgeprior.tres")
+var puzzle_mesh_prior_coll: TriangleMesh
+
 var lane_widget := Node3D.new()
 var lane_widget_mat := StandardMaterial3D.new()
 var arrow_left := MeshInstance3D.new()
@@ -57,6 +65,11 @@ func _init(editor_plugin: EditorPlugin):
 	init_handle_mirror = null
 	collider.size = BaseColliderSize
 	collider_tri_mesh = collider.generate_triangle_mesh()
+	
+	puzzle_mesh_full_coll = puzzle_mesh_full.generate_triangle_mesh()
+	puzzle_mesh_next_coll = puzzle_mesh_next.generate_triangle_mesh()
+	puzzle_mesh_prior_coll = puzzle_mesh_prior.generate_triangle_mesh()
+	
 	setup_lane_widgets()
 
 
@@ -124,11 +137,24 @@ func _redraw(gizmo) -> void:
 	# Re-process the handler
 	if need_size_update:
 		collider.size = BaseColliderSize * width_scale
-	
-	var mesh := _generate_collider_mesh(point)
-	gizmo.add_collision_triangles(mesh.generate_triangle_mesh())
-	gizmo.add_mesh(mesh, GizmoHiddenMat) # Have add for collision to work, but apply invisible shader
-	gizmo.add_mesh(collider, get_material("collider", gizmo))
+
+	var no_connections:bool = point.next_pt_init == ^"" and point.prior_pt_init == ^""
+	var gizmo_mesh: Mesh
+
+	if not point.is_on_edge() or no_connections:
+		gizmo_mesh = puzzle_mesh_full
+	elif point.next_pt_init != ^"":
+		gizmo_mesh = puzzle_mesh_prior
+	elif point.prior_pt_init != ^"":
+		gizmo_mesh = puzzle_mesh_next
+
+	# Add mesh + collider which is the whole road segment itself
+	var meshes := _generate_collider_mesh(point, gizmo_mesh)
+	var mesh_road_and_gizmo:Mesh = meshes[0]
+	var mesh_gizmo:Mesh = meshes[1]
+	gizmo.add_mesh(mesh_road_and_gizmo, GizmoHiddenMat) # Needed for collisions, but make invisible
+	gizmo.add_collision_triangles(mesh_road_and_gizmo.generate_triangle_mesh())
+	gizmo.add_mesh(mesh_gizmo, get_material("collider", gizmo))
 
 	if not point.is_road_point_selected(_editor_selection):
 		return
@@ -514,12 +540,12 @@ func set_hidden() -> void:
 ## all child road segments and the widget control mesh itself into one mesh to
 ## act as the click handler, but material setup will ensure only the control
 ## widget visual itself ends up being visible in the scene.
-func _generate_collider_mesh(rp: RoadPoint) -> Mesh:
+func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh) -> Array[Mesh]:
 	var surface_tool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	# Always start with the base collider array
-	surface_tool.create_from_arrays(collider.get_mesh_arrays())
+	# surface_tool.create_from_arrays(collider.get_mesh_arrays())
 	
 	# Identify segment meshes to merge together
 	var segs = []
@@ -534,4 +560,15 @@ func _generate_collider_mesh(rp: RoadPoint) -> Mesh:
 			if schild.mesh:
 				surface_tool.append_from(schild.mesh, 0, _seg.transform) # invert applied transform
 	
-	return surface_tool.commit()
+	# Finally, commit the current gizmo mesh
+	var scalef:float = rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
+	var scalev := Vector3(1, 0.5, 1) * scalef
+	surface_tool.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev)) # invert applied transform
+
+	# Now create and scale the gizmo mesh separately, to be added as a visual mesh
+	var surface_tool_gizmo = SurfaceTool.new()
+	surface_tool_gizmo.create_from_arrays(collider.get_mesh_arrays())
+	surface_tool_gizmo.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface_tool_gizmo.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev))
+
+	return [surface_tool.commit(), surface_tool_gizmo.commit()]
