@@ -382,10 +382,12 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		suffix = ""  # default case, no need to differentiate
 	elif _par == start_point:
 		suffix = "_prior"
-	elif _par == end_point and  start_point.get_prior_road_node(true) == start_point:
+	elif _par == end_point and start_point.get_prior_road_node(true) == start_point:
 		suffix = "_next"  # Doesn't occur in practice
+		push_warning("Lane parent unexpected to be end point for segment %s" % get_id())
 	else:
 		suffix = "_other"  # Shouldn't occur in practice
+		push_warning("Lane parent unexpected for segment %s" % get_id())
 
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
