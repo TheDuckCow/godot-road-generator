@@ -1,23 +1,72 @@
 extends "res://addons/gut/test.gd"
 
-## Utility to create a single segment container (2 points)
-func create_oneseg_container(container):
+
+func _set_owner(node: Node, new_owner: Node) -> void:
+	if node != new_owner:
+		node.owner = new_owner
+	for child in node.get_children():
+		_set_owner(child, new_owner)
+
+
+## For debugging purposes, save a given test scene to a file to inspect
+##
+## If filename is not provided, will use the function name of the parent caller
+func save_testscene_to_file(parent: Node, filename: String = "") -> Error:
+	# Must mark all children with intended owner
+	_set_owner(parent, parent)
+
+	# Save out scene as-is to file
+	var current_dir_path = self.get_script().resource_path.get_base_dir()
+	var scene := PackedScene.new()
+	scene.pack(parent)
+	if filename == "":
+		filename = get_stack()[1]["function"] # could also prefix with "source" base name potentially
+	var res := ResourceSaver.save(scene, "%s/%s.tscn" % [current_dir_path, filename])
+	return res
+
+
+## Utility to create several RoadPoints in a row
+func create_rp_line(container:RoadContainer, count:int, connect:bool, set_position:bool) -> Array[RoadPoint]:
+	var rps: Array[RoadPoint] = []
+	if count < 1:
+		fail_test("Cannot create RP line, fewer than 1 RPs")
+		return rps
 	container.setup_road_container()
-	
 	assert_eq(container.get_child_count(), 0, "No initial point children")
+	for idx in range(count):
+		var rp:RoadPoint = autoqfree(RoadPoint.new())
+		rp.name = "RP%s" % [str(idx+1).pad_zeros(3)]
+		container.add_child(rp)
+		rps.append(rp)
+		if set_position:
+			rp.global_position = Vector3(0, 0, 10) * idx
+	
+	assert_eq(container.get_child_count(), count, "All RPs added")
+	if not connect:
+		return rps
+	
+	for idx in range(count - 1):
+		var rpa:RoadPoint = rps[idx]
+		var rpb:RoadPoint = rps[idx + 1]
+		#rpa.connect_roadpoint(RoadPoint.PointInit.NEXT, rpb, RoadPoint.PointInit.PRIOR)
+		# Alt, lower level:
+		rpa.next_pt_init = rpa.get_path_to(rpb)
+		rpb.prior_pt_init = rpb.get_path_to(rpa)
+	
+	return rps
 
-	var p1 = autoqfree(RoadPoint.new())
-	var p2 = autoqfree(RoadPoint.new())
 
-	container.add_child(p1)
-	container.add_child(p2)
-	assert_eq(container.get_child_count(), 2, "Both RPs added")
-
-	p1.next_pt_init = p1.get_path_to(p2)
-	p2.prior_pt_init = p2.get_path_to(p1)
+## Utility to create a single segment container (2 points)
+func create_unconnected_container(container) -> Array[RoadPoint]:
+	return create_rp_line(container, 2, false, true)
 
 
-func create_two_containers(container_a, container_b):
+## Utility to create a single segment container (2 points)
+func create_oneseg_container(container:RoadContainer) -> void:
+	create_rp_line(container, 2, true, false)
+
+
+func create_two_containers(container_a:RoadContainer, container_b:RoadContainer) -> void:
 	create_oneseg_container(container_a)
 	create_oneseg_container(container_b)
 
@@ -27,7 +76,7 @@ func create_two_containers(container_a, container_b):
 	#container_b.update_edges() # should be auto-called
 
 
-func create_intersection_two_branch(container):
+func create_intersection_two_branch(container:RoadContainer) -> void:
 	container.setup_road_container()
 
 	assert_eq(container.get_child_count(), 0, "No initial point children")
@@ -58,7 +107,7 @@ func create_intersection_two_branch(container):
 
 ## Creates a four-branch intersection with each edge facing the center, so all
 ## edges feed forward lanes into the intersection.
-func create_intersection_four_branch(container):
+func create_intersection_four_branch(container: RoadContainer) -> void:
 	container.setup_road_container()
 
 	assert_eq(container.get_child_count(), 0, "No initial point children")
@@ -103,7 +152,7 @@ func create_intersection_four_branch(container):
 ## intersection, and ps is the stem with no edge opposite it.
 ## dist spaces the branches from the center; the default keeps branch
 ## footprints overlapping (historic), pass ~30 for non-overlapping geometry.
-func create_intersection_three_branch(container, dist: float = 10.0):
+func create_intersection_three_branch(container:RoadContainer, dist: float = 10.0) -> void:
 	container.setup_road_container()
 
 	assert_eq(container.get_child_count(), 0, "No initial point children")
@@ -143,7 +192,7 @@ func create_intersection_three_branch(container, dist: float = 10.0):
 ## position-only one. The source ps aims south; pb sits nearly dead-opposite but
 ## faces sideways, while pg sits off to the side yet faces ps head-on. A position
 ## metric prefers pb; an orientation-aware one prefers pg.
-func create_intersection_facing_split(container):
+func create_intersection_facing_split(container:RoadContainer) -> void:
 	container.setup_road_container()
 
 	assert_eq(container.get_child_count(), 0, "No initial point children")
