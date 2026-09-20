@@ -20,7 +20,8 @@ enum HintState {
 	CREATE_INTERSECTION, ## Construct an intersection
 	DISCONNECT, ## Disconnect source node from target node
 	DELETE, ## Only source nodes defined, not target
-	DISSOLVE ## Only source nodes defined, not target
+	DISSOLVE, ## Only source nodes defined, not target
+	INSTANCE ## Instance a scene or prop
 }
 
 ## State of the snapping tool
@@ -53,7 +54,7 @@ var cursor := Vector2(-1, -1)
 var hint_source_nodes: Array[Node3D] = []
 ## Array of target nodes to kep track of interaction states
 var hint_target_nodes: Array[Node3D] = []
-## Array of projected screen positions to draw for the corresponding source node
+## Array of projected screen psitions to draw for the corresponding source node
 var hint_source_points: Array[Vector2] = []
 ## Array of projected screen positions to draw for the corresponding target node
 var hint_target_points: Array[Vector2] = []
@@ -69,6 +70,11 @@ var _overlay_ref: Control
 var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
 var _ui_scale: float = 1.0 ## Cached UI scale multiplier
 var _margin_scale: float = _ui_scale * margin ## Common margin reference for outlines
+
+## Refrence to use for HintState.INSTANCE
+var _modal_object: Node3D
+var _pre_modal_selection: Node3D
+var _modal_scene_init: Node  ## TODO: If the current scene root is different, it means user switch tabs - cancel op and free
 
 # Flag to trigger updated raycasts on next physics frame after relevant input
 # TODO: Technically this means the outcome of the input handling is delayed one frame. Could improve
@@ -114,6 +120,10 @@ func _physics_process(_delta:float) -> void:
 	var query := PhysicsRayQueryParameters3D.create(
 		_intersect_mouse_src,
 		_intersect_mouse_src + _intersect_mouse_nrm * dist)
+	if is_instance_valid(_modal_object) and _modal_object is RoadContainer:
+		var objs: Array[CollisionObject3D] = _modal_object.get_collision_nodes()
+		for _obj in objs:
+			query.exclude.append(_obj.get_rid())
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	_intersect_dict = space_state.intersect_ray(query)
@@ -175,7 +185,9 @@ func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	var selected:Node = plg.get_selected_node()
 	var relevant:bool = plg.is_road_node(selected)
 
-	if not relevant or plg.tool_mode == plg._road_toolbar.InputMode.SELECT:
+	if is_instance_valid(_modal_object): # modal operation
+		ret = _handle_modal_input(camera, event)
+	elif not relevant or plg.tool_mode == plg._road_toolbar.InputMode.SELECT:
 		ret = _handle_select_mode_input(camera, event)
 	elif plg.tool_mode == plg._road_toolbar.InputMode.ADD:
 		ret = _handle_add_mode_input(camera, event)
@@ -300,7 +312,7 @@ static func _get_nextprior_rp_from_inter(inter: RoadIntersection, prior_rp: Road
 func nearest_graphnode_from_raycast(intersect: Dictionary) -> RoadGraphNode:
 	if intersect.is_empty():
 		return null
-
+	
 	var collider = intersect["collider"]
 	var position = intersect["position"]
 	if collider.name.begins_with("road_mesh_col"):
@@ -432,6 +444,35 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 	# if behind, then skip action.
 
 	return [hit_pt, up]
+
+
+func start_scene_placement(scene_path: String) -> void:
+	var editor_selected:Array = plg._edi.get_selection().get_selected_nodes()
+	var selection = editor_selected[0]
+	var parent: RoadManager
+	if selection is RoadManager:
+		parent = selection
+	elif selection is RoadPoint:
+		parent = selection.container.get_manager()
+	elif selection is RoadContainer:
+		parent = selection.get_manager()
+	else:
+		push_error("Invalid selection state, could not load %s" % scene_path)
+		return
+	
+	var scene:PackedScene = load(scene_path)
+	if not is_instance_valid(scene):
+		push_error("Invalid scene path, could not load %s" % scene_path)
+		return
+	
+	var new_rc = scene.instantiate()
+	var scene_name:String = scene_path.get_file().get_basename()
+	new_rc.name = scene_name
+	
+	# Don't set owner yet.
+	parent.add_child(new_rc, true)
+	_modal_object = new_rc
+	_pre_modal_selection = selection
 
 
 # ------------------------------------------------------------------------------
@@ -597,6 +638,81 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 #endregion
 #region Handle input hinting
 # ------------------------------------------------------------------------------
+
+## Unline select/add/delete modes, this is for when we're in the middle of an
+## operation and thus no other action should be possible until this is completed
+func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
+	var pos: Vector3
+	_clear_targets()
+	if _intersect_dict.is_empty():
+		hinting = HintState.INSTANCE # shouldn't do this here?
+		snapping = SnapState.MOVING
+		# If no colision, set postion based on selection's Y-plane & mouse pos
+		var target_plane = Plane(_pre_modal_selection.global_basis.y, _pre_modal_selection.global_position)
+		var view := plg.get_viewport()
+		var ray_origin = camera.project_ray_origin(cursor)
+		var ray_normal = camera.project_ray_normal(cursor)
+		if ray_origin == null:
+			push_warning("Failed to project to plane")
+			pos = Vector3.ZERO
+		else:
+			pos = target_plane.intersects_ray(ray_origin, ray_normal) # Can have an error??
+	else:
+		pos = _intersect_dict["position"]
+			
+		# Copied from the selection/moving snapping mode
+		# TODO: see if we can dedup the code duplication
+		var container = _modal_object
+		var snappable_pts: Array = [] # anything that we could connect to
+		var closest_pt: RoadPoint
+		var cloest_dist: float = -1
+		var local_edge: RoadPoint
+		for _edge in container.get_open_edges():
+			var _snap_point := _get_nearest_edge_roadpoint(_edge, true, true)
+			if not is_instance_valid(_snap_point):
+				continue
+			var this_dist:float = (_edge.global_position - _snap_point.global_position).length()
+			if not is_instance_valid(closest_pt) or this_dist < cloest_dist:
+				closest_pt = _snap_point
+				cloest_dist = this_dist
+				local_edge = _edge
+		# Now display snapping option
+		if is_instance_valid(closest_pt):
+			hinting = HintState.SNAP
+			snapping = SnapState.HINTING
+			hint_source_nodes.append(local_edge)
+			hint_source_points.append(camera.unproject_position(local_edge.global_transform.origin))
+			hint_target_nodes.append(closest_pt)
+			hint_target_points.append(camera.unproject_position(closest_pt.global_transform.origin))
+			_insert_edge_hint(closest_pt, camera)
+			_insert_edge_hint(local_edge, camera)
+		else:
+			hinting = HintState.NONE
+			snapping = SnapState.MOVING
+	
+	_modal_object.global_position = pos
+
+	# Action handling
+	var mouse_or_altkey_event := _relevant_input_event(event) # must set to update cursor
+	if event is InputEventPanGesture:
+		# Allows orbiting and panning during placement, helpful functionality
+		plg.update_overlays()
+		return INPUT_PASS
+	if event is InputEventKey and event.keycode == KEY_ESCAPE:
+		plg.update_overlays()
+		return _cancel_action(camera)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		print("Action with hint: ", hinting, " / snapping: ", snapping)
+		hinting = HintState.INSTANCE # Snapping state lost, but inferred downstream
+		var res = _perform_action(camera)
+		_clear_modal()
+		snapping = SnapState.IDLE
+		_clear_targets()
+		plg.update_overlays()
+		return res
+	
+	plg.update_overlays()
+	return INPUT_STOP
 
 
 func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
@@ -879,8 +995,8 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		return INPUT_PASS
 	elif event.pressed:
 		var res = _perform_action(camera)
-		_clear_targets()
 		snapping = SnapState.IDLE
+		_clear_targets()
 		plg.update_overlays()
 		return res
 
@@ -957,8 +1073,8 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 		return INPUT_PASS
 	elif event.pressed:
 		var res = _perform_action(camera)
-		_clear_targets()
 		snapping = SnapState.IDLE
+		_clear_targets()
 		plg.update_overlays()
 		return res
 
@@ -973,6 +1089,24 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 
 func _perform_action(camera: Camera3D) -> int:
 	match hinting:
+		HintState.INSTANCE:
+			if is_instance_valid(_modal_object):
+				var inst_transform = _modal_object.transform
+				var init_par = _modal_object.get_parent()
+				init_par.remove_child(_modal_object)
+				plg.instance_container(_modal_object, inst_transform)
+				
+				# If was snapping at same time, apply the snap as a second undo/redo step operation
+				if hint_target_nodes.size() > 0 and hint_target_nodes[0] is RoadPoint:
+					# Really is a snapping of a RoadContainer
+					var other_rp: RoadPoint = hint_target_nodes[0]
+					var tgt_rp: RoadPoint = hint_source_nodes[0]
+					pre_snap_trans = [_modal_object.global_transform]
+					plg.snap_container_to_road_point(tgt_rp, other_rp, pre_snap_trans)
+				
+			else:
+				push_error("Instance invalid, failed to place object")
+			return INPUT_STOP
 		HintState.CONNECT:
 			for idx in hint_source_nodes.size():
 				if hint_target_nodes[idx] is RoadIntersection:
@@ -1068,6 +1202,16 @@ func _perform_action(camera: Camera3D) -> int:
 	return INPUT_PASS
 
 
+func _cancel_action(camera: Camera3D) -> int:
+	print("Cancel action")
+	if is_instance_valid(_modal_object):
+		_modal_object.queue_free()
+		_clear_modal()
+	snapping = SnapState.IDLE
+	hinting = HintState.NONE
+	return INPUT_STOP
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Input handling utilities
@@ -1082,7 +1226,11 @@ func _clear_targets() -> void:
 	hint_edges_r = []
 	hint_edges_f = []
 	hinting = HintState.NONE
-	# Do NOT clear snapping
+
+
+func _clear_modal() -> void:
+	_modal_object = null
+	_pre_modal_selection = null
 
 
 func _insert_edge_hint(rp: RoadPoint, camera: Camera3D) -> void:

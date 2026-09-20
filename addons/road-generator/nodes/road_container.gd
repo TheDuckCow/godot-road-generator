@@ -1087,6 +1087,20 @@ func update_material_overrides() -> void:
 		_mesh.set_surface_override_material(0, material_resource)
 
 
+## Recusrvely return all collision objects on this container, procedural or hand-added
+func get_collision_nodes() -> Array[CollisionObject3D]:
+	var coll_objs: Array[CollisionObject3D] = []
+	var next_iter:Array = get_children()
+	while not next_iter.is_empty():
+		var tmp_iter: Array = next_iter.duplicate()
+		next_iter = []
+		for ch in tmp_iter:
+			if ch is CollisionObject3D:
+				coll_objs.append(ch)
+			next_iter.append_array(ch.get_children())
+	return coll_objs
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Geometry update
