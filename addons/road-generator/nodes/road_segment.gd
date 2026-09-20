@@ -377,22 +377,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
 	
-	var suffix := ""
-	if _par == start_point and start_point.get_next_road_node(true) == end_point:
-		suffix = ""  # default case, no need to differentiate
-	elif _par == start_point:
-		suffix = "_prior"
-	elif _par == end_point and start_point.get_prior_road_node(true) == start_point:
-		suffix = "_next"  # Doesn't occur in practice
-		push_warning("Lane parent unexpected to be end point for segment %s" % get_id())
-	else:
-		suffix = "_other"  # Shouldn't occur in practice
-		push_warning("Lane parent unexpected for segment %s" % get_id())
+	var prefix := _lane_name_prefix()
 
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
-		var ln_name = "p%s_n%s%s" % [this_match[2], this_match[3], suffix]
+		# Prefix by the segment endpoints so a RoadPoint parenting two segments
+		# (prior-prior or next-next links) keeps each segment's lanes distinct.
+		var ln_name = "%sp%s_n%s" % [prefix, this_match[2], this_match[3]]
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
@@ -643,15 +635,28 @@ func get_transition_offset(
 	return [start_shift, end_shift]
 
 
+## Name prefix scoping a segment's lanes to its endpoints.
+## Two segments under one shared parent RoadPoint have distinct endpoint
+## pairs, so their lanes never collide. Empty if an endpoint is missing.
+func _lane_name_prefix() -> String:
+	if is_instance_valid(start_point) and is_instance_valid(end_point):
+		return "%s_%s_" % [start_point.name, end_point.name]
+	return ""
+
+
 ## Returns list of only valid RoadLanes
 func get_lanes() -> Array:
 	var lanes = []
 	var _par = get_parent()
+	var prefix := _lane_name_prefix()
 	for ch in _par.get_children():
 		if not is_instance_valid(ch):
 			continue
 		elif not ch is RoadLane:
 			# push_warning("Child of RoadSegment is not a RoadLane: %s" % ln.name)
+			continue
+		elif prefix != "" and not String(ch.name).begins_with(prefix):
+			# A sibling segment's lane under the same shared parent RoadPoint.
 			continue
 		lanes.append(ch)
 	return lanes
