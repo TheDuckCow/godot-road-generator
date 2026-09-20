@@ -21,6 +21,13 @@ func ensure_roadlanes_exist(container:RoadContainer, segs: int = 3):
 	var expected: int = 4*segs
 	assert_eq(lanes.size(), expected, "Should create exactly %s lanes" % expected)
 
+	# A total-only count hides a clobber: one segment can lose all its lanes
+	# while a shared-parent sibling holds a duplicate set, keeping the sum right.
+	# Assert per segment so a starved segment is caught.
+	for seg in container.get_segments():
+		assert_eq(seg.get_lanes().size(), 4,
+			"Segment %s should own 4 lanes" % seg.name)
+
 
 ## Function for flipping a RoadPoint 180 and reversing connections
 ##
@@ -85,4 +92,20 @@ func test_lanes_next_to_next():
 	container.draw_lanes_editor = true
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
+	#road_util.save_testscene_to_file(container)
+
+
+## Minimal shared-parent case: a center point parents two segments whose lanes
+## would otherwise share a name and clobber. Three points is the smallest setup
+## that produces two segments under one RoadPoint.
+func test_lanes_shared_parent_no_clobber():
+	var container:RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	# Flip the last point so the middle point is the start of both segments.
+	simple_flip_roadpoint(points[2])
+
+	container.generate_ai_lanes = true
+	container.draw_lanes_editor = true
+	container.rebuild_segments(true)
+	ensure_roadlanes_exist(container, 2)
 	#road_util.save_testscene_to_file(container)
