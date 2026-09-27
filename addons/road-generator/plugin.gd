@@ -396,7 +396,8 @@ func _show_road_toolbar() -> void:
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.connect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
-		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.connect(_instance_custom_roadcontainer)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.connect(
+			connection_tool.start_scene_placement)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
@@ -422,7 +423,8 @@ func _hide_road_toolbar() -> void:
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.disconnect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.disconnect(_on_select_container_pressed)
-		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.disconnect(_instance_custom_roadcontainer)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.disconnect(
+			connection_tool.start_scene_placement)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
@@ -493,6 +495,18 @@ func _on_regenerate_pressed() -> void:
 
 
 func _instance_custom_roadcontainer(path: String) -> void:
+	var scene:PackedScene = load(path)
+	if not is_instance_valid(scene):
+		push_error("Invalid scene path, could not load %s" % path)
+		return
+
+	var new_rc = scene.instantiate()
+	var scene_name:String = path.get_file().get_basename()
+	new_rc.name = scene_name
+	instance_container(new_rc, Transform3D.IDENTITY)
+
+
+func instance_container(new_rc: RoadContainer, gtrans: Transform3D) -> void:
 	var undo_redo = get_undo_redo()
 	var init_sel := get_selected_node()
 
@@ -505,25 +519,19 @@ func _instance_custom_roadcontainer(path: String) -> void:
 		return
 	var parent:Node3D = t_manager
 
-	var scene:PackedScene = load(path)
-	if not is_instance_valid(scene):
-		push_error("Invalid scene path, could not load %s" % path)
-		return
-
-	var new_rc = scene.instantiate()
-	var scene_name:String = path.get_file().get_basename()
-	new_rc.name = scene_name
-
-	undo_redo.create_action("Add RoadScene (%s)" % scene_name)
+	undo_redo.create_action("Add RoadScene (%s)" % new_rc.name)
 
 	undo_redo.add_do_reference(new_rc)
 	undo_redo.add_do_method(parent, "add_child", new_rc, true)
 	undo_redo.add_do_method(new_rc, "set_owner", get_tree().get_edited_scene_root())
 	undo_redo.add_do_method(self, "set_selection", new_rc)
+	undo_redo.add_do_property(new_rc, "globtal_transform", gtrans)
 	undo_redo.add_do_method(self, "_call_update_edges", new_rc)
 
-	undo_redo.add_undo_method(parent, "remove_child", new_rc)
 	undo_redo.add_undo_method(self, "set_selection", init_sel)
+	undo_redo.add_undo_method(new_rc, "set_owner", null)
+	undo_redo.add_undo_method(parent, "remove_child", new_rc)
+	undo_redo.add_undo_method(self, "_call_update_edges", new_rc)
 
 	undo_redo.commit_action()
 
