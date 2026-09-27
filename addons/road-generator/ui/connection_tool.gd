@@ -122,8 +122,10 @@ func _physics_process(_delta:float) -> void:
 		_intersect_mouse_src + _intersect_mouse_nrm * dist)
 	if is_instance_valid(_modal_object) and _modal_object is RoadContainer:
 		var objs: Array[CollisionObject3D] = _modal_object.get_collision_nodes()
+		var coll_rids: Array[RID] = []
 		for _obj in objs:
-			query.exclude.append(_obj.get_rid())
+			coll_rids.append(_obj.get_rid())
+		query.exclude = coll_rids
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	_intersect_dict = space_state.intersect_ray(query)
