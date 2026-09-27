@@ -66,6 +66,7 @@ var hint_edges_f: Array[Vector2] = []
 
 var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of roads
 var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
+var _last_scene_placement: String
 var _overlay_ref: Control
 var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
 var _ui_scale: float = 1.0 ## Cached UI scale multiplier
@@ -449,6 +450,7 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 
 
 func start_scene_placement(scene_path: String) -> void:
+	_last_scene_placement = scene_path
 	var editor_selected:Array = plg._edi.get_selection().get_selected_nodes()
 	var selection = editor_selected[0]
 	var parent: RoadManager
@@ -654,7 +656,7 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 		var view := plg.get_viewport()
 		var ray_origin = camera.project_ray_origin(cursor)
 		var ray_normal = camera.project_ray_normal(cursor)
-		if ray_origin == null:
+		if ray_origin == null or ray_normal == null:
 			push_warning("Failed to project to plane")
 			pos = Vector3.ZERO
 		else:
@@ -663,7 +665,8 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 		pos = _intersect_dict["position"]
 			
 		# Copied from the selection/moving snapping mode
-		# TODO: see if we can dedup the code duplication
+		# TODO: see if we can dedup the code duplication, or generalize this into
+		# some instancing type option, to work with future decorations.
 		var container = _modal_object
 		var snappable_pts: Array = [] # anything that we could connect to
 		var closest_pt: RoadPoint
@@ -696,15 +699,16 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 
 	# Action handling
 	var mouse_or_altkey_event := _relevant_input_event(event) # must set to update cursor
-	if event is InputEventPanGesture:
+	var is_ui_orbit: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	is_ui_orbit = is_ui_orbit or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed)
+	if event is InputEventPanGesture or is_ui_orbit:
 		# Allows orbiting and panning during placement, helpful functionality
 		plg.update_overlays()
 		return INPUT_PASS
-	if event is InputEventKey and event.keycode == KEY_ESCAPE:
+	elif event is InputEventKey and event.keycode == KEY_ESCAPE and event.pressed:
 		plg.update_overlays()
 		return _cancel_action(camera)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		print("Action with hint: ", hinting, " / snapping: ", snapping)
 		hinting = HintState.INSTANCE # Snapping state lost, but inferred downstream
 		var res = _perform_action(camera)
 		_clear_modal()
@@ -820,7 +824,6 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
-		#print("_handle_add_mode_input relevanat")
 	
 		# Set up context variables which help determine the relevant current input
 		var hover_roadnode:RoadGraphNode = _hover_graphnode
@@ -1108,6 +1111,8 @@ func _perform_action(camera: Camera3D) -> int:
 				
 			else:
 				push_error("Instance invalid, failed to place object")
+			if Input.is_key_pressed(KEY_SHIFT): # multi placement
+				start_scene_placement.call_deferred(_last_scene_placement)
 			return INPUT_STOP
 		HintState.CONNECT:
 			for idx in hint_source_nodes.size():
@@ -1133,7 +1138,6 @@ func _perform_action(camera: Camera3D) -> int:
 		HintState.UNSNAP:
 			var selection: Node = plg.get_selected_node()
 			if selection is RoadContainer:
-				print("Unsnapping container")
 				var container: RoadContainer = selection
 				plg.unsnap_container(container, pre_snap_trans)
 			return INPUT_STOP
@@ -1171,7 +1175,7 @@ func _perform_action(camera: Camera3D) -> int:
 				var nrm:Vector3 = res[1]
 				plg.convert_to_intersection_with_new_roadpoint(selection, pos, nrm)
 			else:
-				print("Not implemented")
+				push_warning("Create intersection in this context is not implemented")
 			return INPUT_STOP
 		HintState.DISCONNECT:
 			if hint_target_nodes[0] is RoadIntersection:
@@ -1205,7 +1209,6 @@ func _perform_action(camera: Camera3D) -> int:
 
 
 func _cancel_action(camera: Camera3D) -> int:
-	print("Cancel action")
 	if is_instance_valid(_modal_object):
 		_modal_object.queue_free()
 		_clear_modal()
