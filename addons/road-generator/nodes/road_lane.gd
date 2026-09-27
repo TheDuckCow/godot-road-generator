@@ -95,7 +95,7 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 @export var reverse_direction = false: set = _set_reverse_direction
 
 
-var this_road_segment = null # RoadSegment
+var road_segment = null ## Will be populatd at runtime if an auto generated lane
 var refresh_geom = true
 var geom:MultiMesh # For tool usage, drawing lane directions and end points
 var geom_node: MultiMeshInstance3D

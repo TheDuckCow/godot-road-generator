@@ -420,6 +420,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 			ln_child.curve.clear_points()
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
+		new_ln.road_segment = self
 		
 		if container.ai_lane_group != "":
 			# check not already in the group
@@ -652,6 +653,13 @@ func get_lanes() -> Array:
 			continue
 		elif not ch is RoadLane:
 			# push_warning("Child of RoadSegment is not a RoadLane: %s" % ln.name)
+			continue
+		elif is_instance_valid(ch.road_segment) and ch.road_segment != self:
+			# Cases like a prior to prior connection, where there are two child
+			# road segments: Only return a given lane for the right segment.
+			# Technically there is an edge case where a hand authored lane
+			# would get returned twice - once for each segment that is a child
+			# of a RoadPoint.
 			continue
 		lanes.append(ch)
 	return lanes
