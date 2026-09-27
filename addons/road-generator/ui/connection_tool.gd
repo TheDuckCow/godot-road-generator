@@ -54,7 +54,7 @@ var cursor := Vector2(-1, -1)
 var hint_source_nodes: Array[Node3D] = []
 ## Array of target nodes to kep track of interaction states
 var hint_target_nodes: Array[Node3D] = []
-## Array of projected screen psitions to draw for the corresponding source node
+## Array of projected screen positions to draw for the corresponding source node
 var hint_source_points: Array[Vector2] = []
 ## Array of projected screen positions to draw for the corresponding target node
 var hint_target_points: Array[Vector2] = []
@@ -66,7 +66,6 @@ var hint_edges_f: Array[Vector2] = []
 
 var _last_sel_inter: RoadIntersection ## Helper during hotkey navigation of roads
 var _last_rp_before_inter: RoadPoint ## Helper during hotkey navigation of roads
-var _last_scene_placement: String
 var _overlay_ref: Control
 var _hover_graphnode: RoadGraphNode ## Can only be queried in phyics states, so it's cached there
 var _ui_scale: float = 1.0 ## Cached UI scale multiplier
@@ -76,6 +75,7 @@ var _margin_scale: float = _ui_scale * margin ## Common margin reference for out
 var _modal_object: Node3D
 var _pre_modal_selection: Node3D
 var _modal_scene_init: Node  ## TODO: If the current scene root is different, it means user switch tabs - cancel op and free
+var _last_scene_placement: String
 
 # Flag to trigger updated raycasts on next physics frame after relevant input
 # TODO: Technically this means the outcome of the input handling is delayed one frame. Could improve
@@ -451,6 +451,7 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 
 func start_scene_placement(scene_path: String) -> void:
 	_last_scene_placement = scene_path
+	_modal_scene_init = EditorInterface.get_edited_scene_root()
 	var editor_selected:Array = plg._edi.get_selection().get_selected_nodes()
 	var selection = editor_selected[0]
 	var parent: RoadManager
@@ -648,6 +649,12 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 	var pos: Vector3
 	_clear_targets()
+	
+	if EditorInterface.get_edited_scene_root() != _modal_scene_init:
+		# User switched tabs
+		plg.update_overlays()
+		return _cancel_action(camera)
+	
 	if _intersect_dict.is_empty():
 		hinting = HintState.INSTANCE # shouldn't do this here?
 		snapping = SnapState.MOVING
