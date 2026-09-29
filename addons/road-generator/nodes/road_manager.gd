@@ -78,7 +78,8 @@ var density: float = RoadSegment.DEFAULT_DENSITY:
 @export var underside_thickness: float = -1.0:
 	set(value):
 		underside_thickness = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
