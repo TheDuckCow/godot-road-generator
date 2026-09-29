@@ -178,6 +178,8 @@ var _is_internal_updating: bool = false ## Very special cases to bypass autofix 
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
 var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifications, e.g. on tree re-entry
 var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
+var _last_emitted_mag_prior := 0.0 ## For gizmo load deduping
+var _last_emitted_mag_next := 0.0 ## For gizmo load deduping
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -465,12 +467,21 @@ func _notification(what):
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
 		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
+		
 		# Skip no-op notifications (e.g. tree re-entry), except the transform
-		# commit at drag release which must restore full detail.
+		# commit at drag release or next/prior mag handlers
+		var mag_changed: bool = prior_mag != _last_emitted_mag_prior
+		mag_changed = mag_changed or next_mag != _last_emitted_mag_next
+		unchanged = mag_changed and not mag_changed
+		
 		if unchanged and (low_poly or not _last_emit_was_low_poly):
 			return
+		
+		# Reset the _last_* vars inline
 		_last_emitted_transform = global_transform
 		_last_emit_was_low_poly = low_poly
+		_last_emitted_mag_prior = prior_mag
+		_last_emitted_mag_next = next_mag
 		emit_transform(low_poly)
 
 

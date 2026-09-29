@@ -20,7 +20,7 @@ func _ready() -> void:
 		agent = _ch
 		break
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if not is_instance_valid(agent):
 		return
 	var clane:RoadLane = agent.current_lane
