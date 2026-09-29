@@ -1021,6 +1021,9 @@ func _build_geo():
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 	container._create_collisions(road_mesh)
+	if container.debug:
+		print_debug("\tRebuilt RoadSegment %s/%s/%s mesh between %s and %s" % [
+			self.container.name, self.get_parent().name, self.name, start_point.name, end_point.name])
 
 
 # ------------------------------------------------------------------------------

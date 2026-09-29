@@ -1306,8 +1306,6 @@ func rebuild_segments(clear_existing := false):
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	# Update even if generate_ai_lanes off, could have added manually / made editable
 	update_lane_seg_connections()
-	if debug:
-		print_debug("Road segs rebuilt: ", rebuilt)
 	if signal_rebuilt.size() > 0:
 		_emit_road_updated(signal_rebuilt)
 
@@ -1434,7 +1432,7 @@ func _create_collisions(road_mesh: MeshInstance3D) -> void:
 ## Signals the segments whichhave been just (re)built
 func _emit_road_updated(segments: Array) -> void:
 	if self.debug:
-		print_debug("Road segs rebuilt: ", len(segments))
+		print_debug("RoadSegments rebuilt: ", len(segments))
 	on_road_updated.emit(segments)
 	if is_instance_valid(_manager):
 		_manager.on_container_update(segments)
