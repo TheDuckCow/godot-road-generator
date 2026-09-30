@@ -408,7 +408,7 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 			# create raycast to check the height at the (x,z) coords
 			var height := get_road_height(x,z,aabb_min.y,aabb_max.y,space_states)
 			if height.size() > 0:
-				terrain.data.set_height(Vector3(x, height[0], z), height[0] + offset)
+				set_height_if_active_region(Vector3(x, height[0], z), height[0] + offset)
 				recorded[Vector2(x,z)] = height[0]
 			else:
 				missed[Vector2(x,z)] = true
@@ -428,8 +428,8 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 		neighbour = Vector2(_m.x,_m.y-neighbour_range)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
 		if heights.size() > 0:
-			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
-	
+			set_height_if_active_region(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
+
 	for _itemset in revert_layers:
 		var sbody: StaticBody3D = _itemset[0]
 		sbody.collision_layer = _itemset[1]
@@ -561,13 +561,13 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 
 			if dist_to_boundary <= edge_margin:
 				var terrain_pos := Vector3(x, road_y, z)
-				terrain.data.set_height(terrain_pos, road_y)
+				set_height_if_active_region(terrain_pos, road_y)
 			elif dist_to_boundary <= edge_margin + edge_falloff:
 				var terrain_pos := Vector3(x, road_y, z)
 				var reference_height: float = terrain.data.get_height(terrain_pos)
 				var factor: float = (dist_to_boundary - edge_margin) / edge_falloff
 				var smoothed_height: float = _lerp_smoothed_height(road_y, reference_height, factor)
-				terrain.data.set_height(terrain_pos, smoothed_height)
+				set_height_if_active_region(terrain_pos, smoothed_height)
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -669,8 +669,8 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 				#var region = terrain.data.get_regionp(terrain_pos)
 				#if not region:
 					#print("SKipping not region, todo: expand_boundaries")
-					#continue 
-				terrain.data.set_height(terrain_pos, road_y)
+					#continue
+				set_height_if_active_region(terrain_pos, road_y)
 				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
 				# Smoothly interpolate height beyon shoulder to prior height
@@ -690,8 +690,8 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
-				terrain.data.set_height(terrain_pos, smoothed_height)
-				
+				set_height_if_active_region(terrain_pos, smoothed_height)
+
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -780,6 +780,11 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 
 
 ## Helper Methods
+func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
+	if terrain.data.has_regionp(terrain_pos):
+		terrain.data.set_height(terrain_pos, height)
+
+
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
 func get_road_width(point: RoadPoint) -> float:
 	return (point.gutter_profile.x*2
