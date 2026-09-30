@@ -977,7 +977,7 @@ func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
 	var is_prior_prior: bool = src_rp.next_pt_init and tgt_rp.next_pt_init
 	var is_next_next: bool = src_rp.prior_pt_init and tgt_rp.prior_pt_init
 	if is_prior_prior or is_next_next:
-		tgt_trans.basis = tgt_trans.basis.rotated(Vector3(0, 1, 0), PI) # fkip around y
+		tgt_trans.basis = tgt_trans.basis.rotated(tgt_trans.basis.y, PI) # fkip around y
 	if is_next_next:
 		start_dir = RoadPoint.PointInit.NEXT
 		end_dir = RoadPoint.PointInit.NEXT

@@ -667,7 +667,9 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 			push_warning("Failed to project to plane")
 			pos = Vector3.ZERO
 		else:
-			pos = target_plane.intersects_ray(ray_origin, ray_normal) # Can have an error??
+			var pos_hit = target_plane.intersects_ray(ray_origin, ray_normal) # Can have an error??
+			if pos_hit != null:
+				pos = pos_hit
 	else:
 		pos = _intersect_dict["position"]
 			
