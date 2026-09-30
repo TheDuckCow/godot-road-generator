@@ -265,7 +265,14 @@ func _ready():
 
 
 func _enter_tree() -> void:
-	pass
+	# Segments survive a tree exit as RoadPoint children while _exit_tree drops
+	# the id map; re-register them so later edits reuse instead of duplicate.
+	for seg in get_segments():
+		if not is_instance_valid(seg.start_point) or not is_instance_valid(seg.end_point):
+			continue
+		var sid: String = RoadSegment.get_id_for_points(seg.start_point, seg.end_point)
+		if not sid in segid_map or not is_instance_valid(segid_map[sid]):
+			segid_map[sid] = seg
 
 
 ## Cleanup the road segments specifically, in case they aren't children.
@@ -348,16 +355,22 @@ func _defer_refresh_on_change() -> void:
 
 
 func _set_gen_ai_lanes(value: bool) -> void:
+	if value == generate_ai_lanes:
+		return
 	generate_ai_lanes = value
 	_defer_refresh_on_change()
 
 
 func _set_ai_lane_group(value: String) -> void:
+	if value == ai_lane_group:
+		return
 	ai_lane_group = value
 	_defer_refresh_on_change()
 
 
 func _set_auto_free_vehicles(value: bool) -> void:
+	if value == auto_free_vehicles:
+		return
 	auto_free_vehicles = value
 	for seg in get_segments():
 		for _lane in seg.get_lanes():
@@ -365,16 +378,22 @@ func _set_auto_free_vehicles(value: bool) -> void:
 
 
 func _set_collider_group(value: String) -> void:
+	if value == collider_group_name:
+		return
 	collider_group_name = value
 	_defer_refresh_on_change()
 
 
 func _set_collider_meta(value: String) -> void:
+	if value == collider_group_name:
+		return
 	collider_meta_name = value
 	_defer_refresh_on_change()
 
 
 func _set_density(value) -> void:
+	if value == density:
+		return
 	density = value
 	_defer_refresh_on_change()
 
@@ -390,11 +409,15 @@ func effective_density() -> float:
 
 
 func _set_thickness(value) -> void:
+	if value == underside_thickness:
+		return
 	underside_thickness = value
 	_defer_refresh_on_change()
 
 
 func _set_material(value) -> void:
+	if value == material_resource:
+		return
 	material_resource = value
 	update_material_overrides()
 	_defer_refresh_on_change()
@@ -412,6 +435,8 @@ func effective_surface_material() -> Material:
 
 
 func _set_material_underside(value) -> void:
+	if value == material_underside:
+		return
 	material_underside = value
 	update_material_overrides()
 	_defer_refresh_on_change()
@@ -437,6 +462,8 @@ func _dirty_rebuild_deferred() -> void:
 
 
 func _set_draw_lanes_editor(value: bool):
+	if value == _draw_lanes_editor:
+		return
 	_draw_lanes_editor = value
 	for seg in get_segments():
 		if not generate_ai_lanes:
@@ -451,6 +478,8 @@ func _get_draw_lanes_editor() -> bool:
 
 
 func _set_draw_lanes_game(value: bool):
+	if value == _draw_lanes_game:
+		return
 	_draw_lanes_game = value
 	for seg in get_segments():
 		seg.update_lane_visibility()
@@ -481,6 +510,8 @@ func _set_create_geo(value: bool) -> void:
 
 
 func _set_create_edge_curves(value: bool) -> void:
+	if value == create_edge_curves:
+		return
 	create_edge_curves = value
 	if create_edge_curves:
 		for seg in get_segments():
@@ -946,7 +977,7 @@ func get_transform_for_snap_rp(src_rp: RoadPoint, tgt_rp: RoadPoint) -> Array:
 	var is_prior_prior: bool = src_rp.next_pt_init and tgt_rp.next_pt_init
 	var is_next_next: bool = src_rp.prior_pt_init and tgt_rp.prior_pt_init
 	if is_prior_prior or is_next_next:
-		tgt_trans.basis = tgt_trans.basis.rotated(Vector3(0, 1, 0), PI) # fkip around y
+		tgt_trans.basis = tgt_trans.basis.rotated(tgt_trans.basis.y, PI) # fkip around y
 	if is_next_next:
 		start_dir = RoadPoint.PointInit.NEXT
 		end_dir = RoadPoint.PointInit.NEXT
@@ -1055,7 +1086,6 @@ func update_lane_seg_connections():
 
 ## Configures roadcontainer owner and assigns material if necessary
 func setup_road_container():
-	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
 	# be assigned an "owner". Use the RoadContainer's owner. But, the RoadContainer
@@ -1078,6 +1108,20 @@ func update_material_overrides() -> void:
 			push_warning("Non mesh assigned in RoadContainer %s: material_top_meshes " % self.name)
 			continue
 		_mesh.set_surface_override_material(0, material_resource)
+
+
+## Recusrvely return all collision objects on this container, procedural or hand-added
+func get_collision_nodes() -> Array[CollisionObject3D]:
+	var coll_objs: Array[CollisionObject3D] = []
+	var next_iter:Array = get_children()
+	while not next_iter.is_empty():
+		var tmp_iter: Array = next_iter.duplicate()
+		next_iter = []
+		for ch in tmp_iter:
+			if ch is CollisionObject3D:
+				coll_objs.append(ch)
+			next_iter.append_array(ch.get_children())
+	return coll_objs
 
 
 # ------------------------------------------------------------------------------
@@ -1285,8 +1329,6 @@ func rebuild_segments(clear_existing := false):
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	# Update even if generate_ai_lanes off, could have added manually / made editable
 	update_lane_seg_connections()
-	if debug:
-		print_debug("Road segs rebuilt: ", rebuilt)
 	if signal_rebuilt.size() > 0:
 		_emit_road_updated(signal_rebuilt)
 
@@ -1413,7 +1455,7 @@ func _create_collisions(road_mesh: MeshInstance3D) -> void:
 ## Signals the segments whichhave been just (re)built
 func _emit_road_updated(segments: Array) -> void:
 	if self.debug:
-		print_debug("Road segs rebuilt: ", len(segments))
+		print_debug("RoadSegments rebuilt: ", len(segments))
 	on_road_updated.emit(segments)
 	if is_instance_valid(_manager):
 		_manager.on_container_update(segments)

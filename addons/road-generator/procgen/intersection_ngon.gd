@@ -570,6 +570,13 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 	var edge_gutters: Array[Array] = []
 	## Array[Array[Vector3][2]]
 	var edge_road_sides: Array[Array] = []
+	## RoadPoint-side counterparts of the stop-line arrays, for the underside.
+	var edge_shoulders_rp: Array[Array] = []
+	var edge_gutters_rp: Array[Array] = []
+	## Per-edge up vector, to drop the underside by thickness.
+	var edge_ups: Array[Vector3] = []
+	## Per-edge underside thickness resolved from each RoadPoint.
+	var edge_thicknesses: Array[float] = []
 	
 	const uv_width := 0.125 # 1/8 for breakdown of texture.
 	const uv_gutter_width := uv_width * SegGeo.UV_MID_SHOULDER
@@ -626,14 +633,20 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		var road_side_l_stop: Vector3 = road_side_l + parallel_v * stopsize
 		var road_side_r_stop: Vector3 = road_side_r + parallel_v * stopsize
 
-		if facing == _IntersectNGonFacing.ORIGIN:	
+		if facing == _IntersectNGonFacing.ORIGIN:
 			edge_shoulders.append([shoulder_l_stop, shoulder_r_stop])
 			edge_gutters.append([gutter_l_stop, gutter_r_stop])
 			edge_road_sides.append([road_side_l_stop, road_side_r_stop])
+			edge_shoulders_rp.append([shoulder_l, shoulder_r])
+			edge_gutters_rp.append([gutter_l, gutter_r])
 		else: # facing == _IntersectNGonFacing.AWAY
 			edge_shoulders.append([shoulder_r_stop, shoulder_l_stop])
 			edge_gutters.append([gutter_r_stop, gutter_l_stop])
 			edge_road_sides.append([road_side_r_stop, road_side_l_stop])
+			edge_shoulders_rp.append([shoulder_r, shoulder_l])
+			edge_gutters_rp.append([gutter_r, gutter_l])
+		edge_ups.append(up_vector)
+		edge_thicknesses.append(edge.get_thickness())
 
 		# swap sides if needed
 		if facing == _IntersectNGonFacing.ORIGIN:
@@ -840,7 +853,123 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 	surface_tool.generate_normals()
 	var mesh: ArrayMesh = surface_tool.commit()  # should be MeshInstance3D?
 	#mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Underside only when every edge resolves a thickness, so e.g. a raised ramp
+	# leading into a ground-level intersection does not force underside geo.
+	if edges.size() >= 2 and edge_thicknesses.min() >= 0.0:
+		surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_insert_underside_geo(surface_tool, edge_thicknesses, parent_transform,
+				edge_shoulders_rp, edge_shoulders, edge_gutters_rp, edge_gutters, edge_ups)
+		surface_tool.index()
+		var underside_material: Material = container.effective_underside_material()
+		if underside_material:
+			surface_tool.set_material(underside_material)
+		surface_tool.generate_normals()
+		surface_tool.commit(mesh)
 	return mesh
+
+
+## Generates the underside as a second surface: a triangle fan over the
+## stop-line perimeter, one quad per branch out to its RoadPoint line, and rim
+## quads rising back up to the top surface's gutter lip. Deliberately less
+## detailed than the top side, but folding at the same stop line so top and
+## underside shear at the same point.
+## Thickness comes from each edge RoadPoint (caller ensures all are >= 0),
+## interpolating across connections, with the center at the average depth.
+## The crossings at each RoadPoint line stay open so the underside profile mates
+## with the adjoining [RoadSegment] underside (flat bottom spanning the
+## shoulders, then a slope out to the gutter lip).
+## Point arrays follow the facing-normalised [s0, s1] ordering of the top-side
+## arrays; edges MUST have been sorted beforehand.
+func _insert_underside_geo(
+		st: SurfaceTool,
+		thicknesses: Array[float],
+		parent_transform: Transform3D,
+		shoulders_rp: Array[Array],
+		shoulders_stop: Array[Array],
+		gutters_rp: Array[Array],
+		gutters_stop: Array[Array],
+		ups: Array[Vector3]) -> void:
+	const UNDERSIDE_RIM_SMOOTHING_GROUP = 1
+	const MIN_THICKNESS = 0.001 # Prevents Z-fighting, matching segment undersides
+	# Match segment undersides: one UV tile spans four default-width lanes.
+	var uv_scale := 1.0 / (4.0 * RoadPoint.DEFAULT_LANE_WIDTH)
+	var origin := parent_transform.origin
+
+	# Perimeter walk per branch: from the s1 stop corner out to the RoadPoint,
+	# across the RP line, back in along s0 to its stop corner, then over to the
+	# next branch. Bottom points are shoulder corners dropped by the edge's own
+	# thickness; rim tops are the matching gutter corners on the top surface.
+	var bottom: Array[Vector3] = []
+	var rim_top: Array[Vector3] = []
+	var has_rim: Array[bool] = []
+	var avg_thickness := 0.0
+	for i in range(shoulders_rp.size()):
+		var thickness: float = maxf(thicknesses[i], MIN_THICKNESS)
+		avg_thickness += thickness / shoulders_rp.size()
+		var drop: Vector3 = -ups[i] * thickness
+		bottom.append(shoulders_stop[i][1] + drop - origin)
+		bottom.append(shoulders_rp[i][1] + drop - origin)
+		bottom.append(shoulders_rp[i][0] + drop - origin)
+		bottom.append(shoulders_stop[i][0] + drop - origin)
+		rim_top.append(gutters_stop[i][1] - origin)
+		rim_top.append(gutters_rp[i][1] - origin)
+		rim_top.append(gutters_rp[i][0] - origin)
+		rim_top.append(gutters_stop[i][0] - origin)
+		has_rim.append(true)   # s1 lateral side
+		has_rim.append(false)  # RP line, left open to mate with the segment
+		has_rim.append(true)   # s0 lateral side
+		has_rim.append(true)   # connection toward the next branch
+
+	# Bottom fan from the dropped center over the stop-line corners only, so the
+	# underside folds at the stop line like the top surface. Wound to face down.
+	var center: Vector3 = -parent_transform.basis.y.normalized() * avg_thickness
+	var count := bottom.size()
+	st.set_smooth_group(0)
+	for k in range(0, count, 4):
+		var s1_stop: Vector3 = bottom[k]
+		var s0_stop: Vector3 = bottom[k + 3]
+		var next_s1_stop: Vector3 = bottom[(k + 4) % count]
+		# Wedge across this branch's stop line, then to the next branch.
+		for tri in [[s0_stop, s1_stop], [next_s1_stop, s0_stop]]:
+			st.set_uv(Vector2(center.x, center.z) * uv_scale)
+			st.add_vertex(center)
+			st.set_uv(Vector2(tri[0].x, tri[0].z) * uv_scale)
+			st.add_vertex(tri[0])
+			st.set_uv(Vector2(tri[1].x, tri[1].z) * uv_scale)
+			st.add_vertex(tri[1])
+
+	# One quad per branch from its stop line out to the RoadPoint line.
+	for k in range(0, count, 4):
+		var pts: Array = [bottom[k + 3], bottom[k + 2], bottom[k + 1], bottom[k]]
+		var uvs: Array = []
+		for pt in pts:
+			uvs.append(Vector2(pt.x, pt.z) * uv_scale)
+		SegGeo.quad(st, uvs, pts)
+
+	# Rim quads from the bottom perimeter up to the gutter lip, U continuing
+	# along the perimeter, V spanning the slant height.
+	var run := 0.0
+	for k in range(count):
+		var k_next := (k + 1) % count
+		var g1: Vector3 = rim_top[k]
+		var g2: Vector3 = rim_top[k_next]
+		var width := (g2 - g1).length()
+		if not has_rim[k]:
+			run += width
+			continue
+		var b1: Vector3 = bottom[k]
+		var b2: Vector3 = bottom[k_next]
+		SegGeo.quad(st,
+			[
+				Vector2((run + width) * uv_scale, 0.0),
+				Vector2(run * uv_scale, 0.0),
+				Vector2(run * uv_scale, (g1 - b1).length() * uv_scale),
+				Vector2((run + width) * uv_scale, (g2 - b2).length() * uv_scale),
+			],
+			[g2, g1, b1, b2],
+			UNDERSIDE_RIM_SMOOTHING_GROUP)
+		run += width
 
 
 #endregion

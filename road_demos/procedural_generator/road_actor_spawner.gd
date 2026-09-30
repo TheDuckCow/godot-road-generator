@@ -1,3 +1,4 @@
+@tool
 extends Node3D
 
 ## simple RoadLane with override to despawn anyone assigned to it

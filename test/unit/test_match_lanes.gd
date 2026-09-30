@@ -353,3 +353,34 @@ func test_flipped_dirs(params=use_parameters(flipped_dir_setup)):
 	var target = params[3]
 	var result = seg._match_lanes()
 	assert_eq(result, target, "Flipped lanes %s" % params[4])
+
+
+## Invalid one-way <-> two-way transitions match no lanes. Both rows share the
+## first-lane direction so they pass the opposing-direction guard and exercise
+## is_valid_lane_transition specifically.
+var invalid_transition_setup = [
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneType.FAST, RoadPoint.LaneType.FAST],
+		"BOTH > REVERSE",
+	],
+	[
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE],
+		[RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD],
+		[RoadPoint.LaneType.FAST, RoadPoint.LaneType.FAST],
+		"REVERSE > BOTH",
+	],
+]
+
+func test_invalid_lane_transition(params=use_parameters(invalid_transition_setup)):
+	var seg = autoqfree(RoadSegment.new(null))
+
+	seg.start_point = autoqfree(RoadPoint.new())
+	seg.end_point = autoqfree(RoadPoint.new())
+	seg.start_point.traffic_dir.assign(params[0])
+	seg.end_point.traffic_dir.assign(params[1])
+	seg.start_point.lanes.assign(params[2])
+
+	var result = seg._match_lanes()
+	assert_eq(result, [], "No lanes matched for %s" % params[3])

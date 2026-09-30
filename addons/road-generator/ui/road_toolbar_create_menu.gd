@@ -80,15 +80,14 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	# this prevents the menu from closing when a check item is clicked
 	pup.hide_on_checkable_item_selection = false
 
-	var idx = 0
 	pup.clear()
 
+	var idx:int = 0
 	pup.add_item("Refresh roads", CreateMenu.REGENERATE)
 	pup.set_item_tooltip(idx, "Re-generate geometry and resolve warnings")
 	idx += 1
 	pup.add_item("Select container", CreateMenu.SELECT_CONTAINER)
 	pup.set_item_tooltip(idx, "Select this RoadPoint's parent RoadContainer")
-	idx += 1
 
 	#if menu_mode == MenuMode.SAVED_SUBSCENE:
 	#	# Don't offer to modify subscenes
@@ -102,64 +101,80 @@ func on_toolbar_show(primary_sel: Node) -> void:
 	# on OS, since 32x looks too large on windows.
 	var width := 32 if OS.get_name() == "macOS" else 16
 
-	pup.add_separator()
 	idx += 1
+	pup.add_separator()
 
+	idx += 1
 	pup.add_icon_item(ICN_CT, "RoadContainer", CreateMenu.CONTAINER)
 	pup.set_item_icon_max_width(idx, width)
-	pup.set_item_tooltip(idx, "Adds a RoadContianer child to RoadManager")
-	idx += 1
+	pup.set_item_tooltip(idx, "Adds a RoadContainer child to RoadManager")
 
+	idx += 1
 	pup.add_icon_item(ICN_RP, "RoadPoint", CreateMenu.POINT)
 	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a new RoadPoint")
-	idx += 1
 
+	idx += 1
 	pup.add_icon_item(ICN_LN, "RoadLane (AI path)", CreateMenu.LANE)
 	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadLane which can be used for AI paths")
-	idx += 1
 
+	idx += 1
 	pup.add_icon_item(ICN_AG, "RoadLaneAgent (AI)", CreateMenu.LANEAGENT)
 	pup.set_item_icon_max_width(idx, width)
 	pup.set_item_tooltip(idx, "Adds a RoadLaneAgent to follow RoadLane paths")
+
 	idx += 1
-	
 	pup.add_item("RoadTerrain3DConnector", CreateMenu.TERRAIN3D_CONNECTOR)
 	pup.set_item_tooltip(idx, "Adds node to flatten Terrain3D surface based on roads")
-	idx += 1
 
+	idx += 1
 	pup.add_separator()
 
+	idx += 1
 	pup.add_item("2x2 road", CreateMenu.TWO_X_TWO)
 	pup.set_item_tooltip(idx, "Adds a segment of road with 2 lanes each way")
-	idx += 1
 
 	# rc_items must be name of the child of this menu
 	if not is_instance_valid(rc_submenu):
 		load_submenu()
 
+	idx += 1
 	rc_submenu.name = "rc_items"
 	pup.add_submenu_item("RoadContainer presets", "rc_items", idx)
-	idx += 1
 
+	idx += 1
 	pup.add_separator()
 
+	idx += 1
 	pup.add_item("Export RoadContainer", CreateMenu.EXPORT_MESH)
 	if not primary_sel is RoadContainer:
 		pup.set_item_disabled(idx, true)
-	idx += 1
+		pup.set_item_tooltip(idx, "Must have a RoadContainer selected")
+	else:
+		pup.set_item_tooltip(idx, "Export current RoadContainer and children to a gLTF/GLB file")
 	
+	idx += 1
 	pup.add_item("Make RoadLanes Editable", CreateMenu.MAKE_LANES_EDITABLE)
-	if not primary_sel is RoadContainer or not primary_sel.generate_ai_lanes:
+	pup.set_item_tooltip(idx, "Expose RoadLanes nodes in editor for manual editing")
+	if primary_sel is RoadContainer:
+		if not primary_sel.generate_ai_lanes:
+			pup.set_item_disabled(idx, true)
+			pup.set_item_tooltip(idx, "Lanes disabled, nothing to make editable")
+	elif primary_sel is RoadPoint:
+		if not primary_sel.container.generate_ai_lanes:
+			pup.set_item_disabled(idx, true)
+			pup.set_item_tooltip(idx, "Lanes disabled, nothing to make editable")
+	else:
 		pup.set_item_disabled(idx, true)
+		pup.set_item_tooltip(idx, "Only supported for RoadContainers and RoadPoints")
+
 	idx += 1
-	
 	pup.add_separator()
+	idx += 1
 	pup.add_item("Report issue", CreateMenu.REPORT_ISSUE)
 	idx += 1
 	pup.add_item("Share feedback", CreateMenu.FEEDBACK)
-	idx += 1
 
 
 func _create_menu_item_clicked(id: int) -> void:

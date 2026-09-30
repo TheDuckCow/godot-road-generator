@@ -70,8 +70,6 @@ script = ExtResource("2")
 create_geo = false
 material_resource = ExtResource("3")
 material_top_meshes = [NodePath("splitter_2x2_exp/splitter_2x2")]
-use_lowpoly_preview = true
-draw_lanes_editor = true
 edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath("")])
 edge_rp_target_dirs = Array[int]([-1, -1, -1])
@@ -91,7 +89,6 @@ script = ExtResource("4_shnhr")
 lane_right = NodePath("../pF1_nF1")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
-draw_in_editor = true
 
 [node name="pF1_nF1" type="Path3D" parent="RP_001"]
 curve = SubResource("Curve3D_4bsjr")
@@ -99,7 +96,6 @@ script = ExtResource("4_shnhr")
 lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F1"
 lane_prior_tag = "F1"
-draw_in_editor = true
 
 [node name="RP_002" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 12)
@@ -125,7 +121,6 @@ script = ExtResource("4_shnhr")
 lane_left = NodePath("../pR0_nR0")
 lane_next_tag = "R1"
 lane_prior_tag = "R1"
-draw_in_editor = true
 
 [node name="pR0_nR0" type="Path3D" parent="RP_003"]
 curve = SubResource("Curve3D_lwmw5")
@@ -133,7 +128,6 @@ script = ExtResource("4_shnhr")
 lane_right = NodePath("../pR1_nR1")
 lane_next_tag = "R0"
 lane_prior_tag = "R0"
-draw_in_editor = true
 
 [node name="RP_004" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 12)
@@ -170,7 +164,6 @@ script = ExtResource("4_shnhr")
 lane_left = NodePath("../pR0_nR0")
 lane_next_tag = "R1"
 lane_prior_tag = "R1"
-draw_in_editor = true
 
 [node name="pR0_nR0" type="Path3D" parent="cap_terminated"]
 curve = SubResource("Curve3D_hnuyu")
@@ -178,7 +171,6 @@ script = ExtResource("4_shnhr")
 lane_right = NodePath("../pR1_nR1")
 lane_next_tag = "R0"
 lane_prior_tag = "R0"
-draw_in_editor = true
 
 [node name="pF0_nF0" type="Path3D" parent="cap_terminated"]
 curve = SubResource("Curve3D_8k7yr")
@@ -186,7 +178,6 @@ script = ExtResource("4_shnhr")
 lane_right = NodePath("../pF1_nF1")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
-draw_in_editor = true
 
 [node name="pF1_nF1" type="Path3D" parent="cap_terminated"]
 curve = SubResource("Curve3D_edmo8")
@@ -194,7 +185,6 @@ script = ExtResource("4_shnhr")
 lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F1"
 lane_prior_tag = "F1"
-draw_in_editor = true
 
 [node name="splitter_2x2_exp" parent="." instance=ExtResource("4_7ogup")]
 

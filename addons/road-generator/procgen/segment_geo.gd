@@ -122,7 +122,9 @@ static func _flip_traffic_dir(lanes: Array[int]) -> Array:
 ## from REVERSE to FORWARD. Return -1 if no flip was found. Also, return the
 ## overall traffic direction of the RoadPoint.
 ## Returns: Array[int, RoadPoint.LaneDir]
-static func _get_lane_flip_data(traffic_dir: Array) -> Array:
+## quiet suppresses the malformed-config warning for callers that only validate
+## (e.g. RoadPoint configuration warnings), which run on every editor edit.
+static func _get_lane_flip_data(traffic_dir: Array, quiet: bool = false) -> Array:
 	# Get lane FORWARD flip offset. If a flip occurs more than once, give
 	# warning.
 	var flip_offset = 0
@@ -141,7 +143,8 @@ static func _get_lane_flip_data(traffic_dir: Array) -> Array:
 				traffic_dir[i] == RoadPoint.LaneDir.REVERSE
 				and flip_count > 0
 		):
-			push_warning("Warning: Unable to detect lane flip on road_point with traffic dirs %s" % traffic_dir)
+			if not quiet:
+				push_warning("Warning: Unable to detect lane flip on road_point with traffic dirs %s" % [traffic_dir])
 			return [-1, RoadPoint.LaneDir.NONE]
 		elif flip_count == 0 and i == len(traffic_dir) - 1:
 			# This must be a REVERSE-only road point
@@ -152,6 +155,17 @@ static func _get_lane_flip_data(traffic_dir: Array) -> Array:
 			flip_offset = len(traffic_dir) - 1
 			return [flip_offset, RoadPoint.LaneDir.FORWARD]
 	return [flip_offset, RoadPoint.LaneDir.BOTH]
+
+
+## Whether two connected road points can form a road. A one-way (FORWARD or
+## REVERSE) to two-way (BOTH) transition matches no lanes and so produces no
+## mesh. start_dir/end_dir are overall directions from _get_lane_flip_data.
+static func is_valid_lane_transition(start_dir: int, end_dir: int) -> bool:
+	if start_dir == RoadPoint.LaneDir.BOTH and end_dir != RoadPoint.LaneDir.BOTH:
+		return false
+	if end_dir == RoadPoint.LaneDir.BOTH and start_dir != RoadPoint.LaneDir.BOTH:
+		return false
+	return true
 
 
 #endregion

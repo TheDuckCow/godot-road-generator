@@ -56,8 +56,6 @@ script = ExtResource("1_pqelq")
 create_geo = false
 material_resource = ExtResource("2_ber5t")
 material_top_meshes = [NodePath("3way_1x1_exp/3way_1x1")]
-use_lowpoly_preview = true
-draw_lanes_editor = true
 edge_containers = Array[NodePath]([NodePath(""), NodePath(""), NodePath("")])
 edge_rp_targets = Array[NodePath]([NodePath(""), NodePath(""), NodePath("")])
 edge_rp_target_dirs = Array[int]([-1, -1, -1])
@@ -79,7 +77,6 @@ script = ExtResource("4_smvvh")
 lane_right = NodePath("../../RP_003/W0S0")
 lane_next_tag = "R0"
 lane_prior_tag = "R0"
-draw_in_editor = true
 
 [node name="pF0_nF0" type="Path3D" parent="RP_001"]
 curve = SubResource("Curve3D_ber5t")
@@ -87,7 +84,6 @@ script = ExtResource("4_smvvh")
 lane_left = NodePath("../../RP_003/S0W0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
-draw_in_editor = true
 
 [node name="RP_002" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
@@ -113,14 +109,12 @@ script = ExtResource("4_smvvh")
 lane_left = NodePath("../W0N0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
-draw_in_editor = true
 
 [node name="W0N0" type="Path3D" parent="RP_003"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -6.99382e-07, 0, 16)
 curve = SubResource("Curve3D_tt3ky")
 script = ExtResource("4_smvvh")
 lane_right = NodePath("../pF0_nF0")
-draw_in_editor = true
 
 [node name="W0S0" type="Path3D" parent="RP_003"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -6.99382e-07, 0, 16)
@@ -129,14 +123,12 @@ script = ExtResource("4_smvvh")
 lane_left = NodePath("../../RP_001/pR0_nR0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
-draw_in_editor = true
 
 [node name="S0W0" type="Path3D" parent="RP_003"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.99382e-07, 0, 16)
 curve = SubResource("Curve3D_jw7wf")
 script = ExtResource("4_smvvh")
 lane_right = NodePath("../../RP_001/pF0_nF0")
-draw_in_editor = true
 
 [node name="RP_004" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0.0117083, 0, 0)
