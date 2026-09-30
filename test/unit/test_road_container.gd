@@ -126,17 +126,32 @@ func test_on_road_updated_single_segment():
 ## Ensure that users can manually assign two points to connect with auto_refresh
 func test_roadcontainer_validations_with_autorefresh():
 	var container = add_child_autofree(RoadContainer.new())
-	container._auto_refresh = true  # Will kick in validation
+	container._auto_refresh = true
 
-	road_util.create_oneseg_container(container)
-
-	# Now trigger the update, to see that a single segment was made
 	watch_signals(container)
-	container.rebuild_segments()
-	var res = get_signal_parameters(container, 'on_road_updated')
+	road_util.create_oneseg_container(container) # due to auto refrehs, seg should already exist
+
+	# Now check the mesh was already created
+	var res = get_signal_parameters(container, 'on_road_updated') # Gets most recent emitted signal
+	assert_not_null(res, "Should have a single due to existing mesh")
+	if not res:
+		fail_test("Failed to get first on_road_updated signal")
+		return
 	var segments_updated = res[0]
 	assert_eq(len(segments_updated), 1, "Single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
+
+	# Check that a secondary rebuild does NOT emit another signal, cached
+	container.rebuild_segments(false)
+	res = get_signal_parameters(container, 'on_road_updated')
+	assert_signal_emit_count(container, "on_road_updated", 1, "Still only one signal call")
+
+	# Check that another rebuild does work
+	container.rebuild_segments(true)
+	res = get_signal_parameters(container, 'on_road_updated')
+	segments_updated = res[0]
+	assert_eq(len(segments_updated), 1, "Another segment created")
+	assert_signal_emit_count(container, "on_road_updated", 2, "One more signal call")
 
 
 func test_get_manager_null():

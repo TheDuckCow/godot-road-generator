@@ -355,16 +355,22 @@ func _defer_refresh_on_change() -> void:
 
 
 func _set_gen_ai_lanes(value: bool) -> void:
+	if value == generate_ai_lanes:
+		return
 	generate_ai_lanes = value
 	_defer_refresh_on_change()
 
 
 func _set_ai_lane_group(value: String) -> void:
+	if value == ai_lane_group:
+		return
 	ai_lane_group = value
 	_defer_refresh_on_change()
 
 
 func _set_auto_free_vehicles(value: bool) -> void:
+	if value == auto_free_vehicles:
+		return
 	auto_free_vehicles = value
 	for seg in get_segments():
 		for _lane in seg.get_lanes():
@@ -372,16 +378,22 @@ func _set_auto_free_vehicles(value: bool) -> void:
 
 
 func _set_collider_group(value: String) -> void:
+	if value == collider_group_name:
+		return
 	collider_group_name = value
 	_defer_refresh_on_change()
 
 
 func _set_collider_meta(value: String) -> void:
+	if value == collider_group_name:
+		return
 	collider_meta_name = value
 	_defer_refresh_on_change()
 
 
 func _set_density(value) -> void:
+	if value == density:
+		return
 	density = value
 	_defer_refresh_on_change()
 
@@ -397,11 +409,15 @@ func effective_density() -> float:
 
 
 func _set_thickness(value) -> void:
+	if value == underside_thickness:
+		return
 	underside_thickness = value
 	_defer_refresh_on_change()
 
 
 func _set_material(value) -> void:
+	if value == material_resource:
+		return
 	material_resource = value
 	update_material_overrides()
 	_defer_refresh_on_change()
@@ -419,6 +435,8 @@ func effective_surface_material() -> Material:
 
 
 func _set_material_underside(value) -> void:
+	if value == material_underside:
+		return
 	material_underside = value
 	update_material_overrides()
 	_defer_refresh_on_change()
@@ -444,6 +462,8 @@ func _dirty_rebuild_deferred() -> void:
 
 
 func _set_draw_lanes_editor(value: bool):
+	if value == _draw_lanes_editor:
+		return
 	_draw_lanes_editor = value
 	for seg in get_segments():
 		if not generate_ai_lanes:
@@ -458,6 +478,8 @@ func _get_draw_lanes_editor() -> bool:
 
 
 func _set_draw_lanes_game(value: bool):
+	if value == _draw_lanes_game:
+		return
 	_draw_lanes_game = value
 	for seg in get_segments():
 		seg.update_lane_visibility()
@@ -488,6 +510,8 @@ func _set_create_geo(value: bool) -> void:
 
 
 func _set_create_edge_curves(value: bool) -> void:
+	if value == create_edge_curves:
+		return
 	create_edge_curves = value
 	if create_edge_curves:
 		for seg in get_segments():
@@ -1062,7 +1086,6 @@ func update_lane_seg_connections():
 
 ## Configures roadcontainer owner and assigns material if necessary
 func setup_road_container():
-	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
 	# be assigned an "owner". Use the RoadContainer's owner. But, the RoadContainer

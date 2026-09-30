@@ -234,10 +234,13 @@ func _enter_tree() -> void:
 
 
 func _exit_tree():
+	# Hacky workaround to avoid an unnecessary rebuild on scene enter
+	_skip_next_on_transform = true
+	
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_queued_for_deletion():
 		if is_instance_valid(prior_seg):
-			prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+			prior_seg.queue_free()
 		if is_instance_valid(next_seg):
 			next_seg.queue_free()
 
@@ -315,6 +318,8 @@ func _get_auto_lanes():
 
 
 func _set_dir(values):
+	if values == traffic_dir:
+		return
 	traffic_dir = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -324,6 +329,8 @@ func _get_dir():
 
 
 func _set_lane_width(value):
+	if value == lane_width:
+		return
 	lane_width = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -333,6 +340,8 @@ func _get_lane_width():
 
 
 func _set_shoulder_width_l(value):
+	if value == shoulder_width_l:
+		return
 	shoulder_width_l = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -342,6 +351,8 @@ func _get_shoulder_width_l():
 
 
 func _set_shoulder_width_r(value):
+	if value == shoulder_width_r:
+		return
 	shoulder_width_r = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -351,6 +362,8 @@ func _get_shoulder_width_r():
 
 
 func _set_profile(value:Vector2):
+	if value == gutter_profile:
+		return
 	gutter_profile = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -362,6 +375,8 @@ func _get_profile():
 
 
 func _set_prior_pt_init(value:NodePath):
+	if value == prior_pt_init:
+		return
 	var _pre_assign = prior_pt_init
 	prior_pt_init = value
 	if not is_instance_valid(container):
@@ -380,6 +395,8 @@ func _get_prior_pt_init():
 
 
 func _set_next_pt_init(value:NodePath):
+	if value == next_pt_init:
+		return
 	var _pre_assign = next_pt_init
 	next_pt_init = value
 	if not is_instance_valid(container):
@@ -394,6 +411,8 @@ func _set_next_pt_init(value:NodePath):
 
 
 func _set_terminated(value: bool) -> void:
+	if value == terminated:
+		return
 	terminated = value
 	if is_instance_valid(container):
 		container.update_edges()
@@ -404,6 +423,8 @@ func _get_next_pt_init():
 
 
 func _set_prior_mag(value):
+	if value == prior_mag:
+		return
 	prior_mag = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -413,6 +434,8 @@ func _get_prior_mag():
 
 
 func _set_next_mag(value):
+	if value == next_mag:
+		return
 	next_mag = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -446,6 +469,8 @@ func _set_alignment(value: Alignment) -> void:
 	emit_transform()
 
 func _set_thickness(value: float) -> void:
+	if value == underside_thickness:
+		return
 	underside_thickness = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -476,16 +501,17 @@ func _notification(what):
 		
 		if unchanged and (low_poly or not _last_emit_was_low_poly):
 			return
-		
-		# Reset the _last_* vars inline
-		_last_emitted_transform = global_transform
-		_last_emit_was_low_poly = low_poly
-		_last_emitted_mag_prior = prior_mag
-		_last_emitted_mag_next = next_mag
+
 		emit_transform(low_poly)
 
 
 func emit_transform(low_poly=false):
+	# Reset the _last_* vars inline
+	_last_emitted_transform = global_transform
+	_last_emit_was_low_poly = low_poly
+	_last_emitted_mag_prior = prior_mag
+	_last_emitted_mag_next = next_mag
+
 	if _is_internal_updating:
 		# Special internal update should bypass emit_transform, such as moving two edges in parallel
 		return
