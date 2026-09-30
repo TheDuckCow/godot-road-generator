@@ -34,13 +34,21 @@ See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/mil
 
 | Branch | Plugin version | Godot Support |
 | ------ | -------------- | ------------- |
-| [main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | 0.9.0 | 4.3+ |
+| [main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | 0.9.1 | 4.4+ |
 | [dev](https://github.com/TheDuckCow/godot-road-generator/tree/main) | Next release | 4.4+ |
 | [godot4.3](https://github.com/TheDuckCow/godot-road-generator/tree/godot4.3) | 0.9.0 | 4.3+ |
 | [godot3](https://github.com/TheDuckCow/godot-road-generator/tree/godot3) | 0.6.0 | 3.5-3.6 |
 
 
 The main branch always matches the current release, which is why `main` may look inactive. All new development occurs in the `dev` targeting the Godot version listed above. When a release is ready, the dev branch is merged into `main`.
+
+## How to install and use
+
+Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and downloaded the latest release, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/) (Godot 4.7+, version may lag a few days from the release due to review). Copy at least the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
+
+To get started, follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes - the "Museum" scene being a good starting place.
+
+Finally, check out the [wiki pages](https://github.com/TheDuckCow/godot-road-generator/wiki) for more detailed usage.
 
 ## What problems this addon solves
 
@@ -100,13 +108,6 @@ You can share you appreciation by:
 Major contributions by [bdog2112](https://github.com/bdog2112), [antonkurkin](https://github.com/antonkurkin), [NoJoseJose](https://github.com/NoJoseJose), [Picorims](https://github.com/Picorims), and [more here](https://github.com/theduckcow/godot-road-generator/graphs/contributors).
 
 Logo designed by [Kenney](https://www.kenney.nl/assets).
-
-## How to install and use
-
-Follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes - the "Museum" scene being a good starting place.
-
-Then, check out the [wiki pages](https://github.com/TheDuckCow/godot-road-generator/wiki) for more detailed usage.
-
 
 ## Games made with the Road Generator
 
