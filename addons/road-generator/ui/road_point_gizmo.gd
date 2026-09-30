@@ -12,7 +12,7 @@ enum HandleType {
 
 const GizmoHiddenMat := preload("res://addons/road-generator/ui/hidden_gizmo_mat.tres")
 const LaneOffset := 0.25
-const BaseColliderSize := Vector3(2, 0.175, 2)
+const BaseColliderSize := Vector3(2, 1, 2)
 
 var _editor_plugin: EditorPlugin
 var _editor_selection  # Of type: EditorSelection, but can't type due to exports.
@@ -43,6 +43,12 @@ var road_width_line_mesh := BoxMesh.new()
 
 var prior_lane_width: float = -1
 var _last_id: int  ## Workaround to ensure initial draw pulls values from RP
+
+# Optimization to avoid rescaling the same gizmo mesh over and over, improves
+# scene load time noticeably.
+# Key: [mesh type:String, scale:f]
+var _gizmo_cache = {}
+
 
 func get_name() -> String:
 	return "RoadPoint"
@@ -81,7 +87,7 @@ func setup_lane_widgets():
 
 	# Setup left arrow
 	arrow_left_mesh.size = Vector3(2, 0.8, 0.4)
-	arrow_left.mesh	= arrow_left_mesh
+	arrow_left.mesh = arrow_left_mesh
 	arrow_left.rotation_degrees = Vector3(90, 0, 90)
 	arrow_left.position = Vector3(-5, 0, 0)
 	arrow_left.material_override = lane_widget_mat
@@ -94,7 +100,7 @@ func setup_lane_widgets():
 	arrow_right.position = Vector3(5, 0, 0)
 	arrow_right.material_override = lane_widget_mat
 	lane_widget.add_child(arrow_right)
-#	lane_widget.translation = Vector3(0, 0.5, 5)
+	#lane_widget.translation = Vector3(0, 0.5, 5)
 
 	# Setup road width line
 	road_width_line_mesh.size = Vector3(6, 0.2, 0.2)
@@ -140,21 +146,32 @@ func _redraw(gizmo) -> void:
 
 	var no_connections:bool = point.next_pt_init == ^"" and point.prior_pt_init == ^""
 	var gizmo_mesh: Mesh
+	var mesh_type: String
 
 	if not point.is_on_edge() or no_connections:
 		gizmo_mesh = puzzle_mesh_full
+		mesh_type = "full"
 	elif point.next_pt_init != ^"":
 		gizmo_mesh = puzzle_mesh_prior
+		mesh_type = "prior"
 	elif point.prior_pt_init != ^"":
 		gizmo_mesh = puzzle_mesh_next
+		mesh_type = "next"
 
 	# Add mesh + collider which is the whole road segment itself
-	var meshes := _generate_collider_mesh(point, gizmo_mesh)
-	var mesh_road_and_gizmo:Mesh = meshes[0]
-	var mesh_gizmo:Mesh = meshes[1]
-	gizmo.add_mesh(mesh_road_and_gizmo, GizmoHiddenMat) # Needed for collisions, but make invisible
-	gizmo.add_collision_triangles(mesh_road_and_gizmo.generate_triangle_mesh())
-	gizmo.add_mesh(mesh_gizmo, get_material("collider", gizmo))
+	var meshes := _generate_collider_mesh(point, gizmo_mesh, mesh_type)
+	var first_mesh: bool = true
+	for _mesh in meshes:
+		if first_mesh:
+			# Puzzle piece mesh, make visible
+			gizmo.add_mesh(_mesh, get_material("collider", gizmo))
+			first_mesh = false
+		else:
+			# Road segments, make invisible but stll clickable
+			gizmo.add_mesh(_mesh, GizmoHiddenMat)
+		# While .add_mesh above supports an input transform, array triangs do not
+		# so, cannot just use the segmenet mesh directly here sadly.
+		gizmo.add_collision_triangles(_mesh.generate_triangle_mesh())
 
 	if not point.is_road_point_selected(_editor_selection):
 		return
@@ -540,12 +557,26 @@ func set_hidden() -> void:
 ## all child road segments and the widget control mesh itself into one mesh to
 ## act as the click handler, but material setup will ensure only the control
 ## widget visual itself ends up being visible in the scene.
-func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh) -> Array[Mesh]:
-	var surface_tool = SurfaceTool.new()
-	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-	# Always start with the base collider array
-	# surface_tool.create_from_arrays(collider.get_mesh_arrays())
+func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh, mesh_type: String) -> Array[Mesh]:
+	var all_meshes: Array[Mesh]
+	# Now create and scale the gizmo mesh separately, to be added as a visual mesh
+	var scalef:float = rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
+	var scalev := Vector3(1, 0.5, 1) * scalef
+	var gizmo_new_mesh: Mesh
+	
+	# Cache the resized puzzle piece mesh to avoid editor performance drop
+	var key := [mesh_type, scalev]
+	if key in _gizmo_cache:
+		gizmo_new_mesh = _gizmo_cache[key]
+	else:
+		var surface_tool_gizmo = SurfaceTool.new()
+		surface_tool_gizmo.create_from_arrays(collider.get_mesh_arrays())
+		surface_tool_gizmo.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface_tool_gizmo.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev))
+		gizmo_new_mesh = surface_tool_gizmo.commit()
+		_gizmo_cache[key] = gizmo_new_mesh
+	
+	all_meshes = [gizmo_new_mesh]
 	
 	# Identify segment meshes to merge together
 	var segs = []
@@ -558,17 +589,16 @@ func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh) -> Array[Mesh]:
 			if not schild is MeshInstance3D:
 				continue
 			if schild.mesh:
+				# TODO: Increase performance even further by avoiding surface tool 
+				# here too, if we can alter a mesh just by transforming and re-applying the transform
+				# (this otherwise works, but results in the segments being rotated)
+				# While gizmo add_mesh can take a transform, the later generated tri mesh can't.
+				#all_meshes.append(schild.mesh)
+
+				# Instead for now:
+				var surface_tool = SurfaceTool.new()
+				surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 				surface_tool.append_from(schild.mesh, 0, _seg.transform) # invert applied transform
-	
-	# Finally, commit the current gizmo mesh
-	var scalef:float = rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
-	var scalev := Vector3(1, 0.5, 1) * scalef
-	surface_tool.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev)) # invert applied transform
+				all_meshes.append(surface_tool.commit())
 
-	# Now create and scale the gizmo mesh separately, to be added as a visual mesh
-	var surface_tool_gizmo = SurfaceTool.new()
-	surface_tool_gizmo.create_from_arrays(collider.get_mesh_arrays())
-	surface_tool_gizmo.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface_tool_gizmo.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev))
-
-	return [surface_tool.commit(), surface_tool_gizmo.commit()]
+	return all_meshes 
