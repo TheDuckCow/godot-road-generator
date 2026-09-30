@@ -234,10 +234,13 @@ func _enter_tree() -> void:
 
 
 func _exit_tree():
+	# Hacky workaround to avoid an unnecessary rebuild on scene enter
+	_skip_next_on_transform = true
+	
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_queued_for_deletion():
 		if is_instance_valid(prior_seg):
-			prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+			prior_seg.queue_free()
 		if is_instance_valid(next_seg):
 			next_seg.queue_free()
 
@@ -476,16 +479,18 @@ func _notification(what):
 		
 		if unchanged and (low_poly or not _last_emit_was_low_poly):
 			return
-		
-		# Reset the _last_* vars inline
-		_last_emitted_transform = global_transform
-		_last_emit_was_low_poly = low_poly
-		_last_emitted_mag_prior = prior_mag
-		_last_emitted_mag_next = next_mag
+
 		emit_transform(low_poly)
 
 
 func emit_transform(low_poly=false):
+	# Reset the _last_* vars inline
+	print("emit_transform emitted")
+	_last_emitted_transform = global_transform
+	_last_emit_was_low_poly = low_poly
+	_last_emitted_mag_prior = prior_mag
+	_last_emitted_mag_next = next_mag
+
 	if _is_internal_updating:
 		# Special internal update should bypass emit_transform, such as moving two edges in parallel
 		return

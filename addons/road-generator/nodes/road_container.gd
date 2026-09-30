@@ -1062,7 +1062,6 @@ func update_lane_seg_connections():
 
 ## Configures roadcontainer owner and assigns material if necessary
 func setup_road_container():
-	use_lowpoly_preview = true
 
 	# In order for points and segments to show up in the Scene dock, they must
 	# be assigned an "owner". Use the RoadContainer's owner. But, the RoadContainer
