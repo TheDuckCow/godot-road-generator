@@ -399,6 +399,12 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 			half_gutter = max(0.0, -0.5 * selection.gutter_profile.y)
 		var nrm: Vector3 = intersect["normal"].normalized()
 		var pos: Vector3 = intersect["position"] + nrm*half_gutter
+		
+		# Ensure there's always a vec3 output, downstream will detect if nrm=vec3.ZERO
+		if pos == null or nrm == null:
+			pos = Vector3.ZERO
+			nrm = Vector3.ZERO
+
 		return [pos, nrm]
 
 	# if we couldn't directly intersect with something, then place the next
@@ -445,6 +451,11 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 
 	# TODO: Finally, detect if the point is behind or in front;
 	# if behind, then skip action.
+	
+	# Ensure there's always a vec3 output, downstream will detect if nrm=vec3.ZERO
+	if hit_pt == null or up == null:
+		hit_pt = Vector3.ZERO
+		up = Vector3.ZERO
 
 	return [hit_pt, up]
 
