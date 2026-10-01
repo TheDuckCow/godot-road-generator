@@ -34,8 +34,8 @@ See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/mil
 
 | Branch | Plugin version | Godot Support |
 | ------ | -------------- | ------------- |
-| [main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | 0.9.1 | 4.4+ |
-| [dev](https://github.com/TheDuckCow/godot-road-generator/tree/main) | Next release | 4.4+ |
+| [main](https://github.com/TheDuckCow/godot-road-generator/tree/main) | Current release | 4.4+ |
+| [dev](https://github.com/TheDuckCow/godot-road-generator/tree/main) | Latest/Upcoming | 4.4+ |
 | [godot4.3](https://github.com/TheDuckCow/godot-road-generator/tree/godot4.3) | 0.9.0 | 4.3+ |
 | [godot3](https://github.com/TheDuckCow/godot-road-generator/tree/godot3) | 0.6.0 | 3.5-3.6 |
 
@@ -44,7 +44,7 @@ The main branch always matches the current release, which is why `main` may look
 
 ## How to install and use
 
-Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and downloaded the latest release, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/) (Godot 4.7+, version may lag a few days from the release due to review). Copy at least the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
+Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and downloaded the latest release, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy at least the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
 
 To get started, follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes - the "Museum" scene being a good starting place.
 
