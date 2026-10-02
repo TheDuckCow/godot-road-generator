@@ -708,7 +708,7 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 				set_height_if_active_region(terrain_pos, road_y)
 				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
-				# Smoothly interpolate height beyon shoulder to prior height
+				# Smoothly interpolate height beyond shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
 				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
