@@ -19,8 +19,15 @@ layout_mode = 2
 tooltip_text = "Export all children to a .gltf / .glb file"
 text = "Export to gLTF"
 
+[node name="bake_roadlanes" type="Button" parent="."]
+layout_mode = 2
+tooltip_text = "Make all RoadLanes visible and editable. 
+Must have `generate_ai_lanes` enabled."
+text = "Bake RoadLanes"
+
 [node name="spacer2" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
 
 [connection signal="pressed" from="export_gltf" to="." method="_on_export_gltf_pressed"]
+[connection signal="pressed" from="bake_roadlanes" to="." method="_on_make_roadlanes_editbale_pressed"]

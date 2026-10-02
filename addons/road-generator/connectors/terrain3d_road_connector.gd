@@ -16,6 +16,10 @@ const IntersectionNGon = preload("res://addons/road-generator/procgen/intersecti
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 
+# ------------------------------------------------------------------------------
+#region Export and local vars
+# ------------------------------------------------------------------------------
+
 
 ## Reference to the Terrain3D instance, to be flattened
 @export var terrain:Node3D: #Terrain3D:
@@ -56,9 +60,9 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 @export_flags_3d_physics var raycast_layer:int = 2
 
 ## Immediately level the terrain to match roads
-## Only supported in Godot 4.4+, re-enable if that applies to you
-#@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
-#@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
+@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+## Cull geometry under roads for entire network (never done automatically)
+@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
 var refresh_timer: float = 0.05
@@ -70,6 +74,13 @@ var _container_unset_geo: Array[RoadContainer] = []
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Overrides
+# ------------------------------------------------------------------------------
+
 
 
 func _ready() -> void:
@@ -110,6 +121,12 @@ func _get_configuration_warnings() -> PackedStringArray:
 	elif not terrain.data or terrain.data.region_locations.size() == 0:
 		warnings.append("No Terrain3D regions defined yet, add regions in Terrain3D first")
 	return warnings
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Core functions
+# ------------------------------------------------------------------------------
 
 
 func is_configured() -> bool:
@@ -175,6 +192,7 @@ func do_full_refresh() -> void:
 		_next_refresh_parents += _container.get_intersections()
 		_next_refresh_parents += _container.get_segments() # Always add RoadSegments last
 		_mutex.unlock()
+
 
 ## Removes mesh under roads as a baking process.
 func bake_holes() -> void:
@@ -341,7 +359,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 	# TODO: For better undo/redo handling, implement something like this
 	#teditor.stop_operation()
 	#for _region in edited_regions:
-	#region.set_edited(false)
+	# region.set_edited(false)
 
 
 ## Flatten and Culling Methods
@@ -408,7 +426,7 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 			# create raycast to check the height at the (x,z) coords
 			var height := get_road_height(x,z,aabb_min.y,aabb_max.y,space_states)
 			if height.size() > 0:
-				terrain.data.set_height(Vector3(x, height[0], z), height[0] + offset)
+				set_height_if_active_region(Vector3(x, height[0], z), height[0] + offset)
 				recorded[Vector2(x,z)] = height[0]
 			else:
 				missed[Vector2(x,z)] = true
@@ -428,8 +446,8 @@ func flatten_terrain_via_roadsegment_raycast(segment: RoadSegment) -> void:
 		neighbour = Vector2(_m.x,_m.y-neighbour_range)
 		if recorded.has(neighbour): heights.append(recorded[neighbour])
 		if heights.size() > 0:
-			terrain.data.set_height(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
-	
+			set_height_if_active_region(Vector3(_m.x, heights.min(), _m.y), heights[0] + offset)
+
 	for _itemset in revert_layers:
 		var sbody: StaticBody3D = _itemset[0]
 		sbody.collision_layer = _itemset[1]
@@ -561,13 +579,13 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 
 			if dist_to_boundary <= edge_margin:
 				var terrain_pos := Vector3(x, road_y, z)
-				terrain.data.set_height(terrain_pos, road_y)
+				set_height_if_active_region(terrain_pos, road_y)
 			elif dist_to_boundary <= edge_margin + edge_falloff:
 				var terrain_pos := Vector3(x, road_y, z)
 				var reference_height: float = terrain.data.get_height(terrain_pos)
 				var factor: float = (dist_to_boundary - edge_margin) / edge_falloff
 				var smoothed_height: float = _lerp_smoothed_height(road_y, reference_height, factor)
-				terrain.data.set_height(terrain_pos, smoothed_height)
+				set_height_if_active_region(terrain_pos, smoothed_height)
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -663,35 +681,15 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-					#continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("SKipping not region, todo: expand_boundaries")
-					#continue 
-				terrain.data.set_height(terrain_pos, road_y)
-				#region.set_edited(true)
+				set_height_if_active_region(terrain_pos, road_y)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
-				# Smoothly interpolate height beyon shoulder to prior height
+				# Smoothly interpolate height beyond shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
-				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
-				# severley. Howeve, errors for attempting to set heights for
-				# invalid regions is very fast, just noisy in the console.
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-				#	continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("Skipping region")
-					#continue
-				#region.set_edited(true)
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
-				terrain.data.set_height(terrain_pos, smoothed_height)
-				
+				set_height_if_active_region(terrain_pos, smoothed_height)
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -768,6 +766,8 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	#print(str(intersect_coords.keys()))
 	# add hole for each point which has all 8 neighbours on x-z plane
 	for point in intersect_coords.keys():
+		if not terrain.data.has_regionp(Vector3(point.x, 0, point.y)):
+			continue
 		if intersect_coords.has(Vector2(point.x - vertex_spacing,point.y)) \
 		and intersect_coords.has(Vector2(point.x + vertex_spacing,point.y)) \
 		and intersect_coords.has(Vector2(point.x,point.y - vertex_spacing)) \
@@ -779,7 +779,18 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
 
 
-## Helper Methods
+# ------------------------------------------------------------------------------
+#endregion
+#region Helper functions
+# ------------------------------------------------------------------------------
+
+
+## Safely sets height for a region, handling if it exists or not
+func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
+	if terrain.data.has_regionp(terrain_pos):
+		terrain.data.set_height(terrain_pos, height)
+
+
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
 func get_road_width(point: RoadPoint) -> float:
 	return (point.gutter_profile.x*2
@@ -818,7 +829,6 @@ func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: floa
 
 	var left_points: Array[Vector2] = []
 	var right_points: Array[Vector2] = []
-
 	
 	# first tangent
 	var extrapolated_neg_1 = baked[0] - baked[1]
@@ -885,3 +895,6 @@ func get_road_height(x: float, z: float, min_y: float, max_y: float, space_state
 ## Reusable function to perform consistent falloff rate
 func _lerp_smoothed_height(road_y: float, terrain_y: float, factor: float) -> float:
 	return lerpf(road_y, terrain_y, ease(factor, -1.5))
+
+#endregion
+# ------------------------------------------------------------------------------

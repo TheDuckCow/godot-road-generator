@@ -38,6 +38,41 @@ func generate_mesh(intersection: Node3D, edges: Array[RoadPoint], container: Roa
 	return null
 
 
+## @abstract
+## Generates the RoadLanes for the intersection, as children of the
+## [param intersection] node.
+##
+## Mirrors [generate_mesh]: triggered by the [RoadIntersection] during rebuild,
+## with the concrete subclass deciding the per-type lane connections.
+##
+## Edges MUST have been sorted by angle from intersection beforehand.
+##
+## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
+func generate_lanes(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> void:
+	push_error("IntersectionSettings.generate_lanes() not implemented by child class.")
+
+
+## @abstract
+## Generates the exterior edge curves for the intersection, as children of the
+## [param intersection] node, one [Path3D] per branch named `edge_{RoadPoint name}`.
+##
+## Mirrors [generate_lanes]: triggered by the [RoadIntersection] during rebuild,
+## with the concrete subclass building the boundary geometry so the curves line
+## up with the adjoining [RoadSegment] edge curves.
+##
+## Edges MUST have been sorted by angle from intersection beforehand.
+##
+## Note: Cannot use [RoadIntersection] for `intersection` due to cyclic typing.
+func generate_edge_curves(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> void:
+	push_error("IntersectionSettings.generate_edge_curves() not implemented by child class.")
+
+
+## @abstract
+## Removes all generated edge curves from the [param intersection] node.
+func clear_edge_curves(intersection: Node3D, edges: Array[RoadPoint], container: RoadContainer) -> void:
+	push_error("IntersectionSettings.clear_edge_curves() not implemented by child class.")
+
+
 ## Returns true if all the provided edges have sufficient distance
 ## from the intersection point to have proper mesh generation.
 ##

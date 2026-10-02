@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://c57yq8evxe3w3"]
+[gd_scene load_steps=13 format=3 uid="uid://c57yq8evxe3w3"]
 
 [ext_resource type="Script" uid="uid://bnuy4u6ii3xov" path="res://road_demos/procedural_generator/procedural_generator.gd" id="1_hjcst"]
 [ext_resource type="Script" uid="uid://bxp3i4cnonh8y" path="res://addons/road-generator/nodes/road_manager.gd" id="2_066ph"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://bajcvw38oymwm" path="res://road_demos/procedural_generator/road_actor_spawner.gd" id="8_8qnhs"]
 [ext_resource type="Theme" uid="uid://bos557pj10dx8" path="res://road_demos/demo_resources/demo_ui.theme" id="9_055ar"]
 [ext_resource type="PackedScene" uid="uid://de542wwer561r" path="res://road_demos/demo_resources/demo_ui_common.tscn" id="10_farmj"]
+[ext_resource type="PackedScene" uid="uid://7fuf8ius41m3" path="res://road_demos/demo_resources/road_lane_debug.tscn" id="11_g68no"]
 
 [sub_resource type="Environment" id="Environment_v4pga"]
 background_mode = 1
@@ -80,6 +81,7 @@ actor_manager_path = NodePath("../../../vehicles")
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 20.0
@@ -115,6 +117,14 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "Cars: ##"
+
+[node name="spacer2" type="Control" parent="UI/VBoxContainer"]
+custom_minimum_size = Vector2(0, 15)
+layout_mode = 2
+
+[node name="RoadLaneDebug" parent="UI/VBoxContainer" node_paths=PackedStringArray("actor") instance=ExtResource("11_g68no")]
+layout_mode = 2
+actor = NodePath("../../../RoadManager/vehicles/Player")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.151382, 0.988475, 0, -0.988475, 0.151382, 0, 3.50568, 0)

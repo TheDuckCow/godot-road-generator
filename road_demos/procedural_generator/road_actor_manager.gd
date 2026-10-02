@@ -21,7 +21,7 @@ var _stashed_vehicles: Array = [] #these are to be added on spawn
 func _ready():
 	if road_actor_scenes.is_empty():
 		push_error("Road Actor Scenes are empty in ", name, ". No actor will be created")
-		return null
+		return
 
 
 ## Spawn random actor (from road_actor_scenes) at the pos

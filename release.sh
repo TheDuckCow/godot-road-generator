@@ -48,10 +48,12 @@ echo "Creating release with tag: $VER"
 gh release create $VER \
     --generate-notes \
     --draft \
-    -t "${VER} (Godot 4.3+) | Updates"
+    -t "${VER} (Godot 4.4+) | Updates"
 
 echo ""
 echo "Done, validate release and check download:"
 echo "https://github.com/TheDuckCow/godot-road-generator/releases/tag/$VER"
 echo "And then close the according milestone, if any"
 echo "https://github.com/TheDuckCow/godot-road-generator/milestones"
+echo "Then update the management console:"
+echo "https://store.godotengine.org/asset/theduckcow/road-generator/manage/#versions"

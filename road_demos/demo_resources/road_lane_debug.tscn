@@ -1,0 +1,66 @@
+[gd_scene load_steps=4 format=3 uid="uid://7fuf8ius41m3"]
+
+[ext_resource type="Script" uid="uid://cwt2dyl0ld0rs" path="res://road_demos/demo_resources/road_lane_debug.gd" id="1_3aqr0"]
+[ext_resource type="Texture2D" uid="uid://bu4537m4ecm5d" path="res://addons/road-generator/resources/road_point.png" id="2_m8juq"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_3aqr0"]
+font_size = 24
+
+[node name="RoadLaneDebug" type="Panel"]
+custom_minimum_size = Vector2(250, 140)
+size_flags_horizontal = 0
+script = ExtResource("1_3aqr0")
+
+[node name="struc" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="title" type="Label" parent="struc"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+text = "Lane connections"
+label_settings = SubResource("LabelSettings_3aqr0")
+horizontal_alignment = 1
+
+[node name="no_agent" type="Label" parent="struc"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "No agent found"
+
+[node name="next" type="Label" parent="struc"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Next"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="struc"]
+layout_mode = 2
+
+[node name="left" type="Label" parent="struc/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Left"
+horizontal_alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="struc/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("2_m8juq")
+
+[node name="right" type="Label" parent="struc/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Right"
+horizontal_alignment = 1
+
+[node name="prior" type="Label" parent="struc"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Prior Lane"
+horizontal_alignment = 1

@@ -47,6 +47,7 @@ enum TrafficUpdate{
 enum PointInit {
 	NEXT,
 	PRIOR,
+	NEITHER # Used to indicate if a query or check failed, e.g. no open direction
 }
 
 enum Alignment {
@@ -55,6 +56,7 @@ enum Alignment {
 }
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+const SegGeo = preload("res://addons/road-generator/procgen/segment_geo.gd")
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
 const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
 const COLOR_RED = Color(0.7, 0.3, 0.3)
@@ -186,12 +188,13 @@ var prior_seg:RoadSegment
 #var next_pt:Spatial # Road Point or Junction
 var next_seg:RoadSegment
 
-var geom:ImmediateMesh ## For tool usage, drawing lane directions and end points
-#var refresh_geom := true
-
 var _last_update_ms ## To calculate min updates.
 var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
+var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifications, e.g. on tree re-entry
+var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
+var _last_emitted_mag_prior := 0.0 ## For gizmo load deduping
+var _last_emitted_mag_next := 0.0 ## For gizmo load deduping
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -217,6 +220,7 @@ func _ready():
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
+	_last_emitted_transform = global_transform
 	
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
@@ -245,10 +249,13 @@ func _enter_tree() -> void:
 
 
 func _exit_tree():
+	# Hacky workaround to avoid an unnecessary rebuild on scene enter
+	_skip_next_on_transform = true
+	
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_queued_for_deletion():
 		if is_instance_valid(prior_seg):
-			prior_seg.queue_free() #TODO shoud we delete the segment, invalidate links?
+			prior_seg.queue_free()
 		if is_instance_valid(next_seg):
 			next_seg.queue_free()
 
@@ -268,7 +275,32 @@ func _get_configuration_warnings() -> PackedStringArray:
 	#if not par is RoadContainer:
 	if not par.has_method("is_road_container"):
 		return ["Must be a child of a RoadContainer"]
-	return []
+
+	# Flag lane setups that match no lanes and so render no road mesh, so the
+	# user sees a warning instead of a silently missing segment.
+	var warnings: PackedStringArray = []
+	if traffic_dir.is_empty():
+		return warnings
+
+	var flip_data: Array = SegGeo._get_lane_flip_data(traffic_dir, true)
+	if flip_data[0] == -1:
+		# Malformed order: a FORWARD lane appears before a REVERSE one.
+		warnings.append("Invalid lane directions: list all REVERSE lanes before FORWARD lanes.")
+		return warnings
+
+	var this_dir: int = flip_data[1]
+	for neighbor in [get_prior_road_node(true), get_next_road_node(true)]:
+		if not is_instance_valid(neighbor) or not neighbor.has_method("is_road_point"):
+			continue
+		if neighbor.traffic_dir.is_empty():
+			continue
+		var other_flip: Array = SegGeo._get_lane_flip_data(neighbor.traffic_dir, true)
+		if other_flip[0] == -1:
+			continue # The neighbour carries its own malformed-order warning.
+		if not SegGeo.is_valid_lane_transition(this_dir, other_flip[1]):
+			warnings.append(("Lane setup does not match connected RoadPoint " +
+				"'%s': a one-way to two-way transition renders no road mesh.") % neighbor.name)
+	return warnings
 
 
 # Workaround for cyclic typing
@@ -301,6 +333,8 @@ func _get_auto_lanes():
 
 
 func _set_dir(values):
+	if values == traffic_dir:
+		return
 	traffic_dir = values
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -310,6 +344,8 @@ func _get_dir():
 
 
 func _set_lane_width(value):
+	if value == lane_width:
+		return
 	lane_width = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -319,6 +355,8 @@ func _get_lane_width():
 
 
 func _set_shoulder_width_l(value):
+	if value == shoulder_width_l:
+		return
 	shoulder_width_l = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -328,6 +366,8 @@ func _get_shoulder_width_l():
 
 
 func _set_shoulder_width_r(value):
+	if value == shoulder_width_r:
+		return
 	shoulder_width_r = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -337,6 +377,8 @@ func _get_shoulder_width_r():
 
 
 func _set_profile(value:Vector2):
+	if value == gutter_profile:
+		return
 	gutter_profile = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -348,6 +390,8 @@ func _get_profile():
 
 
 func _set_prior_pt_init(value:NodePath):
+	if value == prior_pt_init:
+		return
 	var _pre_assign = prior_pt_init
 	prior_pt_init = value
 	if not is_instance_valid(container):
@@ -366,6 +410,8 @@ func _get_prior_pt_init():
 
 
 func _set_next_pt_init(value:NodePath):
+	if value == next_pt_init:
+		return
 	var _pre_assign = next_pt_init
 	next_pt_init = value
 	if not is_instance_valid(container):
@@ -380,6 +426,8 @@ func _set_next_pt_init(value:NodePath):
 
 
 func _set_terminated(value: bool) -> void:
+	if value == terminated:
+		return
 	terminated = value
 	if is_instance_valid(container):
 		container.update_edges()
@@ -390,6 +438,8 @@ func _get_next_pt_init():
 
 
 func _set_prior_mag(value):
+	if value == prior_mag:
+		return
 	prior_mag = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -399,6 +449,8 @@ func _get_prior_mag():
 
 
 func _set_next_mag(value):
+	if value == next_mag:
+		return
 	next_mag = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -432,6 +484,8 @@ func _set_alignment(value: Alignment) -> void:
 	emit_transform()
 
 func _set_thickness(value: float) -> void:
+	if value == underside_thickness:
+		return
 	underside_thickness = value
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
@@ -461,6 +515,17 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
+		
+		# Skip no-op notifications (e.g. tree re-entry), except the transform
+		# commit at drag release or next/prior mag handlers
+		var mag_changed: bool = prior_mag != _last_emitted_mag_prior
+		mag_changed = mag_changed or next_mag != _last_emitted_mag_next
+		unchanged = mag_changed and not mag_changed
+		
+		if unchanged and (low_poly or not _last_emit_was_low_poly):
+			return
+
 		emit_transform(low_poly)
 
 
@@ -469,10 +534,16 @@ func _on_decoration_changed():
 	emit_transform()
 
 func emit_transform(low_poly=false):
+	# Reset the _last_* vars inline
+	_last_emitted_transform = global_transform
+	_last_emit_was_low_poly = low_poly
+	_last_emitted_mag_prior = prior_mag
+	_last_emitted_mag_next = next_mag
+
 	if _is_internal_updating:
 		# Special internal update should bypass emit_transform, such as moving two edges in parallel
 		return
-	if auto_lanes:
+	if auto_lanes or lanes.size() != traffic_dir.size():
 		assign_lanes()
 	var _gizmos:Array[Node3DGizmo] = get_gizmos()
 	if !_gizmos.is_empty():
@@ -480,6 +551,14 @@ func emit_transform(low_poly=false):
 		if is_instance_valid(_gizmo):
 			_gizmo.get_plugin().refresh_gizmo(_gizmo)
 	on_transform.emit(self, low_poly)
+
+	# Refresh lane-transition warnings on this point and its neighbours, since a
+	# lane change here can validate or invalidate the transition on either side.
+	if Engine.is_editor_hint():
+		update_configuration_warnings()
+		for neighbor in [get_prior_road_node(true), get_next_road_node(true)]:
+			if is_instance_valid(neighbor) and neighbor.has_method("is_road_point"):
+				neighbor.update_configuration_warnings()
 
 
 # ------------------------------------------------------------------------------
@@ -509,6 +588,28 @@ func cross_container_connected() -> bool:
 	if is_instance_valid(_nt) and _nt.container != self.container:
 		return true
 	return false
+
+
+## Returns the best open facing direction from this RP to a target graph node
+##
+## This is reusable logic to identify the best facing direction to connect.
+func get_facing_open_dir(target: RoadGraphNode) -> PointInit:
+	var is_prior_connected = is_prior_connected()
+	var is_next_connected = is_next_connected()
+	if not is_prior_connected and not is_next_connected:
+		# Determine which direction to use.
+		var dir_to_target: Vector3 = target.global_position - global_position 
+		var is_fwd_facing:bool = (global_basis.z.dot(dir_to_target)) > 0
+		if is_fwd_facing:
+			return PointInit.NEXT
+		else:
+			return PointInit.PRIOR
+	elif is_prior_connected:
+		return PointInit.NEXT
+	elif is_next_connected:
+		return PointInit.PRIOR
+	else:
+		return PointInit.NEITHER
 
 
 ## Indicates whether this direction is connected, accounting for container connections
@@ -652,10 +753,10 @@ func get_last_rp(direction: int):
 	return self
 
 
-# Goal is to assign the appropriate sequence of textures for this lane.
-#
-# This will intelligently construct the sequence of left-right textures, knowing
-# where to apply middle vs outter vs inner lanes.
+## Goal is to assign the appropriate sequence of textures for this lane.
+##
+## This will intelligently construct the sequence of left-right textures, knowing
+## where to apply middle vs outter vs inner lanes.
 func assign_lanes():
 	lanes.clear()
 	if len(traffic_dir) == 1:
@@ -766,14 +867,18 @@ func update_traffic_dir(traffic_update):
 	# Add/remove lanes. But, always make sure at least one remains.
 	match traffic_update:
 		TrafficUpdate.ADD_FORWARD:
+			lanes.append(LaneType.SLOW) # change this first to avoid reset on traffic_dir change
 			traffic_dir.append(LaneDir.FORWARD)
 		TrafficUpdate.ADD_REVERSE:
+			lanes.insert(0, LaneType.SLOW) # change this first to avoid reset on traffic_dir change
 			traffic_dir.push_front(LaneDir.REVERSE)
 		TrafficUpdate.REM_FORWARD:
 			if lane_count > 1 and fwd_lane_count > 0:
+				lanes.pop_back()
 				traffic_dir.pop_back()
 		TrafficUpdate.REM_REVERSE:
 			if lane_count > 1 and rev_lane_count > 0:
+				lanes.pop_front()
 				traffic_dir.pop_front()
 		TrafficUpdate.MOVE_DIVIDER_LEFT:
 			pass
@@ -789,8 +894,8 @@ func update_traffic_dir(traffic_update):
 func copy_settings_from(ref_road_point: RoadPoint, copy_transform: bool = true) -> void:
 	var tmp_auto_lane = ref_road_point.auto_lanes
 	auto_lanes = false
-	lanes = ref_road_point.lanes.duplicate(true)
 	traffic_dir = ref_road_point.traffic_dir.duplicate(true)
+	lanes = ref_road_point.lanes.duplicate(true)
 	auto_lanes = tmp_auto_lane
 	lane_width = ref_road_point.lane_width
 	shoulder_width_l = ref_road_point.shoulder_width_l
@@ -973,7 +1078,6 @@ func disconnect_roadpoint(this_direction: int, target_direction: int) -> bool:
 			self.prior_pt_init = ^""
 			self.prior_seg = null
 	self._is_internal_updating = false
-
 
 	disconnect_from._is_internal_updating = true
 	match target_direction:

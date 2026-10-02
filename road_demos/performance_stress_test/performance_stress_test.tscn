@@ -150,6 +150,12 @@ layout_mode = 2
 toggle_mode = true
 text = "AI Lanes"
 
+[node name="lane_visual" type="Button" parent="UI/MarginContainer/VBoxContainer/options"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Visual lanes"
+
 [node name="spacer2" type="Control" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
 

@@ -45,6 +45,8 @@ const RoadMaterial = preload("res://addons/road-generator/resources/road_texture
 @export
 var material_resource: Material = RoadMaterial:
 	set(value):
+		if value == material_resource:
+			return
 		material_resource = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -55,6 +57,8 @@ var material_resource: Material = RoadMaterial:
 @export
 var material_underside: Material:
 	set(value):
+		if value == material_underside:
+			return
 		material_underside = value
 		rebuild_all_containers()
 
@@ -67,6 +71,8 @@ var material_underside: Material:
 @export
 var density: float = RoadSegment.DEFAULT_DENSITY:
 	set(value):
+		if value == density:
+			return
 		density = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -77,8 +83,11 @@ var density: float = RoadSegment.DEFAULT_DENSITY:
 ## A value of -1 indicates the underside will not be generated at all.
 @export var underside_thickness: float = -1.0:
 	set(value):
+		if value == underside_thickness:
+			return
 		underside_thickness = value
-		rebuild_all_containers()
+		if auto_refresh:
+			rebuild_all_containers(true)
 
 # ------------------------------------------------------------------------------
 # Properties defining how to set up the road's StaticBody3D
@@ -92,6 +101,8 @@ var density: float = RoadSegment.DEFAULT_DENSITY:
 @export
 var physics_material: PhysicsMaterial:
 	set(value):
+		if value == physics_material:
+			return
 		physics_material = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -102,6 +113,8 @@ var physics_material: PhysicsMaterial:
 @export
 var collider_group_name := "":
 	set(value):
+		if value == collider_group_name:
+			return
 		collider_group_name = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -112,6 +125,8 @@ var collider_group_name := "":
 @export
 var collider_meta_name := "":
 	set(value):
+		if value == collider_meta_name:
+			return
 		collider_meta_name = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -122,6 +137,8 @@ var collider_meta_name := "":
 ## [member RoadContainer.override_collision_layers] is enabled.
 @export_flags_3d_physics var collision_layer: int = 1:
 	set(value):
+		if value == collision_layer:
+			return
 		collision_layer = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -132,6 +149,8 @@ var collider_meta_name := "":
 ## [member RoadContainer.override_collision_layers] is enabled.
 @export_flags_3d_physics var collision_mask: int = 1:
 	set(value):
+		if value == collision_mask:
+			return
 		collision_mask = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -148,6 +167,8 @@ var collider_meta_name := "":
 @export
 var ai_lane_group := "road_lanes":
 	set(value):
+		if value == ai_lane_group:
+			return
 		ai_lane_group = value
 		if auto_refresh:
 			rebuild_all_containers(true)
@@ -262,6 +283,8 @@ func on_container_update(updated_segments: Array) -> void:
 
 
 func _ui_refresh_set(value: bool) -> void:
+	if value == auto_refresh:
+		return
 	if value:
 		call_deferred("rebuild_all_containers") # Call with true?
 	auto_refresh = value

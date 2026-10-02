@@ -64,6 +64,8 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 var _mesh: MeshInstance3D
 var _is_internal_updating: bool = false ## Very special cases to bypass autofix cyclic
 var _skip_next_on_transform: bool = false ## To avoid retriggering builds after exiting and re-entering scene
+var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifications, e.g. on tree re-entry
+var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
 var is_dirty := true ## Flag used to know if prior changes means the mesh needs refreshing.
 
 # ------------------------------------------------------------------------------
@@ -106,6 +108,7 @@ func _init() -> void:
 func _ready() -> void:
 	set_notify_transform(true) # TODO: Validate if both are necessary
 	set_notify_local_transform(true)
+	_last_emitted_transform = global_transform
 	if not container or not is_instance_valid(container):
 		var par = get_parent()
 		# Can't type check, circular dependency -____-
@@ -136,6 +139,13 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
+		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
+		# Skip no-op notifications (e.g. tree re-entry), except the transform
+		# commit at drag release which must restore full detail.
+		if unchanged and (low_poly or not _last_emit_was_low_poly):
+			return
+		_last_emitted_transform = global_transform
+		_last_emit_was_low_poly = low_poly
 		emit_transform(low_poly)
 
 
@@ -175,21 +185,12 @@ func add_branch(road_point: RoadPoint) -> void:
 	edge_points.append(road_point)
 	_sort_edges_clockwise()
 	
-	# Identify the closest facing opene egde of the intersection.
-	var is_prior_connected = road_point.is_prior_connected()
-	var is_next_connected = road_point.is_next_connected()
+	# Pick the closest facing open egde of this RoadPoint to connect
+	var open_dir := road_point.get_facing_open_dir(self)
 	road_point._is_internal_updating = true
-	if not is_prior_connected and not is_next_connected:
-		# Determine which direction to use.
-		var dir_to_inter: Vector3 = self.position - road_point.position 
-		var is_fwd_facing:bool = (road_point.global_basis.z.dot(dir_to_inter)) > 0
-		if is_fwd_facing:
-			road_point.next_pt_init = road_point.get_path_to(self)
-		else:
-			road_point.prior_pt_init = road_point.get_path_to(self)
-	elif is_prior_connected: # TODO: shoudl do if fwd or next prior connected, accounting for cross dirs
+	if open_dir == RoadPoint.PointInit.NEXT:
 		road_point.next_pt_init = road_point.get_path_to(self)
-	elif is_next_connected:
+	elif open_dir == RoadPoint.PointInit.PRIOR:
 		road_point.prior_pt_init = road_point.get_path_to(self)
 	else:
 		push_error("Cannot connect RoadPoint %s already fully connected" % road_point.name)
@@ -235,6 +236,32 @@ func sort_branches() -> void:
 		_sort_edges_clockwise()
 
 
+## Generate this intersection's exterior edge curves, respecting the container's
+## create_edge_curves toggle. Mirrors [method RoadSegment.generate_edge_curves].
+func generate_edge_curves() -> void:
+	if not is_instance_valid(settings) or not is_instance_valid(container):
+		return
+	if not container.create_edge_curves:
+		clear_edge_curves()
+		return
+	settings.generate_edge_curves(self, edge_points, container)
+
+
+## Remove this intersection's generated edge curves.
+func clear_edge_curves() -> void:
+	if not is_instance_valid(settings) or not is_instance_valid(container):
+		return
+	settings.clear_edge_curves(self, edge_points, container)
+
+
+## Match the draw settings of generated lanes to the container's settings.
+func update_lane_visibility() -> void:
+	for child in get_children():
+		if child is RoadLane:
+			child.draw_in_editor = container.draw_lanes_editor
+			child.draw_in_game = container.draw_lanes_game
+
+
 ## Check if mesh needs to be rebuilt.[br][br]
 ##
 ## Returns true if rebuild was done, else (including if invalid) false.
@@ -277,6 +304,9 @@ func _rebuild() -> void:
 	var mesh: Mesh = settings.generate_mesh(self, edge_points, container)
 	_mesh.mesh = mesh
 	container._create_collisions(_mesh)
+
+	settings.generate_lanes(self, edge_points, container)
+	generate_edge_curves()
 
 
 func _do_roadmesh_creation():

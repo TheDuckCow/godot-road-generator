@@ -16,6 +16,11 @@ const ConnectionTool = preload("res://addons/road-generator/ui/connection_tool.g
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 
+# Enable the popup to offer instancing a RoadContainer gLTF after export.
+# Unfortunately, while it appears to work in the UI, it somehow results in
+# instability and reliable crashing upon pressing save. Flip back to true in
+# the future to see if it becomes stable enough to retain.
+const ENABLE_GLTF_INSTANCE_INPLACE := false
 
 var tool_mode # Will be a value of: RoadToolbar.InputMode.SELECT
 
@@ -32,7 +37,7 @@ var _edi = get_editor_interface()
 var _eds = get_editor_interface().get_selection()
 var _last_point: Node
 var _last_lane: Node
-var _export_file_dialog: FileDialog
+var _export_file_dialog: EditorFileDialog
 var _last_selection_roadnode: bool = false
 
 var _lock_x_rotation := false
@@ -391,7 +396,8 @@ func _show_road_toolbar() -> void:
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.connect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.connect(_on_select_container_pressed)
-		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.connect(_instance_custom_roadcontainer)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.connect(
+			connection_tool.start_scene_placement)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.connect(_create_container_pressed)
@@ -404,6 +410,7 @@ func _show_road_toolbar() -> void:
 
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.connect(_export_mesh_modal)
+		_road_toolbar.create_menu.make_lanes_editable.connect(make_roadlanes_editable_from_selection)
 		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
 		_road_toolbar.create_menu.create_terrain3d_connector.connect(add_and_configure_terrain3d_connector)
@@ -416,7 +423,8 @@ func _hide_road_toolbar() -> void:
 		# Utilities
 		_road_toolbar.create_menu.regenerate_pressed.disconnect(_on_regenerate_pressed)
 		_road_toolbar.create_menu.select_container_pressed.disconnect(_on_select_container_pressed)
-		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.disconnect(_instance_custom_roadcontainer)
+		_road_toolbar.create_menu.pressed_add_custom_roadcontainer.disconnect(
+			connection_tool.start_scene_placement)
 
 		# Native nodes
 		_road_toolbar.create_menu.create_container.disconnect(_create_container_pressed)
@@ -429,6 +437,7 @@ func _hide_road_toolbar() -> void:
 		
 		# Aditional tools
 		_road_toolbar.create_menu.export_mesh.disconnect(_export_mesh_modal)
+		_road_toolbar.create_menu.make_lanes_editable.disconnect(make_roadlanes_editable_from_selection)
 		_road_toolbar.create_menu.feedback_pressed.disconnect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.disconnect(_on_report_issue_pressed)
 		_road_toolbar.create_menu.create_terrain3d_connector.disconnect(add_and_configure_terrain3d_connector)
@@ -486,6 +495,18 @@ func _on_regenerate_pressed() -> void:
 
 
 func _instance_custom_roadcontainer(path: String) -> void:
+	var scene:PackedScene = load(path)
+	if not is_instance_valid(scene):
+		push_error("Invalid scene path, could not load %s" % path)
+		return
+
+	var new_rc = scene.instantiate()
+	var scene_name:String = path.get_file().get_basename()
+	new_rc.name = scene_name
+	instance_container(new_rc, Transform3D.IDENTITY)
+
+
+func instance_container(new_rc: RoadContainer, gtrans: Transform3D) -> void:
 	var undo_redo = get_undo_redo()
 	var init_sel := get_selected_node()
 
@@ -498,25 +519,19 @@ func _instance_custom_roadcontainer(path: String) -> void:
 		return
 	var parent:Node3D = t_manager
 
-	var scene:PackedScene = load(path)
-	if not is_instance_valid(scene):
-		push_error("Invalid scene path, could not load %s" % path)
-		return
-
-	var new_rc = scene.instantiate()
-	var scene_name:String = path.get_file().get_basename()
-	new_rc.name = scene_name
-
-	undo_redo.create_action("Add RoadScene (%s)" % scene_name)
+	undo_redo.create_action("Add RoadScene (%s)" % new_rc.name)
 
 	undo_redo.add_do_reference(new_rc)
 	undo_redo.add_do_method(parent, "add_child", new_rc, true)
 	undo_redo.add_do_method(new_rc, "set_owner", get_tree().get_edited_scene_root())
 	undo_redo.add_do_method(self, "set_selection", new_rc)
+	undo_redo.add_do_property(new_rc, "globtal_transform", gtrans)
 	undo_redo.add_do_method(self, "_call_update_edges", new_rc)
 
-	undo_redo.add_undo_method(parent, "remove_child", new_rc)
 	undo_redo.add_undo_method(self, "set_selection", init_sel)
+	undo_redo.add_undo_method(new_rc, "set_owner", null)
+	undo_redo.add_undo_method(parent, "remove_child", new_rc)
+	undo_redo.add_undo_method(self, "_call_update_edges", new_rc)
 
 	undo_redo.commit_action()
 
@@ -1033,6 +1048,48 @@ func convert_to_intersection_with_new_branch(rp_init: RoadPoint, rp_branch: Road
 	undo_redo.commit_action()
 
 
+## Converts a RoadPoint into an intersection and creates a new RoadPoint at the click point as a branch
+func convert_to_intersection_with_new_roadpoint(rp_init: RoadPoint, pos: Vector3, nrm: Vector3) -> void:
+	var undo_redo = get_undo_redo()
+	
+	undo_redo.create_action("Create intersection and new RoadPoint")
+	
+	var rp := RoadPoint.new()
+	rp.name = rp.increment_name("RP_001")
+	undo_redo.add_do_method(rp_init.container, "add_child", rp, true)
+	undo_redo.add_do_method(rp, "set_owner", rp_init.owner)
+	
+	if nrm == Vector3.ZERO:
+		nrm = Vector3.UP
+	
+	var new_transform = rp_init.global_transform
+	new_transform.origin = pos
+	new_transform.basis.y = nrm
+	undo_redo.add_do_property(rp, "global_transform", new_transform)
+	undo_redo.add_do_method(rp, "look_at", rp_init.global_transform.origin, new_transform.basis.y)
+	undo_redo.add_do_property(rp, "global_transform.basis.y", new_transform.basis.y)
+	rp.copy_settings_from(rp_init)
+	undo_redo.add_do_reference(rp)
+	
+	var inter = subaction_create_intersection(rp_init, rp, undo_redo)
+	
+	undo_redo.add_undo_method(rp_init.container, "remove_child", rp)
+	undo_redo.add_undo_method(rp, "set_owner", null)
+	
+	undo_redo.add_do_method(rp_init.container, "rebuild_segments", false)
+	undo_redo.add_undo_method(rp_init.container, "rebuild_segments", false)
+	
+	undo_redo.add_do_method(self, "_call_update_edges", rp_init.container)
+	undo_redo.add_undo_method(self, "_call_update_edges", rp_init.container)
+	
+	var editor_selected:Array = _edi.get_selection().get_selected_nodes()
+	undo_redo.add_do_method(self, "set_selection", rp)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+	
+	undo_redo.commit_action()
+
+
+
 func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, nrm: Vector3) -> void:
 	var undo_redo = get_undo_redo()
 	if not is_instance_valid(inter):
@@ -1074,16 +1131,53 @@ func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, n
 	undo_redo.commit_action()
 
 
+## Direclty connects if same container, or creates new intermediate RP if different
 func connect_rp_to_intersection(inter: RoadIntersection, rp: RoadPoint) -> void:
 	var undo_redo = get_undo_redo()
-	if inter.container != rp.container:
-		push_error("RoadIntersection and RoadPoint don't belong to the same RoadContainer")
-		return
-	
-	undo_redo.create_action("Connect RoadPoint to RoadIntersection")
-	subaction_add_branch(inter, rp, undo_redo)
-	undo_redo.add_do_method(self, "_call_update_edges", inter.container)
-	undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	var same_cont := inter.container == rp.container
+
+	if same_cont:
+		undo_redo.create_action("Connect RoadPoint to RoadIntersection")
+		subaction_add_branch(inter, rp, undo_redo)
+		undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+		undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
+	else: # Insert new RP, cross-container connect, then crate the branch
+
+		# Determine which direction to use, for the cross-container connection
+		# replicates internal logic from RoadIntersection.add_branch
+		var dir_to_inter: Vector3 = inter.position - rp.position 
+		var is_fwd_facing:bool = (rp.global_basis.z.dot(dir_to_inter)) > 0
+		var rp_to_newrp_dir := rp.get_facing_open_dir(inter)
+		if rp_to_newrp_dir == RoadPoint.PointInit.NEITHER:
+			push_error("Can't connect RP to itnersection, intial RoadPoint %s already fully connected" % rp.name)
+			return
+		var newrp_to_rp_dir := RoadPoint.PointInit.PRIOR if rp_to_newrp_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
+		
+		undo_redo.create_action("Connect RoadPoint to RoadIntersection with new cross-container RoadPoint")
+
+		var new_rp := RoadPoint.new()
+		new_rp.copy_settings_from(rp)
+		new_rp.name = new_rp.increment_name("RP_001")
+
+		undo_redo.add_do_method(inter.container, "add_child", new_rp, true)
+		undo_redo.add_do_method(new_rp, "set_owner", inter.container.owner)
+		undo_redo.add_do_property(new_rp, "global_transform", rp.global_transform)
+		undo_redo.add_do_reference(new_rp)
+		
+		# connect to original container/RP
+		undo_redo.add_do_method(self, "_call_update_edges", rp.container)
+		undo_redo.add_do_method(self, "_call_update_edges", inter.container)
+		undo_redo.add_do_method(rp, "connect_container", rp_to_newrp_dir, new_rp, newrp_to_rp_dir)
+
+		subaction_add_branch(inter, new_rp, undo_redo)
+		
+		undo_redo.add_undo_method(rp, "disconnect_container", rp_to_newrp_dir, newrp_to_rp_dir)
+
+		undo_redo.add_undo_method(inter.container, "remove_child", new_rp)
+		undo_redo.add_undo_method(new_rp, "set_owner", null)
+
+		undo_redo.add_undo_method(self, "_call_update_edges", rp.container)
+		undo_redo.add_undo_method(self, "_call_update_edges", inter.container)
 	
 	undo_redo.commit_action()
 
@@ -1346,6 +1440,57 @@ func delete_roadcontainer(container: RoadContainer) -> void:
 	undo_redo.commit_action()
 
 
+## Makes RoadLanes editable and saved to the scene tree based on selected node.
+func make_roadlanes_editable_from_selection() -> void:
+	var sel = get_selected_node()
+	if sel is RoadContainer:
+		make_roadlanes_editable_action(sel.get_roadpoints() + sel.get_intersections())
+	elif sel is RoadGraphNode:
+		make_roadlanes_editable_action([sel])
+
+
+## Takes any scene-hidden, auto-generated AI lanes and directly add them to scene.\n\n
+##
+## Useful for hand modifying or custom tuning.
+## graph_nodes: Should be RoadGraphNode but can't type due to lack of covariants
+func make_roadlanes_editable_action(graph_nodes: Array) -> void:
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Make RoadLanes Editable")
+	
+	for parent in graph_nodes:
+		var segs: Array[RoadSegment] = []
+		for _ch in parent.get_children(false):
+			if _ch is RoadSegment:
+				segs.append(_ch)
+				continue
+			var rl: RoadLane = _ch as RoadLane
+			if not is_instance_valid(rl):
+				continue
+			if is_instance_valid(rl.owner):
+				# Already was made real before, doing it again would cause the
+				# editor lock to appear on undo.
+				continue
+			# Assign to own to be visible in editor and save to file, container
+			# will then ignore when auto refreshing/deleting
+			undo_redo.add_do_method(rl, "remove_meta", "_edit_lock_")
+			undo_redo.add_undo_method(rl, "set_meta", "_edit_lock_", true)
+			undo_redo.add_do_property(rl, "owner", parent.owner)
+			undo_redo.add_undo_property(rl, "owner", rl.owner)
+			
+		# Instead of refreshing the whole container, we can just force the
+		# lanes to regenerate.
+		for seg in segs:
+			undo_redo.add_do_method(seg, "generate_lane_segments")
+			undo_redo.add_undo_method(seg, "generate_lane_segments")
+		if parent is RoadIntersection:
+			undo_redo.add_do_method(parent, "refresh_intersection_mesh")
+			undo_redo.add_undo_method(parent, "refresh_intersection_mesh")
+
+		# TODO: Add the equivalent path for populating RoadLanes on intersections
+
+	undo_redo.commit_action()
+
+
 func add_and_configure_terrain3d_connector() -> void:
 	var undo_redo = get_undo_redo()
 	var connector := RoadTerrain3DConnector.new()
@@ -1398,13 +1543,15 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 	inter.name = "Intersection"
 	undo_redo.add_do_method(source_rp.get_parent(), "add_child", inter, true)
 	undo_redo.add_do_method(inter, "set_owner", source_rp.owner)
-	var target_transform: Transform3D = source_rp.global_transform
+	var target_transform: Transform3D = source_rp.transform
 	target_transform.basis = Basis.IDENTITY # Necesary as any rotation meses up generated mesh
-	undo_redo.add_do_property(inter, "global_transform", target_transform)
+	undo_redo.add_do_property(inter, "transform", target_transform)
 	
 	var prior_graph: RoadGraphNode
 	var prior_rp: RoadPoint
 	var prior_samedir: bool = true
+	var src_origin := source_rp.global_transform.origin
+	var src_up := source_rp.global_transform.basis.y
 	
 	var next_graph: RoadGraphNode
 	var next_rp: RoadPoint
@@ -1451,6 +1598,10 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 		if not is_instance_valid(_branch) or not _branch is RoadPoint:
 			continue
 		#subaction_add_branch(inter, _branch, undo_redo)
+		if not _branch.get_prior_road_node() and not _branch.get_next_road_node():
+			print("Auto rotate this RP: ", _branch.name)
+			undo_redo.add_do_method(_branch, "look_at", src_origin, src_up)
+			undo_redo.add_undo_property(_branch, "global_transform", _branch.global_transform)
 		undo_redo.add_do_method(inter, "add_branch", _branch)
 	undo_redo.add_do_reference(inter)
 	
@@ -1459,6 +1610,8 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 		if not is_instance_valid(_branch) or not _branch is RoadPoint:
 			continue
 		undo_redo.add_undo_method(inter, "remove_branch", _branch)
+		if not _branch.prior_pt_init and not _branch.next_pt_init:
+			print("Auto rotate this RP: ", _branch.name)
 	
 	undo_redo.add_undo_method(source_rp.get_parent(), "remove_child", inter)
 	undo_redo.add_undo_method(inter, "set_owner", null)
@@ -1492,6 +1645,7 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 	var next_samedir: bool = true
 	var next_inter: RoadIntersection
 	
+	var undo_container_disconnect_args := []
 	if rp.prior_pt_init:
 		prior_graph = rp.get_node_or_null(rp.prior_pt_init)
 		if not is_instance_valid(prior_graph):
@@ -1511,7 +1665,16 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 			push_warning("Should be prior connected %s" % prior_graph.name)
 			pass # not actually mutually connected?
 	else:
-		pass # TODO: check if cross-container selected, if so need to sever the edge
+		var cross_rp := rp.get_prior_road_node()
+		if not is_instance_valid(cross_rp) or not cross_rp is RoadPoint:
+			pass
+		elif cross_rp.container == rp.container: # Should be handled above
+			push_warning("Invalid state of RPs being in same container %s and %s" % [cross_rp, rp])
+		else:
+			var tgt_dir = RoadPoint.PointInit.NEXT if cross_rp.get_next_road_node() == rp else RoadPoint.PointInit.PRIOR
+			undo_redo.add_do_method(rp, "disconnect_container", RoadPoint.PointInit.PRIOR, tgt_dir)
+			undo_container_disconnect_args = [rp, "connect_container", RoadPoint.PointInit.PRIOR, cross_rp, tgt_dir]
+			undo_redo.add_do_method(self, "_call_update_edges", cross_rp.container)
 	
 	if rp.next_pt_init:
 		next_graph = rp.get_node_or_null(rp.next_pt_init)
@@ -1532,8 +1695,17 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 			push_warning("Should be prior connected %s" % next_graph.name)
 			pass # not actually mutually connected?
 	else:
-		pass # TODO: check if cross-container selected, if so need to sever the edge
-	
+		var cross_rp := rp.get_next_road_node()
+		if not is_instance_valid(cross_rp) or not cross_rp is RoadPoint:
+			pass
+		elif cross_rp.container == rp.container: # Should be handled above
+			push_warning("Invalid state of RPs being in same container %s and %s" % [cross_rp, rp])
+		else:
+			print("Handling cross PRIOR")
+			var tgt_dir = RoadPoint.PointInit.NEXT if cross_rp.get_next_road_node() == rp else RoadPoint.PointInit.PRIOR
+			undo_redo.add_do_method(rp, "disconnect_container", RoadPoint.PointInit.NEXT, tgt_dir)
+			undo_container_disconnect_args = [rp, "connect_container", RoadPoint.PointInit.NEXT, cross_rp, tgt_dir]
+			undo_redo.add_do_method(self, "_call_update_edges", cross_rp.container)
 	
 	# Core removal
 	undo_redo.add_do_method(rp.get_parent(), "remove_child", rp)
@@ -1581,6 +1753,14 @@ func subaction_delete_roadpoint(rp: RoadPoint, dissolve: bool, undo_redo:EditorU
 		undo_redo.add_undo_property(_inter, "edge_points", _inter.edge_points.duplicate())
 		undo_redo.add_undo_property(_inter, "_is_internal_updating", false)
 		#undo_redo.add_undo_method(_inter, "add_branch", rp)
+	
+	# finally, re-do container connections
+	if undo_container_disconnect_args:
+		var args := undo_container_disconnect_args
+		var cross_rp: RoadPoint = args[3]
+		undo_redo.add_undo_method(self, "_call_update_edges", cross_rp.container)
+		undo_redo.add_undo_method(self, "_call_update_edges", rp.container)
+		undo_redo.add_undo_method(args[0], args[1], args[2], args[3], args[4])
 
 
 func subaction_delete_intersection(inter: RoadIntersection, undo_redo:EditorUndoRedoManager) -> void:
@@ -1973,31 +2153,36 @@ func _export_mesh_modal() -> void:
 		return
 	
 	var basepath: String
-	if selected.get_owner() and selected.get_owner().scene_file_path:
+	if selected.owner and selected.owner.scene_file_path:
+		# RC is a child of another editor node
 		var subpath := selected.get_owner().scene_file_path
 		basepath = subpath.get_basename() + "_"
+	elif selected.scene_file_path:
+		# Root of saved save
+		var subpath := selected.scene_file_path
+		basepath = subpath.get_basename() + "_"
 	else:
+		# Fallback, shouldn't happen
 		basepath = "res://"
 
 	var path := "%s%s_geo.glb" % [basepath, selected.name]
 	var abspath := ProjectSettings.globalize_path(path)
 
 	var editorViewport = Engine.get_singleton(&"EditorInterface").get_editor_viewport_3d()
-	_export_file_dialog = FileDialog.new()
-	
-	_export_file_dialog.file_selected.connect(_export_gltf)
-	_export_file_dialog.current_dir = abspath.get_base_dir()
-	_export_file_dialog.current_path = abspath
-	_export_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	_export_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_export_file_dialog.title = "Export RoadContainer to gLTF"
-	
-	_export_file_dialog.set_option_count(1)
-	_export_file_dialog.set_option_name(0, "Instance after export")
-	_export_file_dialog.set_option_values(0, ["Yes", "No"])
-	_export_file_dialog.set_option_default(0, 1)
-	
+	_export_file_dialog = EditorFileDialog.new()
 	editorViewport.add_child(_export_file_dialog, true)
+
+	_export_file_dialog.title = "Export RoadContainer to gLTF"
+	_export_file_dialog.current_path = abspath
+	_export_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
+	_export_file_dialog.set_filters(PackedStringArray(["*.glb, *.gltf ; gLTF Files"]))
+	# In at least godot 4.4: Enabling this nullifies the ability to specify an initial directory,
+	# even without using OS native directories. True for FileDialog and EditorFileDialog alike.
+	# It will always be the project root. But, at least with EditorFileDialog, we get some history
+	# and there's not the bug of clicking into a folder clearing the filename.
+	_export_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
+		
+	_export_file_dialog.file_selected.connect(_export_gltf)
 	_export_file_dialog.popup_centered_ratio()
 
 
@@ -2006,33 +2191,36 @@ func _export_gltf(path: String) -> void:
 	
 	if not path.get_extension() in ["glb", "gltf"]:
 		path = "%s.%s" % [path, "glb"]
-		print("Resolved path to: ", path)
+	
+	var owner = container if container == get_tree().edited_scene_root else container.get_owner()
 	
 	# Identify options selected
+	var instance_after_export:bool = false
 	var _option_values := _export_file_dialog.get_selected_options()
-	var option_index:int = _option_values[_export_file_dialog.get_option_name(0)]
-	var instance_after_export:bool = option_index == 0
+	if _option_values:
+		var option_index:int = _option_values[_export_file_dialog.get_option_name(0)]
+		instance_after_export = option_index == 0
 	
 	var meshes: Array[Mesh] = []
 	var unset_owners:Array[Array] = []
 	for _seg in container.get_segments():
 		var seg := _seg as RoadSegment 
 		unset_owners.append([_seg, _seg.owner])
-		_seg.owner = container.get_owner()
+		_seg.owner = owner
 		if is_instance_valid(seg.road_mesh):
 			meshes.append(seg.road_mesh.mesh)
 			unset_owners.append([seg.road_mesh, seg.road_mesh.owner])
-			seg.road_mesh.owner = container.get_owner()
+			seg.road_mesh.owner = owner
 	for _intersec in container.get_intersections():
 		var intersec := _intersec as RoadIntersection
 		unset_owners.append([intersec, intersec.owner])
-		intersec.owner = container.get_owner()
+		intersec.owner = owner
 		if is_instance_valid(intersec._mesh):
 			meshes.append(intersec._mesh.mesh)
 			unset_owners.append([intersec._mesh, intersec._mesh.owner])
-			intersec._mesh.owner = container.get_owner()
-		
-	
+			intersec._mesh.owner = owner
+
+	await EditorInterface.get_base_control().get_tree().process_frame
 	var gltf_document_save := GLTFDocument.new()
 	var gltf_state_save := GLTFState.new()
 
@@ -2046,46 +2234,77 @@ func _export_gltf(path: String) -> void:
 	for unsetter in unset_owners:
 		unsetter[0].owner = unsetter[1]
 
-	if instance_after_export:
-		_instance_gltf_post_export(container, path)
+	var local_path := ProjectSettings.localize_path(path)
+	var is_in_project := local_path.begins_with("res://")
+	if is_in_project and ENABLE_GLTF_INSTANCE_INPLACE:
+		await EditorInterface.get_base_control().get_tree().process_frame
+		_prompt_instance_gltf(container, local_path)
 	else:
-		Engine.get_singleton(&"EditorInterface").get_resource_filesystem().scan_sources()
-
+		EditorInterface.get_resource_filesystem().scan_sources()
+	
 	_export_file_dialog.queue_free()
 
 
-func _instance_gltf_post_export(container:RoadContainer, export_file: String) -> void:
-	var local_path := ProjectSettings.localize_path(export_file)
-	if export_file == local_path and not export_file.begins_with("res://"):
-		push_error("Failed to localize the path, ensure gltf was saved within project folder to instance after")
-		return
+## Attempts to let Godot stabilize while reimportin gis in progress
+func _prompt_instance_gltf_deferred(container: RoadContainer, local_path: String) -> void:
+	call_deferred("_prompt_instance_gltf", container, local_path)
+
+
+func _prompt_instance_gltf(container: RoadContainer, local_path: String) -> void:
+	var fs := EditorInterface.get_resource_filesystem()
+	fs.scan_sources()
+	await fs.resources_reimported
+	await EditorInterface.get_base_control().get_tree().process_frame
+
+	var confirm_dialog := ConfirmationDialog.new()
+	confirm_dialog.title = "Instance exported gLTF?"
+	confirm_dialog.dialog_text = "The gLTF file export was successful. Instance it now?\nThis will disable Create Geo on the RoadContainer."
+	confirm_dialog.get_ok_button().text = "Yes"
+	confirm_dialog.get_cancel_button().text = "No"
 	
-	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().update_file(local_path)
-	Engine.get_singleton(&"EditorInterface").get_resource_filesystem().reimport_files([local_path])
+	confirm_dialog.confirmed.connect(func():
+		_instance_gltf_in_place(container, local_path)
+		confirm_dialog.queue_free()
+	)
+	confirm_dialog.canceled.connect(func():
+		confirm_dialog.queue_free()
+	)
 	
+	EditorInterface.get_base_control().add_child(confirm_dialog)
+	confirm_dialog.popup_centered()
+
+
+func _instance_gltf_in_place(container:RoadContainer, export_file: String) -> void:
 	var glb_scene:PackedScene = load(export_file)
 	if not glb_scene:
 		push_error("Failed load gltf/glb export, check output path and try again")
 		return
-	
 	var glb_model:Node3D = glb_scene.instantiate()
 	glb_model.name = export_file.get_file().get_basename()
 	
-	# Undo/redoable part of action
-	# TODO: Revisit this, the "do" action works, but undo is unstable/can crash godot.
-	#var undo_redo = get_undo_redo()
-	#undo_redo.create_action("Replace road geo with instance")
-	#undo_redo.add_do_method(container, "add_child", glb_model, true)
-	#undo_redo.add_do_method(glb_model, "set_owner", get_tree().get_edited_scene_root())
-	#undo_redo.add_do_property(container, "create_geo", false)
-	#undo_redo.add_do_reference(glb_model)
-	#undo_redo.add_undo_property(container, "create_geo", container.create_geo)
-	#undo_redo.add_undo_method(container, "remove_child", glb_model)
-	#undo_redo.commit_action()
-	
-	container.add_child(glb_model)
-	glb_model.owner = container.get_owner()
-	container.create_geo = false
+	var owner = container.owner
+	if not is_instance_valid(owner):
+		# Scene root won't have an owner itself
+		owner = container
+	var previous_create_geo := container.create_geo
+
+	# This is the unstable part, evidently. Can crash after pressing save,
+	# and usually has the error about history mismatch (4x)
+	# ERROR: UndoRedo history mismatch: expected 0, got 3.
+
+	var undo_redo := get_undo_redo()
+
+	undo_redo.create_action("Replace road geo with instance")
+	undo_redo.add_do_reference(glb_model)
+	undo_redo.add_do_method(container, "add_child", glb_model, true)
+	undo_redo.add_do_method(glb_model, "set_owner", owner)
+	undo_redo.add_do_property(container, "create_geo", false)
+
+	undo_redo.add_undo_method(container, "remove_child", glb_model)
+	undo_redo.add_undo_method(glb_model, "set_owner", null)
+	undo_redo.add_undo_property(container, "create_geo", previous_create_geo)
+
+	undo_redo.commit_action()
 
 
 ## Open up the addon feedback form

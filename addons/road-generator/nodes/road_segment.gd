@@ -437,11 +437,23 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# additions and substractions to calculate which lanes are going to get merged.
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
+	
+	var suffix := ""
+	if _par == start_point and start_point.get_next_road_node(true) == end_point:
+		suffix = ""  # default case, no need to differentiate
+	elif _par == start_point:
+		suffix = "_prior"
+	elif _par == end_point and start_point.get_prior_road_node(true) == start_point:
+		suffix = "_next"  # Doesn't occur in practice
+		push_warning("Lane parent unexpected to be end point for segment %s" % get_id())
+	else:
+		suffix = "_other"  # Shouldn't occur in practice
+		push_warning("Lane parent unexpected for segment %s" % get_id())
 
 	var _tmppar = _par.get_children()
 	for this_match in _matched_lanes:
 		# Reusable name to check for and re-use, based on "tagged names".
-		var ln_name = "p%s_n%s" % [this_match[2], this_match[3]]
+		var ln_name = "p%s_n%s%s" % [this_match[2], this_match[3], suffix]
 
 		var ln_type: int = this_match[0] # Enum RoadPoint.LaneType
 		var ln_dir: int = this_match[1] # Enum RoadPoint.LaneDir
@@ -449,24 +461,34 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO: Check for existing lanes and reuse (but also clean up if needed)
 		# var ln_child = self.get_node_or_null(ln_name)
 		var ln_child = null
+		var is_user_editable := false
 		ln_child = _par.get_node_or_null(ln_name)
 		if not is_instance_valid(ln_child) or not ln_child is RoadLane:
-			ln_child = RoadLane.new()
-			_par.add_child(ln_child)
-			if container.debug_scene_visible:
-				ln_child.owner = container.get_owner()
-
-			if container.ai_lane_group != "":
-				ln_child.add_to_group(container.ai_lane_group)
-			elif is_instance_valid(manager) and manager.ai_lane_group != "":
-				ln_child.add_to_group(manager.ai_lane_group)
-			ln_child.set_meta("_edit_lock_", true)
-			ln_child.auto_free_vehicles = container.auto_free_vehicles
+			if container.generate_ai_lanes:
+				ln_child = RoadLane.new()
+				_par.add_child(ln_child)
+				if container.debug_scene_visible:
+					ln_child.owner = container.get_owner()
+				ln_child.set_meta("_edit_lock_", true)
+				ln_child.auto_free_vehicles = container.auto_free_vehicles
+			else:
+				lanes_added += 1
+				last_ln = null # For the next loop iteration.
+				continue
+		elif is_instance_valid(ln_child.owner):
+			is_user_editable = true
 		else:
 			ln_child.curve.clear_points()
 		ln_child.curve.bake_interval = self.curve.bake_interval / DENSITY_FAC
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
+		new_ln.road_segment = self
+		
+		if container.ai_lane_group != "":
+			# check not already in the group
+			ln_child.add_to_group(container.ai_lane_group)
+		elif is_instance_valid(manager) and manager.ai_lane_group != "":
+			ln_child.add_to_group(manager.ai_lane_group)
 
 		# Assign the in and out lane tags, to help with connecting to other
 		# road lanes later (handled by RoadContainer).
@@ -492,18 +514,17 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
 		# in and out at the edges.
-		offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln_reverse)
+		if not is_user_editable:
+			offset_curve(self, new_ln, in_offset, out_offset, start_point, end_point, new_ln_reverse)
 
-		# Visually display if indicated, and not mid transform (low_poly)
-		if low_poly:
-			new_ln.draw_in_editor = false
-		else:
-			new_ln.draw_in_editor = container.draw_lanes_editor
+		new_ln.draw_in_editor = container.draw_lanes_editor
 		new_ln.draw_in_game = container.draw_lanes_game
+
 		new_ln.refresh_geom = true
 		new_ln.rebuild_geom()
 
 		# Update lane connectedness for left/right lane connections.
+		# Attempt to do so for user editable lanes
 		if not last_ln == null and last_ln_reverse == new_ln_reverse:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
@@ -519,7 +540,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		lanes_added += 1
 		last_ln = new_ln # For the next loop iteration.
 		last_ln_reverse = new_ln_reverse
-	clear_lane_segments(active_lanes)
+	clear_lane_segments(active_lanes) # input is the *ignore* list
 
 	return lanes_added > 0
 
@@ -696,6 +717,13 @@ func get_lanes() -> Array:
 		elif not ch is RoadLane:
 			# push_warning("Child of RoadSegment is not a RoadLane: %s" % ln.name)
 			continue
+		elif is_instance_valid(ch.road_segment) and ch.road_segment != self:
+			# Cases like a prior to prior connection, where there are two child
+			# road segments: Only return a given lane for the right segment.
+			# Technically there is an edge case where a hand authored lane
+			# would get returned twice - once for each segment that is a child
+			# of a RoadPoint.
+			continue
 		lanes.append(ch)
 	return lanes
 
@@ -703,14 +731,21 @@ func get_lanes() -> Array:
 ## Remove all RoadLanes attached to this RoadSegment
 func clear_lane_segments(ignore_list: Array = []) -> void:
 	for l: RoadLane in self.get_lanes():
-		if l in ignore_list:
-			return
+		if l in ignore_list or is_instance_valid(l.owner):
+			continue
 		var ln:RoadLane = l.get_node_or_null(l.lane_next)
 		if ln && ln.lane_prior == ln.get_path_to(l):
 			ln.lane_prior = NodePath("")
 		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
 		if lp && lp.lane_next == lp.get_path_to(l):
 			lp.lane_next = NodePath("")
+		
+		var ll:RoadLane = l.get_node_or_null(l.lane_left)
+		if ll && ll.lane_right == ll.get_path_to(l):
+			ll.lane_right = NodePath("")
+		var lr:RoadLane = l.get_node_or_null(l.lane_right)
+		if lr && lr.lane_left == lr.get_path_to(l):
+			lr.lane_left = NodePath("")
 		l.queue_free()
 
 
@@ -771,10 +806,11 @@ func _rebuild():
 	else:
 		clear_edge_curves()
 
-	if container.generate_ai_lanes:
-		generate_lane_segments()
-	else:
+	if not container.generate_ai_lanes:
 		clear_lane_segments()
+	# Always call genreate lanes, in case there are manual lanes to run connections on
+	# Internally it repsects generate_ai_lanes.
+	generate_lane_segments()
 	
 	# Setup decorations on RoadPoints
 	for point in [start_point]:
@@ -1016,8 +1052,21 @@ func _build_geo():
 	# Aim for real-world texture proportions width:height of 2:1 matching texture,
 	# but then the hight of 1 full UV is half the with across all lanes, so another 2x
 	var single_uv_height:float = min_road_width * DENSITY_FAC
-	var target_uv_tiles:int = int(clength / single_uv_height)
-	var per_loop_uv_size:float = float(target_uv_tiles) / float(loops)
+	var target_uv_tiles:float = clength / single_uv_height
+	if target_uv_tiles < 0.3:
+		# No snapping, UVs slide freely without stretching
+		pass
+	elif target_uv_tiles < 0.75:
+		# Snap to halfway point of texture, for many textures may still be seamless
+		# or at least have proper dotted line repeats
+		target_uv_tiles = 0.5
+	elif target_uv_tiles < 1.25:
+		target_uv_tiles = 1.0
+	elif target_uv_tiles < 1.75:
+		target_uv_tiles = 1.5
+	else:
+		target_uv_tiles = round(target_uv_tiles)
+	var per_loop_uv_size:float = target_uv_tiles / float(loops)
 	var uv_width := 0.125 # 1/8 for breakdown of texture.
 
 	#print_debug("(re)building %s: Seg gen: %s loops, length: %s, lp: %s" % [
@@ -1072,6 +1121,9 @@ func _build_geo():
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 	container._create_collisions(road_mesh)
+	if container.debug:
+		print_debug("\tRebuilt RoadSegment %s/%s/%s mesh between %s and %s" % [
+			self.container.name, self.get_parent().name, self.name, start_point.name, end_point.name])
 
 
 # ------------------------------------------------------------------------------
@@ -1535,17 +1587,7 @@ func _match_lanes() -> Array:
 	if start_flip_offset == -1 or end_flip_offset == -1:
 		return []
 
-	# Check for additional invalid lane configurations
-	if (
-		(start_traffic_dir == RoadPoint.LaneDir.REVERSE
-			and end_traffic_dir == RoadPoint.LaneDir.BOTH)
-		or (start_traffic_dir == RoadPoint.LaneDir.FORWARD
-			and end_traffic_dir == RoadPoint.LaneDir.BOTH)
-		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
-			and end_traffic_dir == RoadPoint.LaneDir.REVERSE)
-		or (start_traffic_dir == RoadPoint.LaneDir.BOTH
-			and end_traffic_dir == RoadPoint.LaneDir.FORWARD)
-	):
+	if not SegGeo.is_valid_lane_transition(start_traffic_dir, end_traffic_dir):
 		push_warning("Warning: Unable to match lanes on start_point %s (parent: %s)" % [start_point, start_point.get_parent()])
 		return []
 
