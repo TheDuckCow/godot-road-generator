@@ -75,6 +75,13 @@ var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
 
+var _height_map_cache: Dictionary = {}
+var _reference_height_map_cache: Dictionary = {}
+var _height_region_cache: Dictionary = {}
+var _modified_height_regions: Dictionary = {}
+var _missing_height_regions: Dictionary = {}
+var _height_map_edit_active: bool = false
+
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -289,6 +296,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 	if terrain.data.region_locations.size() == 0:
 		push_warning("Refreshw arning: No Terrain3D regions defined yet, add regions in Terrain3D first")
 
+	begin_height_map_edit()
 	var skip_repeat_refreshes: Array = []
 	
 	var segs: Array = [] # RoadSegment
@@ -353,9 +361,9 @@ func refresh_roads(mesh_parents: Array) -> void:
 			_:
 				flatten_terrain_via_roadsegment_approx(_seg)
 		skip_repeat_refreshes.append(_seg)
-	
-	terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT) # set 2nd arg false to be optimal
-	
+
+	finish_height_map_edit()
+
 	# TODO: For better undo/redo handling, implement something like this
 	#teditor.stop_operation()
 	#for _region in edited_regions:
@@ -582,7 +590,7 @@ func flatten_terrain_via_intersection(inter: RoadIntersection) -> void:
 				set_height_if_active_region(terrain_pos, road_y)
 			elif dist_to_boundary <= edge_margin + edge_falloff:
 				var terrain_pos := Vector3(x, road_y, z)
-				var reference_height: float = terrain.data.get_height(terrain_pos)
+				var reference_height: float = get_height_if_active_region(terrain_pos)
 				var factor: float = (dist_to_boundary - edge_margin) / edge_falloff
 				var smoothed_height: float = _lerp_smoothed_height(road_y, reference_height, factor)
 				set_height_if_active_region(terrain_pos, smoothed_height)
@@ -662,34 +670,63 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 				if zdist > vertex_spacing:
 					z += vertex_spacing
 					continue
-			
-			# TODO: project this world position onto the xz plane of the transform
-			# returned at this curvepoint, to account for road tilting
-			# Likely making use of: sample_baked_with_rotation
-			var road_y := world_curve_point.y + offset
-			
-			var lateral_vector := world_pos - Vector3(world_curve_point.x, 0.0, world_curve_point.z)
 
-			var t := clamp(closest_distance / flattened_curve.get_baked_length(), 0.0, 1.0)
+			var sample_position := clampf(closest_distance / flattened_curve.get_baked_length(), 0.0, 1.0)
+			var lateral_basis: Vector3 = segment.global_transform.basis * segment._normal_for_offset(segment.curve, sample_position)
+			var lateral_basis_horizontal := Vector2(lateral_basis.x, lateral_basis.z)
+			var lateral_basis_horizontal_length_squared := lateral_basis_horizontal.length_squared()
+			if is_zero_approx(lateral_basis_horizontal_length_squared):
+				z += vertex_spacing
+				continue
+			var lateral_offset := Vector2(x - world_curve_point.x, z - world_curve_point.z).dot(lateral_basis_horizontal) / lateral_basis_horizontal_length_squared
 			# Note: this will not be exact as it's not actually linear, as there
 			# is some ease/smoothing done for lane count / width changes
 			# TODO: Need to account for RoadPoint alignment, right now assumes CENTERED
 			# Offset by lane_width * number rev lanes if not centered.
-			var width := lerpf(start_width, end_width, t)
-			
-			var lat_dist: float = lateral_vector.length()
+			var width := lerpf(start_width, end_width, sample_position)
+			var road_lateral_offset := clampf(lateral_offset, -width * 0.5, width * 0.5)
+			var road_y := world_curve_point.y + lateral_basis.y * road_lateral_offset + offset
+			var gutter_width := lerpf(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, sample_position)
+			if gutter_width > 0.0:
+				var paved_half_width := (width - gutter_width * 2.0) * 0.5
+				var gutter_factor := clampf((absf(road_lateral_offset) - paved_half_width) / gutter_width, 0.0, 1.0)
+				var top_normal: Vector3 = segment.global_transform.basis * segment._top_side_normal_for_offset_eased(segment.curve, sample_position)
+				var gutter_depth := lerpf(segment.start_point.gutter_profile.y, segment.end_point.gutter_profile.y, sample_position)
+				road_y += top_normal.y * gutter_depth * gutter_factor
+
+			var lat_dist := absf(lateral_offset)
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+					#continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("SKipping not region, todo: expand_boundaries")
+					#continue
 				set_height_if_active_region(terrain_pos, road_y)
+				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
-				# Smoothly interpolate height beyond shoulder to prior height
+				# Smoothly interpolate height beyon shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
-				var reference_height:float = terrain.data.get_height(terrain_pos)
+				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
+				# severley. Howeve, errors for attempting to set heights for
+				# invalid regions is very fast, just noisy in the console.
+				#if not terrain.data.has_regionp(terrain_pos):
+					#print("SKipping not region rp post, todo: expand_boundaries")
+				#	continue
+				#var region = terrain.data.get_regionp(terrain_pos)
+				#if not region:
+					#print("Skipping region")
+					#continue
+				#region.set_edited(true)
+				var reference_height:float = get_height_if_active_region(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
 				set_height_if_active_region(terrain_pos, smoothed_height)
+
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -787,8 +824,16 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 
 ## Safely sets height for a region, handling if it exists or not
 func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
-	if terrain.data.has_regionp(terrain_pos):
-		terrain.data.set_height(terrain_pos, height)
+	if not _height_map_edit_active:
+		if terrain.data.has_regionp(terrain_pos):
+			terrain.data.set_height(terrain_pos, height)
+		return
+	var height_map: Image = get_cached_height_map(terrain_pos)
+	if height_map == null:
+		return
+	var region_location: Vector2i = terrain.data.get_region_location(terrain_pos)
+	height_map.set_pixelv(get_height_map_pixel(terrain_pos), Color(height, 0.0, 0.0, 1.0))
+	_modified_height_regions[region_location] = _height_region_cache[region_location]
 
 
 # TODO: Move this utility into the RoadSegment (with offset) or RoadPoint class (no offset)
