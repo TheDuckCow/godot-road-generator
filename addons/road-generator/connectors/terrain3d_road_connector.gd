@@ -663,35 +663,15 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-					#continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("SKipping not region, todo: expand_boundaries")
-					#continue
 				set_height_if_active_region(terrain_pos, road_y)
-				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
-				# Smoothly interpolate height beyon shoulder to prior height
+				# Smoothly interpolate height beyond shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
-				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
-				# severley. Howeve, errors for attempting to set heights for
-				# invalid regions is very fast, just noisy in the console.
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-				#	continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("Skipping region")
-					#continue
-				#region.set_edited(true)
 				var reference_height:float = terrain.data.get_height(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
 				set_height_if_active_region(terrain_pos, smoothed_height)
-
 
 			z += vertex_spacing
 		x += vertex_spacing
@@ -768,6 +748,8 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 	#print(str(intersect_coords.keys()))
 	# add hole for each point which has all 8 neighbours on x-z plane
 	for point in intersect_coords.keys():
+		if not terrain.data.has_regionp(Vector3(point.x, 0, point.y)):
+			continue
 		if intersect_coords.has(Vector2(point.x - vertex_spacing,point.y)) \
 		and intersect_coords.has(Vector2(point.x + vertex_spacing,point.y)) \
 		and intersect_coords.has(Vector2(point.x,point.y - vertex_spacing)) \
@@ -779,7 +761,7 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
 
 
-## Helper Methods
+## Safely sets height for a region, handling if it exists or not
 func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
 	if terrain.data.has_regionp(terrain_pos):
 		terrain.data.set_height(terrain_pos, height)
@@ -823,7 +805,6 @@ func curve_2d_to_boundingbox(curve: Curve2D, start_width: float, end_width: floa
 
 	var left_points: Array[Vector2] = []
 	var right_points: Array[Vector2] = []
-
 	
 	# first tangent
 	var extrapolated_neg_1 = baked[0] - baked[1]
