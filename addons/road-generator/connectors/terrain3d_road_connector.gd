@@ -803,6 +803,85 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 # ------------------------------------------------------------------------------
 
 
+func begin_height_map_edit() -> void:
+	_height_map_cache.clear()
+	_reference_height_map_cache.clear()
+	_height_region_cache.clear()
+	_modified_height_regions.clear()
+	_missing_height_regions.clear()
+	_height_map_edit_active = true
+
+
+func finish_height_map_edit() -> void:
+	if not _height_map_edit_active:
+		return
+	if not _modified_height_regions.is_empty():
+		for region_location in _modified_height_regions:
+			var region = _modified_height_regions[region_location]
+			region.set_map(TERRAIN_3D_MAPTYPE_HEIGHT, _height_map_cache[region_location])
+			region.calc_height_range()
+			region.set_modified(true)
+			region.set_edited(true)
+		terrain.data.update_maps(TERRAIN_3D_MAPTYPE_HEIGHT, false)
+		for region in _modified_height_regions.values():
+			region.set_edited(false)
+	_height_map_cache.clear()
+	_reference_height_map_cache.clear()
+	_height_region_cache.clear()
+	_modified_height_regions.clear()
+	_missing_height_regions.clear()
+	_height_map_edit_active = false
+
+
+func get_cached_height_map(terrain_pos: Vector3) -> Image:
+	var region_location: Vector2i = terrain.data.get_region_location(terrain_pos)
+	if _height_map_cache.has(region_location):
+		var cached_height_map: Image = _height_map_cache[region_location]
+		return cached_height_map
+	if _missing_height_regions.has(region_location):
+		return null
+	if not terrain.data.has_region(region_location):
+		_missing_height_regions[region_location] = true
+		return null
+	var region = terrain.data.get_region(region_location)
+	if not region:
+		_missing_height_regions[region_location] = true
+		return null
+	var reference_height_map: Image = region.get_map(TERRAIN_3D_MAPTYPE_HEIGHT)
+	if reference_height_map == null:
+		_missing_height_regions[region_location] = true
+		return null
+	var height_map: Image = reference_height_map.duplicate()
+	_height_map_cache[region_location] = height_map
+	_reference_height_map_cache[region_location] = reference_height_map
+	_height_region_cache[region_location] = region
+	return height_map
+
+
+func get_height_map_pixel(terrain_pos: Vector3) -> Vector2i:
+	var vertex_spacing: float = terrain.vertex_spacing
+	var region_size: int = terrain.region_size
+	var vertex_grid_position: Vector2i = Vector2i(
+		floori(terrain_pos.x / vertex_spacing),
+		floori(terrain_pos.z / vertex_spacing)
+	)
+	return Vector2i(
+		posmod(vertex_grid_position.x, region_size),
+		posmod(vertex_grid_position.y, region_size)
+	)
+
+
+func get_height_if_active_region(terrain_pos: Vector3) -> float:
+	if not _height_map_edit_active:
+		return terrain.data.get_height(terrain_pos)
+	var height_map: Image = get_cached_height_map(terrain_pos)
+	if height_map == null:
+		return NAN
+	var region_location: Vector2i = terrain.data.get_region_location(terrain_pos)
+	var reference_height_map: Image = _reference_height_map_cache[region_location]
+	return reference_height_map.get_pixelv(get_height_map_pixel(terrain_pos)).r
+
+
 ## Safely sets height for a region, handling if it exists or not
 func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
 	if not _height_map_edit_active:
