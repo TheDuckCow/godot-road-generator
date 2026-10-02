@@ -698,30 +698,11 @@ func flatten_terrain_via_roadsegment_approx(segment: RoadSegment) -> void:
 			if lat_dist <= width / 2.0 + edge_margin:
 				# Flatten to exactly match the road, adding shoulder margin
 				var terrain_pos := Vector3(x, road_y, z)
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-					#continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("SKipping not region, todo: expand_boundaries")
-					#continue
 				set_height_if_active_region(terrain_pos, road_y)
-				#region.set_edited(true)
 			elif lat_dist <= width / 2.0 + edge_margin + edge_falloff:
 				# Smoothly interpolate height beyond shoulder to prior height
 				# TODO: improve possible creasing issues caused here
 				var terrain_pos := Vector3(x, road_y, z)
-				# TODO: Revisit this, currently requestion regionp's tanks performance / gets stuck.
-				# severley. Howeve, errors for attempting to set heights for
-				# invalid regions is very fast, just noisy in the console.
-				#if not terrain.data.has_regionp(terrain_pos):
-					#print("SKipping not region rp post, todo: expand_boundaries")
-				#	continue
-				#var region = terrain.data.get_regionp(terrain_pos)
-				#if not region:
-					#print("Skipping region")
-					#continue
-				#region.set_edited(true)
 				var reference_height:float = get_height_if_active_region(terrain_pos)
 				var factor: float = (lat_dist - edge_margin - width / 2.0) / edge_falloff
 				var smoothed_height := _lerp_smoothed_height(road_y, reference_height, factor)
