@@ -16,6 +16,10 @@ const IntersectionNGon = preload("res://addons/road-generator/procgen/intersecti
 const TERRAIN_3D_MAPTYPE_HEIGHT:int = 0 # Terrain3DRegion.MapType.TYPE_HEIGHT
 const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 
+# ------------------------------------------------------------------------------
+#region Export and local vars
+# ------------------------------------------------------------------------------
+
 
 ## Reference to the Terrain3D instance, to be flattened
 @export var terrain:Node3D: #Terrain3D:
@@ -56,9 +60,9 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 @export_flags_3d_physics var raycast_layer:int = 2
 
 ## Immediately level the terrain to match roads
-## Only supported in Godot 4.4+, re-enable if that applies to you
-#@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
-#@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
+@export_tool_button("Refresh", "Callable") var refresh_action = do_full_refresh
+## Cull geometry under roads for entire network (never done automatically)
+@export_tool_button("Bake Holes", "Callable") var bake_holes_action = bake_holes
 
 # If using Auto Refresh, how often to update the UI (lower values = heavier cpu use)
 var refresh_timer: float = 0.05
@@ -70,6 +74,13 @@ var _container_unset_geo: Array[RoadContainer] = []
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Overrides
+# ------------------------------------------------------------------------------
+
 
 
 func _ready() -> void:
@@ -110,6 +121,12 @@ func _get_configuration_warnings() -> PackedStringArray:
 	elif not terrain.data or terrain.data.region_locations.size() == 0:
 		warnings.append("No Terrain3D regions defined yet, add regions in Terrain3D first")
 	return warnings
+
+
+# ------------------------------------------------------------------------------
+#endregion
+#region Core functions
+# ------------------------------------------------------------------------------
 
 
 func is_configured() -> bool:
@@ -175,6 +192,7 @@ func do_full_refresh() -> void:
 		_next_refresh_parents += _container.get_intersections()
 		_next_refresh_parents += _container.get_segments() # Always add RoadSegments last
 		_mutex.unlock()
+
 
 ## Removes mesh under roads as a baking process.
 func bake_holes() -> void:
@@ -341,7 +359,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 	# TODO: For better undo/redo handling, implement something like this
 	#teditor.stop_operation()
 	#for _region in edited_regions:
-	#region.set_edited(false)
+	# region.set_edited(false)
 
 
 ## Flatten and Culling Methods
@@ -761,6 +779,12 @@ func cull_terrain_via_roadsegment(segment: RoadSegment) -> void:
 			terrain.data.set_control_hole(Vector3(point.x, 0, point.y), true)
 
 
+# ------------------------------------------------------------------------------
+#endregion
+#region Helper functions
+# ------------------------------------------------------------------------------
+
+
 ## Safely sets height for a region, handling if it exists or not
 func set_height_if_active_region(terrain_pos: Vector3, height: float) -> void:
 	if terrain.data.has_regionp(terrain_pos):
@@ -871,3 +895,6 @@ func get_road_height(x: float, z: float, min_y: float, max_y: float, space_state
 ## Reusable function to perform consistent falloff rate
 func _lerp_smoothed_height(road_y: float, terrain_y: float, factor: float) -> float:
 	return lerpf(road_y, terrain_y, ease(factor, -1.5))
+
+#endregion
+# ------------------------------------------------------------------------------
