@@ -858,6 +858,8 @@ func get_cached_height_map(terrain_pos: Vector3) -> Image:
 	return height_map
 
 
+# TODO: Replace with official function once in a release, see:
+# https://github.com/TokisanGames/Terrain3D/pull/1049
 func get_height_map_pixel(terrain_pos: Vector3) -> Vector2i:
 	var vertex_spacing: float = terrain.vertex_spacing
 	var region_size: int = terrain.region_size
