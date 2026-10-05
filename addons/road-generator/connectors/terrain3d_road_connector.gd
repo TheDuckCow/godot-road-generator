@@ -312,8 +312,11 @@ func refresh_roads(mesh_parents: Array) -> void:
 		# Terrain was already restored by the undo/redo itself
 		return
 	var heights_before := {}
+	var merge_into_edit := false
 	if history:
 		heights_before = _copy_height_maps(_get_regions_reached(mesh_parents))
+		if not own_action and not heights_before.is_empty():
+			merge_into_edit = _open_merged_terrain_undo(history)
 
 	begin_height_map_edit()
 	var skip_repeat_refreshes: Array = []
@@ -379,7 +382,7 @@ func refresh_roads(mesh_parents: Array) -> void:
 	finish_height_map_edit()
 
 	if history:
-		_add_terrain_undo(history, heights_before, own_action)
+		_add_terrain_undo(heights_before, merge_into_edit)
 
 
 ## Flatten and Culling Methods
@@ -834,24 +837,32 @@ func _is_undo_redo_update(history: UndoRedo) -> bool:
 	)
 
 
-## Adds the terrain change to the editor history, merged into the action that
-## changed the road (if within Godot's 800ms merge window) so one undo reverts both
-func _add_terrain_undo(history: UndoRedo, heights_before: Dictionary, own_action: bool) -> void:
+## Opens an undo action merged into the one that changed the road. Called before
+## flattening, as Godot only merges within 800ms and long roads can take longer
+func _open_merged_terrain_undo(history: UndoRedo) -> bool:
+	if history.get_current_action() < 0:
+		return false
+	var undo_redo: Object = Engine.get_singleton("EditorInterface").get_editor_undo_redo()
+	var action_name := history.get_action_name(history.get_current_action())
+	undo_redo.create_action(action_name, UndoRedo.MERGE_ALL, self)
+	return true
+
+
+## Adds the terrain change to the merged action if open, else to its own action
+func _add_terrain_undo(heights_before: Dictionary, merged_action_open: bool) -> void:
 	var heights_after := _copy_height_maps(heights_before.keys())
 	for location in heights_before.keys():
 		if heights_before[location].get_data() == heights_after[location].get_data():
 			heights_before.erase(location)
 			heights_after.erase(location)
-	if heights_before.is_empty():
-		return
 	var undo_redo: Object = Engine.get_singleton("EditorInterface").get_editor_undo_redo()
-	if own_action or history.get_current_action() < 0:
+	if not merged_action_open:
+		if heights_before.is_empty():
+			return
 		undo_redo.create_action("Flatten terrain under roads", UndoRedo.MERGE_DISABLE, self)
-	else:
-		var action_name := history.get_action_name(history.get_current_action())
-		undo_redo.create_action(action_name, UndoRedo.MERGE_ALL, self)
-	undo_redo.add_do_method(self, "_set_height_maps", heights_after)
-	undo_redo.add_undo_method(self, "_set_height_maps", heights_before)
+	if not heights_before.is_empty():
+		undo_redo.add_do_method(self, "_set_height_maps", heights_after)
+		undo_redo.add_undo_method(self, "_set_height_maps", heights_before)
 	undo_redo.commit_action(false)
 
 
