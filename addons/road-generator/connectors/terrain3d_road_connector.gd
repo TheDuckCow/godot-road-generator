@@ -18,6 +18,7 @@ const TERRAIN_3D_MAPTYPE_CONTROL:int = 1 # Terrain3DRegion.MapType.TYPE_CONTROL
 
 ## Margin beyond road bounds when picking terrain regions to save for undo
 const UNDO_BOUNDS_MARGIN:float = 4.0
+# TODO: Replace with a deterministic check, e.g. the editor's version_changed signal
 ## Road updates this soon after an undo/redo are considered part of it
 const UNDO_RESTORED_WINDOW_MSEC:int = 1000
 
