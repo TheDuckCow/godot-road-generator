@@ -79,9 +79,9 @@ var _container_unset_geo: Array[RoadContainer] = []
 var _timer:SceneTreeTimer
 var _mutex:Mutex = Mutex.new()
 var _skip_scene_load: bool = true # Also directly referecned by plugin to ensure top-level refresh works
-var _full_refresh_pending: bool = false # Next refresh gets its own undo action, not merged
-var _restored_version: int = -1 # History version of the last undo/redo restore
-var _restored_msec: int = 0
+var _undoredo_full_refresh_pending: bool = false # Next refresh gets its own undo action, not merged
+var _undoredo_restored_version: int = -1 # History version of the last undo/redo restore
+var _undoredo_restored_msec: int = 0
 
 var _height_map_cache: Dictionary = {}
 var _reference_height_map_cache: Dictionary = {}
@@ -206,7 +206,7 @@ func do_full_refresh() -> void:
 		#var mesh_parents: Array = []
 		_next_refresh_parents += _container.get_intersections()
 		_next_refresh_parents += _container.get_segments() # Always add RoadSegments last
-		_full_refresh_pending = true
+		_undoredo_full_refresh_pending = true
 		_mutex.unlock()
 
 
@@ -305,8 +305,8 @@ func refresh_roads(mesh_parents: Array) -> void:
 	if terrain.data.region_locations.size() == 0:
 		push_warning("Refreshw arning: No Terrain3D regions defined yet, add regions in Terrain3D first")
 
-	var own_action := _full_refresh_pending
-	_full_refresh_pending = false
+	var own_action := _undoredo_full_refresh_pending
+	_undoredo_full_refresh_pending = false
 	var history := _get_editor_history()
 	if history and not own_action and _is_undo_redo_update(history):
 		# Terrain was already restored by the undo/redo itself
@@ -829,8 +829,8 @@ func _is_undo_redo_update(history: UndoRedo) -> bool:
 	if history.has_redo():
 		return true
 	return (
-		history.get_version() == _restored_version
-		and Time.get_ticks_msec() - _restored_msec < UNDO_RESTORED_WINDOW_MSEC
+		history.get_version() == _undoredo_restored_version
+		and Time.get_ticks_msec() - _undoredo_restored_msec < UNDO_RESTORED_WINDOW_MSEC
 	)
 
 
@@ -921,8 +921,8 @@ func _set_height_maps(maps: Dictionary) -> void:
 func _remember_restored_version() -> void:
 	var history := _get_editor_history()
 	if history:
-		_restored_version = history.get_version()
-		_restored_msec = Time.get_ticks_msec()
+		_undoredo_restored_version = history.get_version()
+		_undoredo_restored_msec = Time.get_ticks_msec()
 
 
 # ------------------------------------------------------------------------------
