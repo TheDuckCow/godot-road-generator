@@ -489,6 +489,12 @@ func start_scene_placement(scene_path: String) -> void:
 	parent.add_child(new_rc, true)
 	_modal_object = new_rc
 	_pre_modal_selection = selection
+	
+	# Force an initial update, to avoid it appearing at the orign till movement
+	var fake_event = InputEventMouseMotion.new()
+	cursor = EditorInterface.get_editor_viewport_3d().get_mouse_position()
+	fake_event.position = cursor # without this, will have a 1 frame flicker after mouse moves
+	_handle_modal_input(EditorInterface.get_editor_viewport_3d().get_camera_3d(), fake_event)
 
 
 # ------------------------------------------------------------------------------
