@@ -616,6 +616,30 @@ func is_next_connected() -> bool:
 	return false
 
 
+## True if this side (PointInit.NEXT or PRIOR) is an open end nothing connects to.
+## A terminated RP is never bare; terminated is the per-end opt-out of the
+## end fill. Never warns.
+func is_bare_edge(dir: int) -> bool:
+	if terminated:
+		return false
+	var init: NodePath = next_pt_init if dir == PointInit.NEXT else prior_pt_init
+	if init != ^"":
+		if not is_instance_valid(container) or init != get_path_to(container):
+			return false
+	if not is_instance_valid(container):
+		return true
+	var self_path: NodePath = container.get_path_to(self)
+	for _idx in range(len(container.edge_rp_locals)):
+		if _idx >= len(container.edge_rp_local_dirs) or _idx >= len(container.edge_containers):
+			break
+		if container.edge_rp_locals[_idx] != self_path:
+			continue
+		if container.edge_rp_local_dirs[_idx] != dir:
+			continue
+		return container.edge_containers[_idx] == ^""
+	return true
+
+
 ## Deprecated in favor of get_next_graphnode
 func get_prior_rp():
 	return get_prior_road_node()

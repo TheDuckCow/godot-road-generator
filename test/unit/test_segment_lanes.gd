@@ -109,3 +109,45 @@ func test_lanes_shared_parent_no_clobber():
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container, 2)
 	#road_util.save_testscene_to_file(container)
+
+
+# ------------------------------------------------------------------------------
+# Bare end fill
+
+
+func test_is_bare_edge():
+	var NEXT := RoadPoint.PointInit.NEXT
+	var PRIOR := RoadPoint.PointInit.PRIOR
+
+	var container: RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	container.update_edges()
+	assert_true(points[0].is_bare_edge(PRIOR), "RP0 prior is open")
+	assert_false(points[0].is_bare_edge(NEXT), "RP0 next is RP1")
+	assert_false(points[1].is_bare_edge(PRIOR), "RP1 prior is RP0")
+	assert_false(points[1].is_bare_edge(NEXT), "RP1 next is RP2")
+	assert_true(points[2].is_bare_edge(NEXT), "RP2 next is open")
+
+	points[2].terminated = true
+	container.update_edges()
+	assert_false(points[2].is_bare_edge(NEXT), "Terminated end opts out")
+
+	var inter_cont: RoadContainer = add_child_autofree(RoadContainer.new())
+	road_util.create_intersection_two_branch(inter_cont)
+	var p1: RoadPoint = inter_cont.get_node("p1")
+	var p2: RoadPoint = inter_cont.get_node("p2")
+	assert_false(p1.is_bare_edge(NEXT), "Intersection branch not bare")
+	assert_false(p2.is_bare_edge(PRIOR), "Intersection branch not bare")
+
+	var cont_a: RoadContainer = add_child_autofree(RoadContainer.new())
+	var cont_b: RoadContainer = add_child_autofree(RoadContainer.new())
+	var pa: Array[RoadPoint] = road_util.create_rp_line(cont_a, 2, true, true)
+	var pb: Array[RoadPoint] = road_util.create_rp_line(cont_b, 2, true, true)
+	cont_b.position.z = 10
+	cont_a.update_edges()
+	cont_b.update_edges()
+	assert_true(pa[1].is_bare_edge(NEXT), "Edge bare before connect")
+	assert_true(pa[1].connect_container(NEXT, pb[0], PRIOR), "Containers connect")
+	assert_false(pa[1].is_bare_edge(NEXT), "Connected container edge not bare")
+	assert_false(pb[0].is_bare_edge(PRIOR), "Connected container edge not bare")
+	assert_true(pa[0].is_bare_edge(PRIOR), "Far edge still bare")

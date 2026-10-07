@@ -1439,6 +1439,13 @@ class GeoLoopInfo:
 # ------------------------------------------------------------------------------
 
 
+## True if the NEAR or FAR end of this segment is an open end.
+func is_end_bare(nf: int) -> bool:
+	if nf == NearFar.NEAR:
+		return start_point.is_bare_edge(RoadPoint.PointInit.NEXT if _start_flip else RoadPoint.PointInit.PRIOR)
+	return end_point.is_bare_edge(RoadPoint.PointInit.PRIOR if _end_flip else RoadPoint.PointInit.NEXT)
+
+
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
 ## the lanes whose directions match and create Add/Remove Transition lanes where
 ## the start or end points are missing lanes. Return an array that includes both
