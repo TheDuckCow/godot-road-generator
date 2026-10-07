@@ -1505,6 +1505,8 @@ func is_end_fill_stale() -> bool:
 		return false
 	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
 		return false
+	if not start_point.is_inside_tree() or not end_point.is_inside_tree():
+		return false
 	if not is_inside_tree() or not visible:
 		return false
 	if not start_point.visible or not end_point.visible:
