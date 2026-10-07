@@ -288,3 +288,63 @@ func test_is_bare_edge():
 	assert_false(pa[1].is_bare_edge(NEXT), "Connected container edge not bare")
 	assert_false(pb[0].is_bare_edge(PRIOR), "Connected container edge not bare")
 	assert_true(pa[0].is_bare_edge(PRIOR), "Far edge still bare")
+
+
+# ------------------------------------------------------------------------------
+# Live end fill updates
+
+
+## Asserts cap tri counts on a 10m +z segment; local z=0 is the start RP.
+func _assert_caps(seg: RoadSegment, near: int, far: int, msg: String) -> void:
+	if seg == null:
+		return
+	var mesh: Mesh = seg.road_mesh.mesh
+	assert_eq(mesh.get_surface_count(), 2, "%s: top and underside" % msg)
+	if mesh.get_surface_count() < 2:
+		return
+	assert_eq(_cap_tris(mesh, 1, Vector3(0, 0, -1), 0.0).size(), near, "%s: near cap" % msg)
+	assert_eq(_cap_tris(mesh, 1, Vector3(0, 0, 1), 10.0).size(), far, "%s: far cap" % msg)
+
+
+func _rebuild_dirty(seg: RoadSegment, msg: String) -> void:
+	if seg == null:
+		return
+	assert_true(seg.is_dirty, "%s: dirty" % msg)
+	seg.check_rebuild()
+
+
+func test_end_fill_live_connect_disconnect():
+	var NEXT := RoadPoint.PointInit.NEXT
+	var PRIOR := RoadPoint.PointInit.PRIOR
+	var container: RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	container.underside_thickness = 0.5
+	container.rebuild_segments(true)
+	var seg_ab := _seg_for(container, points[0], points[1])
+	_assert_caps(seg_ab, 4, 0, "Initial A-B")
+
+	assert_true(points[1].disconnect_roadpoint(NEXT, PRIOR), "Disconnect B-C")
+	_rebuild_dirty(seg_ab, "A-B after disconnect")
+	_assert_caps(seg_ab, 4, 4, "A-B after disconnect")
+
+	assert_true(points[1].connect_roadpoint(NEXT, points[2], PRIOR), "Connect B-C")
+	_rebuild_dirty(seg_ab, "A-B after connect")
+	_assert_caps(seg_ab, 4, 0, "A-B after connect")
+	var seg_bc := _seg_for(container, points[1], points[2])
+	if seg_bc and seg_bc.is_dirty:
+		seg_bc.check_rebuild()
+	_assert_caps(seg_bc, 0, 4, "B-C after connect")
+
+
+func test_end_fill_no_redundant_dirty():
+	var container: RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 2, true, true)
+	container.underside_thickness = 0.5
+	container.rebuild_segments(true)
+	var seg := _seg_for(container, points[0], points[1])
+	seg.check_rebuild()
+	assert_false(seg.is_dirty, "Clean after build")
+	watch_signals(container)
+	container.update_edges()
+	assert_false(seg.is_dirty, "update_edges leaves clean segment clean")
+	assert_signal_not_emitted(container, "on_road_updated", "No road update")

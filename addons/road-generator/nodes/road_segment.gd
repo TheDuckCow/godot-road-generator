@@ -57,6 +57,9 @@ var density := DEFAULT_DENSITY ## Distance between loops, bake_interval in m app
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
+## Bare-end state the current mesh was built with; see is_end_fill_stale.
+var _built_bare_near := false
+var _built_bare_far := false
 var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
@@ -736,6 +739,8 @@ func _rebuild():
 	_update_curve()
 
 	# Create a low and high poly road, start with low poly.
+	_built_bare_near = _end_fill_state(NearFar.NEAR)
+	_built_bare_far = _end_fill_state(NearFar.FAR)
 	_build_geo()
 
 	if container.create_edge_curves:
@@ -1492,6 +1497,26 @@ func is_end_bare(nf: int) -> bool:
 	if nf == NearFar.NEAR:
 		return start_point.is_bare_edge(RoadPoint.PointInit.NEXT if _start_flip else RoadPoint.PointInit.PRIOR)
 	return end_point.is_bare_edge(RoadPoint.PointInit.PRIOR if _end_flip else RoadPoint.PointInit.NEXT)
+
+
+## True if the bare-end state changed since the last build.
+func is_end_fill_stale() -> bool:
+	if is_queued_for_deletion():
+		return false
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return false
+	if not is_inside_tree() or not visible:
+		return false
+	if not start_point.visible or not end_point.visible:
+		return false
+	return _built_bare_near != _end_fill_state(NearFar.NEAR) or _built_bare_far != _end_fill_state(NearFar.FAR)
+
+
+## Bare-end state that affects the mesh; false when there is no underside.
+func _end_fill_state(nf: int) -> bool:
+	if start_point.get_thickness() >= 0 and end_point.get_thickness() >= 0:
+		return is_end_bare(nf)
+	return false
 
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up
