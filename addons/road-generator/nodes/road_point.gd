@@ -963,6 +963,7 @@ func add_road_point(new_road_point: RoadPoint, direction):
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
+	container.update_edges()
 
 
 ## Function to explicitly connect this RoadNode to another

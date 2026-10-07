@@ -336,6 +336,34 @@ func test_end_fill_live_connect_disconnect():
 	_assert_caps(seg_bc, 0, 4, "B-C after connect")
 
 
+## Mirrors plugin _add_next_rp_on_click_do.
+func test_end_fill_live_add_road_point():
+	var NEXT := RoadPoint.PointInit.NEXT
+	var container: RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 2, true, true)
+	container.underside_thickness = 0.5
+	container.rebuild_segments(true)
+	var seg_ab := _seg_for(container, points[0], points[1])
+	_assert_caps(seg_ab, 4, 4, "Initial A-B")
+
+	# add_road_point adds c to the container itself.
+	var c: RoadPoint = autoqfree(RoadPoint.new())
+	c._is_internal_updating = true
+	points[1].add_road_point(c, NEXT)
+	assert_eq(c.get_parent(), container, "c added to container")
+	c.global_position = Vector3(0, 0, 20)
+	c._is_internal_updating = false
+	c._skip_next_on_transform = true
+	container.on_point_update(c, false)
+
+	_rebuild_dirty(seg_ab, "A-B after add")
+	_assert_caps(seg_ab, 4, 0, "A-B after add")
+	var seg_bc := _seg_for(container, points[1], c)
+	if seg_bc and seg_bc.is_dirty:
+		seg_bc.check_rebuild()
+	_assert_caps(seg_bc, 0, 4, "B-c after add")
+
+
 func test_end_fill_no_redundant_dirty():
 	var container: RoadContainer = add_child_autofree(RoadContainer.new())
 	var points: Array[RoadPoint] = road_util.create_rp_line(container, 2, true, true)
