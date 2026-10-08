@@ -44,7 +44,7 @@ The main branch always matches the current release, which is why `main` may look
 
 ## How to install and use
 
-Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and download the latest, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
+Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and download the latest that supports your Godot version, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
 
 To get started, follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes. The "Museum" scene is a good starting place.
 
