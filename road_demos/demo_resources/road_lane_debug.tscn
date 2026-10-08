@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://7fuf8ius41m3"]
 
 [ext_resource type="Script" uid="uid://cwt2dyl0ld0rs" path="res://road_demos/demo_resources/road_lane_debug.gd" id="1_3aqr0"]
-[ext_resource type="Texture2D" uid="uid://bu4537m4ecm5d" path="res://addons/road-generator/resources/road_point.png" id="2_m8juq"]
+[ext_resource type="Texture2D" uid="uid://bu4537m4ecm5d" path="res://addons/road-generator/ui/icons/road_point.png" id="2_m8juq"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_3aqr0"]
 font_size = 24

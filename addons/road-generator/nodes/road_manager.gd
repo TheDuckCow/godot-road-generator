@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/resources/road_manager.png")
+@icon("res://addons/road-generator/ui/icons/road_manager.png")
 class_name RoadManager
 extends Node3D
 ## Manager for all child [RoadContainer]'s.
@@ -29,7 +29,7 @@ signal on_road_updated(updated_segments: Array[Node3D])
 signal on_container_transformed(updated_segments: RoadContainer)
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
-const RoadMaterial = preload("res://addons/road-generator/resources/road_texture.material")
+const RoadMaterial = preload("res://addons/road-generator/resources/textures/road_texture.material")
 
 
 # ------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/road-generator/resources/road_lane.png")
+@icon("res://addons/road-generator/ui/icons/road_lane.png")
 class_name RoadLane
 extends Path3D
 ## Defines a directional lane of traffic for AI with references to adjacent lanes.
@@ -75,7 +75,7 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
 ## Mesh instanced along the lane to visualize its direction. All lanes share
 ## the same resource by default; assign another mesh to customize the shape.
-@export var lane_pointer_mesh: Mesh = preload("res://addons/road-generator/resources/road_lane_pointer_mesh.res"): set = _set_lane_pointer_mesh
+@export var lane_pointer_mesh: Mesh = preload("res://addons/road-generator/resources/meshes/road_lane_pointer_mesh.res"): set = _set_lane_pointer_mesh
 
 ## Auto queue-free any vehicles registered to this lane with the road lane exits.
 @export var auto_free_vehicles: bool = true
@@ -118,6 +118,7 @@ var _display_fins: bool = false
 func _init():
 	if not is_instance_valid(curve):
 		curve = Curve3D.new()
+		curve.bake_interval = 4.0 # matches road default, updated later
 
 
 func _ready():
@@ -149,6 +150,7 @@ func _set_reverse_direction(value: bool) -> void:
 ## Reverse geometry of lane curve
 func on_reverse_lane() -> void:
 	var reversed_curve = Curve3D.new()
+	reversed_curve.bake_interval = self.curve.bake_interval
 	for i in range(self.curve.point_count - 1, -1, -1):
 		var pos = self.curve.get_point_position(i)
 		var in_tangent = self.curve.get_point_in(i)
