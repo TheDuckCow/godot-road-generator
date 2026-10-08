@@ -57,6 +57,9 @@ var density := DEFAULT_DENSITY ## Distance between loops, bake_interval in m app
 var container:RoadContainer ## The managing container node for this road segment (grandparent).
 
 var is_dirty := true
+## Bare-end state the current mesh was built with; see is_end_fill_stale.
+var _built_bare_near := false
+var _built_bare_far := false
 var low_poly := false  ## If true, then was (or will be) generated as low poly.
 
 # Reference:
@@ -736,6 +739,8 @@ func _rebuild():
 	_update_curve()
 
 	# Create a low and high poly road, start with low poly.
+	_built_bare_near = _end_fill_state(NearFar.NEAR)
+	_built_bare_far = _end_fill_state(NearFar.FAR)
 	_build_geo()
 
 	if container.create_edge_curves:
@@ -1324,6 +1329,7 @@ class GeoLoopInfo:
 				nf_thickness[nf] = min_thickness
 
 		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
+		const END_FILL_SMOOTHING_GROUP = 2
 		
 		# Presume the underside material uses seamless textures in both directions,
 		# to avoid stretching we'll presume that 1 UV tile should correspond to
@@ -1430,6 +1436,53 @@ class GeoLoopInfo:
 				UNDERSIDE_GUTTER_SMOOTHING_GROUP
 			)
 
+		# Close the hollow cross-section at bare road ends.
+		for nf in NearFar.values():
+			if nf == NearFar.NEAR and not (loop == 0 and segment.is_end_bare(NearFar.NEAR)):
+				continue
+			if nf == NearFar.FAR and not (loop == loops - 1 and segment.is_end_bare(NearFar.FAR)):
+				continue
+			var is_far: bool = nf == NearFar.FAR
+			var xl: float = -(width_offset[LeftRight.LEFT][nf] + w_shoulder[LeftRight.LEFT][nf])
+			var xr: float = width_offset[LeftRight.RIGHT][nf] + w_shoulder[LeftRight.RIGHT][nf]
+			var th: float = nf_thickness[nf]
+			var gx: float = gutr_x[nf]
+			var gy: float = gutr_y[nf]
+			var p_sl: Vector3 = nf_loop[nf] + nf_basis[nf] * xl
+			var p_sr: Vector3 = nf_loop[nf] + nf_basis[nf] * xr
+			var p_bl: Vector3 = p_sl - nf_top[nf] * th
+			var p_br: Vector3 = p_sr - nf_top[nf] * th
+			var p_gl: Vector3 = nf_loop[nf] + nf_basis[nf] * (xl - gx) + nf_top[nf] * gy
+			var p_gr: Vector3 = nf_loop[nf] + nf_basis[nf] * (xr + gx) + nf_top[nf] * gy
+
+			var u_s: float = ufac_mult_end if is_far else ufac_mult_start
+			var u_g: float = u_s + (gutter_end_len if is_far else gutter_start_len)
+			var v0: float = uv_end_v if is_far else uv_start_v
+			var th_uv: float = th / UNIT_LANE_COUNT / (rwidth_end if is_far else rwidth_start)
+			var v_top: float = v0 + th_uv if is_far else v0 - th_uv
+			var uv_sl := Vector2(u_s, v_top)
+			var uv_sr := Vector2(-u_s, v_top)
+			var uv_bl := Vector2(u_s, v0)
+			var uv_br := Vector2(-u_s, v0)
+			var uv_gl := Vector2(u_g, v0)
+			var uv_gr := Vector2(-u_g, v0)
+
+			# FAR faces +travel, NEAR faces -travel.
+			var c_pts: Array = [p_sl, p_sr, p_br, p_bl]
+			var c_uvs: Array = [uv_sl, uv_sr, uv_br, uv_bl]
+			if is_far:
+				SegGeo.quad(st, c_uvs, c_pts, END_FILL_SMOOTHING_GROUP)
+			else:
+				SegGeo.inverse_quad(st, c_uvs, c_pts, END_FILL_SMOOTHING_GROUP)
+
+			if gx > 0.0:
+				if is_far:
+					SegGeo.tri(st, [uv_sr, uv_gr, uv_br], [p_sr, p_gr, p_br], END_FILL_SMOOTHING_GROUP)
+					SegGeo.tri(st, [uv_gl, uv_sl, uv_bl], [p_gl, p_sl, p_bl], END_FILL_SMOOTHING_GROUP)
+				else:
+					SegGeo.tri(st, [uv_sr, uv_br, uv_gr], [p_sr, p_br, p_gr], END_FILL_SMOOTHING_GROUP)
+					SegGeo.tri(st, [uv_gl, uv_bl, uv_sl], [p_gl, p_bl, p_sl], END_FILL_SMOOTHING_GROUP)
+
 		return true
 
 
@@ -1437,6 +1490,35 @@ class GeoLoopInfo:
 #endregion
 #region Geo utilities
 # ------------------------------------------------------------------------------
+
+
+## True if the NEAR or FAR end of this segment is an open end.
+func is_end_bare(nf: int) -> bool:
+	if nf == NearFar.NEAR:
+		return start_point.is_bare_edge(RoadPoint.PointInit.NEXT if _start_flip else RoadPoint.PointInit.PRIOR)
+	return end_point.is_bare_edge(RoadPoint.PointInit.PRIOR if _end_flip else RoadPoint.PointInit.NEXT)
+
+
+## True if the bare-end state changed since the last build.
+func is_end_fill_stale() -> bool:
+	if is_queued_for_deletion():
+		return false
+	if not is_instance_valid(start_point) or not is_instance_valid(end_point):
+		return false
+	if not start_point.is_inside_tree() or not end_point.is_inside_tree():
+		return false
+	if not is_inside_tree() or not visible:
+		return false
+	if not start_point.visible or not end_point.visible:
+		return false
+	return _built_bare_near != _end_fill_state(NearFar.NEAR) or _built_bare_far != _end_fill_state(NearFar.FAR)
+
+
+## Bare-end state that affects the mesh; false when there is no underside.
+func _end_fill_state(nf: int) -> bool:
+	if start_point.get_thickness() >= 0 and end_point.get_thickness() >= 0:
+		return is_end_bare(nf)
+	return false
 
 
 ## Evaluate start and end point Traffic Direction and Lane Type arrays. Match up

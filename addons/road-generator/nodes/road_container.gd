@@ -937,6 +937,7 @@ func update_edges():
 	edge_rp_target_dirs = _tmp_rp_target_dirs
 	edge_rp_locals = _tmp_rp_locals
 	edge_rp_local_dirs = _tmp_rp_local_dirs
+	_dirty_stale_end_fills()
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -1410,6 +1411,25 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	edge_containers[_idx] = ^""
 	edge_rp_targets[_idx] = ^""
 	edge_rp_target_dirs[_idx] = -1
+
+
+## Dirty RoadSegments whose bare-end state changed since they were built, so
+## the end fill updates live. Mirrors on_point_update deferred rebuild.
+func _dirty_stale_end_fills() -> void:
+	var stale := []
+	for seg in get_segments():
+		if not seg.is_end_fill_stale():
+			continue
+		seg.is_dirty = true
+		stale.append(seg)
+	if stale.is_empty():
+		return
+	if not _auto_refresh:
+		_needs_refresh = true
+		return
+	for seg in stale:
+		seg.call_deferred("check_rebuild")
+	_emit_road_updated(stale)
 
 
 func _create_collisions(road_mesh: MeshInstance3D) -> void:

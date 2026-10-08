@@ -82,6 +82,20 @@ static func quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0)
 	st.add_vertex(pts[3])
 
 
+# Generate a single triangle for a list of 3 points/uvs, in the given order.
+# Caller picks the winding; Godot front faces are clockwise.
+static func tri(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[0])
+	st.add_vertex(pts[0])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[1])
+	st.add_vertex(pts[1])
+	st.set_smooth_group(smoothing_group)
+	st.set_uv(uvs[2])
+	st.add_vertex(pts[2])
+
+
 static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: int = 0) -> void:
 	# Triangle 1.
 	st.set_smooth_group(smoothing_group)

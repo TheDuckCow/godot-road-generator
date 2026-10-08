@@ -180,6 +180,9 @@ var _last_emitted_transform := Transform3D() ## To ignore no-op transform notifi
 var _last_emit_was_low_poly := false ## To let the drag-release commit through the no-op filter
 var _last_emitted_mag_prior := 0.0 ## For gizmo load deduping
 var _last_emitted_mag_next := 0.0 ## For gizmo load deduping
+## Sides and paths the autofix cleared on this point, keyed "prior"/"next";
+## lets a re-entry after a native undo relink.
+var _autofix_cleared := {}
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -230,7 +233,8 @@ func _ready():
 
 
 func _enter_tree() -> void:
-	pass
+	if not _autofix_cleared.is_empty():
+		_relink_after_reentry.call_deferred()
 
 
 func _exit_tree():
@@ -243,6 +247,46 @@ func _exit_tree():
 			prior_seg.queue_free()
 		if is_instance_valid(next_seg):
 			next_seg.queue_free()
+
+
+## Restores links the autofix cleared, if the other point still points back.
+func _relink_after_reentry() -> void:
+	var memo := _autofix_cleared
+	_autofix_cleared = {}
+	if memo.is_empty() or not is_inside_tree():
+		return
+	if not is_instance_valid(container) or not container.is_inside_tree():
+		return
+	var relinked := false
+	var was_updating := _is_internal_updating
+	_is_internal_updating = true
+	for side in memo:
+		var path: NodePath = memo[side]
+		var current: NodePath = prior_pt_init if side == "prior" else next_pt_init
+		if not current.is_empty():
+			continue # Something else was connected meanwhile.
+		if not _points_back(get_node_or_null(path), side):
+			continue
+		if side == "prior":
+			prior_pt_init = path
+		else:
+			next_pt_init = path
+		relinked = true
+	_is_internal_updating = was_updating
+	if not relinked:
+		return
+	container.update_edges()
+	# on_point_update builds the missing segment via _process_seg.
+	emit_transform()
+
+
+## True if other is a RoadPoint whose side paired with the memo side points
+## at self. The autofix clears opposite sides, so prior pairs with other.next.
+func _points_back(other, side: String) -> bool:
+	if not is_instance_valid(other) or not other.has_method("is_road_point"):
+		return false
+	var init: NodePath = other.next_pt_init if side == "prior" else other.prior_pt_init
+	return not init.is_empty() and other.get_node_or_null(init) == self
 
 
 func _to_string():
@@ -379,6 +423,8 @@ func _set_prior_pt_init(value:NodePath):
 		return
 	var _pre_assign = prior_pt_init
 	prior_pt_init = value
+	if not value.is_empty():
+		_autofix_cleared = {} # Drops both sides' memos.
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 
@@ -399,6 +445,8 @@ func _set_next_pt_init(value:NodePath):
 		return
 	var _pre_assign = next_pt_init
 	next_pt_init = value
+	if not value.is_empty():
+		_autofix_cleared = {} # Drops both sides' memos.
 	if not is_instance_valid(container):
 		return  # Might not be initialized yet.
 
@@ -614,6 +662,34 @@ func is_next_connected() -> bool:
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (is_next_connected)")
 	return false
+
+
+## True if this side (PointInit.NEXT or PRIOR) is an open end nothing connects to.
+## A terminated RP is never bare; terminated is the per-end opt-out of the
+## end fill. Out-of-tree points are never bare. Never warns.
+func is_bare_edge(dir: int) -> bool:
+	if terminated:
+		return false
+	if not is_inside_tree():
+		return false
+	if is_instance_valid(container) and not container.is_inside_tree():
+		return false
+	var init: NodePath = next_pt_init if dir == PointInit.NEXT else prior_pt_init
+	if init != ^"":
+		if not is_instance_valid(container) or init != get_path_to(container):
+			return false
+	if not is_instance_valid(container):
+		return true
+	var self_path: NodePath = container.get_path_to(self)
+	for _idx in range(len(container.edge_rp_locals)):
+		if _idx >= len(container.edge_rp_local_dirs) or _idx >= len(container.edge_containers):
+			break
+		if container.edge_rp_locals[_idx] != self_path:
+			continue
+		if container.edge_rp_local_dirs[_idx] != dir:
+			continue
+		return container.edge_containers[_idx] == ^""
+	return true
 
 
 ## Deprecated in favor of get_next_graphnode
@@ -939,6 +1015,7 @@ func add_road_point(new_road_point: RoadPoint, direction):
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
+	container.update_edges()
 
 
 ## Function to explicitly connect this RoadNode to another
@@ -1334,10 +1411,15 @@ func _autofix_noncyclic_references(
 		# Key detail: this new point_path value has *not* yet been assigned,
 		# so we can still read self.next_pt_init
 		var seg  # RoadSegment.
+		# Memo the reciprocal so a native undo of a delete can relink it.
 		if for_prior:
+			if not point.next_pt_init.is_empty() and point.get_node_or_null(point.next_pt_init) == self:
+				point._autofix_cleared["next"] = point.next_pt_init
 			point.next_pt_init = ^""
 			seg = self.prior_seg
 		else:
+			if not point.prior_pt_init.is_empty() and point.get_node_or_null(point.prior_pt_init) == self:
+				point._autofix_cleared["prior"] = point.prior_pt_init
 			point.prior_pt_init = ^""
 			seg = self.next_seg
 		container.remove_segment(seg)
