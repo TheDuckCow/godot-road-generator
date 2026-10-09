@@ -136,6 +136,13 @@ func _physics_process(_delta:float) -> void:
 	# Be aware: _intersect_dict is also used in _perform_action.
 
 
+## Cached hover node, unless undo has removed it from the tree
+func _get_hover_graphnode() -> RoadGraphNode:
+	if is_instance_valid(_hover_graphnode) and _hover_graphnode.is_inside_tree():
+		return _hover_graphnode
+	return null
+
+
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_3d_draw_over_viewport(overlay: Control):
 	if not Rect2(Vector2(), overlay.size).has_point(overlay.get_local_mouse_position()):
@@ -854,7 +861,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		_clear_targets()
 	
 		# Set up context variables which help determine the relevant current input
-		var hover_roadnode:RoadGraphNode = _hover_graphnode
+		var hover_roadnode:RoadGraphNode = _get_hover_graphnode()
 		var selection:Node = plg.get_selected_node()
 		
 		var active_container: RoadContainer
@@ -1057,7 +1064,7 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
-		var point: RoadGraphNode = _hover_graphnode
+		var point: RoadGraphNode = _get_hover_graphnode()
 		var selection:Node = plg.get_selected_node() # TODO: switch to selected *nodes*?
 		var hover_pos := camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = cursor.distance_to(hover_pos)
