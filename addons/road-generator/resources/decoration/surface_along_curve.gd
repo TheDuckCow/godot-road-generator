@@ -179,9 +179,7 @@ func _build_area_geometry(
 	var outer_height: float = profile.sample(1.0)   # y-value at x = 1
 
 	# Right side (area_R) should go outwards, not onto the track.
-	var side_sign: float = 1.0
-	if area_name == "area_R":
-		side_sign = -1.0
+	var side_sign: float = -1.0
 
 	for i in range(num_samples):
 		var t: float = float(i) / float(num_samples - 1)  # 0..1 along segment
@@ -236,8 +234,6 @@ func _build_area_mesh(
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var is_right_side := area_name == "area_R"
-
 	for i in range(num_samples - 1):
 		var i0: Vector3 = inner_points[i]
 		var i1: Vector3 = inner_points[i + 1]
@@ -257,78 +253,43 @@ func _build_area_mesh(
 
 		# Right side uses this base normal.
 		# Left side uses the inverted normal.
-		var normal: Vector3 = base_normal if is_right_side else -base_normal
+		var normal: Vector3 = base_normal
 
 		# UV along curve (0..1) – optional, if you ever want to use a texture.
 		var u0: float = float(i) / float(num_samples - 1)
 		var u1: float = float(i + 1) / float(num_samples - 1)
 
-		if not is_right_side:
-			# Left side: triangle ordering variant A.
-			# Triangle 1: i0, i1, o1
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 0.0))
-			st.set_uv2(Vector2(s0, 0.0))           # inner: width 0
-			st.add_vertex(i0)
+		# Triangle 1: i0, o1, i1
+		st.set_normal(normal)
+		st.set_uv(Vector2(u0, 0.0))
+		st.set_uv2(Vector2(s0, 0.0))
+		st.add_vertex(i0)
 
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 0.0))
-			st.set_uv2(Vector2(s1, 0.0))
-			st.add_vertex(i1)
+		st.set_normal(normal)
+		st.set_uv(Vector2(u1, 1.0))
+		st.set_uv2(Vector2(s1, w1))
+		st.add_vertex(o1)
 
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 1.0))
-			st.set_uv2(Vector2(s1, w1))           # outer at s1, width w1
-			st.add_vertex(o1)
+		st.set_normal(normal)
+		st.set_uv(Vector2(u1, 0.0))
+		st.set_uv2(Vector2(s1, 0.0))
+		st.add_vertex(i1)
 
-			# Triangle 2: i0, o1, o0
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 0.0))
-			st.set_uv2(Vector2(s0, 0.0))
-			st.add_vertex(i0)
+		# Triangle 2: i0, o0, o1
+		st.set_normal(normal)
+		st.set_uv(Vector2(u0, 0.0))
+		st.set_uv2(Vector2(s0, 0.0))
+		st.add_vertex(i0)
 
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 1.0))
-			st.set_uv2(Vector2(s1, w1))
-			st.add_vertex(o1)
+		st.set_normal(normal)
+		st.set_uv(Vector2(u0, 1.0))
+		st.set_uv2(Vector2(s0, w0))
+		st.add_vertex(o0)
 
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 1.0))
-			st.set_uv2(Vector2(s0, w0))           # outer at s0, width w0
-			st.add_vertex(o0)
-		else:
-			# Right side: triangle ordering variant B (different vertex order).
-			# Triangle 1: i0, o1, i1
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 0.0))
-			st.set_uv2(Vector2(s0, 0.0))
-			st.add_vertex(i0)
-
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 1.0))
-			st.set_uv2(Vector2(s1, w1))
-			st.add_vertex(o1)
-
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 0.0))
-			st.set_uv2(Vector2(s1, 0.0))
-			st.add_vertex(i1)
-
-			# Triangle 2: i0, o0, o1
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 0.0))
-			st.set_uv2(Vector2(s0, 0.0))
-			st.add_vertex(i0)
-
-			st.set_normal(normal)
-			st.set_uv(Vector2(u0, 1.0))
-			st.set_uv2(Vector2(s0, w0))
-			st.add_vertex(o0)
-
-			st.set_normal(normal)
-			st.set_uv(Vector2(u1, 1.0))
-			st.set_uv2(Vector2(s1, w1))
-			st.add_vertex(o1)
+		st.set_normal(normal)
+		st.set_uv(Vector2(u1, 1.0))
+		st.set_uv2(Vector2(s1, w1))
+		st.add_vertex(o1)
 
 	var mesh: ArrayMesh = st.commit()
 	return mesh

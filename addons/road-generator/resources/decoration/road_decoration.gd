@@ -210,7 +210,7 @@ func _compute_bank_frame(segment: RoadSegment, edge: Path3D, distance_on_origina
 		if total_length > 0.0:
 			ratio_curve_lengths = other_len / total_length
 
-		var other_pos: Vector3 = other_curve.sample_baked(distance_on_original * ratio_curve_lengths)
+		var other_pos: Vector3 = other_curve.sample_baked(other_len - distance_on_original * ratio_curve_lengths)
 		outward_dir = (pos_edge - other_pos).normalized()
 		if outward_dir == Vector3.ZERO:
 			outward_dir = Vector3.RIGHT
