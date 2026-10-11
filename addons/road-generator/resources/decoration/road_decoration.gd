@@ -124,7 +124,8 @@ func _get_curve_with_offsets(segment: RoadSegment, edge: Path3D) -> Curve3D:
 
 		if extra_offset != 0.0:
 			# Use the direction from the opposite edge to this edge as "outwards"
-			var other_pos: Vector3 = other_curve.sample_baked(distance * ratio_curve_lengths)
+			# TODO: update to leverage actual primary curve up basis instead of recalculating here
+			var other_pos: Vector3 = other_curve.sample_baked(other_curve_total_length - distance * ratio_curve_lengths)
 			var outward_dir: Vector3 = (pos - other_pos).normalized()
 			
 			if outward_dir != Vector3.ZERO:
@@ -204,6 +205,7 @@ func _compute_bank_frame(segment: RoadSegment, edge: Path3D, distance_on_origina
 	var outward_dir: Vector3 = Vector3.RIGHT
 
 	if other_edge:
+		# TODO: update to leverage actual primary curve up basis instead of recalculating here
 		var other_curve: Curve3D = other_edge.curve
 		var other_len: float = other_curve.get_baked_length()
 		var ratio_curve_lengths: float = 1.0
