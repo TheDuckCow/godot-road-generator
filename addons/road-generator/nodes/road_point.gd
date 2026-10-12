@@ -616,6 +616,19 @@ func is_next_connected() -> bool:
 	return false
 
 
+## True if this side (PointInit.NEXT or PRIOR) is an open end nothing connects to.
+## A terminated RP is never bare; terminated is the per-end opt-out of the
+## end fill.
+func is_bare_edge(dir: int) -> bool:
+	if terminated:
+		return false
+	if not is_instance_valid(container):
+		return true
+	if dir == PointInit.NEXT:
+		return not is_next_connected()
+	return not is_prior_connected()
+
+
 ## Deprecated in favor of get_next_graphnode
 func get_prior_rp():
 	return get_prior_road_node()
@@ -939,6 +952,7 @@ func add_road_point(new_road_point: RoadPoint, direction):
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
+	container.update_edges()
 
 
 ## Function to explicitly connect this RoadNode to another
