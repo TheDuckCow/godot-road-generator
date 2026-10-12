@@ -386,7 +386,7 @@ func _set_prior_pt_init(value:NodePath):
 	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, true)
-
+	update_gizmos()
 	emit_transform()
 
 
@@ -406,7 +406,7 @@ func _set_next_pt_init(value:NodePath):
 	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, false)
-
+	update_gizmos()
 	emit_transform()
 
 
