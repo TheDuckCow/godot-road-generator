@@ -357,7 +357,12 @@ func _build_edge_curve_sampled(road_lane: Path3D, start_offset: float, end_offse
 
 	var side_sign := 1.0 if is_right_side else -1.0
 
-	for i in range(loops + 1):
+	var loop_range = range(loops + 1)
+	if is_right_side:
+		# To ensure lanes go other way on reverse side, so they go in same dir
+		loop_range.reverse()
+
+	for i in loop_range:
 		# 0..1 along the segment
 		var t: float = float(i) / float(loops)
 
@@ -386,9 +391,9 @@ func _build_edge_curve_sampled(road_lane: Path3D, start_offset: float, end_offse
 		dst_curve.add_point(pos_lane_local)
 
 
-## Utility to auto generate all road lanes for this road for use by AI.
+## Utility to auto generate all road lanes for this road for use by AI.[br][br]
 ##
-## debug: No longer used, kept for backwards compatibility.
+## debug: No longer used, kept for backwards compatibility.[br][br]
 ##
 ## Returns true if any lanes generated, false if not.
 func generate_lane_segments(_debug: bool = false) -> bool:

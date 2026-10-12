@@ -103,16 +103,9 @@ func _create_curb_on_edge(decoration_node_wrapper: Node3D, segment: RoadSegment,
 
 	var points_curb_profile = profile.get_point_count()
 
-	if curb_name == "curb_R":
-		for i in range(points_curb_profile):
-			var point: Vector2 = profile.get_point_position(i)
-			
-			polygon.append(Vector2(point.x, point.y))
-	else: # curb_F
-		for i in range(points_curb_profile):
-			var point: Vector2 = profile.get_point_position(i)
-			
-			polygon.append(Vector2(-point.x, point.y))
+	for i in range(points_curb_profile):
+		var point: Vector2 = profile.get_point_position(i)
+		polygon.append(Vector2(point.x, point.y))
 
 	curb.polygon = polygon
 
