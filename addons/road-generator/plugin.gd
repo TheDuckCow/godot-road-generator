@@ -643,11 +643,14 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 		# probably wanting it to be rotated towards the new point being placed anyways
 		undo_redo.add_do_method(selection, "look_at", pos, selection.global_transform.basis.y)
 		undo_redo.add_undo_property(selection, "global_transform", selection.global_transform)
-	undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag)
+	# Reused on redo, so later actions referencing it stay valid
+	var next_rp := RoadPoint.new()
+	undo_redo.add_do_reference(next_rp)
+	undo_redo.add_do_method(self, "_add_next_rp_on_click_do", pos, nrm, _sel, parent, handle_mag, next_rp)
 	if parent is RoadContainer:
 		undo_redo.add_do_method(self, "_call_update_edges", parent)
 		undo_redo.add_undo_method(self, "_call_update_edges", parent)
-	undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent)
+	undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent, next_rp)
 
 	undo_redo.commit_action()
 
@@ -697,8 +700,9 @@ func _call_update_edges(container: RoadContainer) -> void:
 	container.update_edges()
 
 
-func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float) -> void:
-	var next_rp = RoadPoint.new()
+func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, parent: Node, handle_mag: float, next_rp: RoadPoint = null) -> void:
+	if next_rp == null:
+		next_rp = RoadPoint.new()
 	next_rp._is_internal_updating = true
 	var adding_to_next = true
 	var dirvec: Vector3 = pos - selection.global_transform.origin
@@ -787,26 +791,33 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 	next_rp.container.on_point_update(next_rp, false) # But still trigger the generation
 
 
-## Assume, potentially badly, that last node is the one to delete
-func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
-	var initial_children = parent.get_children()
-	if len(initial_children) < 1:
-		return
+## Removes added_rp, or if not given, assume (potentially badly) the last node
+func _add_next_rp_on_click_undo(pos, selection, parent: Node, added_rp: RoadPoint = null) -> void:
+	var added_node
+	if is_instance_valid(added_rp):
+		if not added_rp.is_inside_tree():
+			return
+		added_node = added_rp
+	else:
+		var initial_children = parent.get_children()
+		if len(initial_children) < 1:
+			return
+		# Each RoadPoint handles their own cleanup of connected RoadSegments.
+		if not initial_children[-1] is RoadPoint:
+			return
+		added_node = initial_children[-1]
 
 	var prior_selection
 	var was_next_pt: bool
 
-	# Each RoadPoint handles their own cleanup of connected RoadSegments.
-	if not initial_children[-1] is RoadPoint:
-		return
-	var added_node = initial_children[-1]
 	if added_node.prior_pt_init:
 		prior_selection = added_node.get_node_or_null(added_node.prior_pt_init)
 		was_next_pt = true
 	elif added_node.next_pt_init:
 		prior_selection = added_node.get_node_or_null(added_node.next_pt_init)
 		was_next_pt = false
-	initial_children[-1].queue_free()
+	if added_node != added_rp:
+		added_node.queue_free()
 
 	if is_instance_valid(prior_selection):
 		# Clean up the new old connection.
@@ -815,6 +826,17 @@ func _add_next_rp_on_click_undo(pos, selection, parent: Node) -> void:
 		else:
 			prior_selection.prior_pt_init = ^""
 		set_selection(prior_selection)
+
+	if added_node == added_rp:
+		# Kept for redo, so removed (after the disconnect above) instead of freed
+		var container: RoadContainer = added_node.container
+		for seg in [added_node.prior_seg, added_node.next_seg]:
+			if is_instance_valid(seg):
+				seg.queue_free()
+		added_node.prior_seg = null
+		added_node.next_seg = null
+		added_node.get_parent().remove_child(added_node)
+		container.update_edges()
 
 
 func _connect_rp_on_click(rp_a, rp_b):
