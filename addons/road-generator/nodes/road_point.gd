@@ -1133,11 +1133,13 @@ func connect_container(this_direction: int, target_rp: RoadPoint, target_directi
 	container.edge_containers[this_idx] = container.get_path_to(target_ct)
 	container.edge_rp_targets[this_idx] = target_ct.get_path_to(target_rp)
 	container.edge_rp_target_dirs[this_idx] = target_direction
+	target_rp.update_gizmos()
 
 	# Update target container pointing to this rp
 	target_ct.edge_containers[target_idx] = target_ct.get_path_to(container)
 	target_ct.edge_rp_targets[target_idx] = container.get_path_to(self)
 	target_ct.edge_rp_target_dirs[target_idx] = this_direction
+	update_gizmos()
 
 	# Ensure that both RoadPoints have the same position and orientation
 	# TODO: Should be able to deterministically specify which z direction is "correct",

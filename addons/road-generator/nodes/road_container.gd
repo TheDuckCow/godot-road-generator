@@ -871,6 +871,8 @@ func move_connected_road_points():
 ## other RoadContainers
 func update_edges():
 	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
+	if debug:
+		print("Called update_edge on RC %s" % self.name)
 	#print("Debug: Updating container edges %s" % self.name)
 
 	var _tmp_containers:Array[NodePath] = []
