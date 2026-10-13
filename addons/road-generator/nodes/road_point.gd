@@ -386,7 +386,7 @@ func _set_prior_pt_init(value:NodePath):
 	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, true)
-
+	update_gizmos()
 	emit_transform()
 
 
@@ -406,7 +406,7 @@ func _set_next_pt_init(value:NodePath):
 	# even if auto_refresh is off, since we want to make sure the container static
 	# data is always in a good state *ready* for the next refresh
 	_autofix_noncyclic_references(_pre_assign, value, false)
-
+	update_gizmos()
 	emit_transform()
 
 
@@ -614,6 +614,19 @@ func is_next_connected() -> bool:
 	if not self.terminated:
 		push_warning("RP should have been present in container edge list (is_next_connected)")
 	return false
+
+
+## True if this side (PointInit.NEXT or PRIOR) is an open end nothing connects to.
+## A terminated RP is never bare; terminated is the per-end opt-out of the
+## end fill.
+func is_bare_edge(dir: int) -> bool:
+	if terminated:
+		return false
+	if not is_instance_valid(container):
+		return true
+	if dir == PointInit.NEXT:
+		return not is_next_connected()
+	return not is_prior_connected()
 
 
 ## Deprecated in favor of get_next_graphnode
@@ -939,6 +952,7 @@ func add_road_point(new_road_point: RoadPoint, direction):
 	container._auto_refresh = refresh
 	if not container._auto_refresh:
 		container._needs_refresh = true
+	container.update_edges()
 
 
 ## Function to explicitly connect this RoadNode to another
@@ -1119,11 +1133,13 @@ func connect_container(this_direction: int, target_rp: RoadPoint, target_directi
 	container.edge_containers[this_idx] = container.get_path_to(target_ct)
 	container.edge_rp_targets[this_idx] = target_ct.get_path_to(target_rp)
 	container.edge_rp_target_dirs[this_idx] = target_direction
+	target_rp.update_gizmos()
 
 	# Update target container pointing to this rp
 	target_ct.edge_containers[target_idx] = target_ct.get_path_to(container)
 	target_ct.edge_rp_targets[target_idx] = container.get_path_to(self)
 	target_ct.edge_rp_target_dirs[target_idx] = this_direction
+	update_gizmos()
 
 	# Ensure that both RoadPoints have the same position and orientation
 	# TODO: Should be able to deterministically specify which z direction is "correct",

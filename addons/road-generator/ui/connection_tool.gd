@@ -136,6 +136,13 @@ func _physics_process(_delta:float) -> void:
 	# Be aware: _intersect_dict is also used in _perform_action.
 
 
+## Cached hover node, unless undo has removed it from the tree
+func _get_hover_graphnode() -> RoadGraphNode:
+	if is_instance_valid(_hover_graphnode) and _hover_graphnode.is_inside_tree():
+		return _hover_graphnode
+	return null
+
+
 ## Called by the engine when the 3D editor's viewport is updated.
 func forward_3d_draw_over_viewport(overlay: Control):
 	if not Rect2(Vector2(), overlay.size).has_point(overlay.get_local_mouse_position()):
@@ -489,6 +496,12 @@ func start_scene_placement(scene_path: String) -> void:
 	parent.add_child(new_rc, true)
 	_modal_object = new_rc
 	_pre_modal_selection = selection
+	
+	# Force an initial update, to avoid it appearing at the orign till movement
+	var fake_event = InputEventMouseMotion.new()
+	cursor = EditorInterface.get_editor_viewport_3d().get_mouse_position()
+	fake_event.position = cursor # without this, will have a 1 frame flicker after mouse moves
+	_handle_modal_input(EditorInterface.get_editor_viewport_3d().get_camera_3d(), fake_event)
 
 
 # ------------------------------------------------------------------------------
@@ -669,8 +682,8 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 	if _intersect_dict.is_empty():
 		hinting = HintState.INSTANCE # shouldn't do this here?
 		snapping = SnapState.MOVING
-		# If no colision, set postion based on selection's Y-plane & mouse pos
-		var target_plane = Plane(_pre_modal_selection.global_basis.y, _pre_modal_selection.global_position)
+		# If no colision, set postion based on current Y-plane & mouse pos
+		var target_plane = Plane(Vector3.UP, _modal_object.global_position)
 		var view := plg.get_viewport()
 		var ray_origin = camera.project_ray_origin(cursor)
 		var ray_normal = camera.project_ray_normal(cursor)
@@ -683,46 +696,48 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 				pos = pos_hit
 	else:
 		pos = _intersect_dict["position"]
-			
-		# Copied from the selection/moving snapping mode
-		# TODO: see if we can dedup the code duplication, or generalize this into
-		# some instancing type option, to work with future decorations.
-		var container = _modal_object
-		var snappable_pts: Array = [] # anything that we could connect to
-		var closest_pt: RoadPoint
-		var cloest_dist: float = -1
-		var local_edge: RoadPoint
-		for _edge in container.get_open_edges():
-			var _snap_point := _get_nearest_edge_roadpoint(_edge, true, true)
-			if not is_instance_valid(_snap_point):
-				continue
-			var this_dist:float = (_edge.global_position - _snap_point.global_position).length()
-			if not is_instance_valid(closest_pt) or this_dist < cloest_dist:
-				closest_pt = _snap_point
-				cloest_dist = this_dist
-				local_edge = _edge
-		# Now display snapping option
-		if is_instance_valid(closest_pt):
-			hinting = HintState.SNAP
-			snapping = SnapState.HINTING
-			hint_source_nodes.append(local_edge)
-			hint_source_points.append(camera.unproject_position(local_edge.global_transform.origin))
-			hint_target_nodes.append(closest_pt)
-			hint_target_points.append(camera.unproject_position(closest_pt.global_transform.origin))
-			_insert_edge_hint(closest_pt, camera)
-			_insert_edge_hint(local_edge, camera)
-		else:
-			hinting = HintState.NONE
-			snapping = SnapState.MOVING
 	
 	_modal_object.global_position = pos
+	_modal_object.force_update_transform()
+
+	# Copied from the selection/moving snapping mode
+	# TODO: see if we can dedup the code duplication, or generalize this into
+	# some instancing type option, to work with future decorations.
+	var container = _modal_object
+	var snappable_pts: Array = [] # anything that we could connect to
+	var closest_pt: RoadPoint
+	var cloest_dist: float = -1
+	var local_edge: RoadPoint
+	for _edge in container.get_open_edges():
+		var _snap_point := _get_nearest_edge_roadpoint(_edge, true, true)
+		if not is_instance_valid(_snap_point):
+			continue
+		var this_dist:float = (_edge.global_position - _snap_point.global_position).length()
+		if not is_instance_valid(closest_pt) or this_dist < cloest_dist:
+			closest_pt = _snap_point
+			cloest_dist = this_dist
+			local_edge = _edge
+
+	# Now display snapping option
+	if is_instance_valid(closest_pt):
+		hinting = HintState.SNAP
+		snapping = SnapState.HINTING
+		hint_source_nodes.append(local_edge)
+		hint_source_points.append(camera.unproject_position(local_edge.global_transform.origin))
+		hint_target_nodes.append(closest_pt)
+		hint_target_points.append(camera.unproject_position(closest_pt.global_transform.origin))
+		_insert_edge_hint(closest_pt, camera)
+		_insert_edge_hint(local_edge, camera)
+	else:
+		hinting = HintState.NONE
+		snapping = SnapState.MOVING
 
 	# Action handling
 	var mouse_or_altkey_event := _relevant_input_event(event) # must set to update cursor
 	var is_ui_orbit: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
 	is_ui_orbit = is_ui_orbit or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed)
 	if event is InputEventPanGesture or is_ui_orbit:
-		# Allows orbiting and panning during placement, helpful functionality
+		# Allows orbiting and panning during placement
 		plg.update_overlays()
 		return INPUT_PASS
 	elif event is InputEventKey and event.keycode == KEY_ESCAPE and event.pressed:
@@ -846,7 +861,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 		_clear_targets()
 	
 		# Set up context variables which help determine the relevant current input
-		var hover_roadnode:RoadGraphNode = _hover_graphnode
+		var hover_roadnode:RoadGraphNode = _get_hover_graphnode()
 		var selection:Node = plg.get_selected_node()
 		
 		var active_container: RoadContainer
@@ -1049,7 +1064,7 @@ func _input_delete_dissolve(camera: Camera3D, event: InputEvent, apply_hint: int
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
-		var point: RoadGraphNode = _hover_graphnode
+		var point: RoadGraphNode = _get_hover_graphnode()
 		var selection:Node = plg.get_selected_node() # TODO: switch to selected *nodes*?
 		var hover_pos := camera.unproject_position(selection.global_transform.origin)
 		var mouse_dist = cursor.distance_to(hover_pos)

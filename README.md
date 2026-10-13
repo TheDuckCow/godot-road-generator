@@ -40,13 +40,13 @@ See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/mil
 | [godot3](https://github.com/TheDuckCow/godot-road-generator/tree/godot3) | 0.6.0 | 3.5-3.6 |
 
 
-The main branch always matches the current release, which is why `main` may look inactive. All new development occurs in the `dev` targeting the Godot version listed above. When a release is ready, the dev branch is merged into `main`.
+The main branch always matches the current release, which is why `main` may look inactive. All new development occurs in the `dev` branch targeting the Godot version listed above. When a release is ready, the dev branch is merged into `main`.
 
 ## How to install and use
 
-Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and downloaded the latest release, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy at least the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
+Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and download the latest that supports your Godot version, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
 
-To get started, follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes - the "Museum" scene being a good starting place.
+To get started, follow the [Getting Started tutorial here](https://github.com/TheDuckCow/godot-road-generator/wiki/A-getting-started-tutorial). View demo usage by opening the `road_demos/demo_menu.tscn` scene, and navigating to any of the connected demo scenes. The "Museum" scene is a good starting place.
 
 Finally, check out the [wiki pages](https://github.com/TheDuckCow/godot-road-generator/wiki) for more detailed usage.
 
@@ -77,10 +77,10 @@ In addition to each point above, each scenario requires you to design your own A
 
 | Feature | Demo |
 | ------- | -----|
-| **Cross-section based geometry.** The many settings of RoadPoint's smoothly interpolate from one point to the next. Lane-control gizmo adjusts lane count, per RoadPoint or (holding shift) per entire RoadContainer. | ![roadpoint widget](./road_demos/gifs/roadpoint_widget.gif) |
-| **RoadContainer scene organization.** Group sibling RoadPoints, and snap together with other RoadContainers. Save a RoadContainer to a scene for reuse. | ![Containers](./road_demos/gifs/containers.gif) |
-| **RoadPoint inspector panel**. Define lane width, shoulder, and more. Hold shift to affect all RoadPoints within same container. | ![inspector panel](./road_demos/gifs/inspector_panel.gif) |
-| **Click-to draw with collision snapping**. Fine tune placement after using native 3D gizmo as needed. | ![click to draw](./road_demos/gifs/click_to_draw.gif) |
+| **Cross-section based geometry.** The many settings of RoadPoints smoothly interpolate from one point to the next. Lane-control gizmo adjusts lane count, per RoadPoint or (holding shift) per entire RoadContainer. | ![roadpoint widget](./road_demos/gifs/roadpoint_widget.gif) |
+| **RoadContainer scene organization.** Group sibling RoadPoints, and snap together with other RoadContainers. Save a RoadContainer to a scene file for reuse. | ![Containers](./road_demos/gifs/containers.gif) |
+| **RoadPoint inspector panel.** Define lane width, shoulder, and more. Hold shift to affect all RoadPoints within same container. | ![inspector panel](./road_demos/gifs/inspector_panel.gif) |
+| **Click-to-draw with snapping.** Then fine-tune placement using the native 3D gizmo as needed. | ![click to draw](./road_demos/gifs/click_to_draw.gif) |
 | **Procedural intersections.** Dynamically connect RoadPoints to create RoadIntersections. Supports non-planar setups. (RoadLane/edge curve support coming soon)| ![procedural intersections](./road_demos/gifs/intersection.gif) |
 | **Prefab intersection RoadContainers.** Snap together built-in four way, three way, and highway on/off ramps with ease. | ![Prefab containers](./road_demos/gifs/prefab_roadcontainers.gif) |
 | **Terrain3D integration.** Flatten terrain to meet the level of your roads with options for margins and falloff. Format extendable for other terrain generators too. | ![Terrain3D integration](./road_demos/gifs/terrain3d-demo.gif) |
@@ -90,7 +90,7 @@ In addition to each point above, each scenario requires you to design your own A
 | **Runtime-available functions for procedural use.** Operations apply on single RoadSegments at a time to be performant. | ![Procedural demo](./road_demos/gifs/procedural_demo.gif) |
 | **Export RoadContainers to gLTF/glb.** Output sections of your road network to edit further in a 3D software, without exporting your whole scene. | ![Export road mesh](./road_demos/gifs/export_geo.png) |
 | **Support for custom-made meshes.** Turn off "Create Geo", then drop in your own meshes + colliders. AI paths remain connected. | ![Custom road meshes demo](./road_demos/gifs/custom_geo.gif) |
-| **GDScript-only (for now)**. No extra compiling or dependencies to worry about. | ![GDScript only](./road_demos/gifs/gdscript-only.png) |
+| **GDScript-only (for now).** No extra compiling or dependencies to worry about. | ![GDScript only](./road_demos/gifs/gdscript-only.png) |
 
 
 ## Credits
@@ -99,7 +99,7 @@ This addon is distributed under the MIT license.
 
 It was developed by Moo-Ack! Productions as a part of the "Wheel Steal" game project. We poured a lot of effort, time, and money into making this an intuitive, highly functional addon - and we chose to give it away for free to the Godot community.
 
-You can share you appreciation by:
+You can share your appreciation by:
 
 1. Following or sharing the game project on [Bluesky](https://bsky.app/profile/wheelstealgame.bsky.social) or [Instagram](https://www.instagram.com/wheelstealgame/)
 1. Joining the [Wheel Steal discord](https://discord.gg/gttJWznb4a)
@@ -120,7 +120,7 @@ Logo designed by [Kenney](https://www.kenney.nl/assets).
 
 ## Future plans
 
-All development ideas are added as [enhancement issues here](https://github.com/TheDuckCow/godot-road-generator/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement). All *prioritized* issues are part of milestones [defined here](https://github.com/TheDuckCow/godot-road-generator/milestones).
+All development ideas are added as [enhancement issues](https://github.com/TheDuckCow/godot-road-generator/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement). All *prioritized* issues are part of [milestones](https://github.com/TheDuckCow/godot-road-generator/milestones).
 
 
 ## Contribution

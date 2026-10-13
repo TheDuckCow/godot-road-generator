@@ -871,6 +871,8 @@ func move_connected_road_points():
 ## other RoadContainers
 func update_edges():
 	# TODO: Optomize parent callers to avoid re-calls, e.g. on save.
+	if debug:
+		print("Called update_edge on RC %s" % self.name)
 	#print("Debug: Updating container edges %s" % self.name)
 
 	var _tmp_containers:Array[NodePath] = []
@@ -937,6 +939,7 @@ func update_edges():
 	edge_rp_target_dirs = _tmp_rp_target_dirs
 	edge_rp_locals = _tmp_rp_locals
 	edge_rp_local_dirs = _tmp_rp_local_dirs
+	_dirty_stale_end_fills()
 
 
 ## Removes a single RoadSegment, ensuring no leftovers and signal is emitted.
@@ -1410,6 +1413,36 @@ func _invalidate_edge(_idx, autofix: bool, reason=""):
 	edge_containers[_idx] = ^""
 	edge_rp_targets[_idx] = ^""
 	edge_rp_target_dirs[_idx] = -1
+
+
+## Dirty RoadSegments whose bare-end state changed since they were built, so
+## the end fill updates live. Rebuild is deferred; see _rebuild_stale_end_fills.
+func _dirty_stale_end_fills() -> void:
+	var stale := []
+	for seg in get_segments():
+		if not seg.is_end_fill_stale():
+			continue
+		seg.is_dirty = true
+		stale.append(seg)
+	if stale.is_empty():
+		return
+	if not _auto_refresh:
+		_needs_refresh = true
+		return
+	_rebuild_stale_end_fills.call_deferred(stale)
+
+
+## Rebuild the still-dirty segments and emit only for those rebuilt here, so
+## the signal follows the rebuild and is skipped if already consumed.
+func _rebuild_stale_end_fills(segs: Array) -> void:
+	var rebuilt := []
+	for seg in segs:
+		if not is_instance_valid(seg) or seg.is_queued_for_deletion():
+			continue
+		if seg.check_rebuild():
+			rebuilt.append(seg)
+	if not rebuilt.is_empty():
+		_emit_road_updated(rebuilt)
 
 
 func _create_collisions(road_mesh: MeshInstance3D) -> void:
