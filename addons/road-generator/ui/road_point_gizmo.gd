@@ -22,11 +22,11 @@ var init_handle_mirror
 var collider := BoxMesh.new()
 var collider_tri_mesh: TriangleMesh
 
-var puzzle_mesh_full: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_fullpiece.tres")
+var puzzle_mesh_full: Mesh = preload("res://addons/road-generator/resources/meshes/rp_gizmo_fullpiece.tres")
 var puzzle_mesh_full_coll: TriangleMesh
-var puzzle_mesh_next: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_edgenext.tres")
+var puzzle_mesh_next: Mesh = preload("res://addons/road-generator/resources/meshes/rp_gizmo_edgenext.tres")
 var puzzle_mesh_next_coll: TriangleMesh
-var puzzle_mesh_prior: Mesh = preload("res://addons/road-generator/resources/rp_gizmo_edgeprior.tres")
+var puzzle_mesh_prior: Mesh = preload("res://addons/road-generator/resources/meshes/rp_gizmo_edgeprior.tres")
 var puzzle_mesh_prior_coll: TriangleMesh
 
 var lane_widget := Node3D.new()

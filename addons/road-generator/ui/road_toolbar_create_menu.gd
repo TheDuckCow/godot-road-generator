@@ -39,10 +39,10 @@ enum MenuMode {
 	EDGE_SELECTED,  # Not yet used, could offer intersections/next pieces to add.
 }
 
-const ICN_CT = preload("../resources/road_container.png")
-const ICN_RP = preload("../resources/road_point.png")
-const ICN_LN = preload("../resources/road_lane.png")
-const ICN_AG = preload("../resources/road_lane_agent.png")
+const ICN_CT = preload("icons/road_container.png")
+const ICN_RP = preload("icons/road_point.png")
+const ICN_LN = preload("icons/road_lane.png")
+const ICN_AG = preload("icons/road_lane_agent.png")
 const RcSubMenu = preload("./rc_submenu.gd")
 
 var menu_mode = MenuMode.STANDARD

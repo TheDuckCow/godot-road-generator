@@ -26,7 +26,9 @@ func _ready() -> void:
 	for scn_path in demo_scenes:
 		var btn := Button.new()
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.text = scn_path.get_file().get_basename().capitalize()
+		var id = ResourceUID.text_to_id(scn_path)
+		var file_path = ResourceUID.get_id_path(id)
+		btn.text = file_path.get_file().get_basename().capitalize()
 		
 		var on_btn_press = func():
 			load_scene(scn_path)

@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3 uid="uid://d17ag4d311msv"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h107l"]
+albedo_color = Color(0.91, 0.455, 0, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_h107l"]
+material = SubResource("StandardMaterial3D_h107l")
+top_radius = 0.3
+bottom_radius = 0.35
+height = 0.1
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_xt1tr"]
+material = SubResource("StandardMaterial3D_h107l")
+top_radius = 0.3
+bottom_radius = 0.3
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xt1tr"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_kpase"]
+material = SubResource("StandardMaterial3D_xt1tr")
+top_radius = 0.32
+bottom_radius = 0.32
+height = 0.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_xt1tr"]
+material = SubResource("StandardMaterial3D_h107l")
+size = Vector3(0.3, 0.1, 0.1)
+
+[node name="Barrel" type="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0436987, 0)
+mesh = SubResource("CylinderMesh_h107l")
+
+[node name="barrelMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("CylinderMesh_xt1tr")
+skeleton = NodePath("")
+
+[node name="rim1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.746703, 0)
+mesh = SubResource("CylinderMesh_kpase")
+skeleton = NodePath("")
+
+[node name="rim2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.353696, 0)
+mesh = SubResource("CylinderMesh_kpase")
+skeleton = NodePath("")
+
+[node name="top_handle" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.01095, 0)
+mesh = SubResource("BoxMesh_xt1tr")
+skeleton = NodePath("")
