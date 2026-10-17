@@ -33,8 +33,8 @@ func _parse_category(object: Object, category: String) -> void:
 	panel_instance.apply_settings_target.connect(_apply_settings_target)
 	panel_instance.flip_roadpoint.connect(_flip_roadpoint)
 
-	if is_instance_valid(_editor_plugin): 
-		panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes 
+	if is_instance_valid(_editor_plugin):
+		panel_instance.has_copy_ref = true and _editor_plugin.copy_attributes
 	else:
 		panel_instance.has_copy_ref = false
 

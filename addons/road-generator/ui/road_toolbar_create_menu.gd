@@ -153,7 +153,7 @@ func on_toolbar_show(primary_sel: Node) -> void:
 		pup.set_item_tooltip(idx, "Must have a RoadContainer selected")
 	else:
 		pup.set_item_tooltip(idx, "Export current RoadContainer and children to a gLTF/GLB file")
-	
+
 	idx += 1
 	pup.add_item("Make RoadLanes Editable", CreateMenu.MAKE_LANES_EDITABLE)
 	pup.set_item_tooltip(idx, "Expose RoadLanes nodes in editor for manual editing")
