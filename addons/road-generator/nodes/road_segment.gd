@@ -732,9 +732,7 @@ func _rebuild():
 	var tr = get_parent().transform
 	transform = tr.inverse()
 
-	# Reposition this node to be physically located between both RoadPoints.
-	global_transform.origin = (
-		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
+	global_transform.origin = start_point.global_transform.origin
 
 	_update_curve()
 
