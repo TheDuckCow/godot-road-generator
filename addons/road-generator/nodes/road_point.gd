@@ -1357,7 +1357,7 @@ func _autofix_noncyclic_references(
 			point.prior_pt_init = ^""
 			seg = self.next_seg
 		container.remove_segment(seg)
-	elif for_prior and not point.next_pt_init.is_empty():
+	elif for_prior and point.next_pt_init.is_empty():
 		# self's prior RP is `point`, so make point's next RP be self if slot was empty
 		point.next_pt_init = point.get_path_to(self)
 		#print_debug(point.get_path_to(self), " -> ", point.next_pt_init)
