@@ -47,7 +47,7 @@ func populate_connector() -> void:
 		terrain3d_select.text = "Not configured"
 		terrain3d_select.icon = EditorInterface.get_editor_theme().get_icon("NodeWarning", "EditorIcons")
 		terrain3d_select.tooltip_text = "Press to select\nand connect\nRoadManager and\nterrain nodes"
-	
+
 	# Configure columns for labels + export var inputs
 	var vbox := %terrain3d_tut.get_parent().get_parent()
 	_connector_parent = HBoxContainer.new()
@@ -56,10 +56,10 @@ func populate_connector() -> void:
 	vbox.add_child(_connector_parent)
 	_connector_parent.add_child(_conenctor_left_col)
 	_connector_parent.add_child(_conenctor_right_col)
-	
+
 	# Usage type, at the time of writing resolves to 4102
 	const usage_filter: int = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE
-	
+
 	for _prop in _connector.get_property_list():
 		PROPERTY_USAGE_EDITOR
 		if _prop.usage != usage_filter:

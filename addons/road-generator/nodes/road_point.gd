@@ -206,7 +206,7 @@ func _ready():
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 	_last_emitted_transform = global_transform
-	
+
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
 	traffic_dir = traffic_dir.duplicate(true)
@@ -236,7 +236,7 @@ func _enter_tree() -> void:
 func _exit_tree():
 	# Hacky workaround to avoid an unnecessary rebuild on scene enter
 	_skip_next_on_transform = true
-	
+
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_queued_for_deletion():
 		if is_instance_valid(prior_seg):
@@ -492,13 +492,13 @@ func _notification(what):
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
 		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
-		
+
 		# Skip no-op notifications (e.g. tree re-entry), except the transform
 		# commit at drag release or next/prior mag handlers
 		var mag_changed: bool = prior_mag != _last_emitted_mag_prior
 		mag_changed = mag_changed or next_mag != _last_emitted_mag_next
 		unchanged = mag_changed and not mag_changed
-		
+
 		if unchanged and (low_poly or not _last_emit_was_low_poly):
 			return
 
@@ -570,7 +570,7 @@ func get_facing_open_dir(target: RoadGraphNode) -> PointInit:
 	var is_next_connected = is_next_connected()
 	if not is_prior_connected and not is_next_connected:
 		# Determine which direction to use.
-		var dir_to_target: Vector3 = target.global_position - global_position 
+		var dir_to_target: Vector3 = target.global_position - global_position
 		var is_fwd_facing:bool = (global_basis.z.dot(dir_to_target)) > 0
 		if is_fwd_facing:
 			return PointInit.NEXT

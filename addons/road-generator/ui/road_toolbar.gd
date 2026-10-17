@@ -92,7 +92,7 @@ func on_show(
 	lock_rot_y.button_pressed = y_rotation_locked
 	lock_rot_z.button_pressed = z_rotation_locked
 	settings_menu.get_connector = _get_connector
-	
+
 	create_menu.on_toolbar_show(primary_sel)
 
 

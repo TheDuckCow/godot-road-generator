@@ -552,7 +552,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		return Mesh.new() # Empty mesh.
 
 	var parent_transform: Transform3D = intersection.transform
-	
+
 	# origin is the intersection position, coords are relative to it.
 	var surface_tool: SurfaceTool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -577,7 +577,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 	var edge_ups: Array[Vector3] = []
 	## Per-edge underside thickness resolved from each RoadPoint.
 	var edge_thicknesses: Array[float] = []
-	
+
 	const uv_width := 0.125 # 1/8 for breakdown of texture.
 	const uv_gutter_width := uv_width * SegGeo.UV_MID_SHOULDER
 	var density := container.effective_density()
@@ -587,7 +587,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		if facing == _IntersectNGonFacing.OTHER:
 			push_error("Unexpected RoadPoint state in IntersectionNGon mesh generation (next/prior points both null or defined on %s). Returning an empty mesh." % [edge.name])
 			return Mesh.new() # Empty mesh.
-		
+
 		var lane_width: float = edge.lane_width
 		var lanes_count = edge.traffic_dir.size() # use traffic_dir over lanes for consistency with segment generation
 		var lanes_tot_width: float = lane_width * lanes_count
@@ -597,7 +597,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 		var alignment_offset: float = 0.0
 		if edge.alignment == RoadPoint.Alignment.DIVIDER:
 			alignment_offset = (edge.get_rev_lane_count() - edge.traffic_dir.size() / 2.0) * edge.lane_width
-		
+
 		# Aim for real-world texture proportions width:height of 2:1 matching texture,
 		# but then the hight of 1 full UV is half the with across all lanes, so another 2x
 		var uv_height := STOP_ROW_SIZE / lane_width / RoadPoint.DEFAULT_LANE_WIDTH / 2 # ratio of 1/4th down vs width of image to be square
@@ -712,7 +712,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 			# Lane quad
 			var u_near := uv_width*6
 			var u_far := uv_width*7
-			
+
 			surface_tool.set_uv(Vector2(uv_width*7, uv_height))
 			surface_tool.add_vertex(lane_left_side - parent_transform.origin)
 			surface_tool.set_uv(Vector2(uv_width*6, uv_height))
@@ -836,7 +836,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 			surface_tool.add_vertex(current_gutter_l - parent_transform.origin)
 			surface_tool.set_uv(Vector2(uv_gutter_width, v_dist))
 			surface_tool.add_vertex(next_shoulder_r - parent_transform.origin)
-			
+
 			surface_tool.set_uv(Vector2(uv_gutter_width, v_dist))
 			surface_tool.add_vertex(next_shoulder_r - parent_transform.origin)
 			surface_tool.set_uv(Vector2(0.0, 0.0))
@@ -845,7 +845,7 @@ func _generate_debug_mesh(intersection: Node3D, edges: Array[RoadPoint], contain
 			surface_tool.add_vertex(next_gutter_r - parent_transform.origin)
 
 		iteration_i += 1
-	
+
 	surface_tool.index()
 	var material: Material = container.effective_surface_material()
 	if material:

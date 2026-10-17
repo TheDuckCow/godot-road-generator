@@ -111,7 +111,7 @@ func _physics_process(_delta:float) -> void:
 		return
 	var view := EditorInterface.get_editor_viewport_3d(0)
 	var camera := view.get_camera_3d()
-	
+
 	# Perform the main raycast
 	_intersect_mouse_src = camera.project_ray_origin(cursor)
 	_intersect_mouse_nrm = camera.project_ray_normal(cursor)
@@ -189,7 +189,7 @@ func forward_3d_draw_over_viewport(overlay: Control):
 func forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 	# Preprocess event to update toolbar if necessary
 	handle_shortcuts(event, camera)
-	
+
 	# Handle inputs
 	var ret := 0
 	var selected:Node = plg.get_selected_node()
@@ -232,7 +232,7 @@ func traverse_nodes_shortcut(event: InputEvent) -> void:
 			return
 	else:
 		return
-	
+
 	var to_end: bool = Input.is_key_pressed(KEY_SHIFT)
 	var alt_pressed: bool = Input.is_key_pressed(KEY_ALT)
 	var initial_sel = plg.get_selected_node()
@@ -264,13 +264,13 @@ func traverse_nodes_shortcut(event: InputEvent) -> void:
 		if not is_instance_valid(new_sel):
 			return
 		_last_sel_inter = inter
-		
+
 	elif initial_sel is RoadContainer:
 		# TODO: Select one of the roadpoints (or containers) of connected edges to this container
 		pass
 	else:
 		return
-	
+
 	if is_instance_valid(new_sel) and is_instance_valid(initial_sel):
 		plg._edi.get_selection().call_deferred("remove_node", initial_sel)
 		plg._edi.get_selection().call_deferred("add_node", new_sel)
@@ -294,7 +294,7 @@ func update_toolmode_shortcut(event: InputEvent) -> bool:
 		elif plg._road_toolbar.mode == plg._road_toolbar.InputMode.ADD:
 			plg._road_toolbar._on_select_mode_pressed()
 			return true
-				
+
 	return false
 
 
@@ -322,7 +322,7 @@ static func _get_nextprior_rp_from_inter(inter: RoadIntersection, prior_rp: Road
 func nearest_graphnode_from_raycast(intersect: Dictionary) -> RoadGraphNode:
 	if intersect.is_empty():
 		return null
-	
+
 	var collider = intersect["collider"]
 	var position = intersect["position"]
 	if collider.name.begins_with("road_mesh_col"):
@@ -341,7 +341,7 @@ func nearest_graphnode_from_raycast(intersect: Dictionary) -> RoadGraphNode:
 		return nearest_point
 	elif collider.name.begins_with("intersection_mesh_col"):
 		var intersection: RoadIntersection = collider.get_parent().get_parent()
-		
+
 		# Identify if any intersection edges are close to the cursor click pos
 		# to allow for direct (dis)connection downstream
 		var open_rps: Array[RoadPoint] = []
@@ -406,7 +406,7 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 			half_gutter = max(0.0, -0.5 * selection.gutter_profile.y)
 		var nrm: Vector3 = intersect["normal"].normalized()
 		var pos: Vector3 = intersect["position"] + nrm*half_gutter
-		
+
 		# Ensure there's always a vec3 output, downstream will detect if nrm=vec3.ZERO
 		if pos == null or nrm == null:
 			pos = Vector3.ZERO
@@ -458,7 +458,7 @@ func get_click_point_with_context(intersect: Dictionary, mouse_src: Vector3, mou
 
 	# TODO: Finally, detect if the point is behind or in front;
 	# if behind, then skip action.
-	
+
 	# Ensure there's always a vec3 output, downstream will detect if nrm=vec3.ZERO
 	if hit_pt == null or up == null:
 		hit_pt = Vector3.ZERO
@@ -482,21 +482,21 @@ func start_scene_placement(scene_path: String) -> void:
 	else:
 		push_error("Invalid selection state, could not load %s" % scene_path)
 		return
-	
+
 	var scene:PackedScene = load(scene_path)
 	if not is_instance_valid(scene):
 		push_error("Invalid scene path, could not load %s" % scene_path)
 		return
-	
+
 	var new_rc = scene.instantiate()
 	var scene_name:String = scene_path.get_file().get_basename()
 	new_rc.name = scene_name
-	
+
 	# Don't set owner yet.
 	parent.add_child(new_rc, true)
 	_modal_object = new_rc
 	_pre_modal_selection = selection
-	
+
 	# Force an initial update, to avoid it appearing at the orign till movement
 	var fake_event = InputEventMouseMotion.new()
 	cursor = EditorInterface.get_editor_viewport_3d().get_mouse_position()
@@ -602,13 +602,13 @@ func _draw_connector(overlay: Control, start_pos: Vector2, end_pos: Vector2, col
 	var rad_size: float = 5 * _ui_scale
 	overlay.draw_circle(start_pos, rad_size + _margin_scale*2, white_col)
 	overlay.draw_circle(end_pos, rad_size + _margin_scale*2, white_col)
-	
+
 	var dash_dist := 4*_ui_scale
 	if dashed:
 		overlay.draw_dashed_line(start_pos, end_pos, white_col, _ui_scale+_margin_scale*2, dash_dist, true)
 	else:
 		overlay.draw_line(start_pos, end_pos, white_col, _ui_scale+_margin_scale*2, true)
-	
+
 	# Colored part
 	overlay.draw_circle(start_pos, rad_size, col)
 	overlay.draw_circle(end_pos, rad_size, col)
@@ -673,12 +673,12 @@ func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
 func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 	var pos: Vector3
 	_clear_targets()
-	
+
 	if EditorInterface.get_edited_scene_root() != _modal_scene_init:
 		# User switched tabs
 		plg.update_overlays()
 		return _cancel_action(camera)
-	
+
 	if _intersect_dict.is_empty():
 		hinting = HintState.INSTANCE # shouldn't do this here?
 		snapping = SnapState.MOVING
@@ -696,7 +696,7 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 				pos = pos_hit
 	else:
 		pos = _intersect_dict["position"]
-	
+
 	_modal_object.global_position = pos
 	_modal_object.force_update_transform()
 
@@ -751,7 +751,7 @@ func _handle_modal_input(camera: Camera3D, event: InputEvent) -> int:
 		_clear_targets()
 		plg.update_overlays()
 		return res
-	
+
 	plg.update_overlays()
 	return INPUT_STOP
 
@@ -848,7 +848,7 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 					snapping = SnapState.MOVING
 		plg.update_overlays()
 		return INPUT_PASS
-	
+
 	_clear_targets()
 	plg.update_overlays()
 	return INPUT_PASS
@@ -859,17 +859,17 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
-	
+
 		# Set up context variables which help determine the relevant current input
 		var hover_roadnode:RoadGraphNode = _get_hover_graphnode()
 		var selection:Node = plg.get_selected_node()
-		
+
 		var active_container: RoadContainer
 		if selection is RoadGraphNode:
 			active_container = selection.container
 		elif selection is RoadContainer:
 			active_container = selection
-		
+
 		if selection is RoadManager:
 			hint_source_nodes.append(selection)
 			hinting = HintState.CREATE_RP
@@ -879,11 +879,11 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 				var rp_hover:RoadPoint = hover_roadnode
 				var rp_hover_filled:bool = rp_hover.is_prior_connected() and rp_hover.is_next_connected()
 				var rp_hover_pos: Vector2 = camera.unproject_position(rp_hover.global_transform.origin)
-				
+
 				var closest_rp:RoadPoint = plg.get_nearest_edge_road_point(selection, camera, cursor)
 				var closest_filled:bool = closest_rp.is_prior_connected() and closest_rp.is_next_connected()
 				var closest_pos: Vector2 = camera.unproject_position(closest_rp.global_transform.origin)
-				
+
 				if closest_rp == rp_hover:
 					pass
 				elif closest_filled:
@@ -957,18 +957,18 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			hinting = HintState.CREATE_RP
 		elif selection is RoadPoint and hover_roadnode is RoadPoint:
 			# TODO - extract into func handle_add_rp2rp?
-			# Connection context, but need to check if same container and if 
+			# Connection context, but need to check if same container and if
 			var rp_sel: RoadPoint = selection
 			var rp_hover:RoadPoint = hover_roadnode
 
 			var rp_sel_filled:bool = rp_sel.is_prior_connected() and rp_sel.is_next_connected()
 			var rp_sel_pos: Vector2 = camera.unproject_position(rp_sel.global_transform.origin)
-			
+
 			var rp_hover_filled:bool = rp_hover.is_prior_connected() and rp_hover.is_next_connected()
 			var rp_hover_pos: Vector2 = camera.unproject_position(rp_hover.global_transform.origin)
-			
+
 			var sel_hover_connected = rp_hover.get_next_road_node() == rp_sel or rp_hover.get_prior_road_node() == rp_sel
-			
+
 			# TODO: check if either are on an edge which is cross-container connected.
 			if rp_sel == rp_hover:
 				pass
@@ -1027,7 +1027,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 			# supporting a workflow of creating intersection points first and then
 			# connections between them later.
 			pass
-		
+
 		plg.update_overlays()
 	elif not event is InputEventMouseButton:
 		return INPUT_PASS
@@ -1135,7 +1135,7 @@ func _perform_action(camera: Camera3D) -> int:
 				var init_par = _modal_object.get_parent()
 				init_par.remove_child(_modal_object)
 				plg.instance_container(_modal_object, inst_transform)
-				
+
 				# If was snapping at same time, apply the snap as a second undo/redo step operation
 				if hint_target_nodes.size() > 0 and hint_target_nodes[0] is RoadPoint:
 					# Really is a snapping of a RoadContainer
@@ -1143,7 +1143,7 @@ func _perform_action(camera: Camera3D) -> int:
 					var tgt_rp: RoadPoint = hint_source_nodes[0]
 					pre_snap_trans = [_modal_object.global_transform]
 					plg.snap_container_to_road_point(tgt_rp, other_rp, pre_snap_trans)
-				
+
 			else:
 				push_error("Instance invalid, failed to place object")
 			if Input.is_key_pressed(KEY_SHIFT): # multi placement
@@ -1275,16 +1275,16 @@ func _clear_modal() -> void:
 
 func _insert_edge_hint(rp: RoadPoint, camera: Camera3D) -> void:
 	var origin = rp.global_position
-	
+
 	var rev_width: float = rp.get_width_without_shoulders() / 2.0
 	var fwd_width: float = rp.get_width_without_shoulders() / 2.0
 	var align_offset: float = 0.0
 	if rp.alignment == rp.Alignment.DIVIDER:
 		align_offset = rp.lane_width * rp.get_fwd_lane_count() / 2.0 - rp.lane_width * rp.get_rev_lane_count() / 2.0
-	
+
 	var rev_pos3d: Vector3 = origin - rp.global_basis.x * (rev_width - align_offset + rp.shoulder_width_l)
 	var fwd_pos3d: Vector3 = origin + rp.global_basis.x * (fwd_width + align_offset + rp.shoulder_width_r)
-	
+
 	var rev_pos2d: Vector2 = camera.unproject_position(rev_pos3d)
 	var fwd_pos2d: Vector2 = camera.unproject_position(fwd_pos3d)
 	hint_edges_r.append(rev_pos2d)
@@ -1364,7 +1364,7 @@ func _get_nearest_edge_roadpoint(source_rp: RoadPoint, ignore_same_cont: bool, o
 			# If ignoring the same container and others can't be identified, nothing to do
 			return null
 		containers = [cont]
-	
+
 	var min_dist: float
 	var nearest_rp: RoadPoint
 	for _cont in containers:

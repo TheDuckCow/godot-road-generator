@@ -32,7 +32,7 @@ signal on_transform(node: Node3D, low_poly: bool) # TODO in abstract?
 #region Export vars
 # ------------------------------------------------------------------------------
 
-@export var settings: IntersectionSettings = null: get = _get_settings, set = _set_settings 
+@export var settings: IntersectionSettings = null: get = _get_settings, set = _set_settings
 
 
 # -------------------------------------
@@ -117,7 +117,7 @@ func _ready() -> void:
 			push_warning("Parent of RoadIntersection %s is not a RoadContainer" % self.name)
 		container = par
 	on_transform.connect(container.on_point_update)
-	
+
 	_do_roadmesh_creation()
 	if container.debug_scene_visible and is_instance_valid(_mesh):
 		_mesh.owner = container.get_owner()
@@ -184,7 +184,7 @@ func add_branch(road_point: RoadPoint) -> void:
 		return
 	edge_points.append(road_point)
 	_sort_edges_clockwise()
-	
+
 	# Pick the closest facing open egde of this RoadPoint to connect
 	var open_dir := road_point.get_facing_open_dir(self)
 	road_point._is_internal_updating = true
@@ -197,7 +197,7 @@ func add_branch(road_point: RoadPoint) -> void:
 		road_point._is_internal_updating = false
 		return
 	road_point._is_internal_updating = false
-	
+
 	container.update_edges()
 	is_dirty = true
 	emit_transform()
