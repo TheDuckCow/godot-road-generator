@@ -71,11 +71,11 @@ func _init(editor_plugin: EditorPlugin):
 	init_handle_mirror = null
 	collider.size = BaseColliderSize
 	collider_tri_mesh = collider.generate_triangle_mesh()
-	
+
 	puzzle_mesh_full_coll = puzzle_mesh_full.generate_triangle_mesh()
 	puzzle_mesh_next_coll = puzzle_mesh_next.generate_triangle_mesh()
 	puzzle_mesh_prior_coll = puzzle_mesh_prior.generate_triangle_mesh()
-	
+
 	setup_lane_widgets()
 
 
@@ -181,7 +181,7 @@ func _redraw(gizmo) -> void:
 	handles.push_back(Vector3(0, 0, -point.prior_mag))
 	handles.push_back(Vector3(0, 0, point.next_mag))
 	gizmo.add_handles(handles, get_material("handles", gizmo), [], false, true)
-	
+
 	var lines = PackedVector3Array()
 	lines.push_back(Vector3(0, 0, -point.prior_mag))
 	lines.push_back(Vector3(0, 0, point.next_mag))
@@ -563,7 +563,7 @@ func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh, mesh_type: String)
 	var scalef:float = rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
 	var scalev := Vector3(1, 0.5, 1) * scalef
 	var gizmo_new_mesh: Mesh
-	
+
 	# Cache the resized puzzle piece mesh to avoid editor performance drop
 	var key := [mesh_type, scalev]
 	if key in _gizmo_cache:
@@ -575,9 +575,9 @@ func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh, mesh_type: String)
 		surface_tool_gizmo.append_from(gizmo_mesh, 0, Transform3D().scaled(scalev))
 		gizmo_new_mesh = surface_tool_gizmo.commit()
 		_gizmo_cache[key] = gizmo_new_mesh
-	
+
 	all_meshes = [gizmo_new_mesh]
-	
+
 	# Identify segment meshes to merge together
 	var segs = []
 	if is_instance_valid(rp.prior_seg) and rp.prior_seg.get_parent() == rp:
@@ -589,7 +589,7 @@ func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh, mesh_type: String)
 			if not schild is MeshInstance3D:
 				continue
 			if schild.mesh:
-				# TODO: Increase performance even further by avoiding surface tool 
+				# TODO: Increase performance even further by avoiding surface tool
 				# here too, if we can alter a mesh just by transforming and re-applying the transform
 				# (this otherwise works, but results in the segments being rotated)
 				# While gizmo add_mesh can take a transform, the later generated tri mesh can't.
@@ -601,4 +601,4 @@ func _generate_collider_mesh(rp: RoadPoint, gizmo_mesh: Mesh, mesh_type: String)
 				surface_tool.append_from(schild.mesh, 0, _seg.transform) # invert applied transform
 				all_meshes.append(surface_tool.commit())
 
-	return all_meshes 
+	return all_meshes

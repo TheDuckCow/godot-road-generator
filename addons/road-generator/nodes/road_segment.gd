@@ -104,7 +104,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	pass
-	
+
 
 # Workaround for cyclic typing
 func is_road_segment() -> bool:
@@ -379,7 +379,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	# additions and substractions to calculate which lanes are going to get merged.
 	# Only expecting additions or substractions, not both at the same time (for each direction separately)
 	var lane_shift := {"reverse": 0, "forward": 0}
-	
+
 	var suffix := ""
 	if _par == start_point and start_point.get_next_road_node(true) == end_point:
 		suffix = ""  # default case, no need to differentiate
@@ -424,7 +424,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		var new_ln:RoadLane = ln_child
 		active_lanes.append(new_ln)
 		new_ln.road_segment = self
-		
+
 		if container.ai_lane_group != "":
 			# check not already in the group
 			ln_child.add_to_group(container.ai_lane_group)
@@ -564,7 +564,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var end_pt_trans: Transform3D
 	var start_ang: float
 	var end_ang: float
-	
+
 	if reverse:
 		dst.add_point(out_pos, out_pt_out, out_pt_in)
 		dst.add_point(in_pos, in_pt_out, in_pt_in)
@@ -573,7 +573,7 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
 		end_ang = start_pt_trans.basis.y.angle_to(d_gbasis.y)
 		start_ang = end_pt_trans.basis.y.angle_to(a_gbasis.y)
-		
+
 		# TOOD: Somehow here, there's slight jitter when applying the reverse logic,
 		# some rotation/tilts match exactly, others are off by like a degree or so
 		# (not substantial, so seems like a floating point issue, seems
@@ -590,14 +590,14 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 		end_pt_trans = dst.sample_baked_with_rotation(dst.get_baked_length())
 		start_ang = start_pt_trans.basis.y.angle_to(a_gbasis.y)
 		end_ang = end_pt_trans.basis.y.angle_to(d_gbasis.y)
-	
+
 		# Now apply a corrected tilt to account for interpolating the up vector
 		# if the tilts of both roadpoints are not the same.
 		var tilt_dir:float = 1.0 if start_pt_trans.basis.x.dot(a_gbasis.y) > 0 else -1.0
 		dst.set_point_tilt(0, start_ang*tilt_dir)
 		tilt_dir = 1.0 if end_pt_trans.basis.x.dot(d_gbasis.y) > 0 else -1.0
 		dst.set_point_tilt(1, end_ang*tilt_dir)
-	
+
 	# One assignment at the end, to avoid duplicate curve modified calls
 	road_lane.curve = dst
 
@@ -679,7 +679,7 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
 		if lp && lp.lane_next == lp.get_path_to(l):
 			lp.lane_next = NodePath("")
-		
+
 		var ll:RoadLane = l.get_node_or_null(l.lane_left)
 		if ll && ll.lane_right == ll.get_path_to(l):
 			ll.lane_right = NodePath("")
@@ -732,9 +732,7 @@ func _rebuild():
 	var tr = get_parent().transform
 	transform = tr.inverse()
 
-	# Reposition this node to be physically located between both RoadPoints.
-	global_transform.origin = (
-		start_point.global_transform.origin + start_point.global_transform.origin) / 2.0
+	global_transform.origin = start_point.global_transform.origin
 
 	_update_curve()
 
@@ -828,7 +826,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	# Would be nice, but not producing usable tilting even after using set_point_tilt
 	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.x
-	
+
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -851,7 +849,7 @@ func _normal_for_offset_eased(curve: Curve3D, sample_position: float) -> Vector3
 	# (or whichever it is parented to) rotation applied. Not affected by _flip_mult.
 	var start_up = start_point.transform.basis.y
 	var end_up = end_point.transform.basis.y
-	
+
 	# TODO: calculate influence based on relative lengths of handles,
 	# as this method will perform the same easing regardless of handles
 	var sample_eased = ease(sample_position, smooth_amount)
@@ -870,7 +868,7 @@ func _top_side_normal_for_offset_eased(curve: Curve3D, sample_position: float) -
 	# Would be nice, but not producing usable tilting even after using set_point_tilt
 	#var transform = curve.sample_baked_with_rotation(sample_position, true, true)
 	#return transform.basis.y
-	
+
 	var offset_amount = 0.002 # TODO: Consider basing this on lane width.
 	var start_offset: float
 	var end_offset: float
@@ -1266,7 +1264,7 @@ class GeoLoopInfo:
 					pos_r[nf] *= pos_gutter
 
 			# Assume the start and end lanes are the same for now.
-			
+
 			# The 'middle' vert, same level as shoulder but to edge.
 			var uv_m = SegGeo.UV_MID_SHOULDER * uv_width
 			# LEFT (between pos:_s and _m, and between uv:_l and _m)
@@ -1330,22 +1328,22 @@ class GeoLoopInfo:
 
 		const UNDERSIDE_GUTTER_SMOOTHING_GROUP = 1
 		const END_FILL_SMOOTHING_GROUP = 2
-		
+
 		# Presume the underside material uses seamless textures in both directions,
 		# to avoid stretching we'll presume that 1 UV tile should correspond to
 		# two lane widths. Technically still needs to scale start to end since the
 		# size of the road width could also vary.
-		
+
 		var rwidth_start := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.NEAR])
 		var rwidth_end := lerp(segment.start_point.lane_width, segment.start_point.lane_width, offset[NearFar.FAR])
 		var uv_unit_width_start:float = width_offset[LeftRight.LEFT][NearFar.NEAR] + width_offset[LeftRight.RIGHT][NearFar.NEAR]
 		var uv_unit_width_end:float = width_offset[LeftRight.LEFT][NearFar.FAR] + width_offset[LeftRight.RIGHT][NearFar.FAR]
-		
+
 		const UNIT_LANE_COUNT := 4.0  # How many lanes a 0->1 U tile represents
 		# Calc U offset from middle of road (geometric, not lane)
 		var ufac_mult_start = uv_unit_width_start / UNIT_LANE_COUNT / rwidth_start / 2.0
 		var ufac_mult_end = uv_unit_width_end / UNIT_LANE_COUNT / rwidth_end / 2.0
-		
+
 		var uv_start_v:float = per_loop_uv_size * float(loop)
 		var uv_end_v:float = per_loop_uv_size * float(loop + 1)
 		var uvs_center = [
@@ -1354,7 +1352,7 @@ class GeoLoopInfo:
 			Vector2(ufac_mult_start, uv_start_v),
 			Vector2(-ufac_mult_start, uv_start_v)
 		]
-		
+
 		# map width of road to be 0-1, to gutter height ratio
 		var sp:RoadPoint = point[0]
 		var ep:RoadPoint = point[1]
@@ -1366,7 +1364,7 @@ class GeoLoopInfo:
 			lerp(segment.start_point.gutter_profile.x, segment.end_point.gutter_profile.x, offset[NearFar.FAR]),
 			lerp(sp.gutter_profile.y + nf_thickness[NearFar.NEAR], ep.gutter_profile.y + nf_thickness[NearFar.FAR], offset[1])
 		).length() / UNIT_LANE_COUNT / rwidth_end
-		
+
 		var uvs_right = [
 			Vector2(ufac_mult_end + gutter_end_len, uv_end_v),
 			Vector2(ufac_mult_end, uv_end_v),

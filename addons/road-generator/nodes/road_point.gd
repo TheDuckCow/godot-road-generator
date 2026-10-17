@@ -206,7 +206,7 @@ func _ready():
 	set_notify_local_transform(true)
 	#set_ignore_transform_notification(false)
 	_last_emitted_transform = global_transform
-	
+
 	# Fix an issue where the arrays somehow get "linked" between RoadPoints,
 	# making all roads have the same lane setup
 	traffic_dir = traffic_dir.duplicate(true)
@@ -236,7 +236,7 @@ func _enter_tree() -> void:
 func _exit_tree():
 	# Hacky workaround to avoid an unnecessary rebuild on scene enter
 	_skip_next_on_transform = true
-	
+
 	# Proactively disconnected any connected road segments, no longer valid.
 	if is_queued_for_deletion():
 		if is_instance_valid(prior_seg):
@@ -566,7 +566,7 @@ func get_facing_open_dir(target: RoadGraphNode) -> PointInit:
 	var is_next_connected = is_next_connected()
 	if not is_prior_connected and not is_next_connected:
 		# Determine which direction to use.
-		var dir_to_target: Vector3 = target.global_position - global_position 
+		var dir_to_target: Vector3 = target.global_position - global_position
 		var is_fwd_facing:bool = (global_basis.z.dot(dir_to_target)) > 0
 		if is_fwd_facing:
 			return PointInit.NEXT
@@ -1353,7 +1353,7 @@ func _autofix_noncyclic_references(
 			point.prior_pt_init = ^""
 			seg = self.next_seg
 		container.remove_segment(seg)
-	elif for_prior and not point.next_pt_init.is_empty():
+	elif for_prior and point.next_pt_init.is_empty():
 		# self's prior RP is `point`, so make point's next RP be self if slot was empty
 		point.next_pt_init = point.get_path_to(self)
 		#print_debug(point.get_path_to(self), " -> ", point.next_pt_init)

@@ -64,12 +64,12 @@ func _redraw(gizmo) -> void:
 	lines.push_back(Vector3.UP)
 	gizmo.add_lines(lines, get_material("main", gizmo), false)
 
-	
+
 	var mesh := _generate_collider_mesh(intersection)
 	gizmo.add_collision_triangles(mesh.generate_triangle_mesh())
 	gizmo.add_mesh(mesh, GizmoHiddenMat) # Have add for collision to work, but apply invisible shader
 	gizmo.add_mesh(collider, get_material("collider", gizmo))
-	
+
 	# Re-process the handler
 	var _new_avg_width = get_avg_lane_width(intersection)
 	var need_size_update = prior_lane_width_avg < 0 or prior_lane_width_avg != _new_avg_width
@@ -79,7 +79,7 @@ func _redraw(gizmo) -> void:
 		collider.bottom_radius = prior_lane_width_avg / 2.0  # resulting
 		collider.top_radius = prior_lane_width_avg / 2.0
 		collider.height = prior_lane_width_avg / 20.0
-	
+
 	intersection_widget.visible = true
 	intersection_widget.transform = intersection.global_transform
 
@@ -126,5 +126,5 @@ func _generate_collider_mesh(inter: RoadIntersection) -> Mesh:
 	surface_tool.create_from_arrays(collider.get_mesh_arrays())
 	if inter._mesh and inter._mesh.mesh:
 		surface_tool.append_from(inter._mesh.mesh, 0, Transform3D.IDENTITY)
-	
+
 	return surface_tool.commit()
