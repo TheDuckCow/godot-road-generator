@@ -491,18 +491,14 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
-		var unchanged = global_transform.is_equal_approx(_last_emitted_transform)
-
+		
 		# Skip no-op notifications (e.g. tree re-entry), except the transform
 		# commit at drag release or next/prior mag handlers
-		var mag_changed: bool = prior_mag != _last_emitted_mag_prior
-		mag_changed = mag_changed or next_mag != _last_emitted_mag_next
-		unchanged = mag_changed and not mag_changed
+		var mag_changed = (prior_mag != _last_emitted_mag_prior) or (next_mag != _last_emitted_mag_next)
+		var low_poly_released = (!low_poly and _last_emit_was_low_poly)
 
-		if unchanged and (low_poly or not _last_emit_was_low_poly):
-			return
-
-		emit_transform(low_poly)
+		if mag_changed or low_poly_released or !global_transform.is_equal_approx(_last_emitted_transform):
+			emit_transform(low_poly)
 
 
 func emit_transform(low_poly=false):
