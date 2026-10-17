@@ -20,7 +20,7 @@ func _can_handle(object):
 func _parse_category(object: Object, category: String) -> void:
 	if category != "road_container.gd":
 		return
-	
+
 	panel_instance = RoadContainerPanel.instantiate()
 	panel_instance.call("set_edi", _edi)
 	panel_instance.call_deferred("update_selected_road_container", object)
