@@ -385,7 +385,7 @@ func _set_collider_group(value: String) -> void:
 
 
 func _set_collider_meta(value: String) -> void:
-	if value == collider_group_name:
+	if value == collider_meta_name:
 		return
 	collider_meta_name = value
 	_defer_refresh_on_change()
