@@ -491,7 +491,7 @@ func _notification(what):
 			_skip_next_on_transform = false
 			return
 		var low_poly = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Engine.is_editor_hint()
-		
+
 		# Skip no-op notifications (e.g. tree re-entry), except the transform
 		# commit at drag release or next/prior mag handlers
 		var mag_changed = (prior_mag != _last_emitted_mag_prior) or (next_mag != _last_emitted_mag_next)

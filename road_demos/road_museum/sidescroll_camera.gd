@@ -34,7 +34,7 @@ func _process(delta: float) -> void:
 	else:
 		velocity += dir * delta*acc
 	velocity = clamp(velocity, -max_vel, max_vel)
-	
+
 	var new_x = global_transform.origin.x
 	new_x += velocity
 	if global_position.x > max_x and dir <= 0:

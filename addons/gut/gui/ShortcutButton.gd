@@ -142,8 +142,8 @@ func disable_set(should):
 
 func disable_clear(should):
 	_ctrls.clear_button.disabled = should
-	
-	
+
+
 func cancel():
 	if(_editing):
 		_edit_mode(false)

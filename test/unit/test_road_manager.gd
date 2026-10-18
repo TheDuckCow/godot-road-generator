@@ -20,12 +20,12 @@ func test_manager_signals():
 	manager.auto_refresh = false
 	watch_signals(manager)
 	assert_signal_emit_count(manager, "on_road_updated", 0, "Calling setup should not emit any signals")
-	
+
 	var container = RoadContainer.new()
 	manager.add_child(container)
 	container._auto_refresh = false
 	road_util.create_oneseg_container(container) # won't be built yet
-	
+
 	# Should have zero calls still, since not built yet
 	assert_signal_emit_count(manager, "on_road_updated", 0, "With refresh off should not have signalled yet")
 	assert_eq(container.get_segments().size(), 0, "Shouldn't have segments yet")
@@ -42,22 +42,22 @@ func test_auto_refresh():
 	manager.auto_refresh = false
 	watch_signals(manager)
 	watch_signals(container)
-	
+
 	road_util.create_oneseg_container(container)
-	
+
 	assert_signal_emit_count(manager, "on_road_updated", 0, "Should have no segment updates")
 	assert_signal_emit_count(container, "on_road_updated", 0, "Should have no segment updates")
-	
+
 	manager.density = 20.0
-	
+
 	assert_signal_emit_count(manager, "on_road_updated", 0, "Should have no segment updates")
 	assert_signal_emit_count(container, "on_road_updated", 0, "Should have no segment updates")
-	
+
 	# This will call updates in a deferred way, so we must make our own deferred call to run after.
 	manager.auto_refresh = true
 	var res:bool = await wait_for_signal(manager.on_road_updated, 1.0, "Signal should come after refresh")
 	assert_true(res, "Should have received signal")
-	
+
 	assert_signal_emit_count(manager, "on_road_updated", 1, "Should have a single segment update")
 	assert_signal_emit_count(container, "on_road_updated", 1, "Should have a single segment update")
 
@@ -65,12 +65,12 @@ func test_auto_refresh():
 func test_set_density():
 	var manager:RoadManager = add_child_autofree(RoadManager.new())
 	manager.auto_refresh = true  # Simulating default editor, no explicit calls to rebuild
-	
+
 	var container = RoadContainer.new()
 	manager.add_child(container)
 	container.setup_road_container()
 	road_util.create_oneseg_container(container)
-	
+
 	# Check initial setup
 	var segs := container.get_segments()
 	assert_eq(segs.size(), 1)
@@ -78,12 +78,12 @@ func test_set_density():
 	assert_gt(manager.density, 0.0)
 	assert_eq(container.density, -1.0)
 	assert_eq(segment.density, manager.density)
-	
+
 	# Update the setting
 	watch_signals(container)
 	manager.density = 1.23 # should auto trigger rebuilds
 	assert_signal_emit_count(container, "on_road_updated", 1, "Should have updated segments")
-	
+
 	segs = container.get_segments()
 	assert_eq(segs.size(), 1, "Should still only havea  single segment")
 	segment = segs[0]

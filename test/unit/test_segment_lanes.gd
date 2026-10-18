@@ -79,7 +79,7 @@ func test_lanes_prior_to_prior():
 	container.rebuild_segments(true)
 	ensure_roadlanes_exist(container)
 	#road_util.save_testscene_to_file(container)
-	
+
 
 ## Checkes that two RoadPoints pointing towards each other produces good lanes
 func test_lanes_next_to_next():

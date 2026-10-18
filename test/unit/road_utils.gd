@@ -40,11 +40,11 @@ func create_rp_line(container:RoadContainer, count:int, connect:bool, set_positi
 		rps.append(rp)
 		if set_position:
 			rp.global_position = Vector3(0, 0, 10) * idx
-	
+
 	assert_eq(container.get_child_count(), count, "All RPs added")
 	if not connect:
 		return rps
-	
+
 	for idx in range(count - 1):
 		var rpa:RoadPoint = rps[idx]
 		var rpb:RoadPoint = rps[idx + 1]
@@ -52,7 +52,7 @@ func create_rp_line(container:RoadContainer, count:int, connect:bool, set_positi
 		# Alt, lower level:
 		rpa.next_pt_init = rpa.get_path_to(rpb)
 		rpb.prior_pt_init = rpb.get_path_to(rpa)
-	
+
 	return rps
 
 
@@ -91,7 +91,7 @@ func create_intersection_two_branch(container:RoadContainer) -> void:
 	container.add_child(p1)
 	container.add_child(p2)
 	p1.position.z -= 10
-	
+
 	p2.position.z += 10
 	assert_eq(container.get_child_count(), 3, "All graph nodes added")
 
