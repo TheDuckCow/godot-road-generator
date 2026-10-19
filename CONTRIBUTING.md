@@ -2,7 +2,7 @@
 
 ## How to contribute
 
-In all cases, it's best to communicate with the repository owners! If you are hoping to make a small change, directly creating a pull request is a good option (but feel free to communicate via an issue ahead of time). For bigger changes that add whole new features or change functionality, it's better to discuss in an issue first to ensure there is alignment. 
+In all cases, it's best to communicate with the repository owners! If you are hoping to make a small change, directly creating a pull request is a good option (but feel free to communicate via an issue ahead of time). For bigger changes that add whole new features or change functionality, it's better to discuss in an issue first to ensure there is alignment.
 
 The full process would thus be:
 

@@ -17,6 +17,6 @@ It has also been set up so that it will automatically show the RoadLane currentl
 
 ## Known issues
 
-The purpose of this demo is to show off how to connect prefab (intersection) pieces together, and is not focused on traffic simulation or agent movement, nor the related necessary management of intersection control. 
+The purpose of this demo is to show off how to connect prefab (intersection) pieces together, and is not focused on traffic simulation or agent movement, nor the related necessary management of intersection control.
 
 At the time of this writing, you will find the player agent in this demo scene gets stuck, and certain Road Lanes bend around in strange ways. This highlights a couple known issues that need to be resolved in AI pathing, see https://github.com/TheDuckCow/godot-road-generator/issues/171 for more details. The goal is to improve this functionality over time as the demo evolves.
