@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3 uid="uid://b77khruyipjcp"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_36dbe"]
+size = Vector3(0.4, 0.01, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_w0nk7"]
+albedo_color = Color(0.907212, 0.52521, 0.155915, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tov24"]
+material = SubResource("StandardMaterial3D_w0nk7")
+top_radius = 0.0
+bottom_radius = 0.15
+height = 0.5
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tov24"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_36dbe"]
+material = SubResource("StandardMaterial3D_tov24")
+top_radius = 0.065
+bottom_radius = 0.1
+height = 0.12
+
+[node name="base" type="MeshInstance3D"]
+mesh = SubResource("BoxMesh_36dbe")
+surface_material_override/0 = SubResource("StandardMaterial3D_w0nk7")
+
+[node name="TrafficCone" type="Node3D" parent="."]
+
+[node name="cone" type="MeshInstance3D" parent="TrafficCone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.259295, 0)
+mesh = SubResource("CylinderMesh_tov24")
+
+[node name="stripe" type="MeshInstance3D" parent="TrafficCone"]
+transform = Transform3D(0.98, 0, 0, 0, 0.98, 0, 0, 0, 0.98, 0, 0.259295, 0)
+mesh = SubResource("CylinderMesh_36dbe")

@@ -1,6 +1,6 @@
 extends PopupMenu
 
-const DEFAULT_DIR := "res://addons/road-generator/custom_containers/"
+const DEFAULT_DIR := "res://addons/road-generator/resources/container_presets/"
 
 signal pressed_add_custom_roadcontainer(path) # String
 

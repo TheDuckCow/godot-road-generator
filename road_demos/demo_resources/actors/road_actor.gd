@@ -14,6 +14,7 @@ enum DriveState {
 @export var visualize_lane := false
 @export var seek_ahead := 5.0 # How many meters in front of agent to seek position
 @export var auto_register: bool = true
+@export var wrap_lane: bool = false
 
 @onready var agent:RoadLaneAgent = get_node("%road_lane_agent")
 
@@ -98,6 +99,47 @@ func _get_player_input() -> Vector3:
 	return Vector3(lane_move, 0, -dir) # neg z is "forward"
 
 
+## Traces the current lane to find the furtherest backwards RoadLane connected
+func _find_lane_chain_start(from_lane: RoadLane) -> RoadLane:
+	if not is_instance_valid(from_lane):
+		return null
+	var lane_cursor: RoadLane = from_lane
+	var visited := {}
+	while true:
+		var lane_id := lane_cursor.get_instance_id()
+		if visited.has(lane_id): # handle cycles
+			return lane_cursor
+		visited[lane_id] = true
+		if not lane_cursor.lane_prior:
+			return lane_cursor
+		var prior_lane = lane_cursor.get_node_or_null(lane_cursor.lane_prior)
+		if not is_instance_valid(prior_lane) or not prior_lane is RoadLane:
+			return lane_cursor
+		lane_cursor = prior_lane
+	return lane_cursor
+
+
+## Moves the actor to the beginning of the lane sequence if it just reached the end of its lane
+func _try_wrap_at_lane_end(move_dist: float) -> void:
+	if not wrap_lane:
+		return
+	if move_dist <= 0:
+		return
+	if not is_instance_valid(agent.current_lane):
+		return
+	if agent.current_lane.lane_next:
+		return
+	if not agent.close_to_lane_end(move_dist, agent.MoveDir.FORWARD):
+		return
+	var start_lane := _find_lane_chain_start(agent.current_lane)
+	if not is_instance_valid(start_lane):
+		return
+	agent.assign_lane(start_lane)
+	var start_ref_local: Transform3D = start_lane.curve.sample_baked_with_rotation(0.0)
+	start_ref_local.origin = start_lane.curve.sample_baked(0.0)
+	global_transform = start_lane.global_transform * start_ref_local
+
+
 func _physics_process(delta: float) -> void:
 	velocity.y = 0
 	var target_dir:Vector3 = get_input()
@@ -119,14 +161,7 @@ func _physics_process(delta: float) -> void:
 	# matches a positive move_along_lane call, while negative would be
 	# going in reverse in the lane's intended direction.
 	var move_dist:float = get_signed_speed() * delta
+	_try_wrap_at_lane_end(move_dist)
 
-	var next_pos: Vector3 = agent.move_along_lane(move_dist)
-	global_transform.origin = next_pos
-
-	# Get another point a little further in front for orientation seeking,
-	# without actually moving the vehicle (ie don't update the assign lane
-	# if this margin puts us into the next lane in front)
-	var orientation:Vector3 = agent.test_move_along_lane(0.05)
-
-	if ! global_transform.origin.is_equal_approx(orientation):
-		look_at(orientation, Vector3.UP)
+	var next_lane_transform: Transform3D = agent.move_along_lane_with_rotation(move_dist)
+	global_transform = next_lane_transform
