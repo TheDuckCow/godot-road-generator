@@ -246,12 +246,7 @@ func _exit_tree():
 
 
 func _to_string():
-	var parname
-	if self.get_parent():
-		parname = self.get_parent()
-	else:
-		parname = "[not in scene]"
-	return "RoadPoint %s (id:%s)" % [self.name,  self.get_instance_id()]
+	return "RoadPoint %s (id:%s)" % [self.name, self.get_instance_id()]
 
 
 func _get_configuration_warnings() -> PackedStringArray:
