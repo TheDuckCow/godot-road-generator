@@ -7,7 +7,8 @@ GODOT=$(cat godot_versions.txt)
 	--path $PWD \
 	--headless \
 	-d \
-	-gconfig=.gut_editor_config.json
+	-gconfig=.gut_editor_config.json \
+	2> ./run_tests_errors.log
 
 if [ "$?" != "0" ]; then
 	echo "Tests failed."
