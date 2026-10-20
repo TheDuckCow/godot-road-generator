@@ -51,20 +51,20 @@ func run_rebuild() -> void:
 	var _time_start := Time.get_ticks_msec()
 	manager.rebuild_all_containers(true)
 	var _time_postgen := Time.get_ticks_msec()
-	
+
 	var sample_time := _time_postgen - _time_start
 	samples.append(sample_time)
 	var total_sample_time := 0
 	for _sample in samples:
 		total_sample_time += _sample
-	
+
 	var settings_txt := "%s (%s), %s, %s, %s" % [
 		"AI lanes" if lanes_btn.button_pressed else "no AI lanes",
 		"visible" if lane_visual_btn.button_pressed else "not visible",
 		"edge curves" if edges_btn.button_pressed else "no edge curves",
 		"geo" if geo_btn.button_pressed else "no geo",
 		"underside" if underside_btn.button_pressed else "no underside",
-		
+
 	]
 	var line1 := "Generation time: %s ms over %s samples" % [
 		total_sample_time / samples.size(), samples.size()]

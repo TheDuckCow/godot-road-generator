@@ -21,13 +21,13 @@ func _ready() -> void:
 			version.text = "v%s" % version_value
 		else:
 			version.text = ""
-	
+
 	var focussed: bool = false
 	for scn_path in demo_scenes:
 		var btn := Button.new()
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.text = scn_path.get_file().get_basename().capitalize()
-		
+
 		var on_btn_press = func():
 			load_scene(scn_path)
 		btn.pressed.connect(on_btn_press)

@@ -27,9 +27,9 @@ func test_intersection_creation():
 	var container = autoqfree(RoadContainer.new())
 	add_child(container)
 	container.setup_road_container()
-	
+
 	road_util.create_intersection_two_branch(container)
-	
+
 	var pts = container.get_roadpoints()
 	assert_eq(len(pts), 2, "Should have 2 roadpoints")
 	var ints = container.get_intersections()
@@ -54,7 +54,7 @@ func test_on_road_updated_signal_after_container_refresh():
 	assert_eq(len(segments_updated), 1, "Should have single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
 	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
-	
+
 	_validate_edges(container)
 
 
@@ -64,7 +64,7 @@ func test_on_road_updated_signal_after_inter_moved():
 	container.setup_road_container()
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
-	
+
 	var inter:RoadIntersection = container.get_child(0)
 	# Trigger a transform equivalent to moving the point in the viewport.
 	# Changing global_transform doesn't work since it checks for editor,
@@ -79,7 +79,7 @@ func test_on_road_updated_signal_after_inter_moved():
 	assert_eq(len(segments_updated), 1, "Should have single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
 	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
-	
+
 	_validate_edges(container)
 
 
@@ -90,7 +90,7 @@ func test_on_road_updated_signal_after_rp_moved():
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
 	_validate_edges(container)
-	
+
 	var rp:RoadPoint = container.get_child(1)
 	# Trigger a transform equivalent to moving the point in the viewport.
 	# Changing global_transform doesn't work since it checks for editor,
@@ -104,7 +104,7 @@ func test_on_road_updated_signal_after_rp_moved():
 	assert_eq(len(segments_updated), 1, "Should have single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
 	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
-	
+
 	_validate_edges(container)
 
 
@@ -115,17 +115,17 @@ func test_intersection_add_branch():
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
 	_validate_edges(container)
-	
+
 	# Setup a new connection
 	var inter:RoadIntersection = container.get_child(0)
 	var p3:RoadPoint = autoqfree(RoadPoint.new())
 	container.add_child(p3)
 	p3.name = "p3"
 	p3.position += Vector3(20, 0, 10)  # not bothering to rotate, but shifting to the side
-	
+
 	# The main change to test
 	inter.add_branch(p3)
-	
+
 	# Check the outcome
 	var next_connected:bool = p3.is_next_connected()
 	var prior_connected:bool = p3.is_prior_connected()
@@ -141,7 +141,7 @@ func test_intersection_add_branch():
 	assert_eq(len(segments_updated), 1, "Should have single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
 	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
-	
+
 	_validate_edges(container, 3)
 
 
@@ -210,12 +210,12 @@ func test_intersection_remove_branch():
 	road_util.create_intersection_two_branch(container)
 	watch_signals(container)
 	_validate_edges(container)
-	
+
 	var inter:RoadIntersection = container.get_child(0)
 	var rp:RoadPoint = container.get_child(1)
 	inter.remove_branch(rp)
 	container.remove_child(rp) # simulate queue free within test
-	
+
 	# Check the outcome
 	assert_eq(rp.next_pt_init, ^"", "Point should be disconnected not " % rp.next_pt_init)
 	assert_eq(rp.prior_pt_init, ^"", "Point should be disconnected" % rp.prior_pt_init)
@@ -227,5 +227,5 @@ func test_intersection_remove_branch():
 	assert_eq(len(segments_updated), 1, "Should have single segment created")
 	assert_signal_emit_count(container, "on_road_updated", 1, "One signal call")
 	assert_is(segments_updated[0], RoadIntersection, "Should be a road intersection only")
-	
+
 	_validate_edges(container, 1)

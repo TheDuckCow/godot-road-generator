@@ -4,7 +4,7 @@ extends Node3D
 ## A simple demonstration of pathfinding over RoadLanes, using an AStar3D graph.
 ## Left-click to set path start, right-click to set path end.
 
-## The camera to be used for raycasting, to find where the user is clicking. 
+## The camera to be used for raycasting, to find where the user is clicking.
 @export var camera: Camera3D
 ## RoadManager node used to identify RoadLanes and respond to updates.
 @export var road_manager: RoadManager
@@ -46,7 +46,7 @@ func _physics_process(delta: float) -> void:
 	if not _raycast_next_phys_frame:
 		return
 	_raycast_next_phys_frame = false
-	
+
 	if _triggering_event.button_index == MOUSE_BUTTON_LEFT:
 		var space_state = get_world_3d().direct_space_state
 		var ray_params := PhysicsRayQueryParameters3D.new()
@@ -184,7 +184,7 @@ func plot_route() -> PackedInt64Array:
 				.distance_squared_to(nearest_end) < path_search_radius_squared
 		):
 			possible_ends.push_back(point_id)
-	
+
 	var lowest_cost := INF
 	var shortest_id_path: PackedInt64Array
 	# Loop over possible start & end points to find shortest path
