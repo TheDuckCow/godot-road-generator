@@ -1255,7 +1255,7 @@ func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
 		a_dir = RoadPoint.PointInit.NEXT
 		a_edge = RoadPoint.PointInit.PRIOR
 	else:
-		push_error("Initial RoadPoint % should not be fully connected" % rpa.name)
+		push_error("Initial RoadPoint %s should not be fully connected" % rpa.name)
 		return
 	if rpb.prior_pt_init.is_empty():
 		b_dir = RoadPoint.PointInit.PRIOR
@@ -1264,7 +1264,8 @@ func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
 		b_dir = RoadPoint.PointInit.NEXT
 		b_edge = RoadPoint.PointInit.PRIOR
 	else:
-		push_error("Initial RoadPoint % should not be fully connected" % rpb.name)
+		push_error("Initial RoadPoint %s should not be fully connected" % rpb.name)
+		return
 	undo_redo.add_do_method(new_rpa, "connect_roadpoint", a_dir, new_rpb, b_dir)
 
 	# Finally, connect the two containers together
