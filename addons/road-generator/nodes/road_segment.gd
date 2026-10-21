@@ -994,10 +994,14 @@ func _build_geo():
 
 	# Touch ups on geometry and commiting it to mesh
 	st.index()
-	if material:
-		st.set_material(material)
 	st.generate_normals()
-	road_mesh.mesh = st.commit()
+	var arrays := st.commit_to_arrays()
+	_fix_boundary_normals(arrays, loops_info, false)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if material:
+		mesh.surface_set_material(0, material)
+	road_mesh.mesh = mesh
 	road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Generating underside
@@ -1013,13 +1017,13 @@ func _build_geo():
 	# Was underside generated? If so, append it to the mesh
 	if underside_generated:
 		st.index()
-
+		st.generate_normals()
+		var arrays_u := st.commit_to_arrays()
+		_fix_boundary_normals(arrays_u, loops_info, true)
+		road_mesh.mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays_u)
 		if material_underside:
 			# If no underside material set, don't apply any material at all
-			st.set_material(material_underside)
-
-		st.generate_normals()
-		st.commit(road_mesh.mesh)
+			road_mesh.mesh.surface_set_material(road_mesh.mesh.get_surface_count() - 1, material_underside)
 		# Enable shadows. If it has underside then its probably in air and casting some
 		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
@@ -1027,6 +1031,31 @@ func _build_geo():
 	if container.debug:
 		print_debug("\tRebuilt RoadSegment %s/%s/%s mesh between %s and %s" % [
 			self.container.name, self.get_parent().name, self.name, start_point.name, end_point.name])
+
+
+## Snaps normals of vertices on the start/end RoadPoint planes to analytic values.
+func _fix_boundary_normals(arrays: Array, loops_info: Array, underside: bool) -> void:
+	if loops_info.is_empty():
+		return
+	var planes := [
+		_boundary_plane(loops_info[0], NearFar.NEAR),
+		_boundary_plane(loops_info[loops_info.size() - 1], NearFar.FAR),
+	]
+	SegGeo.fix_boundary_normals(arrays, planes, underside)
+
+
+## Plane entry for SegGeo.fix_boundary_normals at one end of a loop.
+func _boundary_plane(info: GeoLoopInfo, nf: int) -> Dictionary:
+	return {
+		"p": info.nf_loop[nf],
+		"x": info.nf_basis[nf],
+		"up": info.nf_top[nf],
+		"outer": [
+			info.width_offset[LeftRight.LEFT][nf] + info.w_shoulder[LeftRight.LEFT][nf],
+			info.width_offset[LeftRight.RIGHT][nf] + info.w_shoulder[LeftRight.RIGHT][nf]],
+		"gutter": Vector2(info.gutr_x[nf], info.gutr_y[nf]),
+		"thickness": info.nf_thickness[nf],
+	}
 
 
 # ------------------------------------------------------------------------------
