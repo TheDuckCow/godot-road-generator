@@ -217,13 +217,13 @@ func find_nearest_lane(pos = null, distance: float = 50.0) -> RoadLane:
 	return closest_lane
 
 
-## Finds the position this many many units forward (or backwards, if negative)
+## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, assigning a new lane if the next one is reached
 func move_along_lane(move_distance: float) -> Vector3:
 	return _move_along_lane(move_distance, true)
 
 
-## Finds the position this many many units forward (or backwards, if negative)
+## Finds the position this many units forward (or backwards, if negative)
 ## along the current lane, without assigning a new lane
 func test_move_along_lane(move_distance: float) -> Vector3:
 	return _move_along_lane(move_distance, false)
