@@ -239,10 +239,6 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var lane_length: float = curve.get_baked_length()
 	var check_next_offset: float = curve.get_closest_offset(current_lane.to_local(pos)) + move_distance
 
-	# Fast path: target stays within the current lane
-	if check_next_offset >= 0.0 and check_next_offset <= lane_length:
-		return current_lane.to_global(curve.sample_baked(check_next_offset))
-
 	var _update_lane: RoadLane = current_lane
 	var reached_end := false
 	if check_next_offset > lane_length:
@@ -258,7 +254,7 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 			check_next_offset -= lane_length
 			_update_lane = check_lane
 			lane_length = _update_lane.curve.get_baked_length()
-	else:
+	elif check_next_offset < 0.0:
 		while check_next_offset < 0.0:
 			var check_lane = _update_lane.get_node_or_null(_update_lane.lane_prior)
 			if DEBUG_OUT:
@@ -270,6 +266,9 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 				break
 			_update_lane = check_lane
 			check_next_offset += _update_lane.curve.get_baked_length()
+	else:
+		# fast common case: same lane
+		return current_lane.to_global(curve.sample_baked(check_next_offset))
 	if update_lane and _update_lane != current_lane:
 		assign_lane(_update_lane)
 	var new_point: Vector3 = _update_lane.to_global(_update_lane.curve.sample_baked(check_next_offset))
