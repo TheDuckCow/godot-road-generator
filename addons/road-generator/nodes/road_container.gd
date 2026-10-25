@@ -582,9 +582,7 @@ func get_roadpoints(skip_edge_connected=false) -> Array[RoadPoint]:
 
 	if skip_edge_connected:
 		# Filter out pts which shouldn't be lane-changed (ie due to containers)
-		for itm in rps:
-			if itm.cross_container_connected():
-				rps.erase(itm)
+		rps = rps.filter(func(itm): return not itm.cross_container_connected())
 
 	return rps
 
