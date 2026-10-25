@@ -61,7 +61,6 @@ func populate_connector() -> void:
 	const usage_filter: int = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE
 
 	for _prop in _connector.get_property_list():
-		PROPERTY_USAGE_EDITOR
 		if _prop.usage != usage_filter:
 			continue
 		match _prop.type:
