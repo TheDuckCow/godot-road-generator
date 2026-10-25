@@ -17,7 +17,7 @@ extends Path3D
 
 signal on_transform
 
-const COLOR_PRIMARY := Color(0.6, 0.3, 0.3)
+const COLOR_PRIMARY := Color(0.6, 0.3, 0.0)
 const COLOR_START := Color(0.1, 0.9, 0.0)
 const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
