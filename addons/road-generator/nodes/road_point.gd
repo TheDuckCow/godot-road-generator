@@ -1204,7 +1204,7 @@ func disconnect_container(this_direction: int, target_direction: int) -> bool:
 	# Update target container pointing to this rp
 	if not target_ct:
 		pass # alert would have already happened above
-	elif this_idx < 0:
+	elif target_idx < 0:
 		push_error("Target RoadContainer did not indicate being connected to this RoadPoint/container")
 		return false
 	else:
