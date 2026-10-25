@@ -17,7 +17,7 @@ extends Path3D
 
 signal on_transform
 
-const COLOR_PRIMARY := Color(0.6, 0.3, 0,3)
+const COLOR_PRIMARY := Color(0.6, 0.3, 0.0)
 const COLOR_START := Color(0.1, 0.9, 0.0)
 const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 
@@ -68,9 +68,9 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 @export_group("Behavior")
 # -------------------------------------
 
-## Visualize this [RoadLane] and its direction in the editor directly.
-@export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
 ## Visualize this [RoadLane] and its direction during the game runtime.
+@export var draw_in_game = false: get = _get_draw_in_game, set = _set_draw_in_game
+## Visualize this [RoadLane] and its direction in the editor directly.
 @export var draw_in_editor = false: get = _get_draw_in_editor, set = _set_draw_in_editor
 
 ## Mesh instanced along the lane to visualize its direction. All lanes share

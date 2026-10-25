@@ -58,8 +58,6 @@ enum Alignment {
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const SegGeo = preload("res://addons/road-generator/procgen/segment_geo.gd")
 const UI_TIMEOUT = 50 # Time in ms to delay further refresh updates.
-const COLOR_YELLOW = Color(0.7, 0.7, 0,7)
-const COLOR_RED = Color(0.7, 0.3, 0.3)
 const SEG_DIST_MULT: float = 8.0 # How many road widths apart to add next RoadPoint.
 const DEFAULT_LANE_WIDTH: float = 4.0
 

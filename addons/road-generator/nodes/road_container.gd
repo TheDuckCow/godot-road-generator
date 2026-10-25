@@ -1031,10 +1031,8 @@ func snap_and_update(rp_a: Node, rp_b: Node) -> void:
 	# Update all other settings; this (possibly badly!) assumes that the
 	# edge being updated is oriented the same way as the source (ie prio -> next)
 	tgt_pt._is_internal_updating = true
-	tgt_pt._is_internal_updating = true
 	tgt_pt.global_transform = src_pt.global_transform
 	tgt_pt.copy_settings_from(src_pt)
-	tgt_pt._is_internal_updating = false
 	tgt_pt._is_internal_updating = false
 	# Trigger emit_transform only once
 	# tgt_pt.emit_transform() causes crashing, but is *definitely* in need of refreshing.
