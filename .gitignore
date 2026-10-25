@@ -4,10 +4,13 @@ addons/godot-reload-scene/
 addons/terrain_3d/
 addons/diff-margin/
 
+# OSX ignores
 *.DS_store
-# Place where local instances of godot go, for automated testing
+
+# GUT testing ignores
 godot_versions.txt
 .gut_editor_shortcuts.cfg
+run_tests_errors.log
 
 # Official gitignore items to include for Asset Library contributions, per:
 # https://raw.githubusercontent.com/aaronfranke/gitignore/godot/Godot.gitignore
