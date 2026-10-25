@@ -218,6 +218,7 @@ func _ready():
 		#if not par is RoadContainer:
 		if not par.has_method("is_road_container"):
 			push_warning("Parent of RoadPoint %s is not a RoadContainer" % self.name)
+			return
 		container = par
 
 	on_transform.connect(container.on_point_update)
