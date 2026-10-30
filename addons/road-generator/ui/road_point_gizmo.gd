@@ -91,6 +91,7 @@ func setup_lane_widgets():
 	arrow_left.rotation_degrees = Vector3(90, 0, 90)
 	arrow_left.position = Vector3(-5, 0, 0)
 	arrow_left.material_override = lane_widget_mat
+	arrow_left.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lane_widget.add_child(arrow_left)
 
 	# Setup right arrow
@@ -99,6 +100,7 @@ func setup_lane_widgets():
 	arrow_right.rotation_degrees = Vector3(90, 0, -90)
 	arrow_right.position = Vector3(5, 0, 0)
 	arrow_right.material_override = lane_widget_mat
+	arrow_right.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lane_widget.add_child(arrow_right)
 	#lane_widget.translation = Vector3(0, 0.5, 5)
 
@@ -106,6 +108,7 @@ func setup_lane_widgets():
 	road_width_line_mesh.size = Vector3(6, 0.2, 0.2)
 	road_width_line.mesh = road_width_line_mesh
 	road_width_line.material_override = lane_widget_mat
+	road_width_line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lane_widget.add_child(road_width_line)
 
 	# Setup lane divider template and node container
@@ -113,6 +116,7 @@ func setup_lane_widgets():
 	lane_divider.mesh = lane_divider_mesh
 	lane_divider.position = Vector3(0, 0, 0)
 	lane_divider.material_override = lane_widget_mat
+	lane_divider.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lane_widget.add_child(lane_dividers)
 
 	_editor_plugin.add_child(lane_widget)
