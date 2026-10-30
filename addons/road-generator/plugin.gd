@@ -1337,7 +1337,9 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
 	var up: Vector3 = rp_a.global_basis.y + rp_b.global_basis.y
 	if up.is_zero_approx():
 		up = Vector3.UP
-	var mid_transform := Transform3D(Basis.looking_at(-tangent, up.normalized()), (r0 + r1) / 2.0)
+	var mid_transform := Transform3D(Basis.looking_at(-tangent * a_sign, up.normalized()), (r0 + r1) / 2.0)
+	var new_rp_dir_to_b: int = a_dir
+	var new_rp_dir_to_a: int = RoadPoint.PointInit.PRIOR if a_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
 
 	var container: RoadContainer = rp_a.container
 	var new_rp := RoadPoint.new()
@@ -1359,12 +1361,12 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
 		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", true)
 		undo_redo.add_do_property(mag_args[0], mag_args[1], mag_args[2] / 2.0)
 		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", false)
-	undo_redo.add_do_method(rp_a, "connect_roadpoint", a_dir, new_rp, RoadPoint.PointInit.PRIOR)
-	undo_redo.add_do_method(new_rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, rp_b, b_dir)
+	undo_redo.add_do_method(rp_a, "connect_roadpoint", a_dir, new_rp, new_rp_dir_to_a)
+	undo_redo.add_do_method(new_rp, "connect_roadpoint", new_rp_dir_to_b, rp_b, b_dir)
 	undo_redo.add_do_method(self, "set_selection", new_rp)
 
-	undo_redo.add_undo_method(new_rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, b_dir)
-	undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", a_dir, RoadPoint.PointInit.PRIOR)
+	undo_redo.add_undo_method(new_rp, "disconnect_roadpoint", new_rp_dir_to_b, b_dir)
+	undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", a_dir, new_rp_dir_to_a)
 	undo_redo.add_undo_method(container, "remove_child", new_rp)
 	undo_redo.add_undo_method(self, "_call_update_edges", container)
 	for mag_args in [[rp_a, a_mag_prop, a_mag], [rp_b, b_mag_prop, b_mag]]:
