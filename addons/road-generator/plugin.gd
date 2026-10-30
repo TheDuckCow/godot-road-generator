@@ -1298,10 +1298,10 @@ func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
 	undo_redo.commit_action()
 
 
-## Inserts and selects a new RoadPoint halfway along the curve between two connected RoadPoints
-##
-## Handle magnitudes are halved so the road keeps its original shape.
-func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
+## Inserts and selects a RoadPoint at a curve parameter between connected RoadPoints.
+func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.5) -> void:
+	if curve_t <= 0.0 or curve_t >= 1.0:
+		return
 	if rp_a.container != rp_b.container:
 		push_error("Cannot subdivide RoadPoints of different RoadContainers")
 		return
@@ -1320,24 +1320,23 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
 	var a_mag: float = rp_a.get(a_mag_prop)
 	var b_mag: float = rp_b.get(b_mag_prop)
 
-	# Split the segment's cubic bezier at t=0.5, matching RoadSegment._set_curve_point handles
 	var a_sign := 1.0 if a_dir == RoadPoint.PointInit.NEXT else -1.0
 	var b_sign := 1.0 if b_dir == RoadPoint.PointInit.NEXT else -1.0
 	var p0: Vector3 = rp_a.global_position
 	var p3: Vector3 = rp_b.global_position
 	var p1: Vector3 = p0 + rp_a.global_basis.z * a_mag * a_sign
 	var p2: Vector3 = p3 + rp_b.global_basis.z * b_mag * b_sign
-	var q1: Vector3 = (p1 + p2) / 2.0
-	var r0: Vector3 = ((p0 + p1) / 2.0 + q1) / 2.0
-	var r1: Vector3 = (q1 + (p2 + p3) / 2.0) / 2.0
+	var q1: Vector3 = p1.lerp(p2, curve_t)
+	var r0: Vector3 = p0.lerp(p1, curve_t).lerp(q1, curve_t)
+	var r1: Vector3 = q1.lerp(p2.lerp(p3, curve_t), curve_t)
 	var tangent: Vector3 = r1 - r0
 	if tangent.is_zero_approx():
 		push_error("Degenerate curve between RoadPoints, cannot subdivide")
 		return
-	var up: Vector3 = rp_a.global_basis.y + rp_b.global_basis.y
+	var up: Vector3 = rp_a.global_basis.y.lerp(rp_b.global_basis.y, curve_t)
 	if up.is_zero_approx():
 		up = Vector3.UP
-	var mid_transform := Transform3D(Basis.looking_at(-tangent * a_sign, up.normalized()), (r0 + r1) / 2.0)
+	var mid_transform := Transform3D(Basis.looking_at(-tangent * a_sign, up.normalized()), r0.lerp(r1, curve_t))
 	var new_rp_dir_to_b: int = a_dir
 	var new_rp_dir_to_a: int = RoadPoint.PointInit.PRIOR if a_dir == RoadPoint.PointInit.NEXT else RoadPoint.PointInit.NEXT
 
@@ -1345,8 +1344,8 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
 	var new_rp := RoadPoint.new()
 	new_rp.copy_settings_from(rp_a, false)
 	new_rp.name = rp_a.name
-	new_rp.prior_mag = tangent.length() / 2.0
-	new_rp.next_mag = tangent.length() / 2.0
+	new_rp.set("next_mag" if new_rp_dir_to_a == RoadPoint.PointInit.NEXT else "prior_mag", tangent.length() * curve_t)
+	new_rp.set("next_mag" if new_rp_dir_to_b == RoadPoint.PointInit.NEXT else "prior_mag", tangent.length() * (1.0 - curve_t))
 	var editor_selected: Array = _edi.get_selection().get_selected_nodes()
 
 	var undo_redo = get_undo_redo()
@@ -1356,10 +1355,10 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
 	undo_redo.add_do_method(container, "add_child", new_rp, true)
 	undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
 	undo_redo.add_do_property(new_rp, "global_transform", mid_transform)
-	for mag_args in [[rp_a, a_mag_prop, a_mag], [rp_b, b_mag_prop, b_mag]]:
+	for mag_args in [[rp_a, a_mag_prop, a_mag * curve_t], [rp_b, b_mag_prop, b_mag * (1.0 - curve_t)]]:
 		# Guard avoids low-poly rebuilds while the mouse is pressed
 		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", true)
-		undo_redo.add_do_property(mag_args[0], mag_args[1], mag_args[2] / 2.0)
+		undo_redo.add_do_property(mag_args[0], mag_args[1], mag_args[2])
 		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", false)
 	undo_redo.add_do_method(rp_a, "connect_roadpoint", a_dir, new_rp, new_rp_dir_to_a)
 	undo_redo.add_do_method(new_rp, "connect_roadpoint", new_rp_dir_to_b, rp_b, b_dir)
