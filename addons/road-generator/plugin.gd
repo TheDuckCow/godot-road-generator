@@ -1298,6 +1298,85 @@ func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
 	undo_redo.commit_action()
 
 
+## Inserts and selects a new RoadPoint halfway along the curve between two connected RoadPoints
+##
+## Handle magnitudes are halved so the road keeps its original shape.
+func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint) -> void:
+	if rp_a.container != rp_b.container:
+		push_error("Cannot subdivide RoadPoints of different RoadContainers")
+		return
+
+	var a_dir: int
+	if rp_a.get_next_road_node(true) == rp_b:
+		a_dir = RoadPoint.PointInit.NEXT
+	elif rp_a.get_prior_road_node(true) == rp_b:
+		a_dir = RoadPoint.PointInit.PRIOR
+	else:
+		push_error("RoadPoints are not connected, cannot subdivide")
+		return
+	var b_dir: int = RoadPoint.PointInit.PRIOR if rp_b.get_prior_road_node(true) == rp_a else RoadPoint.PointInit.NEXT
+	var a_mag_prop := "next_mag" if a_dir == RoadPoint.PointInit.NEXT else "prior_mag"
+	var b_mag_prop := "next_mag" if b_dir == RoadPoint.PointInit.NEXT else "prior_mag"
+	var a_mag: float = rp_a.get(a_mag_prop)
+	var b_mag: float = rp_b.get(b_mag_prop)
+
+	# Split the segment's cubic bezier at t=0.5, matching RoadSegment._set_curve_point handles
+	var a_sign := 1.0 if a_dir == RoadPoint.PointInit.NEXT else -1.0
+	var b_sign := 1.0 if b_dir == RoadPoint.PointInit.NEXT else -1.0
+	var p0: Vector3 = rp_a.global_position
+	var p3: Vector3 = rp_b.global_position
+	var p1: Vector3 = p0 + rp_a.global_basis.z * a_mag * a_sign
+	var p2: Vector3 = p3 + rp_b.global_basis.z * b_mag * b_sign
+	var q1: Vector3 = (p1 + p2) / 2.0
+	var r0: Vector3 = ((p0 + p1) / 2.0 + q1) / 2.0
+	var r1: Vector3 = (q1 + (p2 + p3) / 2.0) / 2.0
+	var tangent: Vector3 = r1 - r0
+	if tangent.is_zero_approx():
+		push_error("Degenerate curve between RoadPoints, cannot subdivide")
+		return
+	var up: Vector3 = rp_a.global_basis.y + rp_b.global_basis.y
+	if up.is_zero_approx():
+		up = Vector3.UP
+	var mid_transform := Transform3D(Basis.looking_at(-tangent, up.normalized()), (r0 + r1) / 2.0)
+
+	var container: RoadContainer = rp_a.container
+	var new_rp := RoadPoint.new()
+	new_rp.copy_settings_from(rp_a, false)
+	new_rp.name = rp_a.name
+	new_rp.prior_mag = tangent.length() / 2.0
+	new_rp.next_mag = tangent.length() / 2.0
+	var editor_selected: Array = _edi.get_selection().get_selected_nodes()
+
+	var undo_redo = get_undo_redo()
+	undo_redo.create_action("Subdivide RoadPoints")
+	undo_redo.add_do_reference(new_rp)
+	undo_redo.add_do_method(rp_a, "disconnect_roadpoint", a_dir, b_dir)
+	undo_redo.add_do_method(container, "add_child", new_rp, true)
+	undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
+	undo_redo.add_do_property(new_rp, "global_transform", mid_transform)
+	for mag_args in [[rp_a, a_mag_prop, a_mag], [rp_b, b_mag_prop, b_mag]]:
+		# Guard avoids low-poly rebuilds while the mouse is pressed
+		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", true)
+		undo_redo.add_do_property(mag_args[0], mag_args[1], mag_args[2] / 2.0)
+		undo_redo.add_do_property(mag_args[0], "_is_internal_updating", false)
+	undo_redo.add_do_method(rp_a, "connect_roadpoint", a_dir, new_rp, RoadPoint.PointInit.PRIOR)
+	undo_redo.add_do_method(new_rp, "connect_roadpoint", RoadPoint.PointInit.NEXT, rp_b, b_dir)
+	undo_redo.add_do_method(self, "set_selection", new_rp)
+
+	undo_redo.add_undo_method(new_rp, "disconnect_roadpoint", RoadPoint.PointInit.NEXT, b_dir)
+	undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", a_dir, RoadPoint.PointInit.PRIOR)
+	undo_redo.add_undo_method(container, "remove_child", new_rp)
+	undo_redo.add_undo_method(self, "_call_update_edges", container)
+	for mag_args in [[rp_a, a_mag_prop, a_mag], [rp_b, b_mag_prop, b_mag]]:
+		undo_redo.add_undo_property(mag_args[0], "_is_internal_updating", true)
+		undo_redo.add_undo_property(mag_args[0], mag_args[1], mag_args[2])
+		undo_redo.add_undo_property(mag_args[0], "_is_internal_updating", false)
+	undo_redo.add_undo_method(rp_a, "connect_roadpoint", a_dir, rp_b, b_dir)
+	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
+
+	undo_redo.commit_action()
+
+
 ## Snap this selected sel_rp's container onto the tgt_rp of another container
 ##
 ## Only results in translating the whole RoadContainer, not RPs.

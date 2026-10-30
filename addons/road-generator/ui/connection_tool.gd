@@ -18,6 +18,7 @@ enum HintState {
 	UNSNAP, ## User is pulling 2+ elements apart, shoudl keep track of initial transforms
 	CREATE_RP, ## Add a new node such as a RoadPoint
 	CREATE_INTERSECTION, ## Construct an intersection
+	SUBDIVIDE, ## Insert a new node halfway between source and target nodes
 	DISCONNECT, ## Disconnect source node from target node
 	DELETE, ## Only source nodes defined, not target
 	DISSOLVE, ## Only source nodes defined, not target
@@ -174,6 +175,8 @@ func forward_3d_draw_over_viewport(overlay: Control):
 			draw_hint_create_rp(overlay)
 		HintState.CREATE_INTERSECTION:
 			draw_hint_create_intersection(overlay)
+		HintState.SUBDIVIDE:
+			draw_hint_subdivide(overlay)
 		HintState.DISCONNECT:
 			draw_hint_disconnect(overlay, "Disconnect")
 		HintState.DELETE:
@@ -561,6 +564,14 @@ func draw_hint_create_intersection(overlay: Control) -> void:
 			_draw_connector(overlay, src, trg, col, dashed)
 			_draw_mouse_label(overlay, col, "Create Intersection")
 		_draw_edges(overlay, col, false)
+
+
+func draw_hint_subdivide(overlay: Control) -> void:
+	var col: Color = Color.AQUA
+	for idx in hint_source_points.size():
+		_draw_connector(overlay, hint_source_points[idx], hint_target_points[idx], col)
+	_draw_mouse_label(overlay, col, "Subdivide")
+	_draw_edges(overlay, col, false)
 
 
 func draw_hint_disconnect(overlay: Control, label: String) -> void:
@@ -979,7 +990,11 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 				hint_target_points.append(rp_hover_pos)
 				_insert_edge_hint(rp_sel, camera)
 				_insert_edge_hint(rp_hover, camera)
-				hinting = HintState.DISCONNECT
+				# Cross-container neighbors overlap, so there is nothing to subdivide
+				if rp_sel.container == rp_hover.container:
+					hinting = HintState.SUBDIVIDE
+				else:
+					hinting = HintState.DISCONNECT
 			elif not rp_hover_filled and not rp_sel_filled:
 				hint_source_nodes.append(rp_sel)
 				hint_source_points.append(rp_sel_pos)
@@ -1211,6 +1226,9 @@ func _perform_action(camera: Camera3D) -> int:
 				plg.convert_to_intersection_with_new_roadpoint(selection, pos, nrm)
 			else:
 				push_warning("Create intersection in this context is not implemented")
+			return INPUT_STOP
+		HintState.SUBDIVIDE:
+			plg.subdivide_between_rps(hint_source_nodes[0], hint_target_nodes[0])
 			return INPUT_STOP
 		HintState.DISCONNECT:
 			if hint_target_nodes[0] is RoadIntersection:
