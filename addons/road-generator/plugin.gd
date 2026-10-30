@@ -607,6 +607,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	var add_container = false
 	var t_manager: Node = null
 	var handle_mag:float = 0
+	var mag_prop := "next_mag"
 	if selection is RoadPoint:
 		parent = selection.get_parent()
 		if selection.next_pt_init and selection.prior_pt_init:
@@ -616,9 +617,21 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 			_sel = parent
 		else:
 			_sel = selection
-			var road_width = _sel.lane_width * len(_sel.lanes)
-			var dist:float = pos.distance_to(_sel.global_transform.origin) / 2.0
-			handle_mag = max(road_width, dist)
+			var chord: Vector3 = pos - _sel.global_transform.origin
+			var forward: Vector3 = _sel.global_transform.basis.z.normalized()
+			var out_dir: Vector3
+			# Starting with a single point?
+			if not _sel.is_next_connected() and not _sel.is_prior_connected():
+				out_dir = chord.normalized()
+				mag_prop = "prior_mag"
+			elif _sel.next_pt_init or (not _sel.prior_pt_init and forward.dot(chord) <= 0):
+				out_dir = -forward
+				mag_prop = "prior_mag"
+			else:
+				out_dir = forward
+			# Cubic bezier circular arc handle length, capped at a U-turn if placed behind
+			var cos_a: float = maxf(out_dir.dot(chord.normalized()), 0.0)
+			handle_mag = 2.0 * chord.length() / (3.0 * (1.0 + cos_a))
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
@@ -630,12 +643,8 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	if handle_mag > 0:
 		undo_redo.add_do_property(_sel, "_is_internal_updating", true)
 		undo_redo.add_undo_property(_sel, "_is_internal_updating", true)
-		if not selection.next_pt_init:
-			undo_redo.add_do_property(_sel, "next_mag", handle_mag)
-			undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
-		elif not selection.prior_pt_init:
-			undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
-			undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
+		undo_redo.add_do_property(_sel, mag_prop, handle_mag)
+		undo_redo.add_undo_property(_sel, mag_prop, _sel.get(mag_prop))
 		undo_redo.add_do_property(_sel, "_is_internal_updating", false)
 		undo_redo.add_undo_property(_sel, "_is_internal_updating", false)
 	if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
@@ -761,18 +770,13 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Rotate this rp towards the initial selected node
 		if selection is RoadPoint:
-			var look_pos = selection.global_transform.origin
-			if not adding_to_next:
-				# Essentially flip the look 180 so it's not twisted around.
-				look_pos += 2 * dirvec
-			# Increase the angle a bit more based on the selected's magnitude,
-			# to result in a more natural rotation to ensure the curve doesn't
-			# look like it doubles back.
-			if adding_to_next:
-				look_pos += selection.global_transform.basis.z * selection.next_mag
-			else:
-				look_pos += selection.global_transform.basis.z * selection.prior_mag
-			next_rp.look_at(look_pos, next_rp.transform.basis.y.normalized())
+			# Mirror the outgoing direction across the chord (circular arc), or U-turn if placed behind
+			var dir_sign := 1.0 if adding_to_next else -1.0
+			var out_dir: Vector3 = selection.global_transform.basis.z.normalized() * dir_sign
+			var chord: Vector3 = dirvec.normalized()
+			var cos_a: float = out_dir.dot(chord)
+			var arrive_dir: Vector3 = 2.0 * cos_a * chord - out_dir if cos_a > 0 else -out_dir
+			next_rp.look_at(pos - arrive_dir * dir_sign, next_rp.transform.basis.y.normalized())
 			# Workaround, as look_at for some reason doesn't *actually* constrain the the provided axis
 			next_rp.global_transform.basis.y = nrm.normalized()
 
