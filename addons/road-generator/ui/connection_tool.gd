@@ -930,12 +930,13 @@ static func intersection_split_parameter(rp: RoadPoint, neighbor: RoadPoint, dis
 	return -1.0
 
 
-func _split_long_intersection_branches(rp: RoadPoint) -> void:
+## extra_rps are other roads joining the intersection, used only for clearance width.
+func _split_long_intersection_branches(rp: RoadPoint, extra_rps: Array = []) -> void:
 	var neighbors: Array[RoadPoint] = []
 	for neighbor in [rp.get_prior_road_node(true), rp.get_next_road_node(true)]:
 		if neighbor is RoadPoint:
 			neighbors.append(neighbor)
-	var distance := intersection_edge_distance([rp] + neighbors)
+	var distance := intersection_edge_distance([rp] + neighbors + extra_rps)
 	# Computed up front because each subdivision rebuilds rp's segments
 	var splits := []
 	for neighbor in neighbors:
@@ -1334,7 +1335,10 @@ func _perform_action(camera: Camera3D) -> int:
 			return INPUT_STOP
 		HintState.CREATE_INTERSECTION:
 			if hint_source_nodes.size() > 0 and hint_target_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes[0] is RoadPoint:
-				plg.convert_to_intersection_with_new_branch(hint_target_nodes[0], hint_source_nodes[0])
+				var rp_init: RoadPoint = hint_target_nodes[0]
+				var rp_branch: RoadPoint = hint_source_nodes[0]
+				_split_long_intersection_branches(rp_init, [rp_branch])
+				plg.convert_to_intersection_with_new_branch(rp_init, rp_branch)
 			elif hint_source_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes.is_empty():
 				var selection = hint_source_nodes[0]
 				var res: Array = get_click_point_with_context(
