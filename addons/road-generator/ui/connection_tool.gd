@@ -18,6 +18,7 @@ enum HintState {
 	UNSNAP, ## User is pulling 2+ elements apart, shoudl keep track of initial transforms
 	CREATE_RP, ## Add a new node such as a RoadPoint
 	CREATE_INTERSECTION, ## Construct an intersection
+	SUBDIVIDE, ## Insert a new node on the curve between source and target nodes
 	DISCONNECT, ## Disconnect source node from target node
 	DELETE, ## Only source nodes defined, not target
 	DISSOLVE, ## Only source nodes defined, not target
@@ -37,6 +38,8 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
 ## Prevents the InputEvent from reaching other Editor classes.
 const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
+## Extra branch length required before a new intersection splits that branch
+const INTERSECTION_SPLIT_MARGIN := 10.0
 const margin := 1 ## Overlay margin for drawing white outlines
 const white_col = Color(1, 1, 1, 0.9) ## Outline color
 
@@ -87,6 +90,9 @@ var _intersect_mouse_src: Vector3 = Vector3.ZERO
 var _intersect_mouse_nrm: Vector3 = Vector3.UP
 
 var tempset_toolmode: bool = false
+var _subdivide_t: float = 0.5
+var _subdivide_preview: Node3D
+var _subdivide_preview_source: RoadPoint
 
 func _init(plugin: EditorPlugin) -> void:
 	plg = plugin
@@ -134,6 +140,11 @@ func _physics_process(_delta:float) -> void:
 	# Now update hover node based one this state:
 	_hover_graphnode = nearest_graphnode_from_raycast(_intersect_dict)
 	# Be aware: _intersect_dict is also used in _perform_action.
+	if plg.tool_mode == plg._road_toolbar.InputMode.ADD and not is_instance_valid(_modal_object):
+		var motion := InputEventMouseMotion.new()
+		motion.position = cursor
+		_handle_add_mode_input(camera, motion)
+		_physics_post_input = false
 
 
 ## Cached hover node, unless undo has removed it from the tree
@@ -174,6 +185,8 @@ func forward_3d_draw_over_viewport(overlay: Control):
 			draw_hint_create_rp(overlay)
 		HintState.CREATE_INTERSECTION:
 			draw_hint_create_intersection(overlay)
+		HintState.SUBDIVIDE:
+			draw_hint_subdivide(overlay)
 		HintState.DISCONNECT:
 			draw_hint_disconnect(overlay, "Disconnect")
 		HintState.DELETE:
@@ -557,10 +570,15 @@ func draw_hint_create_intersection(overlay: Control) -> void:
 		for idx in hint_source_points.size():
 			var src := hint_source_points[idx]
 			var trg := hint_target_points[idx]
-			var dashed: bool = idx > 0
-			_draw_connector(overlay, src, trg, col, dashed)
+			if idx == 0:
+				_draw_connector(overlay, src, trg, col)
 			_draw_mouse_label(overlay, col, "Create Intersection")
 		_draw_edges(overlay, col, false)
+
+
+func draw_hint_subdivide(overlay: Control) -> void:
+	var col: Color = Color.GREEN
+	_draw_mouse_label(overlay, col, "Subdivide")
 
 
 func draw_hint_disconnect(overlay: Control, label: String) -> void:
@@ -855,10 +873,183 @@ func _handle_select_mode_input(camera: Camera3D, event: InputEvent) -> int:
 
 
 ## Handle adding new RoadPoints, connecting, and disconnecting RoadPoints
+static func can_subdivide_segment(segment: RoadSegment, selected_nodes: Array) -> bool:
+	if not is_instance_valid(segment) or selected_nodes.size() not in [1, 2]:
+		return false
+	if not is_instance_valid(segment.start_point) or not is_instance_valid(segment.end_point):
+		return false
+	if segment.start_point.container != segment.end_point.container or segment.start_point.container.is_subscene():
+		return false
+	for selected in selected_nodes:
+		if selected != segment.start_point and selected != segment.end_point:
+			return false
+	return true
+
+
+## Baked offsets are arc lengths, so they must be mapped back to bezier parameters.
+static func curve_parameter_at_offset(curve: Curve3D, offset: float) -> float:
+	var lower := 0.0
+	var upper := 1.0
+	for iteration in range(20):
+		var middle := (lower + upper) / 2.0
+		if curve.get_closest_offset(curve.sample(0, middle)) < offset:
+			lower = middle
+		else:
+			upper = middle
+	return clampf((lower + upper) / 2.0, 0.0001, 0.9999)
+
+
+static func closest_curve_parameter(segment: RoadSegment, position: Vector3) -> float:
+	return curve_parameter_at_offset(segment.curve, segment.curve.get_closest_offset(segment.to_local(position)))
+
+
+## Clears the widest meeting road, matching the NGon footprint and stop row.
+static func intersection_edge_distance(rps: Array) -> float:
+	var distance := 0.0
+	for rp: RoadPoint in rps:
+		var half_width := rp.traffic_dir.size() * rp.lane_width / 2.0
+		if rp.alignment == RoadPoint.Alignment.DIVIDER:
+			half_width = maxf(rp.get_rev_lane_count(), rp.get_fwd_lane_count()) * rp.lane_width
+		half_width += maxf(rp.shoulder_width_l, rp.shoulder_width_r) + rp.gutter_profile.x
+		var stop_row := IntersectionNGon.STOP_ROW_SIZE * rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
+		distance = maxf(distance, half_width + stop_row)
+	return distance
+
+
+## Returns the parameter from rp toward neighbor, or -1 when the branch is short enough.
+static func intersection_split_parameter(rp: RoadPoint, neighbor: RoadPoint, distance: float) -> float:
+	for segment in [rp.prior_seg, rp.next_seg]:
+		if not is_instance_valid(segment) or neighbor not in [segment.start_point, segment.end_point]:
+			continue
+		var length: float = segment.curve.get_baked_length()
+		if length <= distance + INTERSECTION_SPLIT_MARGIN:
+			return -1.0
+		var from_start: bool = segment.start_point == rp
+		var curve_t := curve_parameter_at_offset(segment.curve, distance if from_start else length - distance)
+		return curve_t if from_start else 1.0 - curve_t
+	return -1.0
+
+
+## Returns where the branch RoadPoint should sit, which is the target itself when close enough.
+static func intersection_branch_position(center: Vector3, target: Vector3, distance: float) -> Vector3:
+	if center.distance_to(target) <= distance + INTERSECTION_SPLIT_MARGIN:
+		return target
+	return center + (target - center).normalized() * distance
+
+
+## extra_rps are other roads joining the intersection, used only for clearance width.
+## Returns that clearance distance.
+func _split_long_intersection_branches(rp: RoadPoint, extra_rps: Array = []) -> float:
+	var neighbors: Array[RoadPoint] = []
+	for neighbor in [rp.get_prior_road_node(true), rp.get_next_road_node(true)]:
+		if neighbor is RoadPoint:
+			neighbors.append(neighbor)
+	var distance := intersection_edge_distance([rp] + neighbors + extra_rps)
+	# Computed up front because each subdivision rebuilds rp's segments
+	var splits := []
+	for neighbor in neighbors:
+		splits.append([neighbor, intersection_split_parameter(rp, neighbor, distance)])
+	for split in splits:
+		if split[1] > 0.0:
+			plg.subdivide_between_rps(rp, split[0], split[1])
+	return distance
+
+
+func _hint_segment_subdivision(camera: Camera3D) -> bool:
+	if _intersect_dict.is_empty():
+		return false
+	var collider: Node = _intersect_dict["collider"]
+	if not is_instance_valid(collider) or not collider.name.begins_with("road_mesh_col"):
+		return false
+	var segment := collider.get_parent().get_parent() as RoadSegment
+	if not can_subdivide_segment(segment, plg._edi.get_selection().get_selected_nodes()):
+		return false
+	if segment.curve == null or segment.curve.point_count != 2 or is_zero_approx(segment.curve.get_baked_length()):
+		return false
+	var start := segment.start_point
+	var end := segment.end_point
+	_subdivide_t = closest_curve_parameter(segment, _intersect_dict["position"])
+	if not _show_subdivide_preview(segment, _subdivide_t):
+		return false
+	hint_source_nodes.append(start)
+	hint_target_nodes.append(end)
+	hint_source_points.append(camera.unproject_position(start.global_position))
+	hint_target_points.append(camera.unproject_position(end.global_position))
+	hinting = HintState.SUBDIVIDE
+	return true
+
+
+## Places the subdivide preview gizmo on the segment, returns false for degenerate tangents.
+func _show_subdivide_preview(segment: RoadSegment, curve_t: float) -> bool:
+	var start := segment.start_point
+	var end := segment.end_point
+	var position := segment.to_global(segment.curve.sample(0, curve_t))
+	var tangent := segment.to_global(segment.curve.sample(0, curve_t + 0.00001)) - segment.to_global(segment.curve.sample(0, curve_t - 0.00001))
+	if tangent.is_zero_approx():
+		return false
+	var direction := 1.0 if start.get_next_road_node(true) == end else -1.0
+	var up := start.global_basis.y.lerp(end.global_basis.y, curve_t)
+	if up.is_zero_approx():
+		up = Vector3.UP
+	if not is_instance_valid(_subdivide_preview) or _subdivide_preview_source != start:
+		if is_instance_valid(_subdivide_preview):
+			_subdivide_preview.queue_free()
+		_subdivide_preview = plg.road_point_gizmo.create_subdivide_position_gizmo(start)
+		_subdivide_preview_source = start
+		plg.add_child(_subdivide_preview)
+	_subdivide_preview.global_transform = Transform3D(Basis.looking_at(-tangent * direction, up.normalized()), position)
+	_subdivide_preview.show()
+	return true
+
+
+## Offers an intersection on a hovered segment away from its RoadPoints, subdivided on click.
+func _hint_segment_intersection(camera: Camera3D) -> bool:
+	if _intersect_dict.is_empty():
+		return false
+	var collider: Node = _intersect_dict["collider"]
+	if not is_instance_valid(collider) or not collider.name.begins_with("road_mesh_col"):
+		return false
+	var segment := collider.get_parent().get_parent() as RoadSegment
+	var rp_sel := plg.get_selected_node() as RoadPoint
+	if not is_instance_valid(segment) or not is_instance_valid(rp_sel):
+		return false
+	if rp_sel.is_prior_connected() and rp_sel.is_next_connected():
+		return false
+	var start := segment.start_point
+	var end := segment.end_point
+	if not is_instance_valid(start) or not is_instance_valid(end) or rp_sel in [start, end]:
+		return false
+	if rp_sel.container != start.container or start.container != end.container or start.container.is_subscene():
+		return false
+	if segment.curve == null or segment.curve.point_count != 2:
+		return false
+	var curve_t := closest_curve_parameter(segment, _intersect_dict["position"])
+	var pos := segment.to_global(segment.curve.sample(0, curve_t))
+	var nearest := start if pos.distance_to(start.global_position) < pos.distance_to(end.global_position) else end
+	# Near open edges or on top of a RoadPoint, keep the RoadPoint-based hints
+	if not (nearest.is_prior_connected() and nearest.is_next_connected()):
+		return false
+	if pos.distance_to(nearest.global_position) <= nearest.get_width_without_shoulders() / 2.0:
+		return false
+	if not _show_subdivide_preview(segment, curve_t):
+		return false
+	_subdivide_t = curve_t
+	hint_source_nodes.append(rp_sel)
+	hint_source_points.append(camera.unproject_position(rp_sel.global_position))
+	hint_target_nodes.append(segment)
+	hint_target_points.append(camera.unproject_position(pos))
+	_insert_edge_hint(rp_sel, camera)
+	hinting = HintState.CREATE_INTERSECTION
+	return true
+
+
 func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
+		if _hint_segment_subdivision(camera) or _hint_segment_intersection(camera):
+			plg.update_overlays()
+			return INPUT_PASS
 
 		# Set up context variables which help determine the relevant current input
 		var hover_roadnode:RoadGraphNode = _get_hover_graphnode()
@@ -979,7 +1170,9 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 				hint_target_points.append(rp_hover_pos)
 				_insert_edge_hint(rp_sel, camera)
 				_insert_edge_hint(rp_hover, camera)
-				hinting = HintState.DISCONNECT
+				# Cross-container neighbors overlap, so there is nothing to subdivide
+				if rp_sel.container != rp_hover.container:
+					hinting = HintState.DISCONNECT
 			elif not rp_hover_filled and not rp_sel_filled:
 				hint_source_nodes.append(rp_sel)
 				hint_source_points.append(rp_sel_pos)
@@ -1152,8 +1345,15 @@ func _perform_action(camera: Camera3D) -> int:
 		HintState.CONNECT:
 			for idx in hint_source_nodes.size():
 				if hint_target_nodes[idx] is RoadIntersection:
-					# add branch
-					plg.connect_rp_to_intersection(hint_target_nodes[idx], hint_source_nodes[idx])
+					var inter: RoadIntersection = hint_target_nodes[idx]
+					var rp: RoadPoint = hint_source_nodes[idx]
+					var branch_pos := intersection_branch_position(
+						inter.global_position, rp.global_position, intersection_edge_distance(inter.edge_points + [rp]))
+					if branch_pos != rp.global_position and not rp.container.is_subscene():
+						var near_rp: RoadPoint = plg._add_next_rp_on_click(branch_pos, inter.global_basis.y, rp)
+						if is_instance_valid(near_rp):
+							rp = near_rp
+					plg.connect_rp_to_intersection(inter, rp)
 				else:
 					plg._connect_rp_on_click(hint_source_nodes[idx], hint_target_nodes[idx])
 			return INPUT_STOP
@@ -1190,7 +1390,13 @@ func _perform_action(camera: Camera3D) -> int:
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, inter)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
-				plg.add_and_connect_rp_to_intersection(inter, pos, nrm)
+				var branch_pos := pos
+				if not inter.edge_points.is_empty():
+					branch_pos = intersection_branch_position(
+						inter.global_position, pos, intersection_edge_distance(inter.edge_points))
+				var branch_rp: RoadPoint = plg.add_and_connect_rp_to_intersection(inter, branch_pos, nrm)
+				if branch_pos != pos and is_instance_valid(branch_rp):
+					plg._add_next_rp_on_click(pos, nrm, branch_rp)
 			elif hint_source_nodes[0] is RoadManager:
 				var mgr: RoadManager = hint_source_nodes[0]
 				var res: Array = get_click_point_with_context(
@@ -1200,17 +1406,36 @@ func _perform_action(camera: Camera3D) -> int:
 				plg.add_roadcontainer_and_roadpoint(mgr, pos, nrm)
 			return INPUT_STOP
 		HintState.CREATE_INTERSECTION:
+			if hint_target_nodes.size() > 0 and hint_target_nodes[0] is RoadSegment:
+				var segment: RoadSegment = hint_target_nodes[0]
+				hint_target_nodes[0] = plg.subdivide_between_rps(segment.start_point, segment.end_point, _subdivide_t)
 			if hint_source_nodes.size() > 0 and hint_target_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes[0] is RoadPoint:
-				plg.convert_to_intersection_with_new_branch(hint_target_nodes[0], hint_source_nodes[0])
+				var rp_init: RoadPoint = hint_target_nodes[0]
+				var rp_branch: RoadPoint = hint_source_nodes[0]
+				var distance := _split_long_intersection_branches(rp_init, [rp_branch])
+				var branch_pos := intersection_branch_position(
+					rp_init.global_position, rp_branch.global_position, distance)
+				if branch_pos != rp_branch.global_position:
+					var near_rp: RoadPoint = plg._add_next_rp_on_click(branch_pos, rp_init.global_basis.y, rp_branch)
+					if is_instance_valid(near_rp):
+						rp_branch = near_rp
+				plg.convert_to_intersection_with_new_branch(rp_init, rp_branch)
 			elif hint_source_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes.is_empty():
 				var selection = hint_source_nodes[0]
 				var res: Array = get_click_point_with_context(
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, selection)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
-				plg.convert_to_intersection_with_new_roadpoint(selection, pos, nrm)
+				var distance := _split_long_intersection_branches(selection)
+				var branch_pos := intersection_branch_position(selection.global_position, pos, distance)
+				var branch_rp: RoadPoint = plg.convert_to_intersection_with_new_roadpoint(selection, branch_pos, nrm)
+				if branch_pos != pos and is_instance_valid(branch_rp):
+					plg._add_next_rp_on_click(pos, nrm, branch_rp)
 			else:
 				push_warning("Create intersection in this context is not implemented")
+			return INPUT_STOP
+		HintState.SUBDIVIDE:
+			plg.subdivide_between_rps(hint_source_nodes[0], hint_target_nodes[0], _subdivide_t)
 			return INPUT_STOP
 		HintState.DISCONNECT:
 			if hint_target_nodes[0] is RoadIntersection:
@@ -1259,6 +1484,9 @@ func _cancel_action(camera: Camera3D) -> int:
 
 
 func _clear_targets() -> void:
+	if is_instance_valid(_subdivide_preview):
+		_subdivide_preview.hide()
+	_subdivide_t = 0.5
 	hint_source_nodes = []
 	hint_target_nodes = []
 	hint_source_points = []
@@ -1306,6 +1534,7 @@ func _relevant_input_event(event: InputEvent) -> bool:
 
 
 func _on_mouse_exited():
+	_clear_targets()
 	if is_instance_valid(_overlay_ref) and _overlay_ref.mouse_exited.is_connected(_on_mouse_exited):
 		_overlay_ref.mouse_exited.disconnect(_on_mouse_exited)
 		plg.update_overlays()
@@ -1332,19 +1561,6 @@ func _hint_intersection_creation(rp_hover: RoadPoint, rp_sel: RoadPoint, camera:
 		hint_target_nodes.append(rp_hover)
 		hint_target_points.append(rp_hover_pos)
 		_insert_edge_hint(rp_sel, camera)
-		# visualize some edge or border for new intersection? based on initial connections
-		if is_instance_valid(prior_hover_node):
-			_insert_edge_hint(prior_hover_node, camera)
-			hint_source_nodes.append(prior_hover_node)
-			hint_source_points.append(camera.unproject_position(prior_hover_node.global_transform.origin))
-			hint_target_nodes.append(rp_hover)
-			hint_target_points.append(rp_hover_pos)
-		if is_instance_valid(next_hover_node):
-			_insert_edge_hint(next_hover_node, camera)
-			hint_source_nodes.append(next_hover_node)
-			hint_source_points.append(camera.unproject_position(next_hover_node.global_transform.origin))
-			hint_target_nodes.append(rp_hover)
-			hint_target_points.append(rp_hover_pos)
 		hinting = HintState.CREATE_INTERSECTION
 
 

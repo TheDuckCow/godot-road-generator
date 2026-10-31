@@ -118,6 +118,45 @@ func setup_lane_widgets():
 	_editor_plugin.add_child(lane_widget)
 
 
+func create_subdivide_position_gizmo(point: RoadPoint) -> Node3D:
+	var preview := Node3D.new()
+	var material := lane_widget_mat.duplicate() as StandardMaterial3D
+	material.albedo_color = Color.GREEN
+	var width_scale := point.lane_width / 4.0
+	var width_scale_vector := Vector3.ONE * width_scale
+	var half_width := point.traffic_dir.size() * point.lane_width / 2.0
+	var reverse_width := half_width
+	var forward_width := half_width
+	if point.alignment == RoadPoint.Alignment.DIVIDER:
+		reverse_width = point.get_rev_lane_count() * point.lane_width
+		forward_width = point.get_fwd_lane_count() * point.lane_width
+	var reverse_handle := -reverse_width - point.lane_width * LaneOffset
+	var forward_handle := forward_width + point.lane_width * LaneOffset
+	for arrow_data in [[arrow_left, reverse_handle], [arrow_right, forward_handle]]:
+		var arrow := arrow_data[0].duplicate() as MeshInstance3D
+		arrow.position = Vector3(arrow_data[1], 0, 0)
+		arrow.scale = width_scale_vector
+		arrow.material_override = material
+		arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		preview.add_child(arrow)
+	var width_line := MeshInstance3D.new()
+	var width_mesh := BoxMesh.new()
+	width_mesh.size = Vector3(forward_handle - reverse_handle, 0.2 * width_scale, 0.2 * width_scale)
+	width_line.mesh = width_mesh
+	width_line.position.x = (reverse_handle + forward_handle) / 2.0
+	width_line.material_override = material
+	width_line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	preview.add_child(width_line)
+	for divider_index in range(point.traffic_dir.size() + 1):
+		var divider := lane_divider.duplicate() as MeshInstance3D
+		divider.position = Vector3(-reverse_width + divider_index * point.lane_width, 0, 0)
+		divider.scale = width_scale_vector
+		divider.material_override = material
+		divider.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		preview.add_child(divider)
+	return preview
+
+
 func _has_gizmo(spatial) -> bool:
 	return spatial is RoadPoint
 

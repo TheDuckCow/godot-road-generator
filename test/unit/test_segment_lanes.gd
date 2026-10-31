@@ -2,6 +2,7 @@ extends "res://addons/gut/test.gd"
 
 const RoadUtils = preload("res://test/unit/road_utils.gd")
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+const ConnectionTool = preload("res://addons/road-generator/ui/connection_tool.gd")
 
 var road_util: RoadUtils
 
@@ -9,6 +10,69 @@ var road_util: RoadUtils
 func before_each():
 	road_util = RoadUtils.new()
 	road_util.gut = gut
+
+
+func test_subdivision_parameter_with_uneven_handles():
+	var container = add_child_autofree(RoadContainer.new())
+	road_util.create_rp_line(container, 2, true, true)
+	container.rebuild_segments(true)
+	var segment: RoadSegment = container.get_segments()[0]
+	segment.curve = Curve3D.new()
+	segment.curve.add_point(Vector3.ZERO, Vector3.ZERO, Vector3(0, 0, 1))
+	segment.curve.add_point(Vector3(0, 0, 30), Vector3(0, 0, -18))
+	for expected_t in [0.1, 0.25, 0.7, 0.9]:
+		var position: Vector3 = segment.curve.sample(0, expected_t) + Vector3(3, 0, 0)
+		assert_almost_eq(ConnectionTool.closest_curve_parameter(segment, position), expected_t, 0.0001)
+
+
+func test_subdivision_parameter_in_transformed_segment():
+	var container = add_child_autofree(RoadContainer.new())
+	road_util.create_rp_line(container, 2, true, true)
+	container.rebuild_segments(true)
+	var segment: RoadSegment = container.get_segments()[0]
+	segment.position = Vector3(25, 7, -13)
+	segment.rotation.y = 0.8
+	segment.curve = Curve3D.new()
+	segment.curve.add_point(Vector3.ZERO, Vector3.ZERO, Vector3(8, 0, 12))
+	segment.curve.add_point(Vector3(20, 0, 30), Vector3(-15, 0, -2))
+	for expected_t in [0.1, 0.25, 0.7, 0.9]:
+		var position: Vector3 = segment.to_global(segment.curve.sample(0, expected_t) + Vector3(0, 2, 0))
+		assert_almost_eq(ConnectionTool.closest_curve_parameter(segment, position), expected_t, 0.0001)
+
+
+func test_intersection_edge_distance_uses_widest_road():
+	var narrow: RoadPoint = autoqfree(RoadPoint.new())
+	narrow.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
+	var wide: RoadPoint = autoqfree(RoadPoint.new())
+	wide.traffic_dir.assign([
+		RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE,
+		RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD])
+	assert_almost_eq(ConnectionTool.intersection_edge_distance([narrow]), 10.0, 0.001)
+	assert_almost_eq(ConnectionTool.intersection_edge_distance([narrow, wide]), 14.0, 0.001)
+
+
+func test_intersection_split_parameter_uses_arc_distance_from_either_end():
+	var container = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 2, true, true)
+	points[1].position.z = 60.0
+	container.rebuild_segments(true)
+	var segment: RoadSegment = container.get_segments()[0]
+	assert_eq(segment.start_point, points[0])
+
+	var from_start := ConnectionTool.intersection_split_parameter(points[0], points[1], 14.0)
+	var from_end := ConnectionTool.intersection_split_parameter(points[1], points[0], 14.0)
+	assert_almost_eq(segment.to_global(segment.curve.sample(0, from_start)).z, 14.0, 0.05)
+	assert_almost_eq(segment.to_global(segment.curve.sample(0, 1.0 - from_end)).z, 46.0, 0.05)
+	assert_gt(ConnectionTool.intersection_split_parameter(points[0], points[1], 49.0), 0.0)
+	assert_eq(ConnectionTool.intersection_split_parameter(points[0], points[1], 51.0), -1.0)
+
+
+func test_intersection_branch_position_clamps_only_far_targets():
+	var center := Vector3(1, 2, 3)
+	var near := center + Vector3(0, 0, 24)
+	var far := center + Vector3(0, 0, 26)
+	assert_eq(ConnectionTool.intersection_branch_position(center, near, 14.0), near)
+	assert_almost_eq(ConnectionTool.intersection_branch_position(center, far, 14.0), center + Vector3(0, 0, 14), Vector3.ONE * 0.0001)
 
 
 func ensure_roadlanes_exist(container:RoadContainer, segs: int = 3):
