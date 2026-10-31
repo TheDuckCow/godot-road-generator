@@ -38,6 +38,8 @@ const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
 const INPUT_PASS := EditorPlugin.AFTER_GUI_INPUT_PASS
 ## Prevents the InputEvent from reaching other Editor classes.
 const INPUT_STOP := EditorPlugin.AFTER_GUI_INPUT_STOP
+## Extra branch length required before a new intersection splits that branch
+const INTERSECTION_SPLIT_MARGIN := 10.0
 const margin := 1 ## Overlay margin for drawing white outlines
 const white_col = Color(1, 1, 1, 0.9) ## Outline color
 
@@ -884,9 +886,8 @@ static func can_subdivide_segment(segment: RoadSegment, selected_nodes: Array) -
 	return true
 
 
-static func closest_curve_parameter(segment: RoadSegment, position: Vector3) -> float:
-	var curve := segment.curve
-	var offset := curve.get_closest_offset(segment.to_local(position))
+## Baked offsets are arc lengths, so they must be mapped back to bezier parameters.
+static func curve_parameter_at_offset(curve: Curve3D, offset: float) -> float:
 	var lower := 0.0
 	var upper := 1.0
 	for iteration in range(20):
@@ -896,6 +897,52 @@ static func closest_curve_parameter(segment: RoadSegment, position: Vector3) -> 
 		else:
 			upper = middle
 	return clampf((lower + upper) / 2.0, 0.0001, 0.9999)
+
+
+static func closest_curve_parameter(segment: RoadSegment, position: Vector3) -> float:
+	return curve_parameter_at_offset(segment.curve, segment.curve.get_closest_offset(segment.to_local(position)))
+
+
+## Clears the widest meeting road, matching the NGon footprint and stop row.
+static func intersection_edge_distance(rps: Array) -> float:
+	var distance := 0.0
+	for rp: RoadPoint in rps:
+		var half_width := rp.traffic_dir.size() * rp.lane_width / 2.0
+		if rp.alignment == RoadPoint.Alignment.DIVIDER:
+			half_width = maxf(rp.get_rev_lane_count(), rp.get_fwd_lane_count()) * rp.lane_width
+		half_width += maxf(rp.shoulder_width_l, rp.shoulder_width_r) + rp.gutter_profile.x
+		var stop_row := IntersectionNGon.STOP_ROW_SIZE * rp.lane_width / RoadPoint.DEFAULT_LANE_WIDTH
+		distance = maxf(distance, half_width + stop_row)
+	return distance
+
+
+## Returns the parameter from rp toward neighbor, or -1 when the branch is short enough.
+static func intersection_split_parameter(rp: RoadPoint, neighbor: RoadPoint, distance: float) -> float:
+	for segment in [rp.prior_seg, rp.next_seg]:
+		if not is_instance_valid(segment) or neighbor not in [segment.start_point, segment.end_point]:
+			continue
+		var length: float = segment.curve.get_baked_length()
+		if length <= distance + INTERSECTION_SPLIT_MARGIN:
+			return -1.0
+		var from_start: bool = segment.start_point == rp
+		var curve_t := curve_parameter_at_offset(segment.curve, distance if from_start else length - distance)
+		return curve_t if from_start else 1.0 - curve_t
+	return -1.0
+
+
+func _split_long_intersection_branches(rp: RoadPoint) -> void:
+	var neighbors: Array[RoadPoint] = []
+	for neighbor in [rp.get_prior_road_node(true), rp.get_next_road_node(true)]:
+		if neighbor is RoadPoint:
+			neighbors.append(neighbor)
+	var distance := intersection_edge_distance([rp] + neighbors)
+	# Computed up front because each subdivision rebuilds rp's segments
+	var splits := []
+	for neighbor in neighbors:
+		splits.append([neighbor, intersection_split_parameter(rp, neighbor, distance)])
+	for split in splits:
+		if split[1] > 0.0:
+			plg.subdivide_between_rps(rp, split[0], split[1])
 
 
 func _hint_segment_subdivision(camera: Camera3D) -> bool:
@@ -1294,6 +1341,7 @@ func _perform_action(camera: Camera3D) -> int:
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, selection)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
+				_split_long_intersection_branches(selection)
 				plg.convert_to_intersection_with_new_roadpoint(selection, pos, nrm)
 			else:
 				push_warning("Create intersection in this context is not implemented")

@@ -40,6 +40,33 @@ func test_subdivision_parameter_in_transformed_segment():
 		assert_almost_eq(ConnectionTool.closest_curve_parameter(segment, position), expected_t, 0.0001)
 
 
+func test_intersection_edge_distance_uses_widest_road():
+	var narrow: RoadPoint = autoqfree(RoadPoint.new())
+	narrow.traffic_dir.assign([RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD])
+	var wide: RoadPoint = autoqfree(RoadPoint.new())
+	wide.traffic_dir.assign([
+		RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE,
+		RoadPoint.LaneDir.FORWARD, RoadPoint.LaneDir.FORWARD])
+	assert_almost_eq(ConnectionTool.intersection_edge_distance([narrow]), 10.0, 0.001)
+	assert_almost_eq(ConnectionTool.intersection_edge_distance([narrow, wide]), 14.0, 0.001)
+
+
+func test_intersection_split_parameter_uses_arc_distance_from_either_end():
+	var container = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 2, true, true)
+	points[1].position.z = 60.0
+	container.rebuild_segments(true)
+	var segment: RoadSegment = container.get_segments()[0]
+	assert_eq(segment.start_point, points[0])
+
+	var from_start := ConnectionTool.intersection_split_parameter(points[0], points[1], 14.0)
+	var from_end := ConnectionTool.intersection_split_parameter(points[1], points[0], 14.0)
+	assert_almost_eq(segment.to_global(segment.curve.sample(0, from_start)).z, 14.0, 0.05)
+	assert_almost_eq(segment.to_global(segment.curve.sample(0, 1.0 - from_end)).z, 46.0, 0.05)
+	assert_gt(ConnectionTool.intersection_split_parameter(points[0], points[1], 49.0), 0.0)
+	assert_eq(ConnectionTool.intersection_split_parameter(points[0], points[1], 51.0), -1.0)
+
+
 func ensure_roadlanes_exist(container:RoadContainer, segs: int = 3):
 	var lanes = []
 	for _ch in container.get_roadpoints():
