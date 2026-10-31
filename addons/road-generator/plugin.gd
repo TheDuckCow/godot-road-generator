@@ -46,6 +46,9 @@ var _lock_z_rotation := false
 
 var _edi_debug := false
 
+var _godot_select_button: Button
+var _godot_prior_tool_button: Button
+
 # For use by road_point_edit and panel, keys are props on RoadPoint
 var copy_attributes:Dictionary = {}
 
@@ -95,6 +98,7 @@ func _enter_tree():
 
 
 func _exit_tree():
+	_use_godot_select_tool(false)
 	_eds.disconnect("selection_changed", self._on_selection_changed)
 	disconnect("scene_changed", self._on_scene_changed)
 	disconnect("scene_closed", self._on_scene_closed)
@@ -213,7 +217,43 @@ func _on_scene_closed(_value) -> void:
 
 func _on_mode_change(_mode: int) -> void:
 	tool_mode = _mode  # Instance of RoadToolbar.InputMode
+	_use_godot_select_tool(tool_mode in [_road_toolbar.InputMode.ADD, _road_toolbar.InputMode.DELETE])
 	update_overlays()
+
+
+## Godot 4.6+ Select tool has no transform gizmo; older editors lack the lookup and are left as-is.
+func _use_godot_select_tool(enable: bool) -> void:
+	if not is_instance_valid(_godot_select_button):
+		_godot_select_button = _find_3d_tool_button("spatial_editor/tool_select")
+		if not is_instance_valid(_godot_select_button):
+			return
+	if enable:
+		if _godot_select_button.button_pressed:
+			return
+		var settings := EditorInterface.get_editor_settings()
+		var tool_shortcuts := ["tool_transform", "tool_move", "tool_rotate", "tool_scale"].map(
+			func(tool_name): return settings.call("get_shortcut", "spatial_editor/" + tool_name))
+		for sibling in _godot_select_button.get_parent().get_children():
+			if sibling is Button and sibling.button_pressed and sibling.shortcut and sibling.shortcut in tool_shortcuts:
+				_godot_prior_tool_button = sibling
+		_godot_select_button.pressed.emit()
+	else:
+		if is_instance_valid(_godot_prior_tool_button) and _godot_select_button.button_pressed:
+			_godot_prior_tool_button.pressed.emit()
+		_godot_prior_tool_button = null
+
+
+func _find_3d_tool_button(shortcut_path: String) -> Button:
+	var settings := EditorInterface.get_editor_settings()
+	if not settings.has_method("get_shortcut"):
+		return null
+	var shortcut: Shortcut = settings.call("get_shortcut", shortcut_path)
+	if shortcut == null:
+		return null
+	for button in EditorInterface.get_base_control().find_children("*", "Button", true, false):
+		if button.shortcut == shortcut:
+			return button
+	return null
 
 
 func refresh() -> void:
@@ -414,9 +454,11 @@ func _show_road_toolbar() -> void:
 		_road_toolbar.create_menu.feedback_pressed.connect(_on_feedback_pressed)
 		_road_toolbar.create_menu.report_issue_pressed.connect(_on_report_issue_pressed)
 		_road_toolbar.create_menu.create_terrain3d_connector.connect(add_and_configure_terrain3d_connector)
+	_use_godot_select_tool(tool_mode in [_road_toolbar.InputMode.ADD, _road_toolbar.InputMode.DELETE])
 
 
 func _hide_road_toolbar() -> void:
+	_use_godot_select_tool(false)
 	if _road_toolbar and _road_toolbar.get_parent():
 		remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _road_toolbar)
 
