@@ -570,8 +570,8 @@ func draw_hint_create_intersection(overlay: Control) -> void:
 		for idx in hint_source_points.size():
 			var src := hint_source_points[idx]
 			var trg := hint_target_points[idx]
-			var dashed: bool = idx > 0
-			_draw_connector(overlay, src, trg, col, dashed)
+			if idx == 0:
+				_draw_connector(overlay, src, trg, col)
 			_draw_mouse_label(overlay, col, "Create Intersection")
 		_draw_edges(overlay, col, false)
 
@@ -1508,19 +1508,6 @@ func _hint_intersection_creation(rp_hover: RoadPoint, rp_sel: RoadPoint, camera:
 		hint_target_nodes.append(rp_hover)
 		hint_target_points.append(rp_hover_pos)
 		_insert_edge_hint(rp_sel, camera)
-		# visualize some edge or border for new intersection? based on initial connections
-		if is_instance_valid(prior_hover_node):
-			_insert_edge_hint(prior_hover_node, camera)
-			hint_source_nodes.append(prior_hover_node)
-			hint_source_points.append(camera.unproject_position(prior_hover_node.global_transform.origin))
-			hint_target_nodes.append(rp_hover)
-			hint_target_points.append(rp_hover_pos)
-		if is_instance_valid(next_hover_node):
-			_insert_edge_hint(next_hover_node, camera)
-			hint_source_nodes.append(next_hover_node)
-			hint_source_points.append(camera.unproject_position(next_hover_node.global_transform.origin))
-			hint_target_nodes.append(rp_hover)
-			hint_target_points.append(rp_hover_pos)
 		hinting = HintState.CREATE_INTERSECTION
 
 
