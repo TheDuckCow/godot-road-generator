@@ -595,12 +595,12 @@ func _create_road_container_undo(selected_node: Node, init_sel: Node) -> void:
 		initial_children[-1].queue_free()
 
 
-func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_connect_rp=null) -> void:
+func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_connect_rp=null) -> RoadPoint:
 	var undo_redo = get_undo_redo()
 
 	if not is_instance_valid(selection):
 		push_error("Invalid selection selection, not valid node")
-		return
+		return null
 
 	var parent: Node
 	var _sel: Node
@@ -624,7 +624,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 		_sel = selection
 	else: # RoadManager or RoadLane.
 		push_error("Invalid selection context, need RoadContainer parent")
-		return
+		return null
 
 	undo_redo.create_action("Add next RoadPoint")
 	if handle_mag > 0:
@@ -653,6 +653,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	undo_redo.add_undo_method(self, "_add_next_rp_on_click_undo", pos, _sel, parent, next_rp)
 
 	undo_redo.commit_action()
+	return next_rp
 
 
 # Adds a new RP as a child of rp_rc which should be a "dynamic" container,
@@ -1071,7 +1072,7 @@ func convert_to_intersection_with_new_branch(rp_init: RoadPoint, rp_branch: Road
 
 
 ## Converts a RoadPoint into an intersection and creates a new RoadPoint at the click point as a branch
-func convert_to_intersection_with_new_roadpoint(rp_init: RoadPoint, pos: Vector3, nrm: Vector3) -> void:
+func convert_to_intersection_with_new_roadpoint(rp_init: RoadPoint, pos: Vector3, nrm: Vector3) -> RoadPoint:
 	var undo_redo = get_undo_redo()
 
 	undo_redo.create_action("Create intersection and new RoadPoint")
@@ -1109,14 +1110,15 @@ func convert_to_intersection_with_new_roadpoint(rp_init: RoadPoint, pos: Vector3
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 
 	undo_redo.commit_action()
+	return rp
 
 
 
-func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, nrm: Vector3) -> void:
+func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, nrm: Vector3) -> RoadPoint:
 	var undo_redo = get_undo_redo()
 	if not is_instance_valid(inter):
 		push_error("Invalid RoadIntersection, cannot add and connect")
-		return
+		return null
 
 	var rp := RoadPoint.new()
 
@@ -1151,6 +1153,7 @@ func add_and_connect_rp_to_intersection(inter: RoadIntersection, pos: Vector3, n
 	undo_redo.add_do_method(self, "set_selection", rp) # selection not retained???
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 	undo_redo.commit_action()
+	return rp
 
 
 ## Direclty connects if same container, or creates new intermediate RP if different

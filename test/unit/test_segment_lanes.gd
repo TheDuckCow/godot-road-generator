@@ -67,6 +67,14 @@ func test_intersection_split_parameter_uses_arc_distance_from_either_end():
 	assert_eq(ConnectionTool.intersection_split_parameter(points[0], points[1], 51.0), -1.0)
 
 
+func test_intersection_branch_position_clamps_only_far_targets():
+	var center := Vector3(1, 2, 3)
+	var near := center + Vector3(0, 0, 24)
+	var far := center + Vector3(0, 0, 26)
+	assert_eq(ConnectionTool.intersection_branch_position(center, near, 14.0), near)
+	assert_almost_eq(ConnectionTool.intersection_branch_position(center, far, 14.0), center + Vector3(0, 0, 14), Vector3.ONE * 0.0001)
+
+
 func ensure_roadlanes_exist(container:RoadContainer, segs: int = 3):
 	var lanes = []
 	for _ch in container.get_roadpoints():

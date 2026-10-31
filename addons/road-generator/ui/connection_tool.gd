@@ -930,8 +930,16 @@ static func intersection_split_parameter(rp: RoadPoint, neighbor: RoadPoint, dis
 	return -1.0
 
 
+## Returns where the branch RoadPoint should sit, which is the target itself when close enough.
+static func intersection_branch_position(center: Vector3, target: Vector3, distance: float) -> Vector3:
+	if center.distance_to(target) <= distance + INTERSECTION_SPLIT_MARGIN:
+		return target
+	return center + (target - center).normalized() * distance
+
+
 ## extra_rps are other roads joining the intersection, used only for clearance width.
-func _split_long_intersection_branches(rp: RoadPoint, extra_rps: Array = []) -> void:
+## Returns that clearance distance.
+func _split_long_intersection_branches(rp: RoadPoint, extra_rps: Array = []) -> float:
 	var neighbors: Array[RoadPoint] = []
 	for neighbor in [rp.get_prior_road_node(true), rp.get_next_road_node(true)]:
 		if neighbor is RoadPoint:
@@ -944,6 +952,7 @@ func _split_long_intersection_branches(rp: RoadPoint, extra_rps: Array = []) -> 
 	for split in splits:
 		if split[1] > 0.0:
 			plg.subdivide_between_rps(rp, split[0], split[1])
+	return distance
 
 
 func _hint_segment_subdivision(camera: Camera3D) -> bool:
@@ -1286,8 +1295,15 @@ func _perform_action(camera: Camera3D) -> int:
 		HintState.CONNECT:
 			for idx in hint_source_nodes.size():
 				if hint_target_nodes[idx] is RoadIntersection:
-					# add branch
-					plg.connect_rp_to_intersection(hint_target_nodes[idx], hint_source_nodes[idx])
+					var inter: RoadIntersection = hint_target_nodes[idx]
+					var rp: RoadPoint = hint_source_nodes[idx]
+					var branch_pos := intersection_branch_position(
+						inter.global_position, rp.global_position, intersection_edge_distance(inter.edge_points + [rp]))
+					if branch_pos != rp.global_position and not rp.container.is_subscene():
+						var near_rp: RoadPoint = plg._add_next_rp_on_click(branch_pos, inter.global_basis.y, rp)
+						if is_instance_valid(near_rp):
+							rp = near_rp
+					plg.connect_rp_to_intersection(inter, rp)
 				else:
 					plg._connect_rp_on_click(hint_source_nodes[idx], hint_target_nodes[idx])
 			return INPUT_STOP
@@ -1324,7 +1340,13 @@ func _perform_action(camera: Camera3D) -> int:
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, inter)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
-				plg.add_and_connect_rp_to_intersection(inter, pos, nrm)
+				var branch_pos := pos
+				if not inter.edge_points.is_empty():
+					branch_pos = intersection_branch_position(
+						inter.global_position, pos, intersection_edge_distance(inter.edge_points))
+				var branch_rp: RoadPoint = plg.add_and_connect_rp_to_intersection(inter, branch_pos, nrm)
+				if branch_pos != pos and is_instance_valid(branch_rp):
+					plg._add_next_rp_on_click(pos, nrm, branch_rp)
 			elif hint_source_nodes[0] is RoadManager:
 				var mgr: RoadManager = hint_source_nodes[0]
 				var res: Array = get_click_point_with_context(
@@ -1337,7 +1359,13 @@ func _perform_action(camera: Camera3D) -> int:
 			if hint_source_nodes.size() > 0 and hint_target_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes[0] is RoadPoint:
 				var rp_init: RoadPoint = hint_target_nodes[0]
 				var rp_branch: RoadPoint = hint_source_nodes[0]
-				_split_long_intersection_branches(rp_init, [rp_branch])
+				var distance := _split_long_intersection_branches(rp_init, [rp_branch])
+				var branch_pos := intersection_branch_position(
+					rp_init.global_position, rp_branch.global_position, distance)
+				if branch_pos != rp_branch.global_position:
+					var near_rp: RoadPoint = plg._add_next_rp_on_click(branch_pos, rp_init.global_basis.y, rp_branch)
+					if is_instance_valid(near_rp):
+						rp_branch = near_rp
 				plg.convert_to_intersection_with_new_branch(rp_init, rp_branch)
 			elif hint_source_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes.is_empty():
 				var selection = hint_source_nodes[0]
@@ -1345,8 +1373,11 @@ func _perform_action(camera: Camera3D) -> int:
 					_intersect_dict, _intersect_mouse_src, _intersect_mouse_nrm, camera, selection)
 				var pos:Vector3 = res[0]
 				var nrm:Vector3 = res[1]
-				_split_long_intersection_branches(selection)
-				plg.convert_to_intersection_with_new_roadpoint(selection, pos, nrm)
+				var distance := _split_long_intersection_branches(selection)
+				var branch_pos := intersection_branch_position(selection.global_position, pos, distance)
+				var branch_rp: RoadPoint = plg.convert_to_intersection_with_new_roadpoint(selection, branch_pos, nrm)
+				if branch_pos != pos and is_instance_valid(branch_rp):
+					plg._add_next_rp_on_click(pos, nrm, branch_rp)
 			else:
 				push_warning("Create intersection in this context is not implemented")
 			return INPUT_STOP
