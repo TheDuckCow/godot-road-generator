@@ -969,12 +969,26 @@ func _hint_segment_subdivision(camera: Camera3D) -> bool:
 	var start := segment.start_point
 	var end := segment.end_point
 	_subdivide_t = closest_curve_parameter(segment, _intersect_dict["position"])
-	var position := segment.to_global(segment.curve.sample(0, _subdivide_t))
-	var tangent := segment.to_global(segment.curve.sample(0, _subdivide_t + 0.00001)) - segment.to_global(segment.curve.sample(0, _subdivide_t - 0.00001))
+	if not _show_subdivide_preview(segment, _subdivide_t):
+		return false
+	hint_source_nodes.append(start)
+	hint_target_nodes.append(end)
+	hint_source_points.append(camera.unproject_position(start.global_position))
+	hint_target_points.append(camera.unproject_position(end.global_position))
+	hinting = HintState.SUBDIVIDE
+	return true
+
+
+## Places the subdivide preview gizmo on the segment, returns false for degenerate tangents.
+func _show_subdivide_preview(segment: RoadSegment, curve_t: float) -> bool:
+	var start := segment.start_point
+	var end := segment.end_point
+	var position := segment.to_global(segment.curve.sample(0, curve_t))
+	var tangent := segment.to_global(segment.curve.sample(0, curve_t + 0.00001)) - segment.to_global(segment.curve.sample(0, curve_t - 0.00001))
 	if tangent.is_zero_approx():
 		return false
 	var direction := 1.0 if start.get_next_road_node(true) == end else -1.0
-	var up := start.global_basis.y.lerp(end.global_basis.y, _subdivide_t)
+	var up := start.global_basis.y.lerp(end.global_basis.y, curve_t)
 	if up.is_zero_approx():
 		up = Vector3.UP
 	if not is_instance_valid(_subdivide_preview) or _subdivide_preview_source != start:
@@ -985,11 +999,47 @@ func _hint_segment_subdivision(camera: Camera3D) -> bool:
 		plg.add_child(_subdivide_preview)
 	_subdivide_preview.global_transform = Transform3D(Basis.looking_at(-tangent * direction, up.normalized()), position)
 	_subdivide_preview.show()
-	hint_source_nodes.append(start)
-	hint_target_nodes.append(end)
-	hint_source_points.append(camera.unproject_position(start.global_position))
-	hint_target_points.append(camera.unproject_position(end.global_position))
-	hinting = HintState.SUBDIVIDE
+	return true
+
+
+## Offers an intersection on a hovered segment away from its RoadPoints, subdivided on click.
+func _hint_segment_intersection(camera: Camera3D) -> bool:
+	if _intersect_dict.is_empty():
+		return false
+	var collider: Node = _intersect_dict["collider"]
+	if not is_instance_valid(collider) or not collider.name.begins_with("road_mesh_col"):
+		return false
+	var segment := collider.get_parent().get_parent() as RoadSegment
+	var rp_sel := plg.get_selected_node() as RoadPoint
+	if not is_instance_valid(segment) or not is_instance_valid(rp_sel):
+		return false
+	if rp_sel.is_prior_connected() and rp_sel.is_next_connected():
+		return false
+	var start := segment.start_point
+	var end := segment.end_point
+	if not is_instance_valid(start) or not is_instance_valid(end) or rp_sel in [start, end]:
+		return false
+	if rp_sel.container != start.container or start.container != end.container or start.container.is_subscene():
+		return false
+	if segment.curve == null or segment.curve.point_count != 2:
+		return false
+	var curve_t := closest_curve_parameter(segment, _intersect_dict["position"])
+	var pos := segment.to_global(segment.curve.sample(0, curve_t))
+	var nearest := start if pos.distance_to(start.global_position) < pos.distance_to(end.global_position) else end
+	# Near open edges or on top of a RoadPoint, keep the RoadPoint-based hints
+	if not (nearest.is_prior_connected() and nearest.is_next_connected()):
+		return false
+	if pos.distance_to(nearest.global_position) <= nearest.get_width_without_shoulders() / 2.0:
+		return false
+	if not _show_subdivide_preview(segment, curve_t):
+		return false
+	_subdivide_t = curve_t
+	hint_source_nodes.append(rp_sel)
+	hint_source_points.append(camera.unproject_position(rp_sel.global_position))
+	hint_target_nodes.append(segment)
+	hint_target_points.append(camera.unproject_position(pos))
+	_insert_edge_hint(rp_sel, camera)
+	hinting = HintState.CREATE_INTERSECTION
 	return true
 
 
@@ -997,7 +1047,7 @@ func _handle_add_mode_input(camera: Camera3D, event: InputEvent) -> int:
 	snapping = SnapState.IDLE
 	if _relevant_input_event(event):
 		_clear_targets()
-		if _hint_segment_subdivision(camera):
+		if _hint_segment_subdivision(camera) or _hint_segment_intersection(camera):
 			plg.update_overlays()
 			return INPUT_PASS
 
@@ -1356,6 +1406,9 @@ func _perform_action(camera: Camera3D) -> int:
 				plg.add_roadcontainer_and_roadpoint(mgr, pos, nrm)
 			return INPUT_STOP
 		HintState.CREATE_INTERSECTION:
+			if hint_target_nodes.size() > 0 and hint_target_nodes[0] is RoadSegment:
+				var segment: RoadSegment = hint_target_nodes[0]
+				hint_target_nodes[0] = plg.subdivide_between_rps(segment.start_point, segment.end_point, _subdivide_t)
 			if hint_source_nodes.size() > 0 and hint_target_nodes.size() > 0 and hint_source_nodes[0] is RoadPoint and hint_target_nodes[0] is RoadPoint:
 				var rp_init: RoadPoint = hint_target_nodes[0]
 				var rp_branch: RoadPoint = hint_source_nodes[0]

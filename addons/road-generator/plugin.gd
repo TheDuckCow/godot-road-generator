@@ -1302,12 +1302,12 @@ func bridge_rps_with_new_container(rpa: RoadPoint, rpb: RoadPoint) -> void:
 
 
 ## Inserts and selects a RoadPoint at a curve parameter between connected RoadPoints.
-func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.5) -> void:
+func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.5) -> RoadPoint:
 	if curve_t <= 0.0 or curve_t >= 1.0:
-		return
+		return null
 	if rp_a.container != rp_b.container:
 		push_error("Cannot subdivide RoadPoints of different RoadContainers")
-		return
+		return null
 
 	var a_dir: int
 	if rp_a.get_next_road_node(true) == rp_b:
@@ -1316,7 +1316,7 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.
 		a_dir = RoadPoint.PointInit.PRIOR
 	else:
 		push_error("RoadPoints are not connected, cannot subdivide")
-		return
+		return null
 	var b_dir: int = RoadPoint.PointInit.PRIOR if rp_b.get_prior_road_node(true) == rp_a else RoadPoint.PointInit.NEXT
 	var a_mag_prop := "next_mag" if a_dir == RoadPoint.PointInit.NEXT else "prior_mag"
 	var b_mag_prop := "next_mag" if b_dir == RoadPoint.PointInit.NEXT else "prior_mag"
@@ -1335,7 +1335,7 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.
 	var tangent: Vector3 = r1 - r0
 	if tangent.is_zero_approx():
 		push_error("Degenerate curve between RoadPoints, cannot subdivide")
-		return
+		return null
 	var up: Vector3 = rp_a.global_basis.y.lerp(rp_b.global_basis.y, curve_t)
 	if up.is_zero_approx():
 		up = Vector3.UP
@@ -1379,6 +1379,7 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.
 	undo_redo.add_undo_method(self, "set_selection_list", editor_selected)
 
 	undo_redo.commit_action()
+	return new_rp
 
 
 ## Snap this selected sel_rp's container onto the tgt_rp of another container
