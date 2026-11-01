@@ -1336,7 +1336,19 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.
 	if tangent.is_zero_approx():
 		push_error("Degenerate curve between RoadPoints, cannot subdivide")
 		return null
-	var up: Vector3 = rp_a.global_basis.y.lerp(rp_b.global_basis.y, curve_t)
+	var seg: RoadSegment = rp_a.next_seg if a_dir == RoadPoint.PointInit.NEXT else rp_a.prior_seg
+	# Fractions measured from rp_a, matching how RoadSegment blends attributes
+	var lin_t: float = curve_t
+	var eased_t: float = curve_t
+	if is_instance_valid(seg) and seg.curve and seg.curve.get_baked_length() > 0.0:
+		var a_is_start: bool = seg.start_point == rp_a
+		var seg_t: float = curve_t if a_is_start else 1.0 - curve_t
+		# RoadSegment interpolates by arc-length fraction, not bezier parameter
+		var arc_frac: float = seg.curve.get_closest_offset(seg.curve.sample(0, seg_t)) / seg.curve.get_baked_length()
+		var eased: float = ease(arc_frac, seg.smooth_amount)
+		lin_t = arc_frac if a_is_start else 1.0 - arc_frac
+		eased_t = eased if a_is_start else 1.0 - eased
+	var up: Vector3 = rp_a.global_basis.y.lerp(rp_b.global_basis.y, eased_t)
 	if up.is_zero_approx():
 		up = Vector3.UP
 	var mid_transform := Transform3D(Basis.looking_at(-tangent * a_sign, up.normalized()), r0.lerp(r1, curve_t))
@@ -1346,6 +1358,15 @@ func subdivide_between_rps(rp_a: RoadPoint, rp_b: RoadPoint, curve_t: float = 0.
 	var container: RoadContainer = rp_a.container
 	var new_rp := RoadPoint.new()
 	new_rp.copy_settings_from(rp_a, false)
+	new_rp.lane_width = lerpf(rp_a.lane_width, rp_b.lane_width, eased_t)
+	new_rp.shoulder_width_l = lerpf(rp_a.shoulder_width_l, rp_b.shoulder_width_l, lin_t)
+	new_rp.shoulder_width_r = lerpf(rp_a.shoulder_width_r, rp_b.shoulder_width_r, lin_t)
+	new_rp.gutter_profile = rp_a.gutter_profile.lerp(rp_b.gutter_profile, lin_t)
+	# Segments only render thickness when both ends resolve to >= 0; -1 defers to the container
+	var thick_a: float = rp_a.get_thickness()
+	var thick_b: float = rp_b.get_thickness()
+	if (rp_a.underside_thickness != -1.0 or rp_b.underside_thickness != -1.0) and thick_a >= 0.0 and thick_b >= 0.0:
+		new_rp.underside_thickness = lerpf(thick_a, thick_b, eased_t)
 	new_rp.name = rp_a.name
 	new_rp.set("next_mag" if new_rp_dir_to_a == RoadPoint.PointInit.NEXT else "prior_mag", tangent.length() * curve_t)
 	new_rp.set("next_mag" if new_rp_dir_to_b == RoadPoint.PointInit.NEXT else "prior_mag", tangent.length() * (1.0 - curve_t))
