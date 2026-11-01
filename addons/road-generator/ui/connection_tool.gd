@@ -917,7 +917,8 @@ func _hint_segment_subdivision(camera: Camera3D) -> bool:
 	if tangent.is_zero_approx():
 		return false
 	var direction := 1.0 if start.get_next_road_node(true) == end else -1.0
-	var up := start.global_basis.y.lerp(end.global_basis.y, _subdivide_t)
+	var arc_frac := segment.curve.get_closest_offset(segment.curve.sample(0, _subdivide_t)) / segment.curve.get_baked_length()
+	var up := start.global_basis.y.lerp(end.global_basis.y, ease(arc_frac, segment.smooth_amount))
 	if up.is_zero_approx():
 		up = Vector3.UP
 	if not is_instance_valid(_subdivide_preview) or _subdivide_preview_source != start:
