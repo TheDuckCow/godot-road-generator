@@ -217,8 +217,8 @@ func test_intersection_remove_branch():
 	container.remove_child(rp) # simulate queue free within test
 
 	# Check the outcome
-	assert_eq(rp.next_pt_init, ^"", "Point should be disconnected not " % rp.next_pt_init)
-	assert_eq(rp.prior_pt_init, ^"", "Point should be disconnected" % rp.prior_pt_init)
+	assert_eq(rp.next_pt_init, ^"", "Point should be disconnected not %s" % [rp.next_pt_init])
+	assert_eq(rp.prior_pt_init, ^"", "Point should be disconnected not %s" % [rp.prior_pt_init])
 	var res = get_signal_parameters(container, 'on_road_updated')
 	assert_not_null(res, "Should have on_road_updated emitted")
 	if res == null:
