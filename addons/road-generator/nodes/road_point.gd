@@ -496,15 +496,15 @@ func _notification(what):
 
 
 func emit_transform(low_poly=false):
+	if _is_internal_updating:
+		# Special internal update should bypass emit_transform, such as moving two edges in parallel
+		return
 	# Reset the _last_* vars inline
 	_last_emitted_transform = global_transform
 	_last_emit_was_low_poly = low_poly
 	_last_emitted_mag_prior = prior_mag
 	_last_emitted_mag_next = next_mag
 
-	if _is_internal_updating:
-		# Special internal update should bypass emit_transform, such as moving two edges in parallel
-		return
 	if auto_lanes or lanes.size() != traffic_dir.size():
 		assign_lanes()
 	var _gizmos:Array[Node3DGizmo] = get_gizmos()
