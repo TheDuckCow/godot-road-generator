@@ -11,7 +11,7 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - Add `add_lane_next` / `add_lane_prior` (skip duplicates), `remove_lane_next` / `remove_lane_prior`, and `clear_lane_links`. Each queues a deferred refresh of the agents.
    - Update the `lane_next_tag` docs.
 2. [road_container.gd](addons/road-generator/nodes/road_container.gd) `update_lane_seg_connections()`: clear the links, then add every tag match in both directions. This fixes splits, which currently keep only the last match. Keep the F/R direction flip.
-   - Added (`F0a`) and removed (`F0r`) transition lanes also match `F0`, so lane-count changes become forks and merges. Transition lanes get no `lane_left`/`lane_right` links in [road_segment.gd](addons/road-generator/nodes/road_segment.gd).
+   - Tags are compared without their transition suffix, so added (`F0a`) and removed (`F0r`) lanes match `F0` and each other: every lane arriving at a point links to every lane leaving it, and lane-count changes become forks and merges. Transition lanes get no `lane_left`/`lane_right` links in [road_segment.gd](addons/road-generator/nodes/road_segment.gd).
 3. New `RoadContainer.update_lane_intersection_connections()`, called right after `update_lane_seg_connections()` in the rebuild:
    - For each intersection edge RoadPoint, match the road lane's tag at the end touching that RoadPoint against the intersection lane tags. Those tags come from `_directional_lanes` in [intersection_ngon.gd](addons/road-generator/procgen/intersection_ngon.gd).
    - Decide which way each link goes from where the curves start and end.
