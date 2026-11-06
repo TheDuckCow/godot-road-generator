@@ -336,6 +336,24 @@ func test_get_agents_near():
 	assert_has(behind, p_end)
 
 
+func test_get_agents_near_follows_every_merging_lane():
+	var lane := _make_lane("A", Vector3.ZERO, Vector3(0, 0, -10))
+	var left := _make_lane("L", Vector3(-5, 0, 10), Vector3.ZERO)
+	var right := _make_lane("R", Vector3(5, 0, 10), Vector3.ZERO)
+	_link(left, lane)
+	_link(right, lane)
+	var left_end := _agent_on(left, left.to_global(left.curve.sample_baked(left.curve.get_baked_length() - 1.0)))
+	var right_end := _agent_on(right, right.to_global(right.curve.sample_baked(right.curve.get_baked_length() - 1.0)))
+	var right_far := _agent_on(right, right.to_global(right.curve.sample_baked(2.0)))
+
+	var behind := lane.get_agents_near(1.0, 3.0)
+
+	assert_eq(behind.size(), 2, "End of both merging lanes, not the far one")
+	assert_has(behind, left_end)
+	assert_has(behind, right_end)
+	assert_does_not_have(behind, right_far)
+
+
 func test_get_agents_near_self_loop_terminates():
 	var lane := _make_lane("A", Vector3.ZERO, Vector3(0, 0, -10))
 	_link(lane, lane)

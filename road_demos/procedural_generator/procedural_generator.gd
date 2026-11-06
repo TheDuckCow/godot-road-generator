@@ -8,6 +8,8 @@ extends Node3D
 
 ## Node used to calcualte distances
 @export var target_node: NodePath
+## Skip spawning a vehicle this close (in meters) to another on its lane
+@export var spawn_clearance := 20.0
 
 @onready var container: RoadContainer = get_node("RoadManager/Road_001")
 @onready var vehicles: Node = get_node("RoadManager/vehicles")
@@ -145,6 +147,8 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	var new_lanes = new_seg.get_lanes()
 	for _lane in new_lanes:
 		var rand_offset = randf() * _lane.curve.get_baked_length()
+		if not _lane.get_agents_near(rand_offset, spawn_clearance).is_empty():
+			continue
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
 
