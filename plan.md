@@ -65,10 +65,10 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - `unassign_lane()` clears `agent_ahead`.
    - A new `_exit_tree` calls `unassign_lane()`.
 5. If an agent passes another in the same lane, call `update_agent_order`. `close_to_lane_end` uses the stored offset.
-6. When a lane's curve changes: agents' stored offsets are invalidated right away, then on a deferred call the lane re-projects them and re-sorts (Phase 4 adds refreshing `agent_ahead` and notifying the agents behind).
+6. When a lane's curve changes: agents' stored offsets are invalidated right away, then on a deferred call the lane re-projects them and re-sorts, refreshes `agent_ahead` and notifies upstream.
 7. [procedural_generator.gd](road_demos/procedural_generator/procedural_generator.gd) `despawn_cars` / `update_stats`: use the agent API. `despawn_cars` only removes actors whose agent has `auto_register` on, so the player isn't despawned.
 
-## Phase 4: agent_ahead
+## Phase 4: agent_ahead (done)
 
 1. Add signal `agent_ahead_changed(old_agent)`. The setter only emits when the agent actually changes.
 2. `_ahead_gap`: the total length of the empty lanes between the agent and its leader. It's set on each refresh and keeps cross-lane distance O(1).
@@ -84,6 +84,8 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - The agent directly behind in the same lane re-checks.
    - If the changed agent was the rearmost, the frontmost agent of each feeder lane re-checks. Empty feeder lanes are walked back through, within the limits and a visited set.
    - This runs on register, unregister, reorder, link changes, curve changes, and a lane's `_exit_tree`.
+   - Link changes (`add/remove_lane_next/prior`, `clear_lane_links`) queue one deferred refresh per lane at runtime: agents re-validate `chosen_lane_next`, then the frontmost agent and upstream re-check.
+   - A lane's `_exit_tree` drops its agents (their `agent_ahead` becomes null) before notifying upstream.
    - A re-checking agent only picks up the new agent if its own path reaches that lane. That's how cars on branches it didn't choose get ignored.
 6. `distance_to_agent_ahead()`:
    - Returns `INF` if there's no agent ahead.
@@ -130,5 +132,6 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
 - **Lane changes:** the actor holds two agents. This plan adds no lane-change logic, and `change_lane()` stays as it is. It only guarantees that inserting the second agent immediately notifies the followers in that lane (who would naturally slow down as they feel too-close to their agent_ahead).
 - **`agent_behind`:** not tracked.  any situation where logic might say, "if there's an agent behind..." would instead be on the vehicle behind eg ambulance tells people to get out of the way, vs people seeing ambulance behind.
 - **Paths beyond the next choice:** past a fork after `chosen_lane_next`, `agent_ahead` is null. (at reasonable speeds, it's impossible to cross multiple branches in a single update)
+- **Leader drifting out of range:** limits are only checked on refresh, so a leader that pulls further than `lookahead_max_distance` ahead within its lane stays as `agent_ahead` (with the correct, larger distance) until something else triggers a refresh.
 - **Merging cars:** a car in a feeder lane only counts once it's on a lane in the agent's path.  proper merging is extremely complicated: involves driver timidness, vehicle acceleration properties, etc and is outside scope.
 - **Connections between road containers:** must be made at simple road segments, never at intersections or junctures.

@@ -105,6 +105,7 @@ var transition: bool = false
 
 var _agents: Array[RoadLaneAgent] = [] # Sorted by current_lane_offset, rearmost first
 var _agent_resort_queued := false
+var _link_refresh_queued := false
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
@@ -131,10 +132,14 @@ func _ready():
 
 
 func _exit_tree() -> void:
-	if auto_free_vehicles:
-		for agent in _agents:
-			if agent.auto_register and is_instance_valid(agent.actor):
-				agent.actor.call_deferred("queue_free")
+	var leaving := _agents.duplicate()
+	_agents.clear()
+	for agent in leaving:
+		agent._index_in_lane = -1
+		agent.refresh_agent_ahead()
+		if auto_free_vehicles and agent.auto_register and is_instance_valid(agent.actor):
+			agent.actor.call_deferred("queue_free")
+	notify_upstream()
 
 
 ## Loads the single lane_next/lane_prior properties from older scenes.
@@ -195,20 +200,28 @@ func get_prior_lanes() -> Array[RoadLane]:
 func add_lane_next(lane: RoadLane) -> void:
 	if _find_link(lanes_next, lane) == -1:
 		lanes_next = _appended(lanes_next, get_path_to(lane))
+		_queue_link_refresh()
 
 
 ## Add a lane that continues into this one. Only updates this lane, not [param lane].
 func add_lane_prior(lane: RoadLane) -> void:
 	if _find_link(lanes_prior, lane) == -1:
 		lanes_prior = _appended(lanes_prior, get_path_to(lane))
+		_queue_link_refresh()
 
 
 func remove_lane_next(lane: RoadLane) -> void:
-	lanes_next = _removed(lanes_next, lane)
+	var result := _removed(lanes_next, lane)
+	if result != lanes_next:
+		lanes_next = result
+		_queue_link_refresh()
 
 
 func remove_lane_prior(lane: RoadLane) -> void:
-	lanes_prior = _removed(lanes_prior, lane)
+	var result := _removed(lanes_prior, lane)
+	if result != lanes_prior:
+		lanes_prior = result
+		_queue_link_refresh()
 
 
 ## Clear all next and prior links, including the links back to this lane from
@@ -220,6 +233,7 @@ func clear_lane_links() -> void:
 		lane.remove_lane_next(self)
 	lanes_next = []
 	lanes_prior = []
+	_queue_link_refresh()
 
 
 func _resolve_lanes(paths: Array[NodePath]) -> Array[RoadLane]:
@@ -260,6 +274,8 @@ func register_agent(agent: RoadLaneAgent) -> void:
 	var idx := _bisect(agent.current_lane_offset, true)
 	_agents.insert(idx, agent)
 	_reindex_agents(idx)
+	agent.refresh_agent_ahead()
+	_notify_behind(idx)
 
 
 ## Remove an agent; a no-op if it isn't on this lane.
@@ -269,6 +285,7 @@ func unregister_agent(agent: RoadLaneAgent) -> void:
 		return
 	_agents.remove_at(idx)
 	_reindex_agents(idx)
+	_notify_behind(idx)
 
 
 ## Move an agent whose offset changed back into sorted order.
@@ -278,12 +295,51 @@ func update_agent_order(agent: RoadLaneAgent) -> void:
 		idx = _agents.find(agent)
 		if idx == -1:
 			return
+	var start_idx := idx
 	while idx > 0 and _is_behind(agent, _agents[idx - 1]):
 		_swap_agents(idx, idx - 1)
 		idx -= 1
 	while idx < _agents.size() - 1 and _is_behind(_agents[idx + 1], agent):
 		_swap_agents(idx, idx + 1)
 		idx += 1
+	if idx == start_idx:
+		return
+	var lo := mini(start_idx, idx)
+	for i in range(maxi(lo - 1, 0), maxi(start_idx, idx) + 1):
+		_agents[i].refresh_agent_ahead()
+	if lo == 0:
+		notify_upstream()
+
+
+## Has the frontmost agent of each lane leading into this one re-find its agent
+## ahead, walking back through empty lanes within the look-ahead limits.
+func notify_upstream() -> void:
+	var visited := {self: true}
+	var frontier: Array = [[self, 0.0, 0]] # lane, empty length behind it, empty lane count
+	while not frontier.is_empty():
+		var entry: Array = frontier.pop_front()
+		for prior in (entry[0] as RoadLane).get_prior_lanes():
+			if visited.has(prior):
+				continue
+			visited[prior] = true
+			if not prior.get_agents().is_empty():
+				prior.get_agents().back().refresh_agent_ahead()
+				continue
+			var gap: float = entry[1] + prior.curve.get_baked_length()
+			var empty_count: int = entry[2] + 1
+			# Mirrors RoadLaneAgent.refresh_agent_ahead, which only looks past lanes with one next lane.
+			if (prior.get_next_lanes().size() == 1
+					and empty_count < RoadLaneAgent.lookahead_max_hops
+					and gap <= RoadLaneAgent.lookahead_max_distance):
+				frontier.append([prior, gap, empty_count])
+
+
+## Has whoever could see the agent at [param idx] as their agent ahead re-check.
+func _notify_behind(idx: int) -> void:
+	if idx == 0:
+		notify_upstream()
+	elif idx <= _agents.size():
+		_agents[idx - 1].refresh_agent_ahead()
 
 
 ## Agents on this lane, sorted rearmost first. Don't modify the returned array.
@@ -363,6 +419,26 @@ func _resort_agents() -> void:
 		agent._reproject_offset()
 	_agents.sort_custom(_is_behind)
 	_reindex_agents(0)
+	for agent in _agents:
+		agent.refresh_agent_ahead()
+	notify_upstream()
+
+
+func _queue_link_refresh() -> void:
+	if Engine.is_editor_hint() or _link_refresh_queued:
+		return
+	_link_refresh_queued = true
+	_refresh_after_link_change.call_deferred()
+
+
+## Paths through this lane changed, so re-check choices and agents ahead that depend on them.
+func _refresh_after_link_change() -> void:
+	_link_refresh_queued = false
+	for agent in _agents.duplicate():
+		agent._validated_chosen_lane_next()
+	if not _agents.is_empty():
+		_agents.back().refresh_agent_ahead()
+	notify_upstream()
 
 
 func _instantiate_geom() -> void:

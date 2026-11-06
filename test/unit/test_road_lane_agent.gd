@@ -343,3 +343,170 @@ func test_get_agents_near_self_loop_terminates():
 	agent.assign_lane(lane)
 
 	assert_eq(lane.get_agents_near(5.0, 100.0), [agent] as Array[RoadLaneAgent], "Each lane visited once")
+
+
+# ------------------------------------------------------------------------------
+# agent_ahead
+
+
+## Three 10m lanes heading -Z, each with a single link to the next.
+func _make_chain() -> Array[RoadLane]:
+	var lane_a := _make_lane("A", Vector3.ZERO, Vector3(0, 0, -10))
+	var lane_b := _make_lane("B", Vector3(0, 0, -10), Vector3(0, 0, -20))
+	var lane_c := _make_lane("C", Vector3(0, 0, -20), Vector3(0, 0, -30))
+	_link(lane_a, lane_b)
+	_link(lane_b, lane_c)
+	return [lane_a, lane_b, lane_c]
+
+
+func _agent_on(lane: RoadLane, pos: Vector3) -> RoadLaneAgent:
+	var agent := _make_agent(pos)
+	agent.assign_lane(lane)
+	return agent
+
+
+func test_agent_ahead_in_same_lane():
+	var lanes := _make_chain()
+	var rear := _agent_on(lanes[0], Vector3(0, 0, -2))
+	var front := _agent_on(lanes[0], Vector3(0, 0, -9))
+
+	assert_eq(rear.agent_ahead, front)
+	assert_null(front.agent_ahead, "Nothing ahead of the front agent")
+	assert_almost_eq(rear.distance_to_agent_ahead(), 7.0, 0.01)
+	assert_eq(front.distance_to_agent_ahead(), INF)
+
+
+func test_agent_ahead_through_single_link_chain():
+	var lanes := _make_chain()
+	var follower := _agent_on(lanes[0], Vector3(0, 0, -2))
+	var leader := _agent_on(lanes[2], Vector3(0, 0, -23))
+
+	assert_eq(follower.agent_ahead, leader, "Sees past the empty lane in between")
+	assert_almost_eq(follower.distance_to_agent_ahead(), 21.0, 0.01, "Remaining + empty lane + leader offset")
+
+
+func test_passing_fires_signal():
+	var lanes := _make_chain()
+	var rear := _agent_on(lanes[0], Vector3(0, 0, -2))
+	var front := _agent_on(lanes[0], Vector3(0, 0, -5))
+	watch_signals(rear)
+	watch_signals(front)
+
+	rear.actor.global_position = rear.move_along_lane(5.0)
+
+	assert_eq(front.agent_ahead, rear, "Passed agent now follows")
+	assert_null(rear.agent_ahead)
+	assert_signal_emitted(rear, "agent_ahead_changed")
+	assert_signal_emitted(front, "agent_ahead_changed")
+
+
+func test_no_flicker_when_leader_crosses_into_next_lane():
+	var lanes := _make_chain()
+	var follower := _agent_on(lanes[0], Vector3(0, 0, -1))
+	var leader := _agent_on(lanes[0], Vector3(0, 0, -9))
+	watch_signals(follower)
+
+	leader.actor.global_position = leader.move_along_lane(3.0)
+
+	assert_eq(follower.agent_ahead, leader)
+	assert_signal_not_emitted(follower, "agent_ahead_changed", "Same leader, no signal")
+	assert_almost_eq(follower.distance_to_agent_ahead(), 11.0, 0.01)
+
+
+func test_leader_on_unchosen_branch_drops_out():
+	var lanes := _make_fork()
+	var follower := _agent_on(lanes[0], Vector3(0, 0, -1))
+	follower.chosen_lane_next = lanes[1]
+	var leader := _make_agent(Vector3(0, 0, -9))
+	leader.lane_next_chooser = func(_caller, options): return options[1]
+	leader.assign_lane(lanes[0])
+	assert_eq(follower.agent_ahead, leader, "Leader ahead while on the shared lane")
+	watch_signals(follower)
+
+	leader.actor.global_position = leader.move_along_lane(3.0)
+
+	assert_eq(leader.current_lane, lanes[2])
+	assert_null(follower.agent_ahead, "Leader took the other branch")
+	assert_signal_emitted(follower, "agent_ahead_changed")
+
+
+func test_agent_past_unchosen_fork_not_seen():
+	var lanes := _make_chain()
+	var branch := _make_lane("C2", Vector3(0, 0, -20), Vector3(5, 0, -30))
+	_link(lanes[1], branch)
+	var follower := _agent_on(lanes[0], Vector3(0, 0, -2))
+	_agent_on(lanes[2], Vector3(0, 0, -25))
+
+	assert_null(follower.agent_ahead, "Lane B forks, so the path past it is unknown")
+
+	var on_path := _agent_on(lanes[1], Vector3(0, 0, -15))
+	assert_eq(follower.agent_ahead, on_path, "Agent on the chosen lane is seen")
+
+
+func test_inserted_agent_notifies_followers():
+	var feeder := _make_lane("P", Vector3(0, 0, 10), Vector3.ZERO)
+	var lane := _make_lane("N", Vector3.ZERO, Vector3(0, 0, -20))
+	_link(feeder, lane)
+	var in_feeder := _agent_on(feeder, Vector3(0, 0, 5))
+	var front := _agent_on(lane, Vector3(0, 0, -15))
+	var in_lane := _agent_on(lane, Vector3(0, 0, -2))
+	assert_eq(in_feeder.agent_ahead, in_lane)
+	watch_signals(in_lane)
+	watch_signals(in_feeder)
+
+	var merging := _agent_on(lane, Vector3(0, 0, -8))
+	var cutting_in := _agent_on(lane, Vector3(0, 0, -1))
+
+	assert_eq(in_lane.agent_ahead, merging, "Follower in the lane sees the new agent")
+	assert_signal_emitted(in_lane, "agent_ahead_changed")
+	assert_eq(in_feeder.agent_ahead, cutting_in, "Frontmost in the feeder lane sees the new rearmost")
+	assert_signal_emitted(in_feeder, "agent_ahead_changed")
+	assert_eq(merging.agent_ahead, front)
+
+
+func test_freeing_agent_notifies_followers():
+	var lanes := _make_chain()
+	var same_lane := _agent_on(lanes[1], Vector3(0, 0, -11))
+	var behind := _agent_on(lanes[0], Vector3(0, 0, -2))
+	var leader := _agent_on(lanes[1], Vector3(0, 0, -15))
+	assert_eq(same_lane.agent_ahead, leader)
+	assert_eq(behind.agent_ahead, same_lane)
+
+	same_lane.actor.free()
+	assert_eq(behind.agent_ahead, leader, "Follower in the prior lane sees through the gap")
+
+	leader.actor.free()
+	assert_null(behind.agent_ahead, "No one left ahead")
+
+
+func test_unassign_clears_agent_ahead():
+	var lanes := _make_chain()
+	var rear := _agent_on(lanes[0], Vector3(0, 0, -2))
+	_agent_on(lanes[0], Vector3(0, 0, -5))
+
+	rear.unassign_lane()
+
+	assert_null(rear.agent_ahead)
+	assert_eq(rear.distance_to_agent_ahead(), INF)
+
+
+func test_self_linked_lane_scan_terminates():
+	var lane := _make_lane("A", Vector3.ZERO, Vector3(0, 0, -10))
+	_link(lane, lane)
+	var agent := _agent_on(lane, Vector3(0, 0, -5))
+
+	assert_null(agent.agent_ahead, "An agent never sees itself ahead")
+
+
+func test_new_link_refreshes_agent_ahead():
+	var lane_a := _make_lane("A", Vector3.ZERO, Vector3(0, 0, -10))
+	var lane_b := _make_lane("B", Vector3(0, 0, -10), Vector3(0, 0, -20))
+	var follower := _agent_on(lane_a, Vector3(0, 0, -2))
+	var leader := _agent_on(lane_b, Vector3(0, 0, -15))
+	assert_null(follower.agent_ahead, "Lanes not linked yet")
+
+	_link(lane_a, lane_b)
+	await wait_frames(1)
+
+	assert_eq(follower.chosen_lane_next, lane_b, "Choice picked up from the new link")
+	assert_eq(follower.agent_ahead, leader, "Leader seen once the lanes link")

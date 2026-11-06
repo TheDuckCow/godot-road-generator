@@ -7,7 +7,7 @@
 font_size = 24
 
 [node name="RoadLaneDebug" type="Panel"]
-custom_minimum_size = Vector2(250, 230)
+custom_minimum_size = Vector2(250, 300)
 size_flags_horizontal = 0
 script = ExtResource("1_3aqr0")
 

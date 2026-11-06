@@ -25,6 +25,8 @@ extends Node
 
 
 signal on_lane_changed(old_lane)
+## Emitted when [member agent_ahead] changes to a different agent (or null).
+signal agent_ahead_changed(old_agent: RoadLaneAgent)
 
 enum MoveDir
 {
@@ -63,7 +65,11 @@ var road_manager: RoadManager
 var current_lane: RoadLane
 ## The lane this agent will continue into after [member current_lane], picked
 ## whenever a lane is assigned.
-var chosen_lane_next: RoadLane
+var chosen_lane_next: RoadLane:
+	set(value):
+		chosen_lane_next = value
+		if _is_in_current_lane():
+			refresh_agent_ahead()
 ## Optional picker used when a lane has more than one next lane, called as
 ## [code](agent: RoadLaneAgent, options: Array[RoadLane]) -> RoadLane[/code].
 ## A random option is picked when not set.
@@ -73,6 +79,25 @@ var lane_next_chooser: Callable
 var current_lane_offset: float = 0.0
 ## World position [member current_lane_offset] was last derived from.
 var _current_lane_offset_reference_position := Vector3.INF
+
+## The nearest agent ahead in the lane's direction: on the same lane, or on the
+## lanes ahead via [member chosen_lane_next] and then lanes with a single next
+## lane. Kept up to date as agents and lanes change, not re-searched per frame.
+var agent_ahead: RoadLaneAgent:
+	set(value):
+		if value == agent_ahead:
+			return
+		var old_agent := agent_ahead
+		agent_ahead = value
+		agent_ahead_changed.emit(old_agent)
+## Total length of the empty lanes between this agent's lane and [member agent_ahead]'s.
+var _ahead_gap: float = 0.0
+
+## How far past the current lane, in empty lanes, to look for [member agent_ahead].
+## Shared by all agents, since lanes use it to find who to notify when it changes.
+static var lookahead_max_distance: float = 100.0
+## How many lanes past the current one to look for [member agent_ahead].
+static var lookahead_max_hops: int = 8
 
 ## Position in the current lane's sorted agents, maintained by [RoadLane].
 var _index_in_lane: int = -1
@@ -149,6 +174,8 @@ func unassign_lane() -> RoadLane:
 	current_lane = null
 	chosen_lane_next = null
 	_current_lane_offset_reference_position = Vector3.INF
+	_ahead_gap = 0.0
+	agent_ahead = null
 	return prev_lane
 
 
@@ -198,6 +225,54 @@ func _set_lane_offset(offset: float, ref_pos: Vector3) -> void:
 	current_lane_offset = offset
 	_current_lane_offset_reference_position = ref_pos
 	current_lane.update_agent_order(self)
+
+
+## Distance along the lanes to [member agent_ahead], or INF if there is none.
+func distance_to_agent_ahead() -> float:
+	if not is_instance_valid(agent_ahead) or not is_instance_valid(current_lane):
+		return INF
+	if agent_ahead.current_lane == current_lane:
+		return agent_ahead.current_lane_offset - current_lane_offset
+	var remaining := current_lane.curve.get_baked_length() - current_lane_offset
+	return remaining + _ahead_gap + agent_ahead.current_lane_offset
+
+
+## Re-find [member agent_ahead]. Called by [RoadLane] when agents or lanes change.
+func refresh_agent_ahead() -> void:
+	if not _is_in_current_lane():
+		_ahead_gap = 0.0
+		agent_ahead = null
+		return
+	var lane_agents := current_lane.get_agents()
+	if _index_in_lane + 1 < lane_agents.size():
+		_ahead_gap = 0.0
+		agent_ahead = lane_agents[_index_in_lane + 1]
+		return
+	var gap := 0.0
+	var hops := 0
+	var visited := {current_lane: true}
+	var lane: RoadLane = null
+	if is_instance_valid(chosen_lane_next) and chosen_lane_next in current_lane.get_next_lanes():
+		lane = chosen_lane_next
+	while lane != null and not visited.has(lane) and hops < lookahead_max_hops and gap <= lookahead_max_distance:
+		visited[lane] = true
+		hops += 1
+		if not lane.get_agents().is_empty():
+			_ahead_gap = gap
+			agent_ahead = lane.get_agents()[0]
+			return
+		gap += lane.curve.get_baked_length()
+		var nexts := lane.get_next_lanes()
+		lane = nexts[0] if nexts.size() == 1 else null
+	_ahead_gap = 0.0
+	agent_ahead = null
+
+
+func _is_in_current_lane() -> bool:
+	if not is_instance_valid(current_lane):
+		return false
+	var lane_agents := current_lane.get_agents()
+	return _index_in_lane >= 0 and _index_in_lane < lane_agents.size() and lane_agents[_index_in_lane] == self
 
 
 func assign_actor() -> int:

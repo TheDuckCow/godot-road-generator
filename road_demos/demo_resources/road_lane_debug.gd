@@ -36,6 +36,8 @@ func _physics_process(_delta: float) -> void:
 	lbl_prior.text = "Prior (%d)" % prior_count if prior_count > 0 else "-"
 
 	var agents := clane.get_agents()
-	lbl_agent_info.text = "%.1f / %.1f m\nagent %d of %d in lane" % [
+	var ahead_dist := agent.distance_to_agent_ahead()
+	var ahead_text := "%.1f m behind agent" % ahead_dist if ahead_dist != INF else "no agent ahead"
+	lbl_agent_info.text = "%.1f / %.1f m\nagent %d of %d in lane\n%s" % [
 		agent.current_lane_offset, clane.curve.get_baked_length(),
-		agents.find(agent) + 1, agents.size()]
+		agents.find(agent) + 1, agents.size(), ahead_text]
