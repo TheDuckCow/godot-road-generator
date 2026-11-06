@@ -595,6 +595,12 @@ func _create_road_container_undo(selected_node: Node, init_sel: Node) -> void:
 		initial_children[-1].queue_free()
 
 
+## Cubic bezier handle length approximating a circular arc, capped at a U-turn if behind
+static func arc_handle_mag(out_dir: Vector3, chord: Vector3) -> float:
+	var cos_a: float = maxf(out_dir.normalized().dot(chord.normalized()), 0.0)
+	return 2.0 * chord.length() / (3.0 * (1.0 + cos_a))
+
+
 func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_connect_rp=null) -> void:
 	var undo_redo = get_undo_redo()
 
@@ -607,6 +613,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 	var add_container = false
 	var t_manager: Node = null
 	var handle_mag:float = 0
+	var mag_dir := RoadPoint.PointInit.NEXT
 	if selection is RoadPoint:
 		parent = selection.get_parent()
 		if selection.next_pt_init and selection.prior_pt_init:
@@ -616,9 +623,19 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 			_sel = parent
 		else:
 			_sel = selection
-			var road_width = _sel.lane_width * len(_sel.lanes)
-			var dist:float = pos.distance_to(_sel.global_transform.origin) / 2.0
-			handle_mag = max(road_width, dist)
+			var chord: Vector3 = pos - _sel.global_transform.origin
+			var forward: Vector3 = _sel.global_transform.basis.z.normalized()
+			var out_dir: Vector3
+			# Starting with a single point?
+			if not _sel.is_next_connected() and not _sel.is_prior_connected():
+				out_dir = chord.normalized()
+				mag_dir = RoadPoint.PointInit.PRIOR
+			elif _sel.next_pt_init or (not _sel.prior_pt_init and forward.dot(chord) <= 0):
+				out_dir = -forward
+				mag_dir = RoadPoint.PointInit.PRIOR
+			else:
+				out_dir = forward
+			handle_mag = arc_handle_mag(out_dir, chord)
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
@@ -628,16 +645,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 
 	undo_redo.create_action("Add next RoadPoint")
 	if handle_mag > 0:
-		undo_redo.add_do_property(_sel, "_is_internal_updating", true)
-		undo_redo.add_undo_property(_sel, "_is_internal_updating", true)
-		if not selection.next_pt_init:
-			undo_redo.add_do_property(_sel, "next_mag", handle_mag)
-			undo_redo.add_undo_property(_sel, "next_mag", _sel.next_mag)
-		elif not selection.prior_pt_init:
-			undo_redo.add_do_property(_sel, "prior_mag", handle_mag)
-			undo_redo.add_undo_property(_sel, "prior_mag", _sel.prior_mag)
-		undo_redo.add_do_property(_sel, "_is_internal_updating", false)
-		undo_redo.add_undo_property(_sel, "_is_internal_updating", false)
+		subaction_set_handle_mag(_sel, mag_dir, handle_mag, undo_redo)
 	if selection is RoadPoint and not selection.is_next_connected() and not selection.is_prior_connected():
 		# Special case: the starting point is not connected to anything, then the user is
 		# probably wanting it to be rotated towards the new point being placed anyways
@@ -761,18 +769,13 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 
 		# Rotate this rp towards the initial selected node
 		if selection is RoadPoint:
-			var look_pos = selection.global_transform.origin
-			if not adding_to_next:
-				# Essentially flip the look 180 so it's not twisted around.
-				look_pos += 2 * dirvec
-			# Increase the angle a bit more based on the selected's magnitude,
-			# to result in a more natural rotation to ensure the curve doesn't
-			# look like it doubles back.
-			if adding_to_next:
-				look_pos += selection.global_transform.basis.z * selection.next_mag
-			else:
-				look_pos += selection.global_transform.basis.z * selection.prior_mag
-			next_rp.look_at(look_pos, next_rp.transform.basis.y.normalized())
+			# Mirror the outgoing direction across the chord (circular arc), or U-turn if placed behind
+			var dir_sign := 1.0 if adding_to_next else -1.0
+			var out_dir: Vector3 = selection.global_transform.basis.z.normalized() * dir_sign
+			var chord: Vector3 = dirvec.normalized()
+			var cos_a: float = out_dir.dot(chord)
+			var arrive_dir: Vector3 = 2.0 * cos_a * chord - out_dir if cos_a > 0 else -out_dir
+			next_rp.look_at(pos - arrive_dir * dir_sign, next_rp.transform.basis.y.normalized())
 			# Workaround, as look_at for some reason doesn't *actually* constrain the the provided axis
 			next_rp.global_transform.basis.y = nrm.normalized()
 
@@ -877,6 +880,10 @@ func _connect_rp_on_click(rp_a, rp_b):
 		else:
 			target_dir = RoadPoint.PointInit.PRIOR
 
+	var chord: Vector3 = rp_b.global_position - rp_a.global_position
+	var mag_a := arc_handle_mag(rp_a.global_basis.z * (1.0 if from_dir == RoadPoint.PointInit.NEXT else -1.0), chord)
+	var mag_b := arc_handle_mag(rp_b.global_basis.z * (1.0 if target_dir == RoadPoint.PointInit.NEXT else -1.0), -chord)
+
 	# Finally, determine if we are doing a intra- or inter-RoadContainer
 	var inter_container: bool = rp_a.container != rp_b.container
 
@@ -926,6 +933,9 @@ func _connect_rp_on_click(rp_a, rp_b):
 			undo_redo.add_do_method(parent, "add_child", new_rp, true)
 			undo_redo.add_do_method(new_rp, "set_owner", get_tree().get_edited_scene_root())
 			undo_redo.add_do_method(new_rp, "copy_settings_from", cross_rp)
+			if not flip_inputs:
+				subaction_set_handle_mag(from_rp, from_dir, mag_a, undo_redo)
+				subaction_set_handle_mag(new_rp, target_dir, mag_b, undo_redo)
 
 			var flip_target_dir = RoadPoint.PointInit.NEXT if target_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
 			var flip_from_dir = RoadPoint.PointInit.NEXT if from_dir == RoadPoint.PointInit.PRIOR else RoadPoint.PointInit.PRIOR
@@ -957,6 +967,8 @@ func _connect_rp_on_click(rp_a, rp_b):
 			undo_redo.add_undo_method(rp_a, "disconnect_container", from_dir, target_dir)
 	else:
 		undo_redo.create_action("Connect RoadPoints")
+		subaction_set_handle_mag(rp_a, from_dir, mag_a, undo_redo)
+		subaction_set_handle_mag(rp_b, target_dir, mag_b, undo_redo)
 		undo_redo.add_do_method(rp_a, "connect_roadpoint", from_dir, rp_b, target_dir)
 		undo_redo.add_undo_method(rp_a, "disconnect_roadpoint", from_dir, target_dir)
 	undo_redo.commit_action()
@@ -1650,6 +1662,17 @@ func subaction_create_intersection(source_rp: RoadPoint, rp_branch: RoadPoint, u
 	undo_redo.add_undo_property(source_rp, "next_pt_init", source_rp.next_pt_init)
 	undo_redo.add_undo_property(source_rp, "_is_internal_updating", false)
 	return inter
+
+
+## Sets the prior/next handle magnitude of a RoadPoint without triggering a rebuild
+func subaction_set_handle_mag(rp: RoadPoint, dir: int, mag: float, undo_redo:EditorUndoRedoManager) -> void:
+	var prop := "next_mag" if dir == RoadPoint.PointInit.NEXT else "prior_mag"
+	undo_redo.add_do_property(rp, "_is_internal_updating", true)
+	undo_redo.add_undo_property(rp, "_is_internal_updating", true)
+	undo_redo.add_do_property(rp, prop, mag)
+	undo_redo.add_undo_property(rp, prop, rp.get(prop))
+	undo_redo.add_do_property(rp, "_is_internal_updating", false)
+	undo_redo.add_undo_property(rp, "_is_internal_updating", false)
 
 
 func subaction_add_branch(inter: RoadIntersection, rp: RoadPoint, undo_redo:EditorUndoRedoManager) -> void:
