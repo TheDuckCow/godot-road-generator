@@ -7,6 +7,7 @@ extends Panel
 @onready var lbl_right:Label = %right
 @onready var lbl_prior:Label = %prior
 @onready var lbl_no_agent:Label = %no_agent
+@onready var lbl_agent_info:Label = %agent_info
 
 var agent: RoadLaneAgent
 
@@ -33,3 +34,8 @@ func _physics_process(_delta: float) -> void:
 	lbl_next.text = "Next (%d)" % next_count if next_count > 0 else "-"
 	var prior_count := clane.get_prior_lanes().size()
 	lbl_prior.text = "Prior (%d)" % prior_count if prior_count > 0 else "-"
+
+	var agents := clane.get_agents()
+	lbl_agent_info.text = "%.1f / %.1f m\nagent %d of %d in lane" % [
+		agent.current_lane_offset, clane.curve.get_baked_length(),
+		agents.find(agent) + 1, agents.size()]

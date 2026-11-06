@@ -43,10 +43,11 @@ enum LaneChangeDir
 ## Directly assign the path to the [RoadManager] instance, otherwise will assume it
 ## is in the parent hierarchy. Should refer to [RoadManager] nodes only.
 @export var road_manager_path: NodePath
-## Automatically register and unregiter this vehicle to RoadLanes as we travel.[br][br]
+## Let the [RoadLane] this agent is on queue-free the actor when the lane is
+## removed (see [member RoadLane.auto_free_vehicles]).[br][br]
 ##
-## Useful to let RoadLanes auto-queue free registered vehicles when the lane is
-## being removed, but likely should turn off for player agents to avoid freeing.
+## Agents are always tracked by their lane; this only controls freeing, so it
+## likely should be off for player agents.
 @export var auto_register: bool = true
 ## Debug option to mark the current [RoadLane] visible ingame.[br][br]
 ##
@@ -67,11 +68,21 @@ var chosen_lane_next: RoadLane
 ## [code](agent: RoadLaneAgent, options: Array[RoadLane]) -> RoadLane[/code].
 ## A random option is picked when not set.
 var lane_next_chooser: Callable
+## Distance along [member current_lane]'s curve to the actor, kept up to date as
+## the agent moves.
+var current_lane_offset: float = 0.0
+## World position [member current_lane_offset] was last derived from.
+var _current_lane_offset_reference_position := Vector3.INF
+
+## Position in the current lane's sorted agents, maintained by [RoadLane].
+var _index_in_lane: int = -1
 
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
 
 const DEBUG_OUT: bool = false
+## How far the actor may be moved by something else before the offset is re-projected.
+const OFFSET_DRIFT_TOLERANCE := 0.01
 
 
 # ------------------------------------------------------------------------------
@@ -89,6 +100,9 @@ func _ready() -> void:
 		print("Finished setup for road lane agent with: ", road_manager, " and ", current_lane)
 
 
+func _exit_tree() -> void:
+	unassign_lane()
+
 
 # ------------------------------------------------------------------------------
 #endregion
@@ -96,37 +110,94 @@ func _ready() -> void:
 # ------------------------------------------------------------------------------
 
 
-func assign_lane(new_lane:RoadLane) -> void:
+## Move this agent onto [param new_lane] at [param offset] along it, or at the
+## actor's closest point on the lane if [param offset] is negative.
+func assign_lane(new_lane: RoadLane, offset: float = -1.0) -> void:
 	if not is_instance_valid(new_lane):
 		push_warning("Attempted moving to invalid lane via %s" % self)
 		return
-	# In race conditions, better to have a vehcile registered in two lanes at
-	# once to avoid getting lost in the void if something freed in between
-	if auto_register:
-		new_lane.register_vehicle(actor)
 	if not new_lane.draw_in_game and visualize_lane:
 		new_lane.draw_in_game = true
 		_did_make_lane_visible = true
-	var _initial_lane = unassign_lane()
+	var old_lane: RoadLane = current_lane if is_instance_valid(current_lane) else null
 	current_lane = new_lane
+	if offset >= 0.0:
+		current_lane_offset = offset
+		_current_lane_offset_reference_position = Vector3.INF
+	else:
+		current_lane_offset = _project_offset(new_lane)
+		_current_lane_offset_reference_position = actor.global_position
 	chosen_lane_next = _pick_lane_next(new_lane)
-	emit_signal("on_lane_changed", _initial_lane)
+	if old_lane == new_lane:
+		new_lane.update_agent_order(self)
+	else:
+		# Join the new lane before leaving the old, so the agent is never on neither.
+		# Registering may itself unassign this agent (e.g. a despawning lane).
+		new_lane.register_agent(self)
+		if old_lane:
+			_leave_lane(old_lane)
+	emit_signal("on_lane_changed", old_lane)
 	if DEBUG_OUT:
 		print("Assigned new lane: %s" % new_lane.get_path())
 
 
 func unassign_lane() -> RoadLane:
 	var prev_lane: RoadLane = null
-	if is_instance_valid(current_lane) and current_lane is RoadLane:
-		# Even if auto_register is off, no harm in attempt to unregister, in
-		# case the setting had recently changed
-		current_lane.unregister_vehicle(actor)
-		if current_lane.draw_in_game and _did_make_lane_visible:
-			current_lane.draw_in_game = false
+	if is_instance_valid(current_lane):
+		_leave_lane(current_lane)
 		prev_lane = current_lane
-		current_lane = null
-		chosen_lane_next = null
+	current_lane = null
+	chosen_lane_next = null
+	_current_lane_offset_reference_position = Vector3.INF
 	return prev_lane
+
+
+func _leave_lane(lane: RoadLane) -> void:
+	lane.unregister_agent(self)
+	if lane.draw_in_game and _did_make_lane_visible:
+		lane.draw_in_game = false
+
+
+## Updates [member current_lane_offset] from the actor's position, unless the
+## actor is still where this agent last placed it. Returns the offset.
+func sync_offset() -> float:
+	if not is_instance_valid(current_lane):
+		return 0.0
+	if _is_offset_stale():
+		_set_lane_offset(_project_offset(current_lane), actor.global_position)
+	return current_lane_offset
+
+
+## Forces the next [method sync_offset] to re-project the actor onto the lane.
+func invalidate_offset() -> void:
+	_current_lane_offset_reference_position = Vector3.INF
+
+
+## Re-projects without re-sorting; used by [RoadLane] which re-sorts all agents after.
+func _reproject_offset() -> void:
+	current_lane_offset = _project_offset(current_lane)
+	_current_lane_offset_reference_position = actor.global_position
+
+
+## Offset of the actor along the current lane, without updating the cache.
+func _peek_offset() -> float:
+	if _is_offset_stale():
+		return _project_offset(current_lane)
+	return current_lane_offset
+
+
+func _is_offset_stale() -> bool:
+	return actor.global_position.distance_squared_to(_current_lane_offset_reference_position) > OFFSET_DRIFT_TOLERANCE * OFFSET_DRIFT_TOLERANCE
+
+
+func _project_offset(lane: RoadLane) -> float:
+	return lane.curve.get_closest_offset(lane.to_local(actor.global_position))
+
+
+func _set_lane_offset(offset: float, ref_pos: Vector3) -> void:
+	current_lane_offset = offset
+	_current_lane_offset_reference_position = ref_pos
+	current_lane.update_agent_order(self)
 
 
 func assign_actor() -> int:
@@ -243,10 +314,9 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
 	if not is_instance_valid(current_lane):
 		current_lane = null
+		return actor.global_position
 	var pos = actor.global_transform.origin
-	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
-	# Find how much space is left along the RoadLane in this direction
-	var init_offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
+	var init_offset: float = sync_offset() if update_lane else _peek_offset()
 	var check_next_offset:float = init_offset + move_distance
 	var _update_lane = current_lane
 	var lane_length = current_lane.curve.get_baked_length()
@@ -280,10 +350,13 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 			init_offset = 0
 			_update_lane = check_lane
 			check_next_offset += _update_lane.curve.get_baked_length()
-	if update_lane && _update_lane != current_lane:
-		assign_lane(_update_lane)
 	var ref_local = _update_lane.curve.sample_baked(check_next_offset)
 	var new_point: Vector3 = _update_lane.to_global(ref_local)
+	if update_lane:
+		if _update_lane != current_lane:
+			assign_lane(_update_lane, check_next_offset)
+		if current_lane == _update_lane:
+			_set_lane_offset(check_next_offset, new_point)
 	if update_lane && distance_left != 0: #workaround for missing connections
 		_update_lane = find_nearest_lane(pos - actor.global_transform.basis.z * sign(move_distance), 1)
 		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
@@ -358,11 +431,7 @@ func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 	var links := current_lane.get_next_lanes() if move_dir == MoveDir.FORWARD else current_lane.get_prior_lanes()
 	if not links.is_empty():
 		return false
-	var pos = actor.global_transform.origin
-	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
-	# Find how much space is left along the RoadLane in this direction
-	var offset:float = current_lane.curve.get_closest_offset(current_lane.to_local(lane_pos))
-	var lane_len = current_lane.curve.get_baked_length()
+	var offset := sync_offset()
 	var dist:float
 	if move_dir == MoveDir.FORWARD:
 		dist = current_lane.curve.get_baked_length() - offset

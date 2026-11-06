@@ -9,11 +9,14 @@ class DespawnRoadLane extends RoadLane:
 		super()
 		_actor_manager = actor_manager
 
-	func register_vehicle(vehicle: Node) -> void:
-		if _actor_manager:
-			_actor_manager.remove_actor(vehicle)
+	# Agents that despawn are never added, so cars heading for the exit don't see them.
+	func register_agent(agent: RoadLaneAgent) -> void:
+		if not agent.auto_register:
+			super(agent)
+		elif _actor_manager:
+			_actor_manager.remove_actor(agent.actor)
 		else:
-			vehicle.queue_free()
+			agent.actor.queue_free()
 
 
 ## Defines a traffic spawner.

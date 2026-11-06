@@ -7,7 +7,7 @@
 font_size = 24
 
 [node name="RoadLaneDebug" type="Panel"]
-custom_minimum_size = Vector2(250, 140)
+custom_minimum_size = Vector2(250, 230)
 size_flags_horizontal = 0
 script = ExtResource("1_3aqr0")
 
@@ -63,4 +63,10 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 text = "Prior Lane"
+horizontal_alignment = 1
+
+[node name="agent_info" type="Label" parent="struc"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Offset"
 horizontal_alignment = 1

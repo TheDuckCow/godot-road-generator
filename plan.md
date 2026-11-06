@@ -65,8 +65,8 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - `unassign_lane()` clears `agent_ahead`.
    - A new `_exit_tree` calls `unassign_lane()`.
 5. If an agent passes another in the same lane, call `update_agent_order`. `close_to_lane_end` uses the stored offset.
-6. When a lane's curve changes: on a deferred call, recompute agent offsets, re-sort, refresh `agent_ahead`, and notify the agents behind.
-7. [procedural_generator.gd](road_demos/procedural_generator/procedural_generator.gd) `despawn_cars` / `update_stats`: use `get_vehicles()`.
+6. When a lane's curve changes: agents' stored offsets are invalidated right away, then on a deferred call the lane re-projects them and re-sorts (Phase 4 adds refreshing `agent_ahead` and notifying the agents behind).
+7. [procedural_generator.gd](road_demos/procedural_generator/procedural_generator.gd) `despawn_cars` / `update_stats`: use the agent API. `despawn_cars` only removes actors whose agent has `auto_register` on, so the player isn't despawned.
 
 ## Phase 4: agent_ahead
 
@@ -92,7 +92,7 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
 
 ## Phase 5: Demo
 
-1. `DespawnRoadLane` overrides `register_agent` to call `remove_actor(agent.actor)` and never adds the agent to its list. Otherwise actors hidden for reuse would sit in the despawn lane and cars heading for the exit would brake for them.
+1. `DespawnRoadLane` overrides `register_agent` to call `remove_actor(agent.actor)` and never adds the agent to its list. Otherwise actors hidden for reuse would sit in the despawn lane and cars heading for the exit would brake for them. Agents with `auto_register` off (the player) are added normally instead of despawned. (Done in Phase 3.)
 2. [road_actor.gd](road_demos/demo_resources/actors/road_actor.gd) `_get_auto_input`:
    - Add exports `min_follow_gap` and `follow_time`.
    - Brake (forward input 0) when `distance_to_agent_ahead() < min_follow_gap + speed * follow_time`.
