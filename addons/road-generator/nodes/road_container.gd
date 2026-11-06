@@ -1073,11 +1073,9 @@ func update_lane_seg_connections():
 				if is_instance_valid(next_ln.owner):
 					# Don't auto update paths owned by the editor
 					continue
-				# Added lanes ("F0a") fork/merge with F0, removed lanes ("F0r") with F0.
-				var is_match: bool = (
-					prior_ln.lane_next_tag == next_ln.lane_prior_tag
-					or prior_ln.lane_next_tag + "a" == next_ln.lane_prior_tag
-					or prior_ln.lane_next_tag == next_ln.lane_prior_tag + "r")
+				# Lanes meeting at the same point link all-to-all, so added ("F0a")
+				# and removed ("F0r") transition lanes fork/merge with F0 and each other.
+				var is_match: bool = _tag_base(prior_ln.lane_next_tag) == _tag_base(next_ln.lane_prior_tag)
 				# TODO: When directionality is made consistent, we should no longer
 				# need to invert the direction assignment here.
 				var is_fwd: bool = prior_ln.lane_next_tag.begins_with("F")
@@ -1085,6 +1083,13 @@ func update_lane_seg_connections():
 					assert(is_fwd or prior_ln.lane_next_tag.begins_with("R"))
 				_set_lane_link(next_ln, prior_ln, is_match and is_fwd)
 				_set_lane_link(prior_ln, next_ln, is_match and not is_fwd)
+
+
+## Lane tag without a transition suffix, e.g. "F0a" and "F0r" become "F0".
+static func _tag_base(tag: String) -> String:
+	if tag.length() > 1 and tag[-1] in ["a", "r"] and tag[-2].is_valid_int():
+		return tag.left(-1)
+	return tag
 
 
 ## Update the lanes_next and lanes_prior connections between intersection lanes

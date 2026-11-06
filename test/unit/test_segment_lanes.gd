@@ -244,6 +244,38 @@ func test_transition_lanes_fork_and_merge():
 	assert_eq(r_widen.lane_right, NodePath(""), "No side link to the added lane")
 
 
+## Where the road narrows to one lane and widens again at the same RoadPoint,
+## every lane arriving at the pinch links to every lane leaving it.
+func test_pinch_links_all_incoming_to_all_outgoing():
+	var container:RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	var one_each_way: Array[RoadPoint.LaneDir] = [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD]
+	var three_each_way: Array[RoadPoint.LaneDir] = []
+	for dir in [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD]:
+		for _i in range(3):
+			three_each_way.append(dir)
+	points[0].traffic_dir = three_each_way.duplicate()
+	points[1].traffic_dir = one_each_way
+	points[2].traffic_dir = three_each_way.duplicate()
+	container.generate_ai_lanes = true
+	container.rebuild_segments(true)
+
+	var narrowing: Array = points[0].next_seg.get_lanes()
+	var widening: Array = points[1].next_seg.get_lanes()
+	assert_eq(narrowing.size(), 6, "Three lanes each way narrowing")
+	assert_eq(widening.size(), 6, "Three lanes each way widening")
+	for lane: RoadLane in narrowing:
+		if lane.lane_next_tag.begins_with("R"):
+			assert_eq(lane.get_next_lanes().size(), 3, "%s continues into every outgoing lane" % lane.name)
+		else:
+			assert_eq(lane.get_prior_lanes().size(), 3, "%s is fed by every incoming lane" % lane.name)
+	for lane: RoadLane in widening:
+		if lane.lane_next_tag.begins_with("R"):
+			assert_eq(lane.get_prior_lanes().size(), 3, "%s is fed by every incoming lane" % lane.name)
+		else:
+			assert_eq(lane.get_next_lanes().size(), 3, "%s continues into every outgoing lane" % lane.name)
+
+
 # ------------------------------------------------------------------------------
 
 
