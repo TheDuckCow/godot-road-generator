@@ -11,6 +11,7 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - Add `add_lane_next` / `add_lane_prior` (skip duplicates), `remove_lane_next` / `remove_lane_prior`, and `clear_lane_links`. Each queues a deferred refresh of the agents.
    - Update the `lane_next_tag` docs.
 2. [road_container.gd](addons/road-generator/nodes/road_container.gd) `update_lane_seg_connections()`: clear the links, then add every tag match in both directions. This fixes splits, which currently keep only the last match. Keep the F/R direction flip.
+   - Added (`F0a`) and removed (`F0r`) transition lanes also match `F0`, so lane-count changes become forks and merges. Transition lanes get no `lane_left`/`lane_right` links in [road_segment.gd](addons/road-generator/nodes/road_segment.gd).
 3. New `RoadContainer.update_lane_intersection_connections()`, called right after `update_lane_seg_connections()` in the rebuild:
    - For each intersection edge RoadPoint, match the road lane's tag at the end touching that RoadPoint against the intersection lane tags. Those tags come from `_directional_lanes` in [intersection_ngon.gd](addons/road-generator/procgen/intersection_ngon.gd).
    - Decide which way each link goes from where the curves start and end.
@@ -26,6 +27,8 @@ Replace the single `lane_next`/`lane_prior` links with plural `lanes_next`/`lane
    - `RoadLane._set()` catches `lane_next` and `lane_prior`. A non-empty path is added to the matching list, and `_set()` returns true.
    - The old properties are never saved again, so a scene converts itself the next time it's saved.
    - No `.tscn` file in this repo uses them.
+6. New `RoadContainer.update_lane_edge_connections()`, run after the intersection pass: links lanes across connected container edges by matching curve endpoints, including owned (prefab) lanes. Links into other containers are dropped first so disconnected edges don't keep stale links.
+7. Prefab containers in [custom_containers](addons/road-generator/custom_containers/): branch lanes start at the prefab edge, so forks live on the neighboring container's lane via step 6. Side links that only stood in for branches (lanes sharing a start point) are removed, and `splitter_2x2` saves its internal `lanes_next`/`lanes_prior`.
 
 ## Phase 2: chosen_lane_next
 

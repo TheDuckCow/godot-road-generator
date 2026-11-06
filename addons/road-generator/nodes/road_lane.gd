@@ -37,12 +37,12 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 @export var lane_left:NodePath
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right:NodePath
-## The next forward [RoadLane] for agents to follow along.
-@export var lane_next:NodePath
-## The prior [RoadLane] for agents to follow (if going backwards).
-@export var lane_prior:NodePath
+## The [RoadLane]s agents may continue into; more than one is a fork.
+@export var lanes_next: Array[NodePath] = []
+## The [RoadLane]s that continue into this one; more than one is a merge.
+@export var lanes_prior: Array[NodePath] = []
 
-## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
+## Tags are used help populate the lanes_next and lanes_prior NodePaths above.[br][br]
 ##
 ## Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
 ## matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
@@ -135,6 +135,18 @@ func _exit_tree() -> void:
 				_vehicle.call_deferred("queue_free")
 
 
+## Loads the single lane_next/lane_prior properties from older scenes.
+func _set(property: StringName, value: Variant) -> bool:
+	if property != &"lane_next" and property != &"lane_prior":
+		return false
+	if value is NodePath and not value.is_empty():
+		if property == &"lane_next" and not lanes_next.has(value):
+			lanes_next = _appended(lanes_next, value)
+		elif property == &"lane_prior" and not lanes_prior.has(value):
+			lanes_prior = _appended(lanes_prior, value)
+	return true
+
+
 # ------------------------------------------------------------------------------
 #endregion
 #region Functions
@@ -165,6 +177,79 @@ func get_lane_start() -> Vector3:
 
 func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
+
+
+## Valid [RoadLane]s this lane continues into.
+func get_next_lanes() -> Array[RoadLane]:
+	return _resolve_lanes(lanes_next)
+
+
+## Valid [RoadLane]s that continue into this lane.
+func get_prior_lanes() -> Array[RoadLane]:
+	return _resolve_lanes(lanes_prior)
+
+
+## Add a lane this one continues into. Only updates this lane, not [param lane].
+func add_lane_next(lane: RoadLane) -> void:
+	if _find_link(lanes_next, lane) == -1:
+		lanes_next = _appended(lanes_next, get_path_to(lane))
+
+
+## Add a lane that continues into this one. Only updates this lane, not [param lane].
+func add_lane_prior(lane: RoadLane) -> void:
+	if _find_link(lanes_prior, lane) == -1:
+		lanes_prior = _appended(lanes_prior, get_path_to(lane))
+
+
+func remove_lane_next(lane: RoadLane) -> void:
+	lanes_next = _removed(lanes_next, lane)
+
+
+func remove_lane_prior(lane: RoadLane) -> void:
+	lanes_prior = _removed(lanes_prior, lane)
+
+
+## Clear all next and prior links, including the links back to this lane from
+## those neighbors.
+func clear_lane_links() -> void:
+	for lane in get_next_lanes():
+		lane.remove_lane_prior(self)
+	for lane in get_prior_lanes():
+		lane.remove_lane_next(self)
+	lanes_next = []
+	lanes_prior = []
+
+
+func _resolve_lanes(paths: Array[NodePath]) -> Array[RoadLane]:
+	var lanes: Array[RoadLane] = []
+	for path in paths:
+		var lane := get_node_or_null(path) as RoadLane
+		if is_instance_valid(lane):
+			lanes.append(lane)
+	return lanes
+
+
+func _find_link(paths: Array[NodePath], lane: RoadLane) -> int:
+	for idx in range(paths.size()):
+		if get_node_or_null(paths[idx]) == lane:
+			return idx
+	return -1
+
+
+# Copies rather than mutating, since Node.duplicate() shares array references.
+func _appended(paths: Array[NodePath], path: NodePath) -> Array[NodePath]:
+	var result: Array[NodePath] = paths.duplicate()
+	result.append(path)
+	return result
+
+
+func _removed(paths: Array[NodePath], lane: RoadLane) -> Array[NodePath]:
+	var idx := _find_link(paths, lane)
+	if idx == -1:
+		return paths
+	var result: Array[NodePath] = paths.duplicate()
+	result.remove_at(idx)
+	return result
 
 
 ## Register a car to be connected to (on, following) this lane.

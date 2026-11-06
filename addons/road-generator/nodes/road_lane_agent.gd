@@ -60,6 +60,13 @@ var actor: Node3D
 var road_manager: RoadManager
 ## The current RoadLane, used as the linking reference to all adjacent lanes
 var current_lane: RoadLane
+## The lane this agent will continue into after [member current_lane], picked
+## whenever a lane is assigned.
+var chosen_lane_next: RoadLane
+## Optional picker used when a lane has more than one next lane, called as
+## [code](agent: RoadLaneAgent, options: Array[RoadLane]) -> RoadLane[/code].
+## A random option is picked when not set.
+var lane_next_chooser: Callable
 
 ## Cache just to check whether the prior lane was made visible by visualize_lane
 var _did_make_lane_visible := false
@@ -102,6 +109,7 @@ func assign_lane(new_lane:RoadLane) -> void:
 		_did_make_lane_visible = true
 	var _initial_lane = unassign_lane()
 	current_lane = new_lane
+	chosen_lane_next = _pick_lane_next(new_lane)
 	emit_signal("on_lane_changed", _initial_lane)
 	if DEBUG_OUT:
 		print("Assigned new lane: %s" % new_lane.get_path())
@@ -117,6 +125,7 @@ func unassign_lane() -> RoadLane:
 			current_lane.draw_in_game = false
 		prev_lane = current_lane
 		current_lane = null
+		chosen_lane_next = null
 	return prev_lane
 
 
@@ -243,11 +252,13 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 	var lane_length = current_lane.curve.get_baked_length()
 	var distance_left = 0
 	if check_next_offset > lane_length:
+		var is_first_hop := true
 		while check_next_offset > lane_length: # Target point is past the end of this curve
-			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_next )
+			var check_lane := _next_lane_for_move(_update_lane, is_first_hop, update_lane)
+			is_first_hop = false
 			if DEBUG_OUT:
-				print_debug("Agent wrapping to next, path %s vs node %s" % [
-					_update_lane.lane_next, check_lane])
+				print_debug("Agent wrapping to next, paths %s vs node %s" % [
+					_update_lane.lanes_next, check_lane])
 			if ! is_instance_valid(check_lane):
 				distance_left = check_next_offset - lane_length
 				check_next_offset = lane_length
@@ -257,10 +268,11 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 			lane_length = _update_lane.curve.get_baked_length()
 	else:
 		while check_next_offset < 0:
-			var check_lane = _update_lane.get_node_or_null( _update_lane.lane_prior )
+			var prior_lanes: Array[RoadLane] = _update_lane.get_prior_lanes()
+			var check_lane: RoadLane = null if prior_lanes.is_empty() else prior_lanes[0]
 			if DEBUG_OUT:
-				print_debug("Agent wrapping to prior, path %s vs node %s" % [
-					_update_lane.lane_prior, check_lane])
+				print_debug("Agent wrapping to prior, paths %s vs node %s" % [
+					_update_lane.lanes_prior, check_lane])
 			if ! is_instance_valid(check_lane):
 				distance_left = check_next_offset - init_offset
 				check_next_offset = 0
@@ -277,6 +289,40 @@ func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3
 		if is_instance_valid(_update_lane) && _update_lane != current_lane: # it's still possible to find merging transition lanes
 			assign_lane(_update_lane)
 	return new_point
+
+
+## Next lane to move into from [param from_lane]. Only picks, or re-picks a
+## stale [member chosen_lane_next], when [param commit] is true.
+func _next_lane_for_move(from_lane: RoadLane, is_first_hop: bool, commit: bool) -> RoadLane:
+	if is_first_hop and commit:
+		return _validated_chosen_lane_next()
+	var options := from_lane.get_next_lanes()
+	if is_first_hop and is_instance_valid(chosen_lane_next) and chosen_lane_next in options:
+		return chosen_lane_next
+	if commit:
+		return _pick_lane_next(from_lane)
+	if options.is_empty():
+		return null
+	return options[0]
+
+
+## Returns [member chosen_lane_next], re-picking it first if it's no longer a
+## next lane of [member current_lane].
+func _validated_chosen_lane_next() -> RoadLane:
+	if not is_instance_valid(chosen_lane_next) or chosen_lane_next not in current_lane.get_next_lanes():
+		chosen_lane_next = _pick_lane_next(current_lane)
+	return chosen_lane_next
+
+
+func _pick_lane_next(lane: RoadLane) -> RoadLane:
+	var options := lane.get_next_lanes()
+	if options.is_empty():
+		return null
+	if options.size() == 1:
+		return options[0]
+	if lane_next_chooser.is_valid():
+		return lane_next_chooser.call(self, options)
+	return options.pick_random()
 
 
 ## Input of < 0 or > 0 to move abs(direction) amount of left or right lanes accordingly
@@ -309,8 +355,8 @@ func change_lane(direction: int) -> int:
 func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
 	if ! is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
 		return false
-	var link_test = current_lane.lane_next if move_dir == MoveDir.FORWARD else current_lane.lane_prior
-	if link_test:
+	var links := current_lane.get_next_lanes() if move_dir == MoveDir.FORWARD else current_lane.get_prior_lanes()
+	if not links.is_empty():
 		return false
 	var pos = actor.global_transform.origin
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
@@ -339,8 +385,8 @@ func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> i
 		if ! _new_lane:
 			return 0
 		count += lane_change_dir
-		var link_test = _new_lane.lane_next if move_dir == MoveDir.FORWARD else _new_lane.lane_prior
-		if link_test:
+		var links: Array[RoadLane] = _new_lane.get_next_lanes() if move_dir == MoveDir.FORWARD else _new_lane.get_prior_lanes()
+		if not links.is_empty():
 			return count
 	return 0
 

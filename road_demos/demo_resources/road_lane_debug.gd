@@ -29,5 +29,7 @@ func _physics_process(_delta: float) -> void:
 
 	lbl_left.text = "Left" if clane.lane_left else "-"
 	lbl_right.text = "Right" if clane.lane_right else "-"
-	lbl_next.text = "Next" if clane.lane_next else "-"
-	lbl_prior.text = "Prior" if clane.lane_prior else "-"
+	var next_count := clane.get_next_lanes().size()
+	lbl_next.text = "Next (%d)" % next_count if next_count > 0 else "-"
+	var prior_count := clane.get_prior_lanes().size()
+	lbl_prior.text = "Prior (%d)" % prior_count if prior_count > 0 else "-"

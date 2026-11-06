@@ -75,7 +75,6 @@ lane_prior_tag = "F1"
 curve = SubResource("Curve3D_ttd3x")
 script = ExtResource("4_veh7y")
 lane_left = NodePath("../pF1_nF1")
-lane_right = NodePath("../../RAMP_02/pF0_nF0")
 lane_next_tag = "F2"
 lane_prior_tag = "F2"
 
@@ -108,7 +107,6 @@ next_pt_init = NodePath("../RAMP_01")
 [node name="pF0_nF0" type="Path3D" parent="RAMP_02"]
 curve = SubResource("Curve3D_uw2wq")
 script = ExtResource("4_veh7y")
-lane_left = NodePath("../../HW_01/pF2_nF2")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 

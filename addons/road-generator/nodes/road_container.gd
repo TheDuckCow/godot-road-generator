@@ -1038,7 +1038,7 @@ func snap_and_update(rp_a: Node, rp_b: Node) -> void:
 	# tgt_pt.emit_transform() causes crashing, but is *definitely* in need of refreshing.
 
 
-## Update the lane_next and lane_prior connections based on tags assigned.
+## Update the lanes_next and lanes_prior connections based on tags assigned.
 ##
 ## Process over each end of "connecting" Lanes, therefore best to iterate
 ## over RoadPoints.
@@ -1073,16 +1073,120 @@ func update_lane_seg_connections():
 				if is_instance_valid(next_ln.owner):
 					# Don't auto update paths owned by the editor
 					continue
-				if prior_ln.lane_next_tag == next_ln.lane_prior_tag:
-					# TODO: When directionality is made consistent, we should no longer
-					# need to invert the direction assignment here.
-					if prior_ln.lane_next_tag[0] == "F":
-						prior_ln.lane_prior = prior_ln.get_path_to(next_ln)
-						next_ln.lane_next = next_ln.get_path_to(prior_ln)
-					else:
-						assert(prior_ln.lane_next_tag[0] == "R")
-						prior_ln.lane_next = prior_ln.get_path_to(next_ln)
-						next_ln.lane_prior = next_ln.get_path_to(prior_ln)
+				# Added lanes ("F0a") fork/merge with F0, removed lanes ("F0r") with F0.
+				var is_match: bool = (
+					prior_ln.lane_next_tag == next_ln.lane_prior_tag
+					or prior_ln.lane_next_tag + "a" == next_ln.lane_prior_tag
+					or prior_ln.lane_next_tag == next_ln.lane_prior_tag + "r")
+				# TODO: When directionality is made consistent, we should no longer
+				# need to invert the direction assignment here.
+				var is_fwd: bool = prior_ln.lane_next_tag.begins_with("F")
+				if is_match:
+					assert(is_fwd or prior_ln.lane_next_tag.begins_with("R"))
+				_set_lane_link(next_ln, prior_ln, is_match and is_fwd)
+				_set_lane_link(prior_ln, next_ln, is_match and not is_fwd)
+
+
+## Update the lanes_next and lanes_prior connections between intersection lanes
+## and the segment lanes at each intersection edge, matched by where their
+## curves meet.
+func update_lane_intersection_connections() -> void:
+	for inter in get_intersections():
+		var inter_lanes: Array[RoadLane] = []
+		for ch in inter.get_children():
+			if ch is RoadLane and not ch.is_queued_for_deletion() and ch.curve.point_count > 1:
+				inter_lanes.append(ch)
+		for edge in inter.edge_points:
+			if not is_instance_valid(edge):
+				continue
+			var tolerance: float = edge.lane_width * 0.25
+			for seg in [edge.prior_seg, edge.next_seg]:
+				if not is_instance_valid(seg):
+					continue
+				for seg_ln: RoadLane in seg.get_lanes():
+					if seg_ln.curve.point_count < 2:
+						continue
+					for inter_ln in inter_lanes:
+						if is_instance_valid(seg_ln.owner) or is_instance_valid(inter_ln.owner):
+							continue # Don't auto update paths owned by the editor
+						var enters := seg_ln.get_lane_end().distance_to(inter_ln.get_lane_start()) < tolerance
+						var exits := inter_ln.get_lane_end().distance_to(seg_ln.get_lane_start()) < tolerance
+						_set_lane_link(seg_ln, inter_ln, enters)
+						_set_lane_link(inter_ln, seg_ln, exits)
+
+
+## Update the lanes_next and lanes_prior connections between this container's
+## lanes and those of each connected container, matched by where their curves
+## meet at the shared edge RoadPoint.
+func update_lane_edge_connections() -> void:
+	var own_lanes := _get_lanes()
+	# Drop links into other containers first, so disconnected edges don't keep stale links.
+	for lane in own_lanes:
+		for other in lane.get_next_lanes():
+			if _is_in_other_container(other):
+				_set_lane_link(lane, other, false)
+		for other in lane.get_prior_lanes():
+			if _is_in_other_container(other):
+				_set_lane_link(other, lane, false)
+
+	for idx in len(edge_rp_locals):
+		var edge: RoadPoint = get_node_or_null(edge_rp_locals[idx])
+		var target_cont: RoadContainer = get_node_or_null(edge_containers[idx])
+		if not is_instance_valid(edge) or not is_instance_valid(target_cont):
+			continue
+		var target: RoadPoint = target_cont.get_node_or_null(edge_rp_targets[idx])
+		if not is_instance_valid(target):
+			continue
+		var reach: float = edge.get_width_without_shoulders() / 2.0 + edge.lane_width
+		var tolerance: float = edge.lane_width * 0.25
+		var local_lanes := _lanes_near(own_lanes, edge.global_position, reach)
+		var target_lanes := _lanes_near(target_cont._get_lanes(), target.global_position, reach)
+		# Cross-container links are always derived, so owned (e.g. prefab) lanes are linked too.
+		for local_ln in local_lanes:
+			for target_ln in target_lanes:
+				var enters := local_ln.get_lane_end().distance_to(target_ln.get_lane_start()) < tolerance
+				var exits := target_ln.get_lane_end().distance_to(local_ln.get_lane_start()) < tolerance
+				_set_lane_link(local_ln, target_ln, enters)
+				_set_lane_link(target_ln, local_ln, exits)
+
+
+## Lanes under this container's RoadPoints and intersections.
+func _get_lanes() -> Array[RoadLane]:
+	var lanes: Array[RoadLane] = []
+	var parents: Array = []
+	parents.append_array(get_roadpoints())
+	parents.append_array(get_intersections())
+	for par in parents:
+		for ch in par.get_children():
+			if ch is RoadLane and not ch.is_queued_for_deletion() and ch.curve.point_count > 1:
+				lanes.append(ch)
+	return lanes
+
+
+static func _lanes_near(lanes: Array[RoadLane], pos: Vector3, reach: float) -> Array[RoadLane]:
+	return lanes.filter(func(ln: RoadLane) -> bool:
+		return ln.get_lane_start().distance_to(pos) < reach or ln.get_lane_end().distance_to(pos) < reach)
+
+
+## True if [param lane] sits under a RoadContainer other than this one.
+func _is_in_other_container(lane: RoadLane) -> bool:
+	var par := lane.get_parent()
+	while par != null:
+		if par is RoadContainer:
+			return par != self
+		par = par.get_parent()
+	return false
+
+
+## Link (or unlink) [param from] as flowing into [param to] on both lanes,
+## leaving their other links untouched.
+static func _set_lane_link(from: RoadLane, to: RoadLane, linked: bool) -> void:
+	if linked:
+		from.add_lane_next(to)
+		to.add_lane_prior(from)
+	else:
+		from.remove_lane_next(to)
+		to.remove_lane_prior(from)
 
 
 ## Configures roadcontainer owner and assigns material if necessary
@@ -1330,6 +1434,8 @@ func rebuild_segments(clear_existing := false):
 	# Once all RoadSegments (and their lanes) exist, update next/prior lanes.
 	# Update even if generate_ai_lanes off, could have added manually / made editable
 	update_lane_seg_connections()
+	update_lane_intersection_connections()
+	update_lane_edge_connections()
 	if signal_rebuilt.size() > 0:
 		_emit_road_updated(signal_rebuilt)
 

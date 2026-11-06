@@ -358,6 +358,104 @@ func test_four_way_turn_handedness():
 			"Right turn sources from the outer lane, left turn from the inner lane")
 
 
+## Adds a RoadPoint further out on each edge so every branch has a road segment.
+func _add_outer_points(container: RoadContainer, inter: RoadIntersection) -> void:
+	for edge in inter.edge_points:
+		var outer := RoadPoint.new()
+		outer.name = "%s_outer" % edge.name
+		container.add_child(outer)
+		outer.transform = edge.transform
+		outer.position = edge.position * 3.0
+		if edge.get_node_or_null(edge.next_pt_init) == inter:
+			outer.next_pt_init = outer.get_path_to(edge)
+			edge.prior_pt_init = edge.get_path_to(outer)
+		else:
+			outer.prior_pt_init = outer.get_path_to(edge)
+			edge.next_pt_init = edge.get_path_to(outer)
+
+
+func _segment_lanes(container: RoadContainer) -> Array:
+	var result: Array = []
+	for seg in container.get_segments():
+		result.append_array(seg.get_lanes())
+	return result
+
+
+func _assert_intersection_lanes_linked(inter: RoadIntersection) -> void:
+	for lane: RoadLane in _lanes(inter):
+		var priors := lane.get_prior_lanes()
+		var nexts := lane.get_next_lanes()
+		assert_eq(priors.size(), 1, "%s has one approach lane" % lane.name)
+		assert_eq(nexts.size(), 1, "%s has one exit lane" % lane.name)
+		for prior in priors:
+			assert_has(prior.get_next_lanes(), lane, "Approach lane lists %s as next" % lane.name)
+			assert_almost_eq(prior.get_lane_end().distance_to(lane.get_lane_start()), 0.0, 0.1,
+					"%s starts where its approach lane ends" % lane.name)
+		for next in nexts:
+			assert_has(next.get_prior_lanes(), lane, "Exit lane lists %s as prior" % lane.name)
+			assert_almost_eq(lane.get_lane_end().distance_to(next.get_lane_start()), 0.0, 0.1,
+					"%s ends where its exit lane starts" % lane.name)
+
+
+func test_four_way_lanes_link_to_road_lanes():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.generate_ai_lanes = true
+	container.setup_road_container()
+	road_util.create_intersection_four_branch(container)
+	var inter: RoadIntersection = container.get_intersections()[0]
+	_add_outer_points(container, inter)
+
+	container.rebuild_segments(true)
+
+	assert_eq(_lanes(inter).size(), 16, "Through and turn lanes for every edge")
+	_assert_intersection_lanes_linked(inter)
+
+	# Every intersection lane is listed once by the lane entering it and once by
+	# the lane it exits into, and entering lanes fork into straight and turn lanes.
+	var next_count := 0
+	var prior_count := 0
+	var max_fork := 0
+	for seg_ln: RoadLane in _segment_lanes(container):
+		next_count += seg_ln.get_next_lanes().size()
+		prior_count += seg_ln.get_prior_lanes().size()
+		max_fork = maxi(max_fork, seg_ln.get_next_lanes().size())
+	assert_eq(next_count, 16, "Entering lanes list all their straight and turn lanes")
+	assert_eq(prior_count, 16, "Exit lanes list every arriving intersection lane")
+	assert_gt(max_fork, 1, "Entering lanes fork into multiple intersection lanes")
+
+
+func test_two_way_lanes_link_to_road_lanes():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.generate_ai_lanes = true
+	var inter := _make_intersection(container)
+	_add_outer_points(container, inter)
+
+	container.rebuild_segments(true)
+
+	assert_eq(_lanes(inter).size(), 4, "One lane per entering lane")
+	_assert_intersection_lanes_linked(inter)
+
+
+func test_rebuild_does_not_duplicate_lane_links():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.generate_ai_lanes = true
+	container.setup_road_container()
+	road_util.create_intersection_four_branch(container)
+	var inter: RoadIntersection = container.get_intersections()[0]
+	_add_outer_points(container, inter)
+
+	container.rebuild_segments(true)
+	container.rebuild_segments(true)
+
+	_assert_intersection_lanes_linked(inter)
+	for lane: RoadLane in _lanes(inter):
+		assert_eq(lane.lanes_next.size(), 1, "%s next links not duplicated" % lane.name)
+		assert_eq(lane.lanes_prior.size(), 1, "%s prior links not duplicated" % lane.name)
+
+
 func test_divider_alignment_shifts_lane_offset():
 	var container = autoqfree(RoadContainer.new())
 	add_child(container)

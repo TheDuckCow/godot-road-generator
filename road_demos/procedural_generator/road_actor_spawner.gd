@@ -64,8 +64,8 @@ func _ready() -> void:
 		print("Created new spawn timer ", _spawn_timer)
 
 	_despawn_lane = DespawnRoadLane.new(_actor_manager)
-	_despawn_lane.lane_next = _despawn_lane.get_path_to(_despawn_lane) # looping on itself just in case
-	_despawn_lane.lane_prior = _despawn_lane.get_path_to(_despawn_lane)
+	_despawn_lane.add_lane_next(_despawn_lane) # looping on itself just in case
+	_despawn_lane.add_lane_prior(_despawn_lane)
 	_despawn_lane.curve.add_point(Vector3.ZERO)
 	_despawn_lane.curve.add_point(Vector3.FORWARD * 100) # just so it wouldn't be a point
 	add_child(_despawn_lane)
@@ -219,12 +219,12 @@ func _link_despawn_lane(lane: RoadLane, dir: String) -> bool:
 	var linked := false
 	assert( lane.lane_next_tag[0] == lane.lane_prior_tag[0])
 	if lane.lane_next_tag[0] == dir:
-		if not lane.get_node_or_null(lane.lane_prior):
-			lane.lane_prior = lane.get_path_to(_despawn_lane)
+		if lane.get_prior_lanes().is_empty():
+			lane.add_lane_prior(_despawn_lane)
 			linked = true
 	else:
-		if not lane.get_node_or_null(lane.lane_next):
-			lane.lane_next = lane.get_path_to(_despawn_lane)
+		if lane.get_next_lanes().is_empty():
+			lane.add_lane_next(_despawn_lane)
 			linked = true
 	if linked:
 		if DEBUG_OUT:
@@ -260,7 +260,6 @@ func _detach() -> void:
 	if DEBUG_OUT:
 		print("Detaching ", name)
 	_spawn_timer.stop()
-	_despawn_lanes = []
 	var time_passed:float = _spawn_timer.wait_time - _spawn_timer.time_left
 	for idx in _spawn_lanes.size():
 		_spawn_delays[idx] -= time_passed
@@ -269,9 +268,8 @@ func _detach() -> void:
 		print("Stopped spawn timer ", _spawn_timer, " after ", time_passed, "s")
 	for lane:RoadLane in _despawn_lanes:
 		if is_instance_valid(lane):
-			if lane.get_node_or_null(lane.lane_prior) == _despawn_lane:
-				lane.lane_prior = NodePath("")
-			if lane.get_node_or_null(lane.lane_next) == _despawn_lane:
-				lane.lane_next = NodePath("")
+			lane.remove_lane_prior(_despawn_lane)
+			lane.remove_lane_next(_despawn_lane)
 		if DEBUG_OUT:
 			print("Unlinked despawn lane ", _despawn_lane, " from lane ", lane)
+	_despawn_lanes = []
