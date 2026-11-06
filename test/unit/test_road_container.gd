@@ -348,3 +348,96 @@ func test_collider_assignmens():
 	assert_true(len(_members)>0, "Should have 1+ segmetns in test group name")
 	for _collider in _members:
 		assert_true(_collider.has_meta(container.collider_meta_name), "Meta name should be assigned")
+
+
+# ------------------------------------------------------------------------------
+# Boundary normals
+
+
+## Rotates PI about UP and swaps prior/next, keeping the same connections.
+func _flip_rp(rp: RoadPoint) -> void:
+	rp.set_internal_updating(true)
+	var tmpinit = rp.prior_pt_init
+	rp.prior_pt_init = rp.next_pt_init
+	rp.next_pt_init = tmpinit
+	var tmpmag = rp.prior_mag
+	rp.prior_mag = rp.next_mag
+	rp.next_mag = tmpmag
+	rp.transform = rp.transform.rotated_local(Vector3.UP, PI)
+	rp.set_internal_updating(false)
+
+
+## Three RPs with a banked middle and a raised end, built synchronously.
+func _build_seam_line(container: RoadContainer, flip_first: bool, low_poly: bool) -> Array:
+	container._auto_refresh = false
+	var rps: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	rps[1].rotation.z = 0.3
+	rps[2].position.y = 3
+	container.underside_thickness = 1.0
+	if flip_first:
+		_flip_rp(rps[0])
+	container.rebuild_segments(true)
+	if low_poly:
+		for seg in container.get_segments():
+			seg.low_poly = true
+			seg.is_dirty = true
+			seg.check_rebuild()
+	return rps
+
+
+## Returns [global_pos, global_normal] pairs lying on the rp plane.
+func _boundary_verts(seg: RoadSegment, rp: RoadPoint, surface: int) -> Array:
+	var res := []
+	var arrays := seg.road_mesh.mesh.surface_get_arrays(surface)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var xform: Transform3D = seg.road_mesh.global_transform
+	for i in range(verts.size()):
+		var pos: Vector3 = xform * verts[i]
+		if absf((pos - rp.global_position).dot(rp.global_basis.z)) < 1e-3:
+			res.append([pos, (xform.basis * normals[i]).normalized()])
+	return res
+
+
+func _segs_at(container: RoadContainer, rp: RoadPoint) -> Array:
+	var segs := []
+	for seg in container.get_segments():
+		if seg.start_point == rp or seg.end_point == rp:
+			segs.append(seg)
+	return segs
+
+
+## Asserts each vert of verts_a sharing a position in verts_b shares its normal.
+func _assert_seam(verts_a: Array, verts_b: Array, label: String) -> void:
+	var matched := 0
+	for va in verts_a:
+		var best := -2.0
+		for vb in verts_b:
+			if va[0].distance_to(vb[0]) < 1e-3:
+				best = maxf(best, va[1].dot(vb[1]))
+		if best < -1.5:
+			continue
+		matched += 1
+		assert_gt(best, 1.0 - 1e-4, "%s: seam normal mismatch at %s" % [label, va[0]])
+	assert_gt(matched, 0, "%s: should have shared seam verts" % label)
+
+
+func test_boundary_normals_seam():
+	var cases := {
+		"plain": [false, false],
+		"flipped": [true, false],
+		"low_poly": [false, true],
+	}
+	for case_name in cases:
+		var container: RoadContainer = add_child_autofree(RoadContainer.new())
+		var rps := _build_seam_line(container, cases[case_name][0], cases[case_name][1])
+		var segs := _segs_at(container, rps[1])
+		assert_eq(segs.size(), 2, "%s: two segments at the RoadPoint" % case_name)
+		if segs.size() != 2:
+			continue
+		for surface in [0, 1]:
+			var a := _boundary_verts(segs[0], rps[1], surface)
+			var b := _boundary_verts(segs[1], rps[1], surface)
+			var label := "%s surface %s" % [case_name, surface]
+			_assert_seam(a, b, label)
+			_assert_seam(b, a, label)
