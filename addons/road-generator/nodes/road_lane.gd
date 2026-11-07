@@ -174,21 +174,16 @@ func register_vehicle(vehicle: Node) -> void:
 
 ## Optional but good cleanup of references.
 func unregister_vehicle(vehicle: Node) -> void:
-	if vehicle in _vehicles_in_lane:
-		_vehicles_in_lane.erase(vehicle)
+	_vehicles_in_lane.erase(vehicle)
 
 
 ## Return all vehicles registered to this lane, performing cleanup as needed.
 func get_vehicles() -> Array:
-	for vehicle in _vehicles_in_lane:
-		if (not is_instance_valid(vehicle)) or vehicle.is_queued_for_deletion():
-			_vehicles_in_lane.erase(vehicle)
-			continue
+	_vehicles_in_lane = _vehicles_in_lane.filter(func(vehicle): return is_instance_valid(vehicle) and not vehicle.is_queued_for_deletion())
 	return _vehicles_in_lane
 
 
 func _instantiate_geom() -> void:
-
 	if Engine.is_editor_hint():
 		_display_fins = _draw_in_editor or _draw_override
 	else:
