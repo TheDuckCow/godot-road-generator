@@ -94,7 +94,8 @@ var agent_ahead: RoadLaneAgent:
 var _ahead_gap: float = 0.0
 
 ## How far past the current lane, in empty lanes, to look for [member agent_ahead].
-## Shared by all agents, since lanes use it to find who to notify when it changes.
+## Shared by all agents, since we also walk backwards to notify followers, and one with a longer distance wouldn't be found.
+## Note: ignores remaining distance in our lane and [member agent_ahead]'s offset in theirs, so values returned by distance_to_agent_ahead() can be higher than this.
 static var lookahead_max_distance: float = 100.0
 ## How many lanes past the current one to look for [member agent_ahead].
 static var lookahead_max_hops: int = 8
