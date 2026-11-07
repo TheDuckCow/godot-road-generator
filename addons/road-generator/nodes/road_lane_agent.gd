@@ -234,6 +234,8 @@ func test_move_along_lane(move_distance: float) -> Vector3:
 func _move_along_lane(move_distance: float, update_lane: bool = true) -> Vector3:
 	if not is_instance_valid(current_lane):
 		current_lane = null
+		push_error("Cannot move along invalid lane with agent %s" % self)
+		return actor.global_transform.origin
 	var pos = actor.global_transform.origin
 	var lane_pos:Vector3 = get_closest_path_point(current_lane, pos)
 	# Find how much space is left along the RoadLane in this direction
