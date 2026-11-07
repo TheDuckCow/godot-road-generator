@@ -119,6 +119,149 @@ static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: 
 	st.add_vertex(pts[1])
 
 
+## Snaps the normals of vertices lying on RoadPoint planes to analytic
+## per-role values so adjoining segments shade seamlessly. Each plane is a
+## Dictionary: p, x, up are the plane origin, lateral axis and up; outer is
+## [left, right] half width with shoulders; gutter is the (x, y) gutter
+## profile; thickness is the underside depth. A vertex belongs to the first
+## plane it lies on. Roles come from position (lane, crease, lip, bottom,
+## wall); the duplicated bottom/wall corner is resolved by topology: the
+## in-plane edge-mate of the vertex's triangle. Vertices of triangles that lie
+## entirely in one plane, such as end fills, are left untouched. Reads
+## ARRAY_INDEX; unindexed arrays are read as consecutive triangles. Mutates
+## arrays.
+static func fix_boundary_normals(arrays: Array, planes: Array, underside: bool) -> void:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	if verts.is_empty() or normals.is_empty() or verts.size() != normals.size():
+		return
+	if planes.is_empty():
+		return
+	const TOL := 1e-3
+	var n_planes: int = planes.size()
+	var ps := PackedVector3Array()
+	var zs := PackedVector3Array()
+	ps.resize(n_planes)
+	zs.resize(n_planes)
+	for k in range(n_planes):
+		ps[k] = planes[k].p
+		zs[k] = (planes[k].x as Vector3).cross(planes[k].up).normalized()
+
+	# Verts on a plane, tagged with the first plane they lie on.
+	var vcount: int = verts.size()
+	var plane_of := PackedInt32Array()
+	plane_of.resize(vcount)
+	plane_of.fill(-1)
+	var on_list := PackedInt32Array()
+	for i in range(vcount):
+		var v: Vector3 = verts[i]
+		for k in range(n_planes):
+			if absf((v - ps[k]).dot(zs[k])) < TOL:
+				plane_of[i] = k
+				on_list.append(i)
+				break
+	if on_list.is_empty():
+		return
+
+	# Triangles: fully in-plane ones are caps; edges in a plane give mates.
+	var idx := PackedInt32Array()
+	if arrays.size() > Mesh.ARRAY_INDEX:
+		var idx_v = arrays[Mesh.ARRAY_INDEX]
+		if idx_v is PackedInt32Array:
+			idx = idx_v
+	var indexed := not idx.is_empty()
+	var tri_count: int = idx.size() / 3 if indexed else vcount / 3
+	var is_cap := PackedByteArray()
+	is_cap.resize(vcount)
+	var mates := {}
+	for t in range(tri_count):
+		var a: int = idx[3 * t] if indexed else 3 * t
+		var b: int = idx[3 * t + 1] if indexed else 3 * t + 1
+		var c: int = idx[3 * t + 2] if indexed else 3 * t + 2
+		var pa: int = plane_of[a]
+		var pb: int = plane_of[b]
+		var pc: int = plane_of[c]
+		if pa < 0 and pb < 0 and pc < 0:
+			continue
+		if pa >= 0 and pa == pb and pa == pc:
+			is_cap[a] = 1
+			is_cap[b] = 1
+			is_cap[c] = 1
+			continue
+		if pa >= 0 and pa == pb:
+			_add_mates(mates, a, b)
+		elif pa >= 0 and pa == pc:
+			_add_mates(mates, a, c)
+		elif pb >= 0 and pb == pc:
+			_add_mates(mates, b, c)
+
+	for i in on_list:
+		if is_cap[i] != 0:
+			continue
+		var pl: Dictionary = planes[plane_of[i]]
+		var p: Vector3 = pl.p
+		var x: Vector3 = pl.x
+		var up: Vector3 = pl.up
+		var outer: Array = pl.outer
+		var gx: float = pl.gutter.x
+		var gy: float = pl.gutter.y
+		var thickness: float = pl.thickness
+		var d: Vector3 = verts[i] - p
+		var s: float = d.dot(x)
+		var h: float = d.dot(up)
+		var side := 1.0 if s >= 0.0 else -1.0
+		var o: float = outer[1] if side > 0.0 else outer[0]
+		if absf(s) > o + gx + TOL:
+			continue
+		if not underside:
+			var g_side: Vector3 = -side * gy * x + gx * up
+			if g_side.length() < 1e-6:
+				g_side = up
+			else:
+				g_side = g_side.normalized()
+			if absf(h) < TOL and absf(absf(s) - o) < TOL:
+				normals[i] = (up + g_side).normalized() # Crease.
+			elif absf(h) < TOL:
+				normals[i] = up
+			elif absf(h - gy) < TOL and absf(absf(s) - (o + gx)) < TOL:
+				normals[i] = g_side # Lip.
+		else:
+			var wall: Vector3 = side * (gy + thickness) * x - gx * up
+			if wall.length() < 1e-6:
+				wall = -up
+			else:
+				wall = wall.normalized()
+			if absf(h + thickness) < TOL and absf(s) < o - TOL:
+				normals[i] = -up # Bottom.
+			elif absf(h + thickness) < TOL and absf(absf(s) - o) < TOL:
+				# Corner: the face is the one its in-plane edge-mate lies on.
+				if not mates.has(i):
+					continue
+				var is_wall := false
+				for j in mates[i]:
+					var dj: Vector3 = verts[j] - p
+					var sj: float = dj.dot(x)
+					var hj: float = dj.dot(up)
+					var oj: float = outer[1] if sj >= 0.0 else outer[0]
+					var bottom_pos := absf(hj + thickness) < TOL and absf(sj) <= oj + TOL
+					if not bottom_pos:
+						is_wall = true
+						break
+				normals[i] = wall if is_wall else -up
+			elif absf(h - gy) < TOL and absf(absf(s) - (o + gx)) < TOL:
+				normals[i] = wall # Lip.
+	arrays[Mesh.ARRAY_NORMAL] = normals
+
+
+static func _add_mates(mates: Dictionary, a: int, b: int) -> void:
+	if not mates.has(a):
+		mates[a] = []
+	if not mates.has(b):
+		mates[b] = []
+	mates[a].append(b)
+	mates[b].append(a)
+
+
 static func _flip_traffic_dir(lanes: Array[int]) -> Array:
 	var _spdir:Array[int] = []
 	for itm in lanes:
