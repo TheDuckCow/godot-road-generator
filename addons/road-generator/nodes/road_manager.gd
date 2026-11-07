@@ -204,7 +204,7 @@ func _ready():
 	# Without this line, child RoadContainers initialize after
 	# the manager initializes (different from _ready), meaning
 	# it would default to true even if auto refresh is false here.
-	_ui_refresh_set(auto_refresh)
+	_ui_refresh_set_on_containers(auto_refresh)
 
 	rebuild_all_containers(true)
 
@@ -288,6 +288,10 @@ func _ui_refresh_set(value: bool) -> void:
 	if value:
 		call_deferred("rebuild_all_containers") # Call with true?
 	auto_refresh = value
+	_ui_refresh_set_on_containers(value)
+
+
+func _ui_refresh_set_on_containers(value: bool) -> void:
 	for ch in get_containers():
 		# Not an exposed setting on child.
 		ch._auto_refresh = value
