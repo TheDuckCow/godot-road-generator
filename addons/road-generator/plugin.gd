@@ -770,9 +770,12 @@ func _add_next_rp_on_click_do(pos: Vector3, nrm: Vector3, selection: Node, paren
 			var chord: Vector3 = dirvec.normalized()
 			var cos_a: float = out_dir.dot(chord)
 			var arrive_dir: Vector3 = 2.0 * cos_a * chord - out_dir if cos_a > 0 else -out_dir
-			next_rp.look_at(pos - arrive_dir * dir_sign, next_rp.transform.basis.y.normalized())
-			# Workaround, as look_at for some reason doesn't *actually* constrain the the provided axis
-			next_rp.global_transform.basis.y = nrm.normalized()
+			# Keep the new point flat on the plane defined by nrm (hit surface, or selection's xz plane)
+			var up: Vector3 = nrm.normalized()
+			var fwd: Vector3 = arrive_dir * dir_sign
+			fwd -= up * fwd.dot(up)
+			if fwd.length_squared() > 1e-6:
+				next_rp.look_at(pos - fwd, up)
 
 			if _lock_x_rotation:
 				next_rp.global_rotation.x = 0.0
