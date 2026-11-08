@@ -15,6 +15,7 @@ const RoadToolbarClass = preload("res://addons/road-generator/ui/road_toolbar.gd
 const ConnectionTool = preload("res://addons/road-generator/ui/connection_tool.gd")
 
 const RoadSegment = preload("res://addons/road-generator/nodes/road_segment.gd")
+const SegGeo = preload("res://addons/road-generator/procgen/segment_geo.gd")
 
 # Enable the popup to offer instancing a RoadContainer gLTF after export.
 # Unfortunately, while it appears to work in the UI, it somehow results in
@@ -595,12 +596,6 @@ func _create_road_container_undo(selected_node: Node, init_sel: Node) -> void:
 		initial_children[-1].queue_free()
 
 
-## Cubic bezier handle length approximating a circular arc, capped at a U-turn if behind
-static func arc_handle_mag(out_dir: Vector3, chord: Vector3) -> float:
-	var cos_a: float = maxf(out_dir.normalized().dot(chord.normalized()), 0.0)
-	return 2.0 * chord.length() / (3.0 * (1.0 + cos_a))
-
-
 func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_connect_rp=null) -> void:
 	var undo_redo = get_undo_redo()
 
@@ -635,7 +630,7 @@ func _add_next_rp_on_click(pos: Vector3, nrm: Vector3, selection: Node, auto_con
 				mag_dir = RoadPoint.PointInit.PRIOR
 			else:
 				out_dir = forward
-			handle_mag = arc_handle_mag(out_dir, chord)
+			handle_mag = SegGeo.arc_handle_mag(out_dir, chord)
 	elif selection is RoadContainer:
 		parent = selection
 		_sel = selection
@@ -881,8 +876,8 @@ func _connect_rp_on_click(rp_a, rp_b):
 			target_dir = RoadPoint.PointInit.PRIOR
 
 	var chord: Vector3 = rp_b.global_position - rp_a.global_position
-	var mag_a := arc_handle_mag(rp_a.global_basis.z * (1.0 if from_dir == RoadPoint.PointInit.NEXT else -1.0), chord)
-	var mag_b := arc_handle_mag(rp_b.global_basis.z * (1.0 if target_dir == RoadPoint.PointInit.NEXT else -1.0), -chord)
+	var mag_a := SegGeo.arc_handle_mag(rp_a.global_basis.z * (1.0 if from_dir == RoadPoint.PointInit.NEXT else -1.0), chord)
+	var mag_b := SegGeo.arc_handle_mag(rp_b.global_basis.z * (1.0 if target_dir == RoadPoint.PointInit.NEXT else -1.0), -chord)
 
 	# Finally, determine if we are doing a intra- or inter-RoadContainer
 	var inter_container: bool = rp_a.container != rp_b.container

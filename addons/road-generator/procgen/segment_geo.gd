@@ -119,6 +119,12 @@ static func inverse_quad(st:SurfaceTool, uvs:Array, pts:Array, smoothing_group: 
 	st.add_vertex(pts[1])
 
 
+## Cubic bezier handle length approximating a circular arc, capped at a U-turn if behind
+static func arc_handle_mag(out_dir: Vector3, chord: Vector3) -> float:
+	var cos_a: float = maxf(out_dir.normalized().dot(chord.normalized()), 0.0)
+	return 2.0 * chord.length() / (3.0 * (1.0 + cos_a))
+
+
 static func _flip_traffic_dir(lanes: Array[int]) -> Array:
 	var _spdir:Array[int] = []
 	for itm in lanes:
