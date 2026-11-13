@@ -48,6 +48,7 @@ var _edi_debug := false
 
 var _godot_select_button: Button
 var _godot_prior_tool_button: Button
+var _restoring_godot_tool := false
 
 # For use by road_point_edit and panel, keys are props on RoadPoint
 var copy_attributes:Dictionary = {}
@@ -99,6 +100,8 @@ func _enter_tree():
 
 func _exit_tree():
 	_use_godot_select_tool(false)
+	if is_instance_valid(_godot_select_button) and _godot_select_button.toggled.is_connected(_on_godot_select_toggled):
+		_godot_select_button.toggled.disconnect(_on_godot_select_toggled)
 	_eds.disconnect("selection_changed", self._on_selection_changed)
 	disconnect("scene_changed", self._on_scene_changed)
 	disconnect("scene_closed", self._on_scene_closed)
@@ -227,6 +230,8 @@ func _use_godot_select_tool(enable: bool) -> void:
 		_godot_select_button = _find_3d_tool_button("spatial_editor/tool_select")
 		if not is_instance_valid(_godot_select_button):
 			return
+	if not _godot_select_button.toggled.is_connected(_on_godot_select_toggled):
+		_godot_select_button.toggled.connect(_on_godot_select_toggled)
 	if enable:
 		if _godot_select_button.button_pressed:
 			return
@@ -239,8 +244,23 @@ func _use_godot_select_tool(enable: bool) -> void:
 		_godot_select_button.pressed.emit()
 	else:
 		if is_instance_valid(_godot_prior_tool_button) and _godot_select_button.button_pressed:
+			_restoring_godot_tool = true
 			_godot_prior_tool_button.pressed.emit()
+			_restoring_godot_tool = false
 		_godot_prior_tool_button = null
+
+
+## User picked a non-Select Godot tool while adding/deleting, so fall back to road Select mode.
+func _on_godot_select_toggled(pressed: bool) -> void:
+	if pressed or _restoring_godot_tool:
+		return
+	if not _road_toolbar or not _road_toolbar.get_parent():
+		return
+	if not tool_mode in [_road_toolbar.InputMode.ADD, _road_toolbar.InputMode.DELETE]:
+		return
+	# Prevents ALT release from flipping back to Add.
+	connection_tool.tempset_toolmode = false
+	_road_toolbar._on_select_mode_pressed()
 
 
 func _find_3d_tool_button(shortcut_path: String) -> Button:
