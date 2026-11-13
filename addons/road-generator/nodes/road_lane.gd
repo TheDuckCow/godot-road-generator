@@ -442,7 +442,6 @@ func _refresh_after_link_change() -> void:
 
 
 func _instantiate_geom() -> void:
-
 	if Engine.is_editor_hint():
 		_display_fins = _draw_in_editor or _draw_override
 	else:
