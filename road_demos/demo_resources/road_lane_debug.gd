@@ -23,7 +23,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	if not is_instance_valid(agent):
 		return
-	var clane:RoadLane = agent.current_lane
+	var clane:RoadLane = agent.lane_position.lane
 	if not is_instance_valid(clane):
 		return
 
