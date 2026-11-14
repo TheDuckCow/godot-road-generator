@@ -37,12 +37,12 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 @export var lane_left:NodePath
 ## Reference to the next right-side [RoadLane] if any, for allowed lane transitions.
 @export var lane_right:NodePath
-## The next forward [RoadLane] for agents to follow along.
-@export var lane_next:NodePath
-## The prior [RoadLane] for agents to follow (if going backwards).
-@export var lane_prior:NodePath
+## The [RoadLane]s agents may continue into; more than one is a fork.
+@export var lanes_next: Array[NodePath] = []
+## The [RoadLane]s that continue into this one; more than one is a merge.
+@export var lanes_prior: Array[NodePath] = []
 
-## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
+## Tags are used help populate the lanes_next and lanes_prior NodePaths above.[br][br]
 ##
 ## Given two segments (seg_A followed by seg_B), a lane_A of seg_A will be auto
 ## matched to lane_B of seg_B if lane_A's lane_next_tag is the same as lane_B's
@@ -77,7 +77,8 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 ## the same resource by default; assign another mesh to customize the shape.
 @export var lane_pointer_mesh: Mesh = preload("res://addons/road-generator/resources/road_lane_pointer_mesh.res"): set = _set_lane_pointer_mesh
 
-## Auto queue-free any vehicles registered to this lane with the road lane exits.
+## Auto queue-free the actors of agents on this lane when the lane exits the
+## tree, for agents with [member RoadLaneAgent.auto_register] on.
 @export var auto_free_vehicles: bool = true
 
 
@@ -102,7 +103,9 @@ var geom_node: MultiMeshInstance3D
 # Internal field used by agents for intra-segment lane changes
 var transition: bool = false
 
-var _vehicles_in_lane = [] # Registration
+var _agents: Array[RoadLaneAgent] = [] # Sorted by current_lane_offset, rearmost first
+var _agent_resort_queued := false
+var _link_refresh_queued := false
 var _draw_in_game: bool = false
 var _draw_in_editor: bool = false
 var _draw_override: bool = false
@@ -129,10 +132,26 @@ func _ready():
 
 
 func _exit_tree() -> void:
-	if auto_free_vehicles:
-		for _vehicle in _vehicles_in_lane:
-			if is_instance_valid(_vehicle):
-				_vehicle.call_deferred("queue_free")
+	var leaving := _agents.duplicate()
+	_agents.clear()
+	for agent in leaving:
+		agent._index_in_lane = -1
+		agent.refresh_agent_ahead()
+		if auto_free_vehicles and agent.auto_register and is_instance_valid(agent.actor):
+			agent.actor.call_deferred("queue_free")
+	notify_upstream()
+
+
+## Loads the single lane_next/lane_prior properties from older scenes.
+func _set(property: StringName, value: Variant) -> bool:
+	if property != &"lane_next" and property != &"lane_prior":
+		return false
+	if value is NodePath and not value.is_empty():
+		if property == &"lane_next" and not lanes_next.has(value):
+			lanes_next = _appended(lanes_next, value)
+		elif property == &"lane_prior" and not lanes_prior.has(value):
+			lanes_prior = _appended(lanes_prior, value)
+	return true
 
 
 # ------------------------------------------------------------------------------
@@ -167,20 +186,259 @@ func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
 
 
-## Register a car to be connected to (on, following) this lane.
-func register_vehicle(vehicle: Node) -> void:
-	_vehicles_in_lane.append(vehicle)
+## Valid [RoadLane]s this lane continues into.
+func get_next_lanes() -> Array[RoadLane]:
+	return _resolve_lanes(lanes_next)
 
 
-## Optional but good cleanup of references.
-func unregister_vehicle(vehicle: Node) -> void:
-	_vehicles_in_lane.erase(vehicle)
+## Valid [RoadLane]s that continue into this lane.
+func get_prior_lanes() -> Array[RoadLane]:
+	return _resolve_lanes(lanes_prior)
 
 
-## Return all vehicles registered to this lane, performing cleanup as needed.
+## Add a lane this one continues into. Only updates this lane, not [param lane].
+func add_lane_next(lane: RoadLane) -> void:
+	if _find_link(lanes_next, lane) == -1:
+		lanes_next = _appended(lanes_next, get_path_to(lane))
+		_queue_link_refresh()
+
+
+## Add a lane that continues into this one. Only updates this lane, not [param lane].
+func add_lane_prior(lane: RoadLane) -> void:
+	if _find_link(lanes_prior, lane) == -1:
+		lanes_prior = _appended(lanes_prior, get_path_to(lane))
+		_queue_link_refresh()
+
+
+func remove_lane_next(lane: RoadLane) -> void:
+	var result := _removed(lanes_next, lane)
+	if result != lanes_next:
+		lanes_next = result
+		_queue_link_refresh()
+
+
+func remove_lane_prior(lane: RoadLane) -> void:
+	var result := _removed(lanes_prior, lane)
+	if result != lanes_prior:
+		lanes_prior = result
+		_queue_link_refresh()
+
+
+## Clear all next and prior links, including the links back to this lane from
+## those neighbors.
+func clear_lane_links() -> void:
+	for lane in get_next_lanes():
+		lane.remove_lane_prior(self)
+	for lane in get_prior_lanes():
+		lane.remove_lane_next(self)
+	lanes_next = []
+	lanes_prior = []
+	_queue_link_refresh()
+
+
+func _resolve_lanes(paths: Array[NodePath]) -> Array[RoadLane]:
+	var lanes: Array[RoadLane] = []
+	for path in paths:
+		var lane := get_node_or_null(path) as RoadLane
+		if is_instance_valid(lane):
+			lanes.append(lane)
+	return lanes
+
+
+func _find_link(paths: Array[NodePath], lane: RoadLane) -> int:
+	for idx in range(paths.size()):
+		if get_node_or_null(paths[idx]) == lane:
+			return idx
+	return -1
+
+
+# Copies rather than mutating, since Node.duplicate() shares array references.
+func _appended(paths: Array[NodePath], path: NodePath) -> Array[NodePath]:
+	var result: Array[NodePath] = paths.duplicate()
+	result.append(path)
+	return result
+
+
+func _removed(paths: Array[NodePath], lane: RoadLane) -> Array[NodePath]:
+	var idx := _find_link(paths, lane)
+	if idx == -1:
+		return paths
+	var result: Array[NodePath] = paths.duplicate()
+	result.remove_at(idx)
+	return result
+
+
+## Add an agent at its [member RoadLaneAgent.current_lane_offset], keeping
+## agents sorted. Called by [method RoadLaneAgent.assign_lane].
+func register_agent(agent: RoadLaneAgent) -> void:
+	var idx := _bisect(agent.current_lane_offset, true)
+	_agents.insert(idx, agent)
+	_reindex_agents(idx)
+	agent.refresh_agent_ahead()
+	_notify_behind(idx)
+
+
+## Remove an agent; a no-op if it isn't on this lane.
+func unregister_agent(agent: RoadLaneAgent) -> void:
+	var idx := _agents.find(agent)
+	if idx == -1:
+		return
+	_agents.remove_at(idx)
+	_reindex_agents(idx)
+	_notify_behind(idx)
+
+
+## Move an agent whose offset changed back into sorted order.
+func update_agent_order(agent: RoadLaneAgent) -> void:
+	var idx := agent._index_in_lane
+	if idx < 0 or idx >= _agents.size() or _agents[idx] != agent:
+		idx = _agents.find(agent)
+		if idx == -1:
+			return
+	var start_idx := idx
+	while idx > 0 and _is_behind(agent, _agents[idx - 1]):
+		_swap_agents(idx, idx - 1)
+		idx -= 1
+	while idx < _agents.size() - 1 and _is_behind(_agents[idx + 1], agent):
+		_swap_agents(idx, idx + 1)
+		idx += 1
+	if idx == start_idx:
+		return
+	var lo := mini(start_idx, idx)
+	for i in range(maxi(lo - 1, 0), maxi(start_idx, idx) + 1):
+		_agents[i].refresh_agent_ahead()
+	if lo == 0:
+		notify_upstream()
+
+
+## Has the frontmost agent of each lane leading into this one re-find its agent
+## ahead, walking back through empty lanes within the look-ahead limits.
+func notify_upstream() -> void:
+	var visited := {self: true}
+	var frontier: Array = [[self, 0.0, 0]] # lane, empty length behind it, empty lane count
+	while not frontier.is_empty():
+		var entry: Array = frontier.pop_front()
+		for prior in (entry[0] as RoadLane).get_prior_lanes():
+			if visited.has(prior):
+				continue
+			visited[prior] = true
+			if not prior.get_agents().is_empty():
+				prior.get_agents().back().refresh_agent_ahead()
+				continue
+			var gap: float = entry[1] + prior.curve.get_baked_length()
+			var empty_count: int = entry[2] + 1
+			# Mirrors RoadLaneAgent.refresh_agent_ahead, which only looks past lanes with one next lane.
+			if (prior.get_next_lanes().size() == 1
+					and empty_count < RoadLaneAgent.lookahead_max_hops
+					and gap <= RoadLaneAgent.lookahead_max_distance):
+				frontier.append([prior, gap, empty_count])
+
+
+## Has whoever could see the agent at [param idx] as their agent ahead re-check.
+func _notify_behind(idx: int) -> void:
+	if idx == 0:
+		notify_upstream()
+	elif idx <= _agents.size():
+		_agents[idx - 1].refresh_agent_ahead()
+
+
+## Agents on this lane, sorted rearmost first. Don't modify the returned array.
+func get_agents() -> Array[RoadLaneAgent]:
+	return _agents
+
+
+## Actors of the agents on this lane, without duplicates.
 func get_vehicles() -> Array:
-	_vehicles_in_lane = _vehicles_in_lane.filter(func(vehicle): return is_instance_valid(vehicle) and not vehicle.is_queued_for_deletion())
-	return _vehicles_in_lane
+	var vehicles: Array = []
+	for agent in _agents:
+		if is_instance_valid(agent.actor) and not agent.actor in vehicles:
+			vehicles.append(agent.actor)
+	return vehicles
+
+
+## Agents within [param distance] of [param offset] along this lane, continuing
+## into every next and prior lane when the range runs past either end.
+func get_agents_near(offset: float, distance: float) -> Array[RoadLaneAgent]:
+	var found: Array[RoadLaneAgent] = []
+	_collect_agents_near(offset - distance, offset + distance, 0, found, {})
+	return found
+
+
+## [param dir] limits the search to next (1) or prior (-1) lanes once it has left the starting lane.
+func _collect_agents_near(from: float, to: float, dir: int, found: Array[RoadLaneAgent], visited: Dictionary) -> void:
+	if visited.has(self):
+		return
+	visited[self] = true
+	for idx in range(_bisect(from, false), _bisect(to, true)):
+		found.append(_agents[idx])
+	var length := curve.get_baked_length()
+	if dir >= 0 and to > length:
+		for lane in get_next_lanes():
+			lane._collect_agents_near(0.0, to - length, 1, found, visited)
+	if dir <= 0 and from < 0.0:
+		for lane in get_prior_lanes():
+			var prior_length := lane.curve.get_baked_length()
+			lane._collect_agents_near(prior_length + from, prior_length, -1, found, visited)
+
+
+## Index of the first agent at or past [param offset], or strictly past it if [param after_equal].
+func _bisect(offset: float, after_equal: bool) -> int:
+	var lo := 0
+	var hi := _agents.size()
+	while lo < hi:
+		var mid := (lo + hi) / 2
+		var mid_offset := _agents[mid].current_lane_offset
+		if mid_offset < offset or (after_equal and mid_offset == offset):
+			lo = mid + 1
+		else:
+			hi = mid
+	return lo
+
+
+static func _is_behind(a: RoadLaneAgent, b: RoadLaneAgent) -> bool:
+	return a.current_lane_offset < b.current_lane_offset
+
+
+func _swap_agents(idx_a: int, idx_b: int) -> void:
+	var agent := _agents[idx_a]
+	_agents[idx_a] = _agents[idx_b]
+	_agents[idx_b] = agent
+	_agents[idx_a]._index_in_lane = idx_a
+	_agents[idx_b]._index_in_lane = idx_b
+
+
+func _reindex_agents(from_idx: int) -> void:
+	for idx in range(from_idx, _agents.size()):
+		_agents[idx]._index_in_lane = idx
+
+
+## Re-derive every agent's offset from its actor and re-sort, after the curve changed.
+func _resort_agents() -> void:
+	_agent_resort_queued = false
+	for agent in _agents:
+		agent._reproject_offset()
+	_agents.sort_custom(_is_behind)
+	_reindex_agents(0)
+	for agent in _agents:
+		agent.refresh_agent_ahead()
+	notify_upstream()
+
+
+func _queue_link_refresh() -> void:
+	if Engine.is_editor_hint() or _link_refresh_queued:
+		return
+	_link_refresh_queued = true
+	_refresh_after_link_change.call_deferred()
+
+
+## Paths through this lane changed, so re-check choices and agents ahead that depend on them.
+func _refresh_after_link_change() -> void:
+	_link_refresh_queued = false
+	for agent in _agents.duplicate():
+		agent._validated_chosen_lane_next()
+	if not _agents.is_empty():
+		_agents.back().refresh_agent_ahead()
+	notify_upstream()
 
 
 func _instantiate_geom() -> void:
@@ -272,6 +530,14 @@ func rebuild_geom() -> void:
 func curve_changed() -> void:
 	refresh_geom = true
 	rebuild_geom()
+	if _agents.is_empty():
+		return
+	for agent in _agents:
+		agent.invalidate_offset()
+	# Curves are rebuilt point by point, so resort once after the burst of changes.
+	if not _agent_resort_queued:
+		_agent_resort_queued = true
+		_resort_agents.call_deferred()
 
 
 func _set_lane_pointer_mesh(value: Mesh) -> void:

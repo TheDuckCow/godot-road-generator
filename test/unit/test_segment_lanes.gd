@@ -51,6 +51,232 @@ func simple_flip_roadpoint(rp: RoadPoint) -> void:
 
 
 # ------------------------------------------------------------------------------
+# Lane links
+
+
+func _lane_by_tag(lanes: Array, prior_tag: String) -> RoadLane:
+	for lane: RoadLane in lanes:
+		if lane.lane_prior_tag == prior_tag:
+			return lane
+	return null
+
+
+## Segment connections add every tag match rather than overwriting, so a split
+## keeps both next lanes, and links that no longer match are dropped.
+func test_lane_seg_connections_keep_every_match():
+	var container:RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	container.generate_ai_lanes = true
+	container.rebuild_segments(true)
+
+	var mid: RoadPoint = points[1]
+	var prior_lanes: Array = mid.prior_seg.get_lanes()
+	var next_lanes: Array = mid.next_seg.get_lanes()
+	# Reverse-tagged lanes flow from the prior segment into the next one.
+	var source := _lane_by_tag(prior_lanes, "R0")
+	var other_source := _lane_by_tag(prior_lanes, "R1")
+	var target_a := _lane_by_tag(next_lanes, "R0")
+	var target_b := _lane_by_tag(next_lanes, "R1")
+	assert_eq(source.get_next_lanes(), [target_a] as Array[RoadLane], "Initially a single match")
+
+	target_b.lane_prior_tag = "R0"
+	container.update_lane_seg_connections()
+
+	var nexts := source.get_next_lanes()
+	assert_eq(nexts.size(), 2, "Split keeps both next lanes")
+	assert_has(nexts, target_a)
+	assert_has(nexts, target_b)
+	assert_does_not_have(other_source.get_next_lanes(), target_b, "Stale link removed")
+	assert_does_not_have(target_b.get_prior_lanes(), other_source, "Stale back link removed")
+	assert_has(target_b.get_prior_lanes(), source)
+
+
+func test_legacy_lane_links_load_into_lists():
+	var path := "user://test_legacy_lane_links.tscn"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("""[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/road-generator/nodes/road_lane.gd" id="1"]
+
+[node name="Root" type="Node3D"]
+
+[node name="A" type="Path3D" parent="."]
+script = ExtResource("1")
+lane_next = NodePath("../B")
+lane_prior = NodePath("")
+
+[node name="B" type="Path3D" parent="."]
+script = ExtResource("1")
+lane_prior = NodePath("../A")
+""")
+	file.close()
+
+	var scene: PackedScene = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	var root: Node3D = add_child_autofree(scene.instantiate())
+	var lane_a: RoadLane = root.get_node("A")
+	var lane_b: RoadLane = root.get_node("B")
+
+	assert_eq(lane_a.get_next_lanes(), [lane_b] as Array[RoadLane], "lane_next loads into lanes_next")
+	assert_eq(lane_a.lanes_prior.size(), 0, "Empty lane_prior is ignored")
+	assert_eq(lane_b.get_prior_lanes(), [lane_a] as Array[RoadLane], "lane_prior loads into lanes_prior")
+	var props: Array[String] = []
+	for prop in lane_a.get_property_list():
+		props.append(prop["name"])
+	assert_does_not_have(props, "lane_next", "Legacy property is not saved again")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_lane_link_helpers():
+	var root: Node3D = add_child_autofree(Node3D.new())
+	var lane_a := RoadLane.new()
+	var lane_b := RoadLane.new()
+	root.add_child(lane_a)
+	root.add_child(lane_b)
+
+	lane_a.add_lane_next(lane_b)
+	lane_a.add_lane_next(lane_b)
+	lane_b.add_lane_prior(lane_a)
+	assert_eq(lane_a.lanes_next.size(), 1, "Duplicate links are skipped")
+
+	lane_b.clear_lane_links()
+	assert_eq(lane_a.get_next_lanes().size(), 0, "Clearing removes the link back to the lane")
+	assert_eq(lane_b.get_prior_lanes().size(), 0, "Clearing removes the lane's own links")
+
+
+## Lanes meeting at a connected container edge link across containers, including
+## hand-placed (owned) lanes as found in prefab containers, and unlink on disconnect.
+func test_lanes_link_across_containers():
+	var cont_a: RoadContainer = add_child_autofree(RoadContainer.new())
+	var cont_b: RoadContainer = add_child_autofree(RoadContainer.new())
+	var pa: Array[RoadPoint] = road_util.create_rp_line(cont_a, 2, true, true)
+	var pb: Array[RoadPoint] = road_util.create_rp_line(cont_b, 2, true, true)
+	cont_b.position.z = 10
+	cont_a.generate_ai_lanes = true
+	cont_b.generate_ai_lanes = true
+	cont_a.update_edges()
+	cont_b.update_edges()
+	assert_true(pa[1].connect_container(RoadPoint.PointInit.NEXT, pb[0], RoadPoint.PointInit.PRIOR))
+	cont_a.rebuild_segments(true)
+	cont_b.rebuild_segments(true)
+	for lane: RoadLane in pb[0].next_seg.get_lanes():
+		lane.owner = cont_b
+	cont_a.rebuild_segments(true)
+
+	var lanes_a: Array = pa[0].next_seg.get_lanes()
+	var lanes_b: Array = pb[0].next_seg.get_lanes()
+	var linked := 0
+	for a: RoadLane in lanes_a:
+		for b: RoadLane in lanes_b:
+			if b in a.get_next_lanes():
+				assert_has(b.get_prior_lanes(), a, "Back link across containers")
+				assert_almost_eq(a.get_lane_end().distance_to(b.get_lane_start()), 0.0, 0.1)
+				linked += 1
+			if a in b.get_next_lanes():
+				assert_has(a.get_prior_lanes(), b, "Back link across containers")
+				assert_almost_eq(b.get_lane_end().distance_to(a.get_lane_start()), 0.0, 0.1)
+				linked += 1
+	assert_eq(linked, 4, "Every lane continues into the other container")
+
+	assert_true(pa[1].disconnect_container(RoadPoint.PointInit.NEXT, RoadPoint.PointInit.PRIOR))
+	cont_a.rebuild_segments(true)
+	for a: RoadLane in lanes_a:
+		for b: RoadLane in lanes_b:
+			assert_does_not_have(a.get_next_lanes(), b, "No link once disconnected")
+			assert_does_not_have(b.get_next_lanes(), a, "No back link once disconnected")
+
+
+func _lane_by_tags(seg: RoadSegment, prior_tag: String, next_tag: String) -> RoadLane:
+	for lane: RoadLane in seg.get_lanes():
+		if lane.lane_prior_tag == prior_tag and lane.lane_next_tag == next_tag:
+			return lane
+	return null
+
+
+## Lanes added or removed where the lane count changes are forks and merges of
+## the lane they split from or join, not left/right neighbors.
+func test_transition_lanes_fork_and_merge():
+	var container:RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 5, true, true)
+	var one_each_way: Array[RoadPoint.LaneDir] = [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD]
+	for idx in [0, 1, 3, 4]:
+		points[idx].traffic_dir = one_each_way.duplicate()
+	container.generate_ai_lanes = true
+	container.rebuild_segments(true)
+
+	var segs: Array[RoadSegment] = []
+	for idx in range(4):
+		segs.append(points[idx].next_seg)
+	var r_before := _lane_by_tags(segs[0], "R0", "R0")
+	var r_widen := _lane_by_tags(segs[1], "R0", "R0")
+	var r_added := _lane_by_tags(segs[1], "R0a", "R1")
+	var r_removed := _lane_by_tags(segs[2], "R1", "R0r")
+	var r_after := _lane_by_tags(segs[3], "R0", "R0")
+	var f_before := _lane_by_tags(segs[0], "F0", "F0")
+	var f_added := _lane_by_tags(segs[1], "F0a", "F1")
+	var f_removed := _lane_by_tags(segs[2], "F1", "F0r")
+	var f_narrow := _lane_by_tags(segs[2], "F0", "F0")
+	var f_after := _lane_by_tags(segs[3], "F0", "F0")
+	for lane in [r_before, r_widen, r_added, r_removed, r_after, f_before, f_added, f_removed, f_narrow, f_after]:
+		assert_not_null(lane, "Expected lane exists")
+	if null in [r_before, r_widen, r_added, r_removed, r_after, f_before, f_added, f_removed, f_narrow, f_after]:
+		return
+
+	# Reverse lanes travel with the RoadPoint order: widening forks, narrowing merges.
+	var r_fork := r_before.get_next_lanes()
+	assert_eq(r_fork.size(), 2, "Lane forks where the road widens")
+	assert_has(r_fork, r_widen)
+	assert_has(r_fork, r_added)
+	assert_has(r_after.get_prior_lanes(), r_removed, "Removed lane merges into the remaining lane")
+	assert_eq(r_after.get_prior_lanes().size(), 2, "Two lanes merge")
+
+	# Forward lanes travel against the RoadPoint order, so the roles mirror.
+	assert_has(f_before.get_prior_lanes(), f_added, "Added lane merges going the other way")
+	assert_eq(f_before.get_prior_lanes().size(), 2, "Two lanes merge")
+	var f_fork := f_after.get_next_lanes()
+	assert_eq(f_fork.size(), 2, "Lane forks where the road widens going the other way")
+	assert_has(f_fork, f_narrow)
+	assert_has(f_fork, f_removed)
+
+	for lane in [r_added, r_removed, f_added, f_removed]:
+		assert_eq(lane.lane_left, NodePath(""), "%s has no left link" % lane.name)
+		assert_eq(lane.lane_right, NodePath(""), "%s has no right link" % lane.name)
+	assert_eq(r_widen.lane_left, NodePath(""), "No side link to the added lane")
+	assert_eq(r_widen.lane_right, NodePath(""), "No side link to the added lane")
+
+
+## Where the road narrows to one lane and widens again at the same RoadPoint,
+## every lane arriving at the pinch links to every lane leaving it.
+func test_pinch_links_all_incoming_to_all_outgoing():
+	var container:RoadContainer = add_child_autofree(RoadContainer.new())
+	var points: Array[RoadPoint] = road_util.create_rp_line(container, 3, true, true)
+	var one_each_way: Array[RoadPoint.LaneDir] = [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD]
+	var three_each_way: Array[RoadPoint.LaneDir] = []
+	for dir in [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.FORWARD]:
+		for _i in range(3):
+			three_each_way.append(dir)
+	points[0].traffic_dir = three_each_way.duplicate()
+	points[1].traffic_dir = one_each_way
+	points[2].traffic_dir = three_each_way.duplicate()
+	container.generate_ai_lanes = true
+	container.rebuild_segments(true)
+
+	var narrowing: Array = points[0].next_seg.get_lanes()
+	var widening: Array = points[1].next_seg.get_lanes()
+	assert_eq(narrowing.size(), 6, "Three lanes each way narrowing")
+	assert_eq(widening.size(), 6, "Three lanes each way widening")
+	for lane: RoadLane in narrowing:
+		if lane.lane_next_tag.begins_with("R"):
+			assert_eq(lane.get_next_lanes().size(), 3, "%s continues into every outgoing lane" % lane.name)
+		else:
+			assert_eq(lane.get_prior_lanes().size(), 3, "%s is fed by every incoming lane" % lane.name)
+	for lane: RoadLane in widening:
+		if lane.lane_next_tag.begins_with("R"):
+			assert_eq(lane.get_prior_lanes().size(), 3, "%s is fed by every incoming lane" % lane.name)
+		else:
+			assert_eq(lane.get_next_lanes().size(), 3, "%s continues into every outgoing lane" % lane.name)
+
+
+# ------------------------------------------------------------------------------
 
 
 ## Checkes that two RoadPoints pointing in the same direction produces good lanes

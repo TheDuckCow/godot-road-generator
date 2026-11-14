@@ -8,6 +8,8 @@ extends Node3D
 
 ## Node used to calcualte distances
 @export var target_node: NodePath
+## Skip spawning a vehicle this close (in meters) to another on its lane
+@export var spawn_clearance := 20.0
 
 @onready var container: RoadContainer = get_node("RoadManager/Road_001")
 @onready var vehicles: Node = get_node("RoadManager/vehicles")
@@ -145,6 +147,8 @@ func spawn_vehicles_on_lane(rp: RoadPoint, dir: int) -> void:
 	var new_lanes = new_seg.get_lanes()
 	for _lane in new_lanes:
 		var rand_offset = randf() * _lane.curve.get_baked_length()
+		if not _lane.get_agents_near(rand_offset, spawn_clearance).is_empty():
+			continue
 		var rand_pos = _lane.curve.sample_baked(rand_offset)
 		vehicles.add_actor(_lane.to_global(rand_pos), _lane)
 
@@ -163,8 +167,11 @@ func despawn_cars(road_point:RoadPoint) -> void:
 		print("No lanes valid for car despawning")
 	for _lane in lanes:
 		var this_lane:RoadLane = _lane
-		var lane_vehicles = this_lane._vehicles_in_lane #this_lane.get_vehicles()
-		for _vehicle in lane_vehicles:
+		var lane_actors: Array = []
+		for agent in this_lane.get_agents():
+			if agent.auto_register and not agent.actor in lane_actors:
+				lane_actors.append(agent.actor)
+		for _vehicle in lane_actors:
 			vehicles.remove_actor(_vehicle)
 
 
@@ -180,7 +187,7 @@ func update_stats() -> void:
 			if not seg in rp.get_children():
 				continue # avoid double counting
 			for lane in seg.get_lanes():
-				_ln_cars += len(lane._vehicles_in_lane)
+				_ln_cars += len(lane.get_vehicles())
 
 	var car_count: int = vehicles.get_actor_count()
 	var rp_count: int = len(container.get_roadpoints())

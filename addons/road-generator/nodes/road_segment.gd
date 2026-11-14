@@ -449,8 +449,7 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		# need to invert the direction assignment here.
 		var new_ln_reverse = true if ln_dir != RoadPoint.LaneDir.REVERSE else false
 
-		if ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM:
-			new_ln.transition = true
+		new_ln.transition = ln_type == RoadPoint.LaneType.TRANSITION_ADD || ln_type == RoadPoint.LaneType.TRANSITION_REM
 
 		# TODO(#46): Swtich to re-sampling and adding more points following the
 		# curve along from the parent path generator, including its use of ease
@@ -465,8 +464,9 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 		new_ln.rebuild_geom()
 
 		# Update lane connectedness for left/right lane connections.
-		# Attempt to do so for user editable lanes
-		if not last_ln == null and last_ln_reverse == new_ln_reverse:
+		# Attempt to do so for user editable lanes. Transition lanes are reached
+		# through lanes_next/lanes_prior as forks and merges instead.
+		if not last_ln == null and last_ln_reverse == new_ln_reverse and not new_ln.transition and not last_ln.transition:
 			# If the last lane and this one are facing the same way, then they
 			# should be adjacent for lane changing. Which lane (left/right) is
 			# just determiend by which way we are facing.
@@ -673,12 +673,7 @@ func clear_lane_segments(ignore_list: Array = []) -> void:
 	for l: RoadLane in self.get_lanes():
 		if l in ignore_list or is_instance_valid(l.owner):
 			continue
-		var ln:RoadLane = l.get_node_or_null(l.lane_next)
-		if ln && ln.lane_prior == ln.get_path_to(l):
-			ln.lane_prior = NodePath("")
-		var lp:RoadLane = l.get_node_or_null(l.lane_prior)
-		if lp && lp.lane_next == lp.get_path_to(l):
-			lp.lane_next = NodePath("")
+		l.clear_lane_links()
 
 		var ll:RoadLane = l.get_node_or_null(l.lane_left)
 		if ll && ll.lane_right == ll.get_path_to(l):

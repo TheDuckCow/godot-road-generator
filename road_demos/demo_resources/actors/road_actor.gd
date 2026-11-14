@@ -14,6 +14,8 @@ enum DriveState {
 @export var visualize_lane := false
 @export var seek_ahead := 5.0 # How many meters in front of agent to seek position
 @export var auto_register: bool = true
+@export var min_follow_gap := 8.0 # meters to the agent ahead, origin to origin
+@export var follow_time := 1.0 # extra seconds of gap per m/s of speed
 
 @onready var agent:RoadLaneAgent = get_node("%road_lane_agent")
 
@@ -72,7 +74,10 @@ func _get_auto_input() -> Vector3:
 				lane_move -= 1
 			elif (cur_cars_r >= 0) && (cur_cars - cur_cars_r > lane_change_tolerance):
 				lane_move += 1
-	return Vector3(lane_move, 0, -1) # neg z is "forward"
+	var forward := -1.0 # neg z is "forward"
+	if agent.distance_to_agent_ahead() < min_follow_gap + max(speed, 0.0) * follow_time:
+		forward = 0.0
+	return Vector3(lane_move, 0, forward)
 
 
 func _get_player_input() -> Vector3:

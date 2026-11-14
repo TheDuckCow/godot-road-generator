@@ -104,14 +104,12 @@ next_pt_init = NodePath("../RP_002")
 curve = SubResource("Curve3D_hb82j")
 script = ExtResource("5")
 lane_left = NodePath("../pR0_nR0")
-lane_right = NodePath("../N1W1")
 lane_next_tag = "R1"
 lane_prior_tag = "R1"
 
 [node name="pR0_nR0" type="Path3D" parent="RP_001"]
 curve = SubResource("Curve3D_j35ae")
 script = ExtResource("5")
-lane_left = NodePath("../N0E0")
 lane_right = NodePath("../pR1_nR1")
 lane_next_tag = "R0"
 lane_prior_tag = "R0"
@@ -119,7 +117,6 @@ lane_prior_tag = "R0"
 [node name="pF0_nF0" type="Path3D" parent="RP_001"]
 curve = SubResource("Curve3D_tllck")
 script = ExtResource("5")
-lane_left = NodePath("../../RP_002/S0W0")
 lane_right = NodePath("../pF1_nF1")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
@@ -128,7 +125,6 @@ lane_prior_tag = "F0"
 curve = SubResource("Curve3D_4helm")
 script = ExtResource("5")
 lane_left = NodePath("../pF0_nF0")
-lane_right = NodePath("../../RP_002/S1E1")
 lane_next_tag = "F1"
 lane_prior_tag = "F1"
 
@@ -136,13 +132,11 @@ lane_prior_tag = "F1"
 transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 0, 0, 16)
 curve = SubResource("Curve3D_b4i1m")
 script = ExtResource("5")
-lane_right = NodePath("../pR0_nR0")
 
 [node name="N1W1" type="Path3D" parent="RP_001"]
 transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 0, 0, 16)
 curve = SubResource("Curve3D_qgy3f")
 script = ExtResource("5")
-lane_left = NodePath("../pR1_nR1")
 
 [node name="RP_002" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
@@ -157,13 +151,11 @@ prior_pt_init = NodePath("../RP_001")
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, -16)
 curve = SubResource("Curve3D_b4i1m")
 script = ExtResource("5")
-lane_right = NodePath("../../RP_001/pF0_nF0")
 
 [node name="S1E1" type="Path3D" parent="RP_002"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0, 0, -16)
 curve = SubResource("Curve3D_qgy3f")
 script = ExtResource("5")
-lane_left = NodePath("../../RP_001/pF1_nF1")
 
 [node name="RP_003" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -16, 0, 0)
@@ -178,14 +170,12 @@ next_pt_init = NodePath("../RP_004")
 curve = SubResource("Curve3D_28m7m")
 script = ExtResource("5")
 lane_left = NodePath("../pR0_nR0")
-lane_right = NodePath("../W1S1")
 lane_next_tag = "R1"
 lane_prior_tag = "R1"
 
 [node name="pR0_nR0" type="Path3D" parent="RP_003"]
 curve = SubResource("Curve3D_scu3k")
 script = ExtResource("5")
-lane_left = NodePath("../W0N0")
 lane_right = NodePath("../pR1_nR1")
 lane_next_tag = "R0"
 lane_prior_tag = "R0"
@@ -193,7 +183,6 @@ lane_prior_tag = "R0"
 [node name="pF0_nF0" type="Path3D" parent="RP_003"]
 curve = SubResource("Curve3D_2t73f")
 script = ExtResource("5")
-lane_left = NodePath("../../RP_004/E0S0")
 lane_right = NodePath("../pF1_nF1")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
@@ -202,7 +191,6 @@ lane_prior_tag = "F0"
 curve = SubResource("Curve3D_66010")
 script = ExtResource("5")
 lane_left = NodePath("../pF0_nF0")
-lane_right = NodePath("../../RP_004/E1N1")
 lane_next_tag = "F1"
 lane_prior_tag = "F1"
 
@@ -210,13 +198,11 @@ lane_prior_tag = "F1"
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -6.99382e-07, 0, 16)
 curve = SubResource("Curve3D_b4i1m")
 script = ExtResource("5")
-lane_right = NodePath("../pR0_nR0")
 
 [node name="W1S1" type="Path3D" parent="RP_003"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -6.99382e-07, 0, 16)
 curve = SubResource("Curve3D_qgy3f")
 script = ExtResource("5")
-lane_left = NodePath("../pR1_nR1")
 
 [node name="RP_004" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 16, 0, 0)
@@ -231,13 +217,11 @@ prior_pt_init = NodePath("../RP_003")
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 6.99382e-07, 0, -16)
 curve = SubResource("Curve3D_b4i1m")
 script = ExtResource("5")
-lane_right = NodePath("../../RP_003/pF0_nF0")
 
 [node name="E1N1" type="Path3D" parent="RP_004"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 6.99382e-07, 0, -16)
 curve = SubResource("Curve3D_qgy3f")
 script = ExtResource("5")
-lane_left = NodePath("../../RP_003/pF1_nF1")
 
 [node name="4way_2x2" parent="." instance=ExtResource("5_cpat4")]
 

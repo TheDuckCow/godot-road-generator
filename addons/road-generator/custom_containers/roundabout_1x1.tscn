@@ -188,30 +188,24 @@ next_pt_init = NodePath("../RP_EXIT_A")
 [node name="pF0_nF0" type="Path3D" parent="RP_INSIDE_A"]
 curve = SubResource("Curve3D_8y6dy")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-left")
-lane_right = NodePath("../pF0_nF0-right")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-uturn" type="Path3D" parent="RP_INSIDE_A"]
 curve = SubResource("Curve3D_dfd5p")
 script = ExtResource("4_8y6dy")
-lane_right = NodePath("../pF0_nF0-left")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-left" type="Path3D" parent="RP_INSIDE_A"]
 curve = SubResource("Curve3D_j1tln")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-uturn")
-lane_right = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-right" type="Path3D" parent="RP_INSIDE_A"]
 curve = SubResource("Curve3D_6cgjm")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
@@ -236,30 +230,24 @@ next_pt_init = NodePath("../RP_EXIT_B")
 [node name="pF0_nF0" type="Path3D" parent="RP_INSIDE_B"]
 curve = SubResource("Curve3D_s5skp")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-left")
-lane_right = NodePath("../pF0_nF0-right")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-uturn" type="Path3D" parent="RP_INSIDE_B"]
 curve = SubResource("Curve3D_o7xgm")
 script = ExtResource("4_8y6dy")
-lane_right = NodePath("../pF0_nF0-left")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-left" type="Path3D" parent="RP_INSIDE_B"]
 curve = SubResource("Curve3D_ij57v")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-uturn")
-lane_right = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-right" type="Path3D" parent="RP_INSIDE_B"]
 curve = SubResource("Curve3D_2esch")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
@@ -284,30 +272,24 @@ next_pt_init = NodePath("../RP_EXIT_C")
 [node name="pF0_nF0" type="Path3D" parent="RP_INSIDE_C"]
 curve = SubResource("Curve3D_16ukn")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-left")
-lane_right = NodePath("../pF0_nF0-right")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-uturn" type="Path3D" parent="RP_INSIDE_C"]
 curve = SubResource("Curve3D_y1y0h")
 script = ExtResource("4_8y6dy")
-lane_right = NodePath("../pF0_nF0-left")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-left" type="Path3D" parent="RP_INSIDE_C"]
 curve = SubResource("Curve3D_e8m35")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-uturn")
-lane_right = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-right" type="Path3D" parent="RP_INSIDE_C"]
 curve = SubResource("Curve3D_r6t3y")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
@@ -332,30 +314,24 @@ next_pt_init = NodePath("../RP_EXIT_D")
 [node name="pF0_nF0" type="Path3D" parent="RP_INSIDE_D"]
 curve = SubResource("Curve3D_dgw1j")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-left")
-lane_right = NodePath("../pF0_nF0-right")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-uturn" type="Path3D" parent="RP_INSIDE_D"]
 curve = SubResource("Curve3D_gl1du")
 script = ExtResource("4_8y6dy")
-lane_right = NodePath("../pF0_nF0-left")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-left" type="Path3D" parent="RP_INSIDE_D"]
 curve = SubResource("Curve3D_cr180")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0-uturn")
-lane_right = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 
 [node name="pF0_nF0-right" type="Path3D" parent="RP_INSIDE_D"]
 curve = SubResource("Curve3D_a8h6y")
 script = ExtResource("4_8y6dy")
-lane_left = NodePath("../pF0_nF0")
 lane_next_tag = "F0"
 lane_prior_tag = "F0"
 

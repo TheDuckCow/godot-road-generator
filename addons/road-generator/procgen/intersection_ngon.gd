@@ -539,6 +539,7 @@ func _clear_generated_lanes(intersection: Node3D, keep: Array[RoadLane]) -> void
 			continue
 		if keep.has(child):
 			continue
+		child.clear_lane_links()
 		child.queue_free()
 
 

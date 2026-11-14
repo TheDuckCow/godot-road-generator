@@ -123,6 +123,7 @@ custom_minimum_size = Vector2(0, 15)
 layout_mode = 2
 
 [node name="RoadLaneDebug" parent="UI/VBoxContainer" node_paths=PackedStringArray("actor") instance=ExtResource("11_g68no")]
+custom_minimum_size = Vector2(270, 270)
 layout_mode = 2
 actor = NodePath("../../../RoadManager/vehicles/Player")
 
