@@ -506,7 +506,7 @@ func _instance_custom_roadcontainer(path: String) -> void:
 	instance_container(new_rc, Transform3D.IDENTITY)
 
 
-func instance_container(new_rc: RoadContainer, gtrans: Transform3D) -> void:
+func instance_container(new_rc: RoadContainer, new_transform: Transform3D) -> void:
 	var undo_redo = get_undo_redo()
 	var init_sel := get_selected_node()
 
@@ -525,7 +525,7 @@ func instance_container(new_rc: RoadContainer, gtrans: Transform3D) -> void:
 	undo_redo.add_do_method(parent, "add_child", new_rc, true)
 	undo_redo.add_do_method(new_rc, "set_owner", get_tree().get_edited_scene_root())
 	undo_redo.add_do_method(self, "set_selection", new_rc)
-	undo_redo.add_do_property(new_rc, "globtal_transform", gtrans)
+	undo_redo.add_do_property(new_rc, "transform", new_transform)
 	undo_redo.add_do_method(self, "_call_update_edges", new_rc)
 
 	undo_redo.add_undo_method(self, "set_selection", init_sel)
