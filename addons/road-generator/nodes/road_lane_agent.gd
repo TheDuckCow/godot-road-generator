@@ -307,7 +307,7 @@ func change_lane(direction: int) -> int:
 ## or backward (move_dir == -1) direction
 ## Used for decision to change lanes from transition lanes (as there are no direct connection)
 func close_to_lane_end(proximity: float, move_dir: MoveDir) -> bool:
-	if ! is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
+	if not is_instance_valid(current_lane) || proximity == 0 || move_dir == MoveDir.STOP:
 		return false
 	var link_test = current_lane.lane_next if move_dir == MoveDir.FORWARD else current_lane.lane_prior
 	if link_test:
@@ -333,7 +333,7 @@ func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> i
 	while true:
 		var _new_lane_path = _new_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else _new_lane.lane_left
 		_new_lane = _new_lane.get_node_or_null(_new_lane_path)
-		if ! _new_lane:
+		if not _new_lane:
 			return 0
 		count += lane_change_dir
 		var link_test = _new_lane.lane_next if move_dir == MoveDir.FORWARD else _new_lane.lane_prior
@@ -346,13 +346,13 @@ func find_continued_lane(lane_change_dir: LaneChangeDir, move_dir: MoveDir) -> i
 ## left lane (lane_change_dir == -1) or right lane (lane_change_dir = 1)
 ## Used for simple heuristic decision making of traffic balancing
 func cars_in_lane(lane_change_dir: LaneChangeDir) -> int:
-	if ! is_instance_valid(current_lane):
+	if not is_instance_valid(current_lane):
 		return -1
 	if lane_change_dir == LaneChangeDir.CURRENT:
 		return len(current_lane.get_vehicles())
 	var _lane_path = current_lane.lane_right if lane_change_dir == LaneChangeDir.RIGHT else current_lane.lane_left
 	var _lane:RoadLane = current_lane.get_node_or_null(_lane_path)
-	if ! _lane:
+	if not _lane:
 		return -1;
 	return len(_lane.get_vehicles())
 
