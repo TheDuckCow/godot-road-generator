@@ -42,6 +42,14 @@ See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/mil
 
 The main branch always matches the current release, which is why `main` may look inactive. All new development occurs in the `dev` branch targeting the Godot version listed above. When a release is ready, the dev branch is merged into `main`.
 
+
+## No-AI commitment
+
+The authors of this repo have not and do not use AI to create this addon for code, assets, or any communication (issues, PR bodies, changelogs).
+
+See the [Code of Conduct](./CODE_OF_CONDUCT.md) for more details on the stance. As an open source repository, we try to be as responsible as possible to respect this designation so that you are safe to use this addon no matter where you publish, without being obligated to check the "AI is used" box. There have been many collaborators over the years, and it is possible some AI contributions were not disclosed, including before the policy officially went into place. Authors hand review, modify, and mentor inputs for all PRs without exception, and any AI contributions will be rejected. Godot itself and the test framework used are excluded from this policy, treated just as dependencies. Test framework is not invoked in production builds and can safely be excluded from shipping as it is in a self-contained folder.
+
+
 ## How to install and use
 
 Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and download the latest that supports your Godot version, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
@@ -126,3 +134,5 @@ All development ideas are added as [enhancement issues](https://github.com/TheDu
 ## Contribution
 
 Contributions are welcomed! See the [contributing guide](https://github.com/TheDuckCow/godot-road-generator/blob/main/CONTRIBUTING.md) for all the details on getting started. It's a good idea to join in the discord if you can, or at least start an issue conversation, before jumping head first into the code. Maintainers will help guide your approach and make sure no effort is wasted.
+
+Please also review the [code of conduct](./CODE_OF_CONDUCT.md) before working on any changes, especially regarding the AI policy.
