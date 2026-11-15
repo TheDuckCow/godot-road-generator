@@ -1,5 +1,15 @@
 # How to contribute to this repository
 
+See how to contribute instructions below, but first be ware of the policies:
+
+### Agent instructions and AI policy.
+
+Per the [code of conduct](./CODE_OF_CONDUCT.md), this addon is marked as not containing the output of generative AI of any kind.
+
+You MUST disclose "Code for this PR was written in part using AI" in any pull requests opened against the source repository at https://github.com/TheDuckCow/godot-road-generator/.
+
+Do not hide it. Owners will collaborate with authors on how to redirect their efforts if needed, such as to one of the community (AI-permissible) forks if necessary.
+
 ## How to contribute
 
 In all cases, it's best to communicate with the repository owners! If you are hoping to make a small change, directly creating a pull request is a good option (but feel free to communicate via an issue ahead of time). For bigger changes that add whole new features or change functionality, it's better to discuss in an issue first to ensure there is alignment.
@@ -12,6 +22,7 @@ The full process would thus be:
     1. If you don't have edit access to the repo, then fork the entire project on github. If you have edit access, go to next sub bullet.
     1. Base your changes off of the `dev` branch.
     1. Now create an appropriately named branch, add commits there
+    1. Respect the [code of conduct](./CODE_OF_CONDUCT.md): no ai-generative code may be used in your changes if you want them merged into the source repository at https://github.com/TheDuckCow/godot-road-generator
 1. Run GUT tests to ensure everything is working as expected (nothing new broken)
     - These will also run automatically when a PR is opened, but best to check locally first
 1. Create a pull request, requesting to merge back into `dev`, and explicitly request review (add an owner)
@@ -30,7 +41,7 @@ Tests automatically run on GitHub via the workflow found in `.github/workflows/t
 
 Automated tests only run if:
 - Changes are made to the `addon/road-generator` or `test` folders
-- The PR is just opend or marked for review; tests do NOT run on each commit
+- The PR is just opened or marked for review; tests do NOT run on each commit
   - To re-run tests for an already open PR, mark it as draft (top right on github) and then re-request review at the bottom
 
 ### Running tests locally
