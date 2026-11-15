@@ -533,6 +533,24 @@ func test_t_junction_stem_turns_to_non_primary_bar():
 	assert_null(_turn_lane_to(inter, container, "ps", "pw"), "Primary bar is a through lane, not a turn")
 
 
+func test_t_junction_skips_primary_without_exit_lanes():
+	var container = autoqfree(RoadContainer.new())
+	add_child(container)
+	container.generate_ai_lanes = true
+	var inter := _make_t_junction(container)
+	# pe becomes a one-way road feeding into the intersection, so it has no exits.
+	var pe: RoadPoint = container.get_node("pe")
+	pe.traffic_dir = [RoadPoint.LaneDir.REVERSE, RoadPoint.LaneDir.REVERSE]
+
+	container.rebuild_segments(true)
+
+	var pw_lanes := _lanes_for_edge(inter, "pw")
+	assert_gt(pw_lanes.size(), 0, "pw still generates lanes")
+	for lane in pw_lanes:
+		assert_eq(lane.curve.point_count, 4,
+				"%s reaches an exit edge instead of ending at the center" % lane.name)
+
+
 func test_t_junction_lane_count():
 	var container = autoqfree(RoadContainer.new())
 	add_child(container)

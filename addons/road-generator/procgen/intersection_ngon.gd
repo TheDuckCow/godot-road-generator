@@ -288,6 +288,9 @@ func _compute_edge_primaries(edges: Array[RoadPoint], intersection: Node3D) -> A
 		for j in range(count):
 			if j == i or not _edge_is_eligible(edges, j, intersection):
 				continue
+			# An edge with no exit lanes (e.g. inbound one-way) can't receive through traffic.
+			if _edge_exit_lanes(edges[j], intersection).is_empty():
+				continue
 			var rel := edges[j].global_transform.origin - origin_i
 			var along := rel.dot(dir_i)
 			var lateral := _pairing_lateral_cost(rel, dir_i, edges[i].lane_width)
