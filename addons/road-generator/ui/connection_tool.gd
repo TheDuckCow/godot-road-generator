@@ -655,10 +655,10 @@ func _draw_edge(overlay: Control, col: Color, dashed: bool, pts: Array[Vector2])
 
 
 func _draw_mouse_label(overlay: Control, col: Color, text: String) -> void:
-	var pos := cursor + Vector2(15, 17) * _ui_scale
+	var pos := cursor + Vector2(20, 20) * _ui_scale
 	var font = overlay.get_theme_default_font()
 	var outline_size := 2 * _ui_scale
-	var fontsize := 12 * _ui_scale
+	var fontsize := 20 * _ui_scale
 	overlay.draw_multiline_string_outline(font, pos, text, 0, -1, fontsize, -1, outline_size, Color.WHITE)
 	overlay.draw_multiline_string(font, pos, text, 0, -1, fontsize, -1, col)
 
