@@ -46,7 +46,7 @@ The main branch always matches the current release, which is why `main` may look
 ## No-AI commitment
 
 > [!NOTE]
-> After reviewing past PRs and contacting prior contributors, we determined that some AI contributions did get merged in. These contributions did not have AI disclosed in the PR descriptions, but were also before this policy was officially established. We have identified these areas, and are actively working to rewrite these sections so the project can faithfully claim being AI-free. This note and the Godot store disclosure will be removed once resolved.
+> After reviewing past PRs and contacting prior contributors, we determined that some AI contributions did get merged in. These contributions did not have AI disclosed in the PR descriptions, but were also before this policy was officially established. We have [identified these areas](https://github.com/TheDuckCow/godot-road-generator/wiki/AI-Disclosure), and are **actively working to rewrite these sections so the project can faithfully claim being AI-free.** This note and the Godot store disclosure will be removed once resolved.
 
 The owners of this repo have not and do not use AI to create this addon for code, assets, or any communication. Every change contributed is hand reviewed, live tested, and often discussed through numerous followups or change suggestions. If we suspect any AI usage is not disclosed, we will ask. If an AI contribution is discovered or disclosed after the fact, it will be removed or re-made.
 
