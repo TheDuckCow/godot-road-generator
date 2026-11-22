@@ -45,9 +45,12 @@ The main branch always matches the current release, which is why `main` may look
 
 ## No-AI commitment
 
-The authors of this repo have not and do not use AI to create this addon for code, assets, or any communication (issues, PR bodies, changelogs).
+> [!NOTE]
+> After reviewing past PRs and contacting prior contributors, we determined that some AI contributions did get merged in. These contributions did not have AI disclosed in the PR descriptions, but were also before this policy was officially established. We have identified these areas, and are actively working to rewrite these sections so the project can faithfully claim being AI-free. This note and the Godot store disclosure will be removed once resolved.
 
-See the [Code of Conduct](./CODE_OF_CONDUCT.md) for more details on the stance. As an open source repository, we try to be as responsible as possible to respect this designation so that you are safe to use this addon no matter where you publish, without being obligated to check the "AI is used" box. There have been many collaborators over the years, and it is possible some AI contributions were not disclosed, including before the policy officially went into place. Authors hand review, modify, and mentor inputs for all PRs without exception, and any AI contributions will be rejected. Godot itself and the test framework used are excluded from this policy, treated just as dependencies. Test framework is not invoked in production builds and can safely be excluded from shipping as it is in a self-contained folder.
+The owners of this repo have not and do not use AI to create this addon for code, assets, or any communication. Every change contributed is hand reviewed, live tested, and often discussed through numerous followups or change suggestions. If we suspect any AI usage is not disclosed, we will ask. If an AI contribution is discovered or disclosed after the fact, it will be removed or re-made.
+
+See the [Code of Conduct](CODE_OF_CONDUCT.md) for more details.
 
 
 ## How to install and use
