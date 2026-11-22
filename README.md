@@ -42,6 +42,17 @@ See [upcoming milestones](https://github.com/TheDuckCow/godot-road-generator/mil
 
 The main branch always matches the current release, which is why `main` may look inactive. All new development occurs in the `dev` branch targeting the Godot version listed above. When a release is ready, the dev branch is merged into `main`.
 
+
+## No-AI commitment
+
+> [!NOTE]
+> After reviewing past PRs and contacting prior contributors, we determined that some AI contributions did get merged in. These contributions did not have AI disclosed in the PR descriptions, but were also before this policy was officially established. We have [identified these areas](https://github.com/TheDuckCow/godot-road-generator/wiki/AI-Disclosure), and are **actively working to rewrite these sections so the project can faithfully claim being AI-free.** This note and the Godot store disclosure will be removed once resolved.
+
+The owners of this repo have not and do not use AI to create this addon for code, assets, or any communication. Every change contributed is hand reviewed, live tested, and often discussed through numerous followups or change suggestions. If we suspect any AI usage is not disclosed, we will ask. If an AI contribution is discovered or disclosed after the fact, it will be removed or re-made.
+
+See the [Code of Conduct](CODE_OF_CONDUCT.md) for more details.
+
+
 ## How to install and use
 
 Install by going to [releases](https://github.com/TheDuckCow/godot-road-generator/releases) and download the latest that supports your Godot version, or get it from the [Godot Asset Store](https://store.godotengine.org/asset/theduckcow/road-generator/). Copy the `addons/road-generator` subfolder into your project, and optionally the `demo_roads` folder.
@@ -126,3 +137,5 @@ All development ideas are added as [enhancement issues](https://github.com/TheDu
 ## Contribution
 
 Contributions are welcomed! See the [contributing guide](https://github.com/TheDuckCow/godot-road-generator/blob/main/CONTRIBUTING.md) for all the details on getting started. It's a good idea to join in the discord if you can, or at least start an issue conversation, before jumping head first into the code. Maintainers will help guide your approach and make sure no effort is wasted.
+
+Please also review the [code of conduct](./CODE_OF_CONDUCT.md) before working on any changes, especially regarding the AI policy.
