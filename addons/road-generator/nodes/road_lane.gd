@@ -41,6 +41,11 @@ const COLOR_END := Color(0.8, 0.1, 0.1) #Color(0.4, 0.7, 0,7)
 @export var lane_next:NodePath
 ## The prior [RoadLane] for agents to follow (if going backwards).
 @export var lane_prior:NodePath
+var lane_next_ptr: RoadLane:
+	get: return self.get_node_or_null(self.lane_next)
+var lane_prior_ptr: RoadLane:
+	get: return self.get_node_or_null(self.lane_prior)
+
 
 ## Tags are used help populate the lane_next and lane_prior NodePaths above.[br][br]
 ##
@@ -165,6 +170,23 @@ func get_lane_start() -> Vector3:
 
 func get_lane_end() -> Vector3:
 	return to_global(curve.get_point_position(curve.get_point_count()-1))
+
+
+func connect_next(next: RoadLane) -> void:
+	if self.lane_next_ptr == next:
+		return
+	assert(self.lane_next_ptr == null)
+	assert(next.lane_prior_ptr == null)
+	self.lane_next = self.get_path_to(next)
+	next.lane_prior = next.get_path_to(self)
+
+
+func disconnect_next() -> void:
+	if self.lane_next_ptr == null:
+		return
+	assert(self.lane_next_ptr.lane_prior_ptr == self)
+	self.lane_next_ptr.lane_prior = NodePath("")
+	self.lane_next = NodePath("")
 
 
 ## Register a car to be connected to (on, following) this lane.

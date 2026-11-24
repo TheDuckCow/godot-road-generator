@@ -19,6 +19,7 @@ enum DriveState {
 
 # how big car difference triggers lane change
 var lane_change_tolerance = 3
+var rotate_to_distance := 0.05
 
 var velocity := Vector3.ZERO
 
@@ -38,6 +39,8 @@ func _ready() -> void:
 		set_process(false)
 		set_physics_process(false)
 
+func cleanup_for_reuse() -> void:
+	agent.unassign_lane()
 
 ## Generic function to calc speed
 func get_signed_speed() -> float:
@@ -126,7 +129,7 @@ func _physics_process(delta: float) -> void:
 	# Get another point a little further in front for orientation seeking,
 	# without actually moving the vehicle (ie don't update the assign lane
 	# if this margin puts us into the next lane in front)
-	var orientation:Vector3 = agent.test_move_along_lane(0.05)
+	var orientation:Vector3 = agent.test_move_along_lane(rotate_to_distance)
 
 	if ! global_transform.origin.is_equal_approx(orientation):
 		look_at(orientation, Vector3.UP)
