@@ -348,14 +348,14 @@ func generate_lane_segments(_debug: bool = false) -> bool:
 	var start_lane_offset
 	var end_lane_offset
 	if start_point.alignment == RoadPoint.Alignment.DIVIDER:
-		start_lane_offset = start_point.get_rev_lane_count()
+		start_lane_offset = start_point.get_fwd_lane_count() if _start_flip else start_point.get_rev_lane_count()
 	else:
 		assert( start_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		start_lane_offset = len(start_point.lanes) / 2.0
 
 	var manager:RoadManager = container.get_manager()
 	if end_point.alignment == RoadPoint.Alignment.DIVIDER:
-		end_lane_offset = end_point.get_rev_lane_count()
+		end_lane_offset = end_point.get_fwd_lane_count() if _end_flip else end_point.get_rev_lane_count()
 	else:
 		assert( end_point.alignment == RoadPoint.Alignment.GEOMETRIC )
 		end_lane_offset = len(end_point.lanes) / 2.0
@@ -516,9 +516,9 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var pt_d := src.get_point_position(1)
 
 	# Project the primary curve points onto the road_lane
-	var pt_e := a_transform.origin + (a_gbasis.x * in_offset)
+	var pt_e := a_transform.origin + (a_gbasis.x * in_offset * _start_flip_mult)
 	var pt_i := pt_b + (a_gbasis.x * in_offset)
-	var pt_h := d_transform.origin + (d_gbasis.x * out_offset)
+	var pt_h := d_transform.origin + (d_gbasis.x * out_offset * _end_flip_mult)
 	var pt_j := pt_c + (d_gbasis.x * out_offset)
 
 	# Calculate vectors and angles
@@ -533,8 +533,8 @@ func offset_curve(road_seg: Node3D, road_lane: Path3D, in_offset: float, out_off
 	var offset_s := tan(angle_s) * out_offset
 
 	# Calculate adjusted handles using local coordinates
-	var pt_f := a_gbasis.z * (vec_ab.length() + offset_q)
-	var pt_g := -d_gbasis.z * (vec_cd.length() + offset_s)
+	var pt_f := a_gbasis.z * _start_flip_mult * (vec_ab.length() + offset_q)
+	var pt_g := -d_gbasis.z * _end_flip_mult * (vec_cd.length() + offset_s)
 
 	var margin := 0.1745329  # roughly 10 degrees
 
